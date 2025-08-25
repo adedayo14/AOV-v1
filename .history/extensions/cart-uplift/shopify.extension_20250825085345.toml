@@ -1,0 +1,10 @@
+name = "cart-uplift"
+type = "theme"
+
+[settings]
+  [[settings.fields]]
+    key = "app_name"
+    type = "single_line_text_field"
+    name = "App Name"
+    default = "Cart Uplift"
+

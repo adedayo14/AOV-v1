@@ -54,6 +54,9 @@
       // Set up cart replacement
       this.setupCleanCartReplacement();
       
+      // Install auto-open functionality
+      this.installAddToCartAutoOpen();
+      
       // Hide theme cart drawers
       this.hideAllThemeCartDrawers();
       
@@ -440,10 +443,22 @@
       const popup = document.querySelector('#upcart-cart-popup');
       if (!popup || !this.cart) return;
       
+      // Check if drawer was open before updating content
+      const existingDrawer = popup.querySelector('.upcart-cart');
+      const wasOpen = existingDrawer && existingDrawer.classList.contains('is-open');
+      
       // Update the entire drawer content
       popup.innerHTML = this.getDrawerHTML();
       this.attachDrawerEvents();
       this.loadOrderNotes(); // ensure textarea gets prefilled after re-render
+      
+      // Restore the open state if it was open before
+      if (wasOpen) {
+        const newDrawer = popup.querySelector('.upcart-cart');
+        if (newDrawer) {
+          newDrawer.classList.add('is-open');
+        }
+      }
       
       // Update sticky cart if exists
       const count = document.querySelector('.upcart-count');
@@ -454,41 +469,71 @@
       this.ensureDrawerRendered('after updateDrawerContent');
     }
 
+    updateDrawerContentForAutoOpen() {
+      // Special version for auto-open that doesn't interfere with animation states
+      console.log('🛒 updateDrawerContentForAutoOpen() start. Cart present:', !!this.cart, 'item_count:', this.cart?.item_count);
+      
+      const popup = document.querySelector('#upcart-cart-popup');
+      if (!popup || !this.cart) return;
+      
+      // Simply update the content without preserving any animation states
+      // since this is called before opening
+      popup.innerHTML = this.getDrawerHTML();
+      this.attachDrawerEvents();
+      this.loadOrderNotes();
+      
+      // Update sticky cart if exists
+      const count = document.querySelector('.upcart-count');
+      const total = document.querySelector('.upcart-total');
+      if (count) count.textContent = this.cart.item_count;
+      if (total) total.textContent = this.formatMoney(this.cart.total_price);
+    }
+
     openDrawer() {
       console.log('🛒 openDrawer() called!');
       
       const container = document.getElementById('upcart-app-container');
-      console.log('🛒 Found container element:', !!container, container);
-      
-      if (container) {
-        console.log('🛒 Adding active class to container');
-        container.classList.add('upcart-active');
-        this.isOpen = true;
-        
-        console.log('🛒 Drawer should now be open, classes:', container.className);
-        
-        // Ensure drawer content is rendered
-        this.ensureDrawerRendered('openDrawer');
-        
-        // Refresh cart and update content
-        this.fetchCart().then(() => {
-          this.updateDrawerContent();
-        });
-        
-        // Log container state
-        const computedStyle = window.getComputedStyle(container);
-        console.log('🛒 Container display:', computedStyle.display, 'pointer-events:', computedStyle.pointerEvents);
+      if (!container) return;
+
+      container.classList.add('upcart-active');
+
+      // Ensure content exists before showing
+      const popup = container.querySelector('#upcart-cart-popup');
+      if (!popup || !popup.querySelector('.upcart-cart')) {
+        popup.innerHTML = this.getDrawerHTML();
+        this.attachDrawerEvents();
+        this.loadOrderNotes();
       }
+
+      // Trigger the slide-in now (not at creation time)
+      const drawer = container.querySelector('.upcart-cart');
+      if (drawer) drawer.classList.add('is-open');
+
+      this.isOpen = true;
     }
 
     closeDrawer() {
       console.log('🛒 closeDrawer() called!');
       
       const container = document.getElementById('upcart-app-container');
-      if (container) {
+      if (!container) return;
+
+      // Start the slide-out animation
+      const drawer = container.querySelector('.upcart-cart');
+      if (drawer) {
+        drawer.classList.remove('is-open');
+        drawer.classList.add('is-closing');
+        
+        // Remove the backdrop and container after animation completes
+        setTimeout(() => {
+          container.classList.remove('upcart-active');
+          drawer.classList.remove('is-closing');
+          this.isOpen = false;
+        }, 300); // Match the animation duration
+      } else {
+        // Fallback if no drawer found
         container.classList.remove('upcart-active');
         this.isOpen = false;
-        console.log('🛒 Drawer closed');
       }
     }
 
@@ -588,6 +633,63 @@
       if (this.cart && this.cart.attributes && this.cart.attributes['Order Notes']) {
         notesTextarea.value = this.cart.attributes['Order Notes'];
       }
+    }
+
+    installAddToCartAutoOpen() {
+      if (!this.settings.autoOpenCart || this._fetchPatched) return;
+      this._fetchPatched = true;
+
+      const origFetch = window.fetch;
+      window.fetch = async (...args) => {
+        let url = args[0];
+        try {
+          // Normalise Request object
+          if (url && typeof url === 'object' && 'url' in url) url = url.url;
+
+          const isAddToCart =
+            typeof url === 'string' &&
+            (url.includes('/cart/add') || url.includes('/cart/add.js'));
+
+          const resp = await origFetch.apply(window, args);
+
+          if (isAddToCart && resp.ok) {
+            // Give the theme a moment to finish its own updates
+            setTimeout(async () => {
+              try {
+                await this.fetchCart();
+                // Update content first, then open with proper animation
+                this.updateDrawerContentForAutoOpen();
+                this.openDrawer();
+              } catch (e) {
+                console.warn('UpCart auto-open after add failed:', e);
+              }
+            }, 50);
+          }
+
+          return resp;
+        } catch (e) {
+          return origFetch.apply(window, args);
+        }
+      };
+
+      // Also listen for common theme events
+      document.addEventListener('cart:added', () => {
+        if (!this.settings.autoOpenCart) return;
+        this.fetchCart().then(() => {
+          this.updateDrawerContentForAutoOpen();
+          this.openDrawer();
+        });
+      });
+
+      document.addEventListener('product:added', () => {
+        if (!this.settings.autoOpenCart) return;
+        this.fetchCart().then(() => {
+          this.updateDrawerContentForAutoOpen();
+          this.openDrawer();
+        });
+      });
+
+      console.log('🛒 Auto-open cart functionality installed');
     }
   }
 

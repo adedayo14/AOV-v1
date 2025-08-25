@@ -1,4 +1,4 @@
-name = "cart-drawer"
+name = "cart-uplift"
 type = "theme"
 
 [settings]
@@ -6,5 +6,5 @@ type = "theme"
     key = "app_name"
     type = "single_line_text_field"
     name = "App Name"
-    default = "UpCart Cart Drawer"
+    default = "Cart Uplift"
 
