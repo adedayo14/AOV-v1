@@ -38,17 +38,10 @@
       // Create cart drawer - it's needed for all pages when cart icon is clicked
       this.createDrawer();
       
-      // Handle sticky cart based on settings
+      // Only create sticky cart if enabled and either not restricted to cart page OR we're on cart page
       if (this.settings.enableStickyCart && (!this.settings.showOnlyOnCartPage || isCartPage)) {
         console.log('🛒 Creating sticky cart...');
         this.createStickyCart();
-      } else {
-        // Remove existing sticky cart if disabled
-        const existing = document.getElementById('upcart-sticky');
-        if (existing) {
-          existing.remove();
-          console.log('🛒 Removed existing sticky cart (disabled)');
-        }
       }
       
       // Set up cart replacement
@@ -190,6 +183,7 @@
     createDrawer() {
       // Check if container exists from app-embed.liquid
       let container = document.getElementById('upcart-app-container');
+      const cartPopup = document.getElementById('upcart-cart-popup');
       
       if (!container) {
         console.log('🛒 Creating new drawer container...');
@@ -362,9 +356,6 @@
           this.updateQuantity(variantId, 0);
         }
       });
-      
-      // Load existing order notes
-      this.loadOrderNotes();
     }
 
     ensureDrawerRendered(context = '') {
@@ -443,7 +434,6 @@
       // Update the entire drawer content
       popup.innerHTML = this.getDrawerHTML();
       this.attachDrawerEvents();
-      this.loadOrderNotes(); // ensure textarea gets prefilled after re-render
       
       // Update sticky cart if exists
       const count = document.querySelector('.upcart-count');
@@ -502,99 +492,14 @@
     }
 
     formatMoney(cents) {
-      const amount = (cents / 100).toFixed(2);
-      
-      if (window.UpCartMoneyFormat) {
-        try {
-          // Replace common Shopify money format patterns
-          return window.UpCartMoneyFormat.replace(/\{\{\s*amount\s*\}\}/g, amount);
-        } catch {
-          // Fallback if format is invalid
-        }
-      }
-      
-      return '$' + amount;
-    }
-
-    async applyDiscountCode() {
-      const discountInput = document.getElementById('upcart-discount-code');
-      const messageDiv = document.getElementById('upcart-discount-message');
-      
-      if (!discountInput || !messageDiv) return;
-      
-      const discountCode = discountInput.value.trim();
-      if (!discountCode) {
-        this.showDiscountMessage('Please enter a discount code', 'error');
-        return;
-      }
-      
-      this.showDiscountMessage('Applying discount...', 'loading');
-      
-      // Use GET redirect which is how Shopify applies discount codes
-      window.location.href = '/discount/' + encodeURIComponent(discountCode) + '?redirect=/cart';
-    }
-    
-    showDiscountMessage(message, type = 'info') {
-      const messageDiv = document.getElementById('upcart-discount-message');
-      if (!messageDiv) return;
-      
-      messageDiv.textContent = message;
-      messageDiv.className = `upcart-discount-message ${type}`;
-      
-      if (type === 'error' || type === 'success') {
-        setTimeout(() => {
-          messageDiv.textContent = '';
-          messageDiv.className = 'upcart-discount-message';
-        }, 3000);
-      }
-    }
-    
-    proceedToCheckout() {
-      // Save order notes to cart attributes before checkout
-      const notesTextarea = document.getElementById('upcart-order-notes');
-      if (notesTextarea && notesTextarea.value.trim()) {
-        const orderNotes = notesTextarea.value.trim();
-        
-        // Update cart with notes
-        fetch('/cart/update.js', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          },
-          body: JSON.stringify({
-            attributes: {
-              'Order Notes': orderNotes
-            }
-          })
-        }).then(() => {
-          window.location.href = '/checkout';
-        }).catch(error => {
-          console.error('Error saving order notes:', error);
-          window.location.href = '/checkout';
-        });
-      } else {
-        window.location.href = '/checkout';
-      }
-    }
-    
-    loadOrderNotes() {
-      if (!this.settings.enableNotes) return;
-      
-      const notesTextarea = document.getElementById('upcart-order-notes');
-      if (!notesTextarea) return;
-      
-      // Load existing order notes from cart attributes
-      if (this.cart && this.cart.attributes && this.cart.attributes['Order Notes']) {
-        notesTextarea.value = this.cart.attributes['Order Notes'];
-      }
+      return '$' + (cents / 100).toFixed(2);
     }
   }
 
-  // Expose the constructor for the embed to call
-  window.UpCartDrawer = UpCartDrawer;
-
-  // Do NOT auto-create an instance here - let the embed handle initialization
-  console.log('🛒 UpCartDrawer class exported to window');
+  // Initialize UpCart
+  console.log('🛒 Initializing UpCart...');
+  console.log('🛒 Available settings:', window.UpCartSettings);
+  window.UpCart = new UpCartDrawer();
+  console.log('🛒 UpCart instance created:', window.UpCart);
 
 })();

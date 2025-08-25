@@ -190,6 +190,7 @@
     createDrawer() {
       // Check if container exists from app-embed.liquid
       let container = document.getElementById('upcart-app-container');
+      const cartPopup = document.getElementById('upcart-cart-popup');
       
       if (!container) {
         console.log('🛒 Creating new drawer container...');
@@ -443,7 +444,6 @@
       // Update the entire drawer content
       popup.innerHTML = this.getDrawerHTML();
       this.attachDrawerEvents();
-      this.loadOrderNotes(); // ensure textarea gets prefilled after re-render
       
       // Update sticky cart if exists
       const count = document.querySelector('.upcart-count');

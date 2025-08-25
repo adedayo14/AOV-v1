@@ -2,7 +2,7 @@
 
 client_id = "06d17c445a3713f419add1e31894bcc3"
 name = "test-cart-app"
-application_url = "https://allowing-documentation-mounted-tumor.trycloudflare.com"
+application_url = "https://ports-codes-enters-vertex.trycloudflare.com"
 embedded = true
 handle = "test-cart-app-7"
 
@@ -26,7 +26,7 @@ api_version = "2025-07"
 scopes = "write_products,read_orders,write_orders,read_customers,write_themes,read_themes,write_script_tags,read_script_tags"
 
 [auth]
-redirect_urls = ["https://allowing-documentation-mounted-tumor.trycloudflare.com/auth/callback", "https://allowing-documentation-mounted-tumor.trycloudflare.com/auth/shopify/callback", "https://allowing-documentation-mounted-tumor.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://ports-codes-enters-vertex.trycloudflare.com/auth/callback", "https://ports-codes-enters-vertex.trycloudflare.com/auth/shopify/callback", "https://ports-codes-enters-vertex.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

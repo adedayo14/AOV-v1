@@ -190,6 +190,7 @@
     createDrawer() {
       // Check if container exists from app-embed.liquid
       let container = document.getElementById('upcart-app-container');
+      const cartPopup = document.getElementById('upcart-cart-popup');
       
       if (!container) {
         console.log('🛒 Creating new drawer container...');
@@ -443,7 +444,6 @@
       // Update the entire drawer content
       popup.innerHTML = this.getDrawerHTML();
       this.attachDrawerEvents();
-      this.loadOrderNotes(); // ensure textarea gets prefilled after re-render
       
       // Update sticky cart if exists
       const count = document.querySelector('.upcart-count');
@@ -502,18 +502,15 @@
     }
 
     formatMoney(cents) {
-      const amount = (cents / 100).toFixed(2);
-      
-      if (window.UpCartMoneyFormat) {
-        try {
-          // Replace common Shopify money format patterns
-          return window.UpCartMoneyFormat.replace(/\{\{\s*amount\s*\}\}/g, amount);
-        } catch {
-          // Fallback if format is invalid
-        }
+      try {
+        const fmt = window.UpCartMoneyFormat || '${{amount}}';
+        const amount = (cents / 100).toFixed(2);
+        // Replace common Shopify money format patterns
+        return fmt.replace(/\{\{\s*amount\s*\}\}/g, amount)
+                  .replace(/\$\$/, '$');
+      } catch {
+        return '$' + (cents / 100).toFixed(2);
       }
-      
-      return '$' + amount;
     }
 
     async applyDiscountCode() {
@@ -530,8 +527,25 @@
       
       this.showDiscountMessage('Applying discount...', 'loading');
       
-      // Use GET redirect which is how Shopify applies discount codes
-      window.location.href = '/discount/' + encodeURIComponent(discountCode) + '?redirect=/cart';
+      try {
+        const response = await fetch('/discount/' + encodeURIComponent(discountCode), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+        
+        if (response.ok) {
+          // Redirect to cart page with discount applied
+          window.location.href = '/cart';
+        } else {
+          this.showDiscountMessage('Invalid discount code', 'error');
+        }
+      } catch (error) {
+        console.error('Error applying discount:', error);
+        this.showDiscountMessage('Error applying discount code', 'error');
+      }
     }
     
     showDiscountMessage(message, type = 'info') {

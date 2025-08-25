@@ -155,6 +155,128 @@
     {% endif %}
   {% endunless %}
   
+  {% comment %} Initialize UpCart with settings and data {% endcomment %}
+  <script>
+    (function() {
+      // Preload cart data for faster initial load
+      window.UpCartPreloadedCart = {{ cart | json }};
+      
+      // Store money format for proper price display
+      window.UpCartMoneyFormat = {{ shop.money_format | json }};
+      
+      // Store shop information
+      window.UpCartShopInfo = {
+        domain: {{ shop.permanent_domain | json }},
+        currency: {{ shop.currency | json }},
+        moneyFormat: {{ shop.money_format | json }},
+        moneyWithCurrencyFormat: {{ shop.money_with_currency_format | json }}
+      };
+      
+      // Main UpCart settings from theme editor
+      window.UpCartSettings = {
+        // General settings
+        enableApp: true,
+        shopDomain: {{ shop.permanent_domain | json }},
+        
+        // Sticky cart settings
+        enableStickyCart: {{ block.settings.enable_sticky_cart | default: true | json }},
+        showOnlyOnCartPage: {{ block.settings.show_only_on_cart_page | default: false | json }},
+        cartPosition: {{ block.settings.cart_position | default: 'bottom-right' | json }},
+        cartIcon: {{ block.settings.cart_icon | default: 'cart' | json }},
+        
+        // Free shipping settings
+        enableFreeShipping: {{ block.settings.enable_free_shipping | default: true | json }},
+        freeShippingThreshold: {{ block.settings.free_shipping_threshold | default: 100 | json }},
+        shippingMessage: {% assign default_msg = 'You are {amount} away from free shipping!' %}{{ block.settings.shipping_message | default: default_msg | json }},
+        shippingSuccessMessage: {{ block.settings.shipping_success_message | default: '🎉 Congratulations! You have unlocked free shipping!' | json }},
+        
+        // Styling settings
+        backgroundColor: {{ block.settings.background_color | default: '#000000' | json }},
+        textColor: {{ block.settings.text_color | default: '#FFFFFF' | json }},
+        buttonColor: {{ block.settings.button_color | default: '#4CAF50' | json }},
+        
+        // Upsell settings
+        enableUpsells: {{ block.settings.enable_upsells | default: true | json }},
+        enableQuantityBreaks: {{ block.settings.enable_quantity_breaks | default: false | json }},
+        maxUpsells: {{ block.settings.max_upsells | default: 4 | json }},
+        
+        // Additional settings
+        enableNotes: {{ block.settings.enable_notes | default: false | json }},
+        enableDiscountCode: {{ block.settings.enable_discount_code | default: false | json }},
+        autoOpenCart: {{ block.settings.auto_open_cart | default: true | json }},
+        
+        // Localization
+        locale: {{ request.locale.iso_code | json }},
+        
+        // Page context
+        currentPage: {
+          template: {{ template | json }},
+          pageType: {{ request.page_type | json }},
+          isCartPage: {% if template contains 'cart' %}true{% else %}false{% endif %},
+          isProductPage: {% if template contains 'product' %}true{% else %}false{% endif %},
+          isCheckoutPage: {% if template contains 'checkout' %}true{% else %}false{% endif %}
+        }
+      };
+      
+      // Apply custom colors if set
+      if (window.UpCartSettings.backgroundColor || window.UpCartSettings.textColor) {
+        const style = document.createElement('style');
+        style.textContent = `
+          :root {
+            --upcart-bg-color: ${window.UpCartSettings.backgroundColor};
+            --upcart-text-color: ${window.UpCartSettings.textColor};
+            --upcart-button-color: ${window.UpCartSettings.buttonColor};
+          }
+          
+          .upcart-trigger {
+            background-color: var(--upcart-bg-color) !important;
+            color: var(--upcart-text-color) !important;
+          }
+          
+          .upcart-checkout {
+            background-color: var(--upcart-button-color) !important;
+          }
+          
+          .upcart-progress-fill {
+            background: var(--upcart-button-color) !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      
+      // Debug mode (only in development)
+      {% if shop.permanent_domain contains '.myshopify.com' %}
+        window.UpCartDebug = true;
+        console.log('🛒 UpCart Debug Mode Enabled');
+        console.log('🛒 Settings:', window.UpCartSettings);
+        console.log('🛒 Cart Data:', window.UpCartPreloadedCart);
+      {% endif %}
+      
+      // Initialize UpCart when DOM is ready
+      function initUpCart() {
+        if (typeof UpCartDrawer !== 'undefined') {
+          window.UpCart = new UpCartDrawer(window.UpCartSettings);
+          console.log('🛒 UpCart initialized successfully');
+          
+          // Dispatch custom event for third-party integrations
+          window.dispatchEvent(new CustomEvent('upcart:initialized', {
+            detail: { cart: window.UpCartPreloadedCart }
+          }));
+        } else {
+          console.error('🛒 UpCart script not loaded');
+        }
+      }
+      
+      // Wait for DOM and script to be ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initUpCart);
+      } else {
+        // DOM already loaded, wait a bit for script
+        setTimeout(initUpCart, 100);
+      }
+    })();
+  </script>
+  
   {% comment %} Analytics tracking (optional) {% endcomment %}
   {% if block.settings.enable_analytics %}
     <script>

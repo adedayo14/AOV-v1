@@ -190,6 +190,7 @@
     createDrawer() {
       // Check if container exists from app-embed.liquid
       let container = document.getElementById('upcart-app-container');
+      const cartPopup = document.getElementById('upcart-cart-popup');
       
       if (!container) {
         console.log('🛒 Creating new drawer container...');
