@@ -60,8 +60,8 @@
       // Set up cart replacement
       this.setupCleanCartReplacement();
       
-      // Install cart monitoring functionality
-      this.installAddToCartMonitoring();
+      // Install auto-open functionality
+      this.installAddToCartAutoOpen();
       
       // Check if we should reopen cart after discount application
       this.checkDiscountRedirect();
@@ -340,8 +340,8 @@
       
       return `
         <div class="upcart-items-list">
-          ${this.cart.items.map((item, index) => `
-            <div class="upcart-item" data-variant-id="${item.variant_id}" data-line="${index + 1}">
+          ${this.cart.items.map(item => `
+            <div class="upcart-item" data-variant-id="${item.variant_id}">
               <div class="upcart-item-image">
                 <img src="${item.image}" alt="${item.product_title}" loading="lazy">
               </div>
@@ -350,8 +350,8 @@
                 ${item.variant_title ? `<div class="upcart-item-variant">${item.variant_title}</div>` : ''}
                 <div class="upcart-item-price">${this.formatMoney(item.final_price)}</div>
                 <div class="upcart-item-quantity">
-                  <input type="number" class="upcart-quantity-input" value="${item.quantity}" min="0" data-line="${index + 1}" data-variant-id="${item.variant_id}">
-                  <button class="upcart-remove-btn" data-line="${index + 1}" data-variant-id="${item.variant_id}">Remove</button>
+                  <input type="number" class="upcart-quantity-input" value="${item.quantity}" min="0" data-variant-id="${item.variant_id}">
+                  <button class="upcart-remove-btn" data-variant-id="${item.variant_id}">Remove</button>
                 </div>
               </div>
             </div>
@@ -372,12 +372,13 @@
         this._unbindFns.push(() => closeBtn.removeEventListener('click', closeHandler));
       }
       
-      // Backdrop - restore page interaction when clicked
+      // Backdrop - add immediate cleanup when clicked
       const backdrop = container.querySelector('#cartuplift-backdrop');
       if (backdrop) {
         const backdropHandler = (e) => {
           e.stopPropagation();
-          this.closeDrawer(); // This will call restorePageInteraction
+          this.forceCleanThemeArtifacts(); // Immediate cleanup
+          this.closeDrawer();
         };
         backdrop.addEventListener('click', backdropHandler);
         this._unbindFns.push(() => backdrop.removeEventListener('click', backdropHandler));
@@ -411,10 +412,9 @@
       // Quantity controls
       const changeHandler = (e) => {
         if (e.target.classList.contains('upcart-quantity-input')) {
-          const line = e.target.dataset.line;
+          const variantId = e.target.dataset.variantId;
           const quantity = Math.max(0, parseInt(e.target.value) || 0);
-          console.log('🛒 Quantity change detected:', { line, quantity });
-          this.updateQuantity(line, quantity);
+          this.updateQuantity(variantId, quantity);
         }
       };
       container.addEventListener('change', changeHandler);
@@ -422,9 +422,8 @@
       
       const clickHandler = (e) => {
         if (e.target.classList.contains('upcart-remove-btn')) {
-          const line = e.target.dataset.line;
-          console.log('🛒 Remove button clicked:', { line });
-          this.updateQuantity(line, 0);
+          const variantId = e.target.dataset.variantId;
+          this.updateQuantity(variantId, 0);
         }
       };
       container.addEventListener('click', clickHandler);
@@ -484,58 +483,20 @@
       }
     }
 
-    async updateQuantity(line, quantity) {
-      if (this._quantityBusy) return; // prevent multiple rapid updates
-      this._quantityBusy = true;
-      
+    async updateQuantity(variantId, quantity) {
       try {
-        console.log('🛒 Updating quantity:', { line, quantity });
-        
-        // Show loading state
-        const lineItem = document.querySelector(`[data-line="${line}"]`);
-        if (lineItem) {
-          lineItem.classList.add('loading');
-          // Optional: show spinner or loading text
-        }
-
-        const formData = new FormData();
-        formData.append('line', line);
-        formData.append('quantity', quantity);
-
         const response = await fetch('/cart/change.js', {
           method: 'POST',
-          body: formData,
-          headers: {
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          }
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: variantId, quantity })
         });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        
+        if (response.ok) {
+          await this.fetchCart();
+          this.updateDrawerContent();
         }
-
-        const cartData = await response.json();
-        
-        // Update cart data and refresh content
-        this.cart = cartData;
-        this.updateDrawerContent();
-        
-        // Remove loading state
-        if (lineItem) {
-          lineItem.classList.remove('loading');
-        }
-        
-        console.log('🛒 Quantity updated successfully');
       } catch (error) {
         console.error('🛒 Error updating quantity:', error);
-        // Remove loading state on error
-        const lineItem = document.querySelector(`[data-line="${line}"]`);
-        if (lineItem) {
-          lineItem.classList.remove('loading');
-        }
-      } finally {
-        this._quantityBusy = false; // release lock
       }
     }
 
@@ -636,24 +597,10 @@
         drawer.classList.add('is-open');
       }
 
-      // Start continuous monitoring for theme interference
-      this.startBlurMonitoring();
-
       // Clean any theme artifacts that might interfere with our drawer
       setTimeout(() => {
         this.forceCleanThemeArtifacts();
       }, 0); // Immediate cleanup to prevent blur flash
-
-      // ENHANCED: More aggressive cleanup for auto-open scenarios
-      setTimeout(() => {
-        this.forceCleanThemeArtifacts();
-        console.log('🛒 100ms cleanup after open');
-      }, 100);
-      
-      setTimeout(() => {
-        this.forceCleanThemeArtifacts();
-        console.log('🛒 300ms cleanup after open');
-      }, 300);
 
       // Release animation lock immediately after classes are set
       const finish = () => { 
@@ -675,6 +622,9 @@
         return;
       }
 
+      // IMMEDIATE cleanup to prevent any blur artifacts
+      this.forceCleanThemeArtifacts();
+
       const drawer = container.querySelector('.upcart-cart');
       const backdrop = container.querySelector('#cartuplift-backdrop');
 
@@ -687,9 +637,15 @@
         backdrop.classList.add('is-closing');
       }
 
-      // When animations end, fully reset state and restore page interaction
+      // Aggressive periodic cleanup during close animation
+      const cleanupInterval = setInterval(() => {
+        this.forceCleanThemeArtifacts();
+      }, 50); // Clean every 50ms during close
+
+      // When animations end, fully reset state. Use animationend so timing stays in sync.
       const finishClose = () => {
-        console.log('🛒 Finishing close - restoring page interaction');
+        console.log('🛒 Finishing close - cleaning all theme artifacts');
+        clearInterval(cleanupInterval); // Stop the periodic cleanup
         
         container.classList.remove('cartuplift-active');
         container.style.display = 'none';
@@ -704,15 +660,12 @@
         if (drawer) drawer.classList.remove('is-closing');
         if (backdrop) backdrop.classList.remove('is-closing');
 
-        // CRITICAL: Remove the page blur/loading protection when cart closes
-        this.restorePageInteraction();
-
-        // Stop blur monitoring
-        this.stopBlurMonitoring();
+        // Final aggressive cleanup
+        this.forceCleanThemeArtifacts();
 
         this.isOpen = false;
         this._isAnimating = false; // release lock
-        console.log('🛒 Close cleanup complete - page interaction restored');
+        console.log('🛒 Close cleanup complete');
       };
 
       const onEnd = (e) => {
@@ -746,17 +699,7 @@
         'scroll-lock',
         'popup-open',
         'sidebar-open',
-        'menu-open',
-        'drawer-is-open',
-        'has-drawer-open',
-        'overlay-active',
-        'fixed',
-        'locked',
-        'noscroll',
-        'no-scroll-y',
-        'scroll-disabled',
-        'modal-active',
-        'dialog-open'
+        'menu-open'
       ];
       
       leftoverClasses.forEach(cls => {
@@ -764,39 +707,12 @@
         document.body.classList.remove(cls);
       });
 
-      // Enhanced inline style cleanup
-      const elementsToClean = [document.body, document.documentElement];
-      elementsToClean.forEach(el => {
-        if (el) {
-          // Reset positioning and overflow
-          el.style.position = '';
-          el.style.top = '';
-          el.style.left = '';
-          el.style.overflow = '';
-          el.style.overflowY = '';
-          el.style.overflowX = '';
-          el.style.height = '';
-          el.style.width = '';
-          el.style.maxHeight = '';
-          el.style.paddingRight = '';
-          el.style.marginRight = '';
-          
-          // Clear any filter/blur effects
-          el.style.filter = '';
-          el.style.webkitFilter = '';
-          el.style.backdropFilter = '';
-          el.style.webkitBackdropFilter = '';
-          
-          // Reset interaction and visibility
-          el.style.pointerEvents = '';
-          el.style.userSelect = '';
-          el.style.touchAction = '';
-          el.style.transform = '';
-          el.style.opacity = '';
-        }
-      });
+      // Also clear inline overflow styles some themes set
+      if (document.body.style.position === 'fixed') document.body.style.position = '';
+      if (document.body.style.top) document.body.style.top = '';
+      if (document.documentElement.style.position === 'fixed') document.documentElement.style.position = '';
       
-      // Force clear any potential filter/blur styles on ALL content containers
+      // Force clear any potential filter/blur styles on common content containers
       const contentSelectors = [
         'main',
         '#MainContent', 
@@ -806,11 +722,7 @@
         '#main',
         '.main',
         'body > *:not(#cartuplift-app-container)',
-        '.shopify-section',
-        '.page-wrapper',
-        '.site-wrapper',
-        '.container',
-        '.content-wrapper'
+        '.shopify-section'
       ];
       
       contentSelectors.forEach(selector => {
@@ -824,68 +736,24 @@
             element.style.opacity = '';
             element.style.transform = '';
             element.style.pointerEvents = '';
-            element.style.userSelect = '';
-            element.style.touchAction = '';
-            
-            // Remove any blur classes
-            const blurClasses = ['blur', 'blurred', 'dimmed', 'overlay-on'];
-            blurClasses.forEach(cls => element.classList.remove(cls));
           }
         });
       });
       
-      // Clear data attributes that themes might use to track state
-      const dataAttrsToRemove = [
-        'data-drawer-open',
-        'data-cart-open',
-        'data-modal-open',
-        'data-overlay-open',
-        'data-popup-open',
-        'data-scroll-lock'
-      ];
+      // Also clear any data attributes that themes might use to track state
+      document.documentElement.removeAttribute('data-drawer-open');
+      document.documentElement.removeAttribute('data-cart-open');
+      document.body.removeAttribute('data-drawer-open');
+      document.body.removeAttribute('data-cart-open');
       
-      dataAttrsToRemove.forEach(attr => {
-        document.documentElement.removeAttribute(attr);
-        document.body.removeAttribute(attr);
+      // Also clear any 'inert' or aria-hidden flags added by themes
+      document.querySelectorAll('[inert]').forEach(el => el.removeAttribute('inert'));
+      document.querySelectorAll('main[aria-hidden="true"], #MainContent[aria-hidden="true"], .site-content[aria-hidden="true"]').forEach(el => {
+        el.removeAttribute('aria-hidden');
+        el.style.pointerEvents = ''; // in case the theme disabled interaction
       });
       
-      // Enhanced inert and aria-hidden cleanup
-      document.querySelectorAll('[inert]').forEach(el => {
-        if (!el.closest('#cartuplift-app-container')) {
-          el.removeAttribute('inert');
-        }
-      });
-      
-      document.querySelectorAll('[aria-hidden="true"]').forEach(el => {
-        if (!el.closest('#cartuplift-app-container')) {
-          el.removeAttribute('aria-hidden');
-          el.style.pointerEvents = '';
-          el.style.userSelect = '';
-          el.style.touchAction = '';
-        }
-      });
-
-      // Remove any theme overlay/backdrop elements
-      const overlaySelectors = [
-        '.drawer-overlay', '.modal-overlay', '.backdrop', '.overlay',
-        '.cart-drawer-overlay', '.js-overlay', '.menu-overlay',
-        '.site-overlay', '.page-overlay', '.theme-overlay',
-        '[data-overlay]', '[data-backdrop]'
-      ];
-      
-      overlaySelectors.forEach(selector => {
-        document.querySelectorAll(selector).forEach(el => {
-          if (!el.closest('#cartuplift-app-container')) {
-            el.style.display = 'none';
-            el.style.opacity = '0';
-            el.style.visibility = 'hidden';
-            el.style.pointerEvents = 'none';
-            el.style.zIndex = '-1';
-          }
-        });
-      });
-
-      console.log('🛒 Enhanced theme artifact cleanup complete');
+      console.log('🛒 Theme artifacts cleaned');
     }
 
     getCartIcon() {
@@ -995,8 +863,8 @@
       }
     }
 
-    installAddToCartMonitoring() {
-      if (this._fetchPatched) return; // Prevent duplicate patching
+    installAddToCartAutoOpen() {
+      if (!this.settings.autoOpenCart || this._fetchPatched) return;
       this._fetchPatched = true;
 
       const origFetch = window.fetch;
@@ -1012,35 +880,16 @@
 
           const resp = await origFetch.apply(window, args);
 
-          if (isAddToCart && resp.ok && !this._isAnimating) { // prevent during animations
-            console.log('🛒 Add to cart detected, removing theme loading blur...');
-            
-            // IMMEDIATELY remove any theme loading blur/overlay
-            this.removeThemeLoadingEffects();
-            
-            // Always update cart data in background
+          if (isAddToCart && resp.ok) {
+            // Give the theme a moment to finish its own updates
             setTimeout(async () => {
               try {
                 await this.fetchCart();
+                // Update content first, then open with proper animation
                 this.updateDrawerContentForAutoOpen();
-                
-                // Update sticky cart count if it exists
-                const count = document.querySelector('.upcart-count');
-                const total = document.querySelector('.upcart-total');
-                if (count) count.textContent = this.cart.item_count;
-                if (total) total.textContent = this.formatMoney(this.cart.total_price);
-                
-                console.log('🛒 Cart updated in background, item count:', this.cart.item_count);
-                
-                // Only auto-open if setting is enabled and drawer is not already open
-                if (this.settings.autoOpenCart && !this.isOpen && !this._isAnimating) {
-                  console.log('🛒 Auto-opening drawer...');
-                  this.openDrawer();
-                } else {
-                  console.log('🛒 Auto-open disabled or drawer already open, cart updated silently');
-                }
+                this.openDrawer();
               } catch (e) {
-                console.warn('UpCart cart update after add failed:', e);
+                console.warn('UpCart auto-open after add failed:', e);
               }
             }, 50);
           }
@@ -1053,421 +902,25 @@
 
       // Also listen for common theme events
       document.addEventListener('cart:added', () => {
-        console.log('🛒 Theme cart:added event detected');
-        this.removeThemeLoadingEffects();
-        
-        if (!this.settings.autoOpenCart || this._isAnimating) return;
-        
+        if (!this.settings.autoOpenCart) return;
         this.fetchCart().then(() => {
-          if (!this.isOpen && !this._isAnimating) { // double-check state
-            this.updateDrawerContentForAutoOpen();
-            this.openDrawer();
-          }
+          this.updateDrawerContentForAutoOpen();
+          this.openDrawer();
         });
       });
 
       document.addEventListener('product:added', () => {
-        console.log('🛒 Theme product:added event detected');
-        this.removeThemeLoadingEffects();
-        
-        if (!this.settings.autoOpenCart || this._isAnimating) return;
-        
+        if (!this.settings.autoOpenCart) return;
         this.fetchCart().then(() => {
-          if (!this.isOpen && !this._isAnimating) { // double-check state
-            this.updateDrawerContentForAutoOpen();
-            this.openDrawer();
-          }
-        });
-      });
-      
-      console.log('🛒 Cart monitoring functionality installed (updates cart data on add-to-cart, auto-open based on settings)');
-    }
-
-    removeThemeLoadingEffects() {
-      console.log('🛒 Removing theme loading effects...');
-      
-      // Remove common loading/blur classes from body and html
-      const loadingClasses = [
-        'loading',
-        'adding-to-cart',
-        'cart-loading',
-        'product-loading',
-        'form-loading',
-        'overlay-loading',
-        'blur-loading',
-        'processing',
-        'adding',
-        'cart-busy'
-      ];
-      
-      loadingClasses.forEach(cls => {
-        document.documentElement.classList.remove(cls);
-        document.body.classList.remove(cls);
-      });
-
-      // Remove loading attributes
-      const loadingAttrs = [
-        'data-loading',
-        'data-cart-loading',
-        'data-adding-to-cart',
-        'data-processing'
-      ];
-      
-      loadingAttrs.forEach(attr => {
-        document.documentElement.removeAttribute(attr);
-        document.body.removeAttribute(attr);
-      });
-
-      // Clear any loading-related inline styles that cause blur
-      const elementsToCheck = document.querySelectorAll('main, #MainContent, .shopify-section, .page-wrapper, .site-wrapper, .container');
-      elementsToCheck.forEach(el => {
-        // Remove filter/blur effects that might be loading states
-        const computedStyle = window.getComputedStyle(el);
-        if (computedStyle.filter && computedStyle.filter.includes('blur')) {
-          console.log('🛒 Removing loading blur from:', el.tagName, el.className);
-          el.style.filter = '';
-          el.style.webkitFilter = '';
-        }
-        if (computedStyle.backdropFilter && computedStyle.backdropFilter.includes('blur')) {
-          console.log('🛒 Removing loading backdrop blur from:', el.tagName, el.className);
-          el.style.backdropFilter = '';
-          el.style.webkitBackdropFilter = '';
-        }
-        
-        // Remove loading classes from individual elements
-        loadingClasses.forEach(cls => el.classList.remove(cls));
-      });
-
-      // Remove any loading overlays
-      const loadingOverlays = document.querySelectorAll('.loading-overlay, .cart-loading-overlay, .add-to-cart-overlay, [data-loading-overlay]');
-      loadingOverlays.forEach(overlay => {
-        overlay.style.display = 'none';
-        overlay.style.opacity = '0';
-        overlay.style.visibility = 'hidden';
-        overlay.style.pointerEvents = 'none';
-      });
-
-      console.log('🛒 Theme loading effects removed');
-    }
-
-    restorePageInteraction() {
-      console.log('🛒 Restoring page interaction - removing all blur/loading protection...');
-      
-      // STEP 1: Debug what blur effects are currently active
-      this.debugCurrentBlurEffects();
-      
-      // Remove ALL possible loading/blur/overlay classes that prevent interaction
-      const interactionBlockingClasses = [
-        // Loading states
-        'loading', 'adding-to-cart', 'cart-loading', 'product-loading', 'form-loading',
-        'overlay-loading', 'blur-loading', 'processing', 'adding', 'cart-busy',
-        // Overlay/modal states
-        'overlay-active', 'modal-open', 'popup-open', 'drawer-open', 'cart-open',
-        'sidebar-open', 'menu-open', 'navigation-open', 'dialog-open',
-        // Scroll/interaction locks
-        'scroll-lock', 'no-scroll', 'noscroll', 'overflow-hidden', 'fixed',
-        'locked', 'scroll-disabled', 'no-scroll-y', 'modal-active',
-        // Theme specific
-        'js-drawer-open', 'drawer-opened', 'cart-drawer-open', 'drawer-is-open',
-        'has-drawer-open', 'overlay-on', 'blur', 'blurred', 'dimmed'
-      ];
-      
-      // Remove from html and body
-      interactionBlockingClasses.forEach(cls => {
-        document.documentElement.classList.remove(cls);
-        document.body.classList.remove(cls);
-      });
-
-      // Reset ALL inline styles that could block interaction
-      const elementsToReset = [document.documentElement, document.body];
-      elementsToReset.forEach(el => {
-        if (el) {
-          // Clear positioning and overflow
-          el.style.position = '';
-          el.style.top = '';
-          el.style.left = '';
-          el.style.overflow = '';
-          el.style.overflowY = '';
-          el.style.overflowX = '';
-          el.style.height = '';
-          el.style.width = '';
-          el.style.maxHeight = '';
-          el.style.paddingRight = '';
-          el.style.marginRight = '';
-          
-          // Clear ALL visual effects
-          el.style.filter = '';
-          el.style.webkitFilter = '';
-          el.style.backdropFilter = '';
-          el.style.webkitBackdropFilter = '';
-          el.style.opacity = '';
-          el.style.transform = '';
-          
-          // Restore interaction
-          el.style.pointerEvents = '';
-          el.style.userSelect = '';
-          el.style.touchAction = '';
-        }
-      });
-
-      // STEP 2: Aggressively scan ALL elements for blur effects
-      this.removeAllBlurEffects();
-
-      // Remove ALL data attributes that could indicate loading states
-      const blockingDataAttrs = [
-        'data-loading', 'data-cart-loading', 'data-adding-to-cart', 'data-processing',
-        'data-drawer-open', 'data-cart-open', 'data-modal-open', 'data-overlay-open',
-        'data-popup-open', 'data-scroll-lock', 'data-blur', 'data-overlay'
-      ];
-      
-      blockingDataAttrs.forEach(attr => {
-        document.documentElement.removeAttribute(attr);
-        document.body.removeAttribute(attr);
-      });
-
-      // Remove inert and aria-hidden that block interaction
-      document.querySelectorAll('[inert]:not(#cartuplift-app-container *)').forEach(el => {
-        el.removeAttribute('inert');
-      });
-      
-      document.querySelectorAll('[aria-hidden="true"]:not(#cartuplift-app-container *)').forEach(el => {
-        el.removeAttribute('aria-hidden');
-        el.style.pointerEvents = '';
-        el.style.userSelect = '';
-        el.style.touchAction = '';
-      });
-
-      // Hide/remove ALL overlay elements that could be blocking interaction
-      const allOverlaySelectors = [
-        '.loading-overlay', '.cart-loading-overlay', '.add-to-cart-overlay',
-        '.drawer-overlay', '.modal-overlay', '.backdrop', '.overlay',
-        '.cart-drawer-overlay', '.js-overlay', '.menu-overlay',
-        '.site-overlay', '.page-overlay', '.theme-overlay', '.popup-overlay',
-        '[data-overlay]', '[data-backdrop]', '[data-loading-overlay]',
-        '.blur-overlay', '.dim-overlay', '.interaction-overlay'
-      ];
-      
-      allOverlaySelectors.forEach(selector => {
-        document.querySelectorAll(selector).forEach(el => {
-          if (!el.closest('#cartuplift-app-container')) {
-            el.style.display = 'none';
-            el.style.opacity = '0';
-            el.style.visibility = 'hidden';
-            el.style.pointerEvents = 'none';
-            el.style.zIndex = '-1';
-            el.style.transform = 'translateX(-100%)'; // Move out of view
-          }
+          this.updateDrawerContentForAutoOpen();
+          this.openDrawer();
         });
       });
 
-      // STEP 3: Force multiple reflows to ensure changes take effect
-      this.forceMultipleReflows();
-
-      // STEP 4: Final debug check
-      setTimeout(() => {
-        this.debugCurrentBlurEffects();
-      }, 100);
-
-      console.log('🛒 Page interaction fully restored - blur/loading protection removed');
-    }
-
-    debugCurrentBlurEffects() {
-      console.log('🛒 === BLUR DEBUG START ===');
-      
-      // Check all elements for blur effects
-      const allElements = document.querySelectorAll('*');
-      let blurFound = false;
-      
-      allElements.forEach(el => {
-        if (el.id === 'cartuplift-app-container' || el.closest('#cartuplift-app-container')) return;
-        
-        const style = window.getComputedStyle(el);
-        const hasBlur = (style.filter && style.filter.includes('blur')) || 
-                       (style.backdropFilter && style.backdropFilter.includes('blur'));
-        
-        if (hasBlur) {
-          console.log('🛒 BLUR FOUND on:', {
-            element: el.tagName,
-            id: el.id,
-            classes: el.className,
-            filter: style.filter,
-            backdropFilter: style.backdropFilter,
-            zIndex: style.zIndex,
-            position: style.position
-          });
-          blurFound = true;
-        }
-      });
-      
-      // Check body and html specifically
-      const bodyStyle = window.getComputedStyle(document.body);
-      const htmlStyle = window.getComputedStyle(document.documentElement);
-      
-      console.log('🛒 BODY styles:', {
-        filter: bodyStyle.filter,
-        backdropFilter: bodyStyle.backdropFilter,
-        opacity: bodyStyle.opacity,
-        transform: bodyStyle.transform,
-        pointerEvents: bodyStyle.pointerEvents,
-        classes: document.body.className
-      });
-      
-      console.log('🛒 HTML styles:', {
-        filter: htmlStyle.filter,
-        backdropFilter: htmlStyle.backdropFilter,
-        opacity: htmlStyle.opacity,
-        transform: htmlStyle.transform,
-        pointerEvents: htmlStyle.pointerEvents,
-        classes: document.documentElement.className
-      });
-      
-      if (!blurFound) {
-        console.log('🛒 No blur effects detected');
-      }
-      
-      console.log('🛒 === BLUR DEBUG END ===');
-    }
-
-    removeAllBlurEffects() {
-      console.log('🛒 Scanning ALL elements for blur effects...');
-      
-      // Get ALL elements in the document
-      const allElements = document.querySelectorAll('*');
-      let removedCount = 0;
-      
-      allElements.forEach(el => {
-        // Skip our own container
-        if (el.id === 'cartuplift-app-container' || el.closest('#cartuplift-app-container')) return;
-        
-        const style = window.getComputedStyle(el);
-        
-        // Check for any blur effects
-        if (style.filter && style.filter.includes('blur')) {
-          console.log('🛒 Removing filter blur from:', el.tagName, el.className, style.filter);
-          el.style.filter = 'none';
-          el.style.webkitFilter = 'none';
-          removedCount++;
-        }
-        
-        if (style.backdropFilter && style.backdropFilter.includes('blur')) {
-          console.log('🛒 Removing backdrop blur from:', el.tagName, el.className, style.backdropFilter);
-          el.style.backdropFilter = 'none';
-          el.style.webkitBackdropFilter = 'none';
-          removedCount++;
-        }
-        
-        // Also check for opacity/transform that might be hiding content
-        if (style.opacity && parseFloat(style.opacity) < 1 && parseFloat(style.opacity) > 0) {
-          // Don't touch completely hidden elements (opacity: 0) but restore partial opacity
-          console.log('🛒 Restoring opacity from:', style.opacity, 'on:', el.tagName, el.className);
-          el.style.opacity = '';
-          removedCount++;
-        }
-        
-        // Remove transform effects that might be moving content
-        if (style.transform && style.transform !== 'none') {
-          console.log('🛒 Removing transform from:', el.tagName, el.className, style.transform);
-          el.style.transform = '';
-          removedCount++;
-        }
-        
-        // Restore pointer events
-        if (style.pointerEvents === 'none' && !el.hasAttribute('disabled')) {
-          console.log('🛒 Restoring pointer events on:', el.tagName, el.className);
-          el.style.pointerEvents = '';
-          removedCount++;
-        }
-      });
-      
-      console.log(`🛒 Removed ${removedCount} blur/blocking effects from elements`);
-    }
-
-    forceMultipleReflows() {
-      console.log('🛒 Forcing multiple reflows to clear blur...');
-      
-      // Method 1: Hide and show body
-      document.body.style.display = 'none';
-      void document.body.offsetHeight;
-      document.body.style.display = '';
-      
-      // Method 2: Change and restore transform
-      document.body.style.transform = 'translateZ(0)';
-      void document.body.offsetHeight;
-      document.body.style.transform = '';
-      
-      // Method 3: Force repaint with opacity
-      document.body.style.opacity = '0.999';
-      void document.body.offsetHeight;
-      document.body.style.opacity = '';
-      
-      // Method 4: Trigger layout with width
-      const originalWidth = document.body.style.width;
-      document.body.style.width = '99.99%';
-      void document.body.offsetHeight;
-      document.body.style.width = originalWidth;
-      
-      console.log('🛒 Multiple reflows completed');
-    }
-
-    startBlurMonitoring() {
-      if (this._blurMonitor) return; // already monitoring
-      
-      console.log('🛒 Starting blur monitoring...');
-      
-      // Monitor for blur effects being applied while drawer is open
-      // Reduced frequency to improve performance
-      this._blurMonitor = setInterval(() => {
-        if (this.isOpen) {
-          this.detectAndRemoveBlur();
-        }
-      }, 250); // Check every 250ms instead of 100ms for better performance
-    }
-
-    stopBlurMonitoring() {
-      if (this._blurMonitor) {
-        clearInterval(this._blurMonitor);
-        this._blurMonitor = null;
-        console.log('🛒 Stopped blur monitoring');
-      }
-    }
-
-    detectAndRemoveBlur() {
-      // More efficient detection - only check common elements that might have blur
-      const elementsToCheck = document.querySelectorAll('main, #MainContent, .shopify-section, .page-wrapper, body > *:not(#cartuplift-app-container)');
-      let blurDetected = false;
-      
-      elementsToCheck.forEach(el => {
-        if (el.id === 'cartuplift-app-container') return; // skip our container
-        
-        const computedStyle = window.getComputedStyle(el);
-        const hasFilter = computedStyle.filter && computedStyle.filter !== 'none';
-        const hasBackdropFilter = computedStyle.backdropFilter && computedStyle.backdropFilter !== 'none';
-        
-        if (hasFilter || hasBackdropFilter) {
-          console.log('🛒 Blur detected on element, removing:', el.tagName, el.className, { 
-            filter: computedStyle.filter, 
-            backdropFilter: computedStyle.backdropFilter 
-          });
-          
-          el.style.filter = 'none';
-          el.style.webkitFilter = 'none';
-          el.style.backdropFilter = 'none';
-          el.style.webkitBackdropFilter = 'none';
-          blurDetected = true;
-        }
-      });
-      
-      if (blurDetected) {
-        console.log('🛒 Blur detected, running full cleanup');
-        // Also run our full cleanup
-        this.forceCleanThemeArtifacts();
-      }
+      console.log('🛒 Auto-open cart functionality installed');
     }
 
     destroy() {
-      // Stop blur monitoring
-      this.stopBlurMonitoring();
-      
       // Remove global flags
       document.documentElement.classList.remove('cartuplift-drawer-open');
       document.body.classList.remove('cartuplift-drawer-open');

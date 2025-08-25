@@ -74,29 +74,6 @@ body:not(.cartuplift-drawer-open) .site-content {
   touch-action: auto !important;
 }
 
-/* ULTRA AGGRESSIVE: Prevent any blur when cart is open */
-html.cartuplift-drawer-open *:not(#cartuplift-app-container):not(#cartuplift-app-container *) {
-  -webkit-filter: none !important;
-  filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-  opacity: 1 !important;
-}
-
-/* Specifically target common theme blur classes when cart is open */
-html.cartuplift-drawer-open .blur,
-html.cartuplift-drawer-open .blurred,
-html.cartuplift-drawer-open .dimmed,
-html.cartuplift-drawer-open .overlay-on,
-html.cartuplift-drawer-open [style*="filter"],
-html.cartuplift-drawer-open [style*="backdrop-filter"] {
-  -webkit-filter: none !important;
-  filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-  opacity: 1 !important;
-}
-
 #cartuplift-backdrop {
   position: fixed; /* Change from absolute to fixed */
   top: 0;

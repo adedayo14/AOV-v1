@@ -372,12 +372,13 @@
         this._unbindFns.push(() => closeBtn.removeEventListener('click', closeHandler));
       }
       
-      // Backdrop - restore page interaction when clicked
+      // Backdrop - add immediate cleanup when clicked
       const backdrop = container.querySelector('#cartuplift-backdrop');
       if (backdrop) {
         const backdropHandler = (e) => {
           e.stopPropagation();
-          this.closeDrawer(); // This will call restorePageInteraction
+          this.forceCleanThemeArtifacts(); // Immediate cleanup
+          this.closeDrawer();
         };
         backdrop.addEventListener('click', backdropHandler);
         this._unbindFns.push(() => backdrop.removeEventListener('click', backdropHandler));
@@ -675,6 +676,9 @@
         return;
       }
 
+      // IMMEDIATE cleanup to prevent any blur artifacts
+      this.forceCleanThemeArtifacts();
+
       const drawer = container.querySelector('.upcart-cart');
       const backdrop = container.querySelector('#cartuplift-backdrop');
 
@@ -687,9 +691,15 @@
         backdrop.classList.add('is-closing');
       }
 
-      // When animations end, fully reset state and restore page interaction
+      // Aggressive periodic cleanup during close animation
+      const cleanupInterval = setInterval(() => {
+        this.forceCleanThemeArtifacts();
+      }, 50); // Clean every 50ms during close
+
+      // When animations end, fully reset state. Use animationend so timing stays in sync.
       const finishClose = () => {
-        console.log('🛒 Finishing close - restoring page interaction');
+        console.log('🛒 Finishing close - cleaning all theme artifacts');
+        clearInterval(cleanupInterval); // Stop the periodic cleanup
         
         container.classList.remove('cartuplift-active');
         container.style.display = 'none';
@@ -704,15 +714,18 @@
         if (drawer) drawer.classList.remove('is-closing');
         if (backdrop) backdrop.classList.remove('is-closing');
 
-        // CRITICAL: Remove the page blur/loading protection when cart closes
-        this.restorePageInteraction();
+        // ENHANCED cleanup - run multiple times to ensure it sticks
+        this.forceCleanThemeArtifacts();
+        setTimeout(() => this.forceCleanThemeArtifacts(), 50);
+        setTimeout(() => this.forceCleanThemeArtifacts(), 150);
+        setTimeout(() => this.forceCleanThemeArtifacts(), 300);
 
         // Stop blur monitoring
         this.stopBlurMonitoring();
 
         this.isOpen = false;
         this._isAnimating = false; // release lock
-        console.log('🛒 Close cleanup complete - page interaction restored');
+        console.log('🛒 Close cleanup complete');
       };
 
       const onEnd = (e) => {
@@ -1148,265 +1161,6 @@
       });
 
       console.log('🛒 Theme loading effects removed');
-    }
-
-    restorePageInteraction() {
-      console.log('🛒 Restoring page interaction - removing all blur/loading protection...');
-      
-      // STEP 1: Debug what blur effects are currently active
-      this.debugCurrentBlurEffects();
-      
-      // Remove ALL possible loading/blur/overlay classes that prevent interaction
-      const interactionBlockingClasses = [
-        // Loading states
-        'loading', 'adding-to-cart', 'cart-loading', 'product-loading', 'form-loading',
-        'overlay-loading', 'blur-loading', 'processing', 'adding', 'cart-busy',
-        // Overlay/modal states
-        'overlay-active', 'modal-open', 'popup-open', 'drawer-open', 'cart-open',
-        'sidebar-open', 'menu-open', 'navigation-open', 'dialog-open',
-        // Scroll/interaction locks
-        'scroll-lock', 'no-scroll', 'noscroll', 'overflow-hidden', 'fixed',
-        'locked', 'scroll-disabled', 'no-scroll-y', 'modal-active',
-        // Theme specific
-        'js-drawer-open', 'drawer-opened', 'cart-drawer-open', 'drawer-is-open',
-        'has-drawer-open', 'overlay-on', 'blur', 'blurred', 'dimmed'
-      ];
-      
-      // Remove from html and body
-      interactionBlockingClasses.forEach(cls => {
-        document.documentElement.classList.remove(cls);
-        document.body.classList.remove(cls);
-      });
-
-      // Reset ALL inline styles that could block interaction
-      const elementsToReset = [document.documentElement, document.body];
-      elementsToReset.forEach(el => {
-        if (el) {
-          // Clear positioning and overflow
-          el.style.position = '';
-          el.style.top = '';
-          el.style.left = '';
-          el.style.overflow = '';
-          el.style.overflowY = '';
-          el.style.overflowX = '';
-          el.style.height = '';
-          el.style.width = '';
-          el.style.maxHeight = '';
-          el.style.paddingRight = '';
-          el.style.marginRight = '';
-          
-          // Clear ALL visual effects
-          el.style.filter = '';
-          el.style.webkitFilter = '';
-          el.style.backdropFilter = '';
-          el.style.webkitBackdropFilter = '';
-          el.style.opacity = '';
-          el.style.transform = '';
-          
-          // Restore interaction
-          el.style.pointerEvents = '';
-          el.style.userSelect = '';
-          el.style.touchAction = '';
-        }
-      });
-
-      // STEP 2: Aggressively scan ALL elements for blur effects
-      this.removeAllBlurEffects();
-
-      // Remove ALL data attributes that could indicate loading states
-      const blockingDataAttrs = [
-        'data-loading', 'data-cart-loading', 'data-adding-to-cart', 'data-processing',
-        'data-drawer-open', 'data-cart-open', 'data-modal-open', 'data-overlay-open',
-        'data-popup-open', 'data-scroll-lock', 'data-blur', 'data-overlay'
-      ];
-      
-      blockingDataAttrs.forEach(attr => {
-        document.documentElement.removeAttribute(attr);
-        document.body.removeAttribute(attr);
-      });
-
-      // Remove inert and aria-hidden that block interaction
-      document.querySelectorAll('[inert]:not(#cartuplift-app-container *)').forEach(el => {
-        el.removeAttribute('inert');
-      });
-      
-      document.querySelectorAll('[aria-hidden="true"]:not(#cartuplift-app-container *)').forEach(el => {
-        el.removeAttribute('aria-hidden');
-        el.style.pointerEvents = '';
-        el.style.userSelect = '';
-        el.style.touchAction = '';
-      });
-
-      // Hide/remove ALL overlay elements that could be blocking interaction
-      const allOverlaySelectors = [
-        '.loading-overlay', '.cart-loading-overlay', '.add-to-cart-overlay',
-        '.drawer-overlay', '.modal-overlay', '.backdrop', '.overlay',
-        '.cart-drawer-overlay', '.js-overlay', '.menu-overlay',
-        '.site-overlay', '.page-overlay', '.theme-overlay', '.popup-overlay',
-        '[data-overlay]', '[data-backdrop]', '[data-loading-overlay]',
-        '.blur-overlay', '.dim-overlay', '.interaction-overlay'
-      ];
-      
-      allOverlaySelectors.forEach(selector => {
-        document.querySelectorAll(selector).forEach(el => {
-          if (!el.closest('#cartuplift-app-container')) {
-            el.style.display = 'none';
-            el.style.opacity = '0';
-            el.style.visibility = 'hidden';
-            el.style.pointerEvents = 'none';
-            el.style.zIndex = '-1';
-            el.style.transform = 'translateX(-100%)'; // Move out of view
-          }
-        });
-      });
-
-      // STEP 3: Force multiple reflows to ensure changes take effect
-      this.forceMultipleReflows();
-
-      // STEP 4: Final debug check
-      setTimeout(() => {
-        this.debugCurrentBlurEffects();
-      }, 100);
-
-      console.log('🛒 Page interaction fully restored - blur/loading protection removed');
-    }
-
-    debugCurrentBlurEffects() {
-      console.log('🛒 === BLUR DEBUG START ===');
-      
-      // Check all elements for blur effects
-      const allElements = document.querySelectorAll('*');
-      let blurFound = false;
-      
-      allElements.forEach(el => {
-        if (el.id === 'cartuplift-app-container' || el.closest('#cartuplift-app-container')) return;
-        
-        const style = window.getComputedStyle(el);
-        const hasBlur = (style.filter && style.filter.includes('blur')) || 
-                       (style.backdropFilter && style.backdropFilter.includes('blur'));
-        
-        if (hasBlur) {
-          console.log('🛒 BLUR FOUND on:', {
-            element: el.tagName,
-            id: el.id,
-            classes: el.className,
-            filter: style.filter,
-            backdropFilter: style.backdropFilter,
-            zIndex: style.zIndex,
-            position: style.position
-          });
-          blurFound = true;
-        }
-      });
-      
-      // Check body and html specifically
-      const bodyStyle = window.getComputedStyle(document.body);
-      const htmlStyle = window.getComputedStyle(document.documentElement);
-      
-      console.log('🛒 BODY styles:', {
-        filter: bodyStyle.filter,
-        backdropFilter: bodyStyle.backdropFilter,
-        opacity: bodyStyle.opacity,
-        transform: bodyStyle.transform,
-        pointerEvents: bodyStyle.pointerEvents,
-        classes: document.body.className
-      });
-      
-      console.log('🛒 HTML styles:', {
-        filter: htmlStyle.filter,
-        backdropFilter: htmlStyle.backdropFilter,
-        opacity: htmlStyle.opacity,
-        transform: htmlStyle.transform,
-        pointerEvents: htmlStyle.pointerEvents,
-        classes: document.documentElement.className
-      });
-      
-      if (!blurFound) {
-        console.log('🛒 No blur effects detected');
-      }
-      
-      console.log('🛒 === BLUR DEBUG END ===');
-    }
-
-    removeAllBlurEffects() {
-      console.log('🛒 Scanning ALL elements for blur effects...');
-      
-      // Get ALL elements in the document
-      const allElements = document.querySelectorAll('*');
-      let removedCount = 0;
-      
-      allElements.forEach(el => {
-        // Skip our own container
-        if (el.id === 'cartuplift-app-container' || el.closest('#cartuplift-app-container')) return;
-        
-        const style = window.getComputedStyle(el);
-        
-        // Check for any blur effects
-        if (style.filter && style.filter.includes('blur')) {
-          console.log('🛒 Removing filter blur from:', el.tagName, el.className, style.filter);
-          el.style.filter = 'none';
-          el.style.webkitFilter = 'none';
-          removedCount++;
-        }
-        
-        if (style.backdropFilter && style.backdropFilter.includes('blur')) {
-          console.log('🛒 Removing backdrop blur from:', el.tagName, el.className, style.backdropFilter);
-          el.style.backdropFilter = 'none';
-          el.style.webkitBackdropFilter = 'none';
-          removedCount++;
-        }
-        
-        // Also check for opacity/transform that might be hiding content
-        if (style.opacity && parseFloat(style.opacity) < 1 && parseFloat(style.opacity) > 0) {
-          // Don't touch completely hidden elements (opacity: 0) but restore partial opacity
-          console.log('🛒 Restoring opacity from:', style.opacity, 'on:', el.tagName, el.className);
-          el.style.opacity = '';
-          removedCount++;
-        }
-        
-        // Remove transform effects that might be moving content
-        if (style.transform && style.transform !== 'none') {
-          console.log('🛒 Removing transform from:', el.tagName, el.className, style.transform);
-          el.style.transform = '';
-          removedCount++;
-        }
-        
-        // Restore pointer events
-        if (style.pointerEvents === 'none' && !el.hasAttribute('disabled')) {
-          console.log('🛒 Restoring pointer events on:', el.tagName, el.className);
-          el.style.pointerEvents = '';
-          removedCount++;
-        }
-      });
-      
-      console.log(`🛒 Removed ${removedCount} blur/blocking effects from elements`);
-    }
-
-    forceMultipleReflows() {
-      console.log('🛒 Forcing multiple reflows to clear blur...');
-      
-      // Method 1: Hide and show body
-      document.body.style.display = 'none';
-      void document.body.offsetHeight;
-      document.body.style.display = '';
-      
-      // Method 2: Change and restore transform
-      document.body.style.transform = 'translateZ(0)';
-      void document.body.offsetHeight;
-      document.body.style.transform = '';
-      
-      // Method 3: Force repaint with opacity
-      document.body.style.opacity = '0.999';
-      void document.body.offsetHeight;
-      document.body.style.opacity = '';
-      
-      // Method 4: Trigger layout with width
-      const originalWidth = document.body.style.width;
-      document.body.style.width = '99.99%';
-      void document.body.offsetHeight;
-      document.body.style.width = originalWidth;
-      
-      console.log('🛒 Multiple reflows completed');
     }
 
     startBlurMonitoring() {
