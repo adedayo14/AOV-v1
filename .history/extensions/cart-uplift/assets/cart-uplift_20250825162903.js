@@ -26,13 +26,6 @@
         buttonColor: this.settings.buttonColor
       });
       
-      // Immediate sticky cart removal if disabled
-      if (!this.settings.enableStickyCart) {
-        setTimeout(() => {
-          this.removeStickyCartCompletely();
-        }, 100);
-      }
-      
       this.cart = null;
       this.isOpen = false;
       this._unbindFns = [];
@@ -42,49 +35,6 @@
       this._fetchPatched = false;
       this._blurMonitor = null;
       this.initPromise = this.init();
-    }
-
-    removeStickyCartCompletely() {
-      console.log('🛒 Completely removing sticky cart...');
-      
-      // Remove by ID
-      const stickyById = document.getElementById('cartuplift-sticky');
-      if (stickyById) {
-        stickyById.remove();
-        console.log('🛒 Removed sticky cart by ID');
-      }
-      
-      // Remove by class
-      document.querySelectorAll('.cartuplift-sticky').forEach(el => {
-        el.remove();
-        console.log('🛒 Removed sticky cart by class');
-      });
-      
-      // Remove any elements containing sticky cart button
-      document.querySelectorAll('.cartuplift-sticky-btn').forEach(el => {
-        const parent = el.closest('div');
-        if (parent) parent.remove();
-        console.log('🛒 Removed sticky cart by button class');
-      });
-      
-      // Add CSS to hide any remaining sticky elements
-      let hideStyle = document.getElementById('cartuplift-hide-sticky');
-      if (!hideStyle) {
-        hideStyle = document.createElement('style');
-        hideStyle.id = 'cartuplift-hide-sticky';
-        hideStyle.textContent = `
-          #cartuplift-sticky,
-          .cartuplift-sticky,
-          .cartuplift-sticky-btn {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-          }
-        `;
-        document.head.appendChild(hideStyle);
-        console.log('🛒 Added CSS to hide sticky cart');
-      }
     }
 
     async init() {
@@ -126,9 +76,12 @@
         console.log('🛒 Creating sticky cart...');
         this.createStickyCart();
       } else {
-        // AGGRESSIVE removal of existing sticky cart if disabled
-        console.log('🛒 Sticky cart disabled - removing all instances');
-        this.removeStickyCartCompletely();
+        // Remove existing sticky cart if disabled
+        const existing = document.getElementById('cartuplift-sticky');
+        if (existing) {
+          existing.remove();
+          console.log('🛒 Removed existing sticky cart (disabled)');
+        }
       }
       
       // Set up cart replacement
@@ -145,9 +98,6 @@
       
       // Force settings enforcement
       this.enforceSettings();
-      
-      // Set up continuous settings monitoring
-      this.startSettingsMonitoring();
       
       console.log('🛒 Cart Uplift setup complete.');
     }
@@ -273,100 +223,39 @@
     }
 
     enforceSettings() {
-      console.log('🛒 Enforcing settings...', this.settings);
+      console.log('🛒 Enforcing settings...');
       
-      // Force remove sticky cart if disabled - be more aggressive
+      // Force remove sticky cart if disabled
       if (!this.settings.enableStickyCart) {
-        console.log('🛒 Sticky cart is disabled, removing all instances');
-        this.removeStickyCartCompletely();
+        const stickyCart = document.getElementById('cartuplift-sticky');
+        if (stickyCart) {
+          stickyCart.remove();
+          console.log('🛒 Enforced removal of sticky cart');
+        }
       }
       
       // Ensure color CSS variables are applied
       if (this.settings.buttonColor) {
-        let existingStyle = document.getElementById('cartuplift-color-overrides');
-        if (existingStyle) {
-          existingStyle.remove(); // Remove old one to update
+        const existingStyle = document.getElementById('cartuplift-color-overrides');
+        if (!existingStyle) {
+          const style = document.createElement('style');
+          style.id = 'cartuplift-color-overrides';
+          style.textContent = `
+            :root {
+              --cartuplift-button-color: ${this.settings.buttonColor} !important;
+            }
+          `;
+          document.head.appendChild(style);
+          console.log('🛒 Enforced color settings');
         }
-        
-        const style = document.createElement('style');
-        style.id = 'cartuplift-color-overrides';
-        style.textContent = `
-          :root {
-            --cartuplift-button-color: ${this.settings.buttonColor} !important;
-          }
-          
-          /* Progress bar under CART header */
-          .cartuplift-shipping-progress-fill {
-            background: ${this.settings.buttonColor} !important;
-          }
-          
-          /* Checkout button */
-          .cartuplift-checkout-btn {
-            background: ${this.settings.buttonColor} !important;
-          }
-          
-          /* Discount apply button */
-          .cartuplift-discount-apply {
-            background: ${this.settings.buttonColor} !important;
-          }
-          
-          /* Remove colors from quantity buttons - make them plain */
-          .cartuplift-qty-plus,
-          .cartuplift-qty-minus {
-            background: #f8f8f8 !important;
-            color: #333 !important;
-            border: 1px solid #ddd !important;
-            border-radius: 4px !important;
-          }
-          
-          .cartuplift-qty-plus:hover,
-          .cartuplift-qty-minus:hover {
-            background: #e8e8e8 !important;
-            filter: none !important;
-            opacity: 1 !important;
-          }
-        `;
-        document.head.appendChild(style);
-        console.log('🛒 Enforced color settings with color:', this.settings.buttonColor);
       }
       
       console.log('🛒 Settings enforcement complete');
     }
 
-    startSettingsMonitoring() {
-      console.log('🛒 Starting settings monitoring...');
-      
-      // Monitor settings every 1 second to ensure they are respected
-      setInterval(() => {
-        // Check sticky cart setting
-        if (!this.settings.enableStickyCart) {
-          this.removeStickyCartCompletely();
-        }
-        
-        // Re-enforce color settings if they get overridden
-        if (this.settings.buttonColor) {
-          const colorOverride = document.getElementById('cartuplift-color-overrides');
-          if (!colorOverride) {
-            this.enforceSettings();
-          }
-        }
-      }, 1000); // Check every 1 second instead of 2
-    }
-
     createStickyCart() {
-      // Double-check the setting before creating
-      if (!this.settings.enableStickyCart) {
-        console.log('🛒 Sticky cart disabled, not creating');
-        return;
-      }
-      
       const existing = document.getElementById('cartuplift-sticky');
       if (existing) existing.remove();
-
-      console.log('🛒 Creating sticky cart with settings:', {
-        enableStickyCart: this.settings.enableStickyCart,
-        cartPosition: this.settings.cartPosition
-      });
 
       const stickyCart = document.createElement('div');
       stickyCart.id = 'cartuplift-sticky';
@@ -384,8 +273,6 @@
       stickyCart.querySelector('.cartuplift-sticky-btn').addEventListener('click', () => {
         this.openDrawer();
       });
-      
-      console.log('🛒 Sticky cart created successfully');
     }
 
     createDrawer() {
@@ -528,63 +415,15 @@
     }
 
     getHeaderHTML(itemCount) {
-      let threshold = this.settings.freeShippingThreshold || 10000; // stored value (could be cents OR mis-entered dollars)
-      const currentTotal = this.cart ? this.cart.total_price : 0; // always cents from Shopify
-
-      // Heuristic: merchants sometimes enter a dollar amount instead of cents (e.g. 10000 intending $10,000 not $100.00)
-      // If the cart total massively exceeds threshold and threshold is below a plausible large target, scale it up.
-      // Conditions:
-      //  - currentTotal > threshold * 2  (cart already far beyond threshold)
-      //  - threshold < 500000 ( < $5,000 ) but merchant likely meant a larger amount
-      //  - threshold % 100 === 0 (looks like a whole dollar figure)
-      // In this case assume the merchant gave dollars, so convert to cents by *100.
-      if (threshold && currentTotal > threshold * 2 && threshold < 500000 && threshold % 100 === 0) {
-        console.log('🛒 Detected probable dollar input for threshold. Auto-scaling', { originalThreshold: threshold, scaledTo: threshold * 100 });
-        threshold = threshold * 100; // treat original as dollars -> cents
-      }
-
-      // Safety: avoid division by zero
-      if (!threshold || threshold <= 0) {
-        threshold = 10000; // fallback $100
-      }
-
+      const threshold = this.settings.freeShippingThreshold;
+      const currentTotal = this.cart ? this.cart.total_price : 0;
       const remaining = Math.max(0, threshold - currentTotal);
       const progress = Math.min((currentTotal / threshold) * 100, 100);
       
-      // Debug the settings
-      console.log('🛒 Free shipping settings debug:', {
-        freeShippingText: this.settings.freeShippingText,
-        freeShippingAchievedText: this.settings.freeShippingAchievedText,
-        enableFreeShipping: this.settings.enableFreeShipping,
-        threshold: threshold,
-        currentTotal: currentTotal,
-        remaining: remaining,
-        progress: progress
-      });
-      
-      // Get free shipping text from settings with better fallback
-      let freeShippingText = '';
-      if (remaining > 0) {
-        // Still need more for free shipping
-        const remainingFormatted = this.formatMoney(remaining);
-        if (this.settings.freeShippingText && this.settings.freeShippingText.trim() !== '') {
-          // Replace any {amount} placeholder in the custom text
-          freeShippingText = this.settings.freeShippingText.replace(/{amount}/g, remainingFormatted);
-        } else {
-          // Default fallback
-          freeShippingText = `You are ${remainingFormatted} away from free shipping!`;
-        }
-      } else {
-        // Free shipping achieved
-        if (this.settings.freeShippingAchievedText && this.settings.freeShippingAchievedText.trim() !== '') {
-          freeShippingText = this.settings.freeShippingAchievedText;
-        } else {
-          // Default fallback
-          freeShippingText = `You have earned free shipping!`;
-        }
-      }
-      
-      console.log('🛒 Final free shipping text:', freeShippingText);
+      // Get free shipping text from settings
+      const freeShippingText = remaining > 0 
+        ? (this.settings.freeShippingText || `You're ${this.formatMoney(remaining)} away from free shipping!`)
+        : (this.settings.freeShippingAchievedText || `You've earned free shipping!`);
       
       return `
         <div class="cartuplift-header-top" style="width: 100%; padding: 0; margin: 0;">
@@ -609,8 +448,8 @@
           </div>
           ${this.settings.enableFreeShipping ? `
             <div class="cartuplift-shipping-progress-row" style="width: 100%; margin-top: 10px;">
-              <div class="cartuplift-shipping-progress" style="width: 100%; position: relative;">
-                <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%;"></div>
+              <div class="cartuplift-shipping-progress" style="width: 100%;">
+                <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%"></div>
               </div>
             </div>
           ` : ''}

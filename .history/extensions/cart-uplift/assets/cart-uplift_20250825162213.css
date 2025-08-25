@@ -154,34 +154,21 @@ body:not(.cartuplift-drawer-open) *:not(#cartuplift-app-container):not(#cartupli
   line-height: 1.4;
 }
 
-/* Progress track should be visually light/transparent so site background shows through */
 .cartuplift-shipping-progress {
   width: 100%;
   height: 6px;
-  background: rgba(0,0,0,0.08); /* subtle base */
+  background: #e0e0e0;
   border-radius: 3px;
   overflow: hidden;
   margin-bottom: 6px;
-  position: relative;
-}
-
-/* Optional inner base bar (light grey) for clearer contrast */
-.cartuplift-shipping-progress::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, rgba(0,0,0,0.05), rgba(0,0,0,0.05));
-  pointer-events: none;
 }
 
 .cartuplift-shipping-progress-fill {
   height: 100%;
-  background: var(--cartuplift-button-color, #4CAF50);
+  background: #1a1a1a;
   border-radius: 3px;
-  transition: width 0.5s ease, background 0.3s ease;
+  transition: width 0.5s ease;
   min-width: 0;
-  position: relative;
-  z-index: 1;
 }
 
 .cartuplift-shipping-remaining {
@@ -369,26 +356,22 @@ body:not(.cartuplift-drawer-open) *:not(#cartuplift-app-container):not(#cartupli
 
 .cartuplift-qty-minus,
 .cartuplift-qty-plus {
-  background: #f8f8f8;
-  border: 1px solid #ddd;
+  background: none;
+  border: none;
   cursor: pointer;
   padding: 8px;
   font-size: 12px;
   font-weight: 500;
-  color: #333;
+  color: #000;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  min-width: 24px;
-  min-height: 24px;
 }
 
 .cartuplift-qty-minus:hover,
 .cartuplift-qty-plus:hover {
-  background: #e8e8e8;
-  border-color: #ccc;
+  opacity: 0.7;
 }
 
 .cartuplift-qty-input {
@@ -720,7 +703,7 @@ body:not(.cartuplift-drawer-open) *:not(#cartuplift-app-container):not(#cartupli
 
 .cartuplift-discount-apply {
   padding: 12px 20px;
-  background: var(--cartuplift-button-color, #4CAF50);
+  background: #1a1a1a;
   color: white;
   border: none;
   border-radius: 6px;
@@ -734,7 +717,7 @@ body:not(.cartuplift-drawer-open) *:not(#cartuplift-app-container):not(#cartupli
 }
 
 .cartuplift-discount-apply:hover {
-  filter: brightness(0.9);
+  background: #333;
 }
 
 /* Order Notes Section */
@@ -778,7 +761,7 @@ body:not(.cartuplift-drawer-open) *:not(#cartuplift-app-container):not(#cartupli
 .cartuplift-checkout-btn {
   width: 100%;
   padding: 16px 24px;
-  background: var(--cartuplift-button-color, #4CAF50);
+  background: #1a1a1a;
   color: #ffffff;
   border: none;
   border-radius: 6px;
@@ -792,7 +775,7 @@ body:not(.cartuplift-drawer-open) *:not(#cartuplift-app-container):not(#cartupli
 }
 
 .cartuplift-checkout-btn:hover {
-  filter: brightness(0.9);
+  background: #333;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }

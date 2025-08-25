@@ -39,8 +39,8 @@
         // Free shipping settings
         enableFreeShipping: {{ block.settings.enable_free_shipping | default: true | json }},
         freeShippingThreshold: {{ block.settings.free_shipping_threshold | default: 10000 | json }},
-        freeShippingText: {{ block.settings.free_shipping_text | default: 'You are away from free shipping!' | json }},
-        freeShippingAchievedText: {{ block.settings.free_shipping_achieved_text | default: 'You have earned free shipping!' | json }},
+        freeShippingText: {{ block.settings.free_shipping_text | default: "You're {amount} away from free shipping!" | json }},
+        freeShippingAchievedText: {{ block.settings.free_shipping_achieved_text | default: "You've earned free shipping!" | json }}
         
         // Styling settings
         backgroundColor: '#1a1a1a', // Default fallback since not in schema
@@ -77,13 +77,12 @@
       };
 
       // Apply custom colors if set
-      if (window.CartUpliftSettings.buttonColor) {
+      if (window.CartUpliftSettings.backgroundColor || window.CartUpliftSettings.textColor) {
         const style = document.createElement('style');
-        style.id = 'cartuplift-color-overrides';
         style.textContent = `
           :root {
-            --cartuplift-bg-color: ${window.CartUpliftSettings.backgroundColor || '#1a1a1a'};
-            --cartuplift-text-color: ${window.CartUpliftSettings.textColor || '#FFFFFF'};
+            --cartuplift-bg-color: ${window.CartUpliftSettings.backgroundColor};
+            --cartuplift-text-color: ${window.CartUpliftSettings.textColor};
             --cartuplift-button-color: ${window.CartUpliftSettings.buttonColor};
           }
           
@@ -93,7 +92,7 @@
           }
           
           .cartuplift-checkout-btn {
-            background-color: var(--cartuplift-button-color) !important;
+            background-color: var(--cartuplift-bg-color) !important;
           }
           
           .cartuplift-shipping-progress-fill {
@@ -101,16 +100,11 @@
           }
           
           .cartuplift-add-recommendation {
-            background-color: var(--cartuplift-button-color) !important;
+            background-color: var(--cartuplift-bg-color) !important;
           }
           
           .cartuplift-discount-apply {
-            background-color: var(--cartuplift-button-color) !important;
-          }
-          
-          .cartuplift-qty-plus,
-          .cartuplift-qty-minus {
-            background-color: var(--cartuplift-button-color) !important;
+            background-color: var(--cartuplift-bg-color) !important;
           }
         `;
         document.head.appendChild(style);
@@ -241,22 +235,8 @@
       "type": "number",
       "id": "free_shipping_threshold",
       "label": "Free Shipping Threshold",
-      "default": 10000,
-      "info": "Amount in your store's currency (in cents, e.g., 10000 = $100)"
-    },
-    {
-      "type": "text",
-      "id": "free_shipping_text", 
-      "label": "Free Shipping Progress Text",
-      "default": "You are away from free shipping!",
-      "info": "Text shown for free shipping progress"
-    },
-    {
-      "type": "text",
-      "id": "free_shipping_achieved_text",
-      "label": "Free Shipping Achieved Text", 
-      "default": "You have earned free shipping!",
-      "info": "Text shown when free shipping is achieved"
+      "default": 100,
+      "info": "Amount in your store's currency"
     },
     {
       "type": "checkbox",

@@ -39,8 +39,8 @@
         // Free shipping settings
         enableFreeShipping: {{ block.settings.enable_free_shipping | default: true | json }},
         freeShippingThreshold: {{ block.settings.free_shipping_threshold | default: 10000 | json }},
-        freeShippingText: {{ block.settings.free_shipping_text | default: 'You are away from free shipping!' | json }},
-        freeShippingAchievedText: {{ block.settings.free_shipping_achieved_text | default: 'You have earned free shipping!' | json }},
+        freeShippingText: {% assign default_text = "You are \{amount\} away from free shipping!" %}{{ block.settings.free_shipping_text | default: default_text | json }},
+        freeShippingAchievedText: {% assign achieved_text = "You have earned free shipping!" %}{{ block.settings.free_shipping_achieved_text | default: achieved_text | json }},
         
         // Styling settings
         backgroundColor: '#1a1a1a', // Default fallback since not in schema
@@ -248,8 +248,8 @@
       "type": "text",
       "id": "free_shipping_text", 
       "label": "Free Shipping Progress Text",
-      "default": "You are away from free shipping!",
-      "info": "Text shown for free shipping progress"
+      "default": "You are {amount} away from free shipping!",
+      "info": "Use {amount} to show remaining amount"
     },
     {
       "type": "text",

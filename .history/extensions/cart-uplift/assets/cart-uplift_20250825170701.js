@@ -528,26 +528,8 @@
     }
 
     getHeaderHTML(itemCount) {
-      let threshold = this.settings.freeShippingThreshold || 10000; // stored value (could be cents OR mis-entered dollars)
-      const currentTotal = this.cart ? this.cart.total_price : 0; // always cents from Shopify
-
-      // Heuristic: merchants sometimes enter a dollar amount instead of cents (e.g. 10000 intending $10,000 not $100.00)
-      // If the cart total massively exceeds threshold and threshold is below a plausible large target, scale it up.
-      // Conditions:
-      //  - currentTotal > threshold * 2  (cart already far beyond threshold)
-      //  - threshold < 500000 ( < $5,000 ) but merchant likely meant a larger amount
-      //  - threshold % 100 === 0 (looks like a whole dollar figure)
-      // In this case assume the merchant gave dollars, so convert to cents by *100.
-      if (threshold && currentTotal > threshold * 2 && threshold < 500000 && threshold % 100 === 0) {
-        console.log('🛒 Detected probable dollar input for threshold. Auto-scaling', { originalThreshold: threshold, scaledTo: threshold * 100 });
-        threshold = threshold * 100; // treat original as dollars -> cents
-      }
-
-      // Safety: avoid division by zero
-      if (!threshold || threshold <= 0) {
-        threshold = 10000; // fallback $100
-      }
-
+      const threshold = this.settings.freeShippingThreshold || 10000; // Default to $100
+      const currentTotal = this.cart ? this.cart.total_price : 0;
       const remaining = Math.max(0, threshold - currentTotal);
       const progress = Math.min((currentTotal / threshold) * 100, 100);
       
@@ -609,8 +591,8 @@
           </div>
           ${this.settings.enableFreeShipping ? `
             <div class="cartuplift-shipping-progress-row" style="width: 100%; margin-top: 10px;">
-              <div class="cartuplift-shipping-progress" style="width: 100%; position: relative;">
-                <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%;"></div>
+              <div class="cartuplift-shipping-progress" style="width: 100%;">
+                <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%"></div>
               </div>
             </div>
           ` : ''}
