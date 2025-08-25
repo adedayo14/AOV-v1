@@ -157,31 +157,16 @@
       const itemCount = this.cart?.item_count || 0;
       const totalPrice = this.cart?.total_price || 0;
       
-      // Check if we should show recommendations - only show if:
-      // 1. Recommendations are enabled
-      // 2. Either we're still loading OR we have actual recommendations to show
-      const shouldShowRecommendations = this.settings.enableRecommendations && 
-        ((!this._recommendationsLoaded) || (this.recommendations && this.recommendations.length > 0));
-      
-      console.log('🛒 shouldShowRecommendations:', shouldShowRecommendations, 
-        'loaded:', this._recommendationsLoaded, 
-        'count:', this.recommendations?.length || 0);
-      
       return `
-        <div class="cartuplift-drawer${shouldShowRecommendations ? ' has-recommendations' : ''}">
+        <div class="cartuplift-drawer">
           ${this.getHeaderHTML(itemCount)}
           
-          <div class="cartuplift-content-wrapper">
-            <div class="cartuplift-items">
-              ${this.getCartItemsHTML()}
-            </div>
-            
-            <div class="cartuplift-scrollable-content">
-              ${this.settings.enableAddons ? this.getAddonsHTML() : ''}
-            </div>
+          <div class="cartuplift-items">
+            ${this.getCartItemsHTML()}
           </div>
           
-          ${shouldShowRecommendations ? this.getRecommendationsHTML() : ''}
+          ${this.settings.enableRecommendations ? this.getRecommendationsHTML() : ''}
+          ${this.settings.enableAddons ? this.getAddonsHTML() : ''}
           
           <div class="cartuplift-footer">
             ${this.settings.enableDiscountCode ? this.getDiscountHTML() : ''}
@@ -346,8 +331,8 @@
           <div class="cartuplift-recommendations-header">
             <h3>RECOMMENDED FOR YOU</h3>
             <button class="cartuplift-recommendations-toggle" data-toggle="recommendations">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M12 10L8 6L4 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
           </div>
@@ -359,16 +344,12 @@
     }
 
     getRecommendationItems() {
-      // Show loading state if not loaded yet
       if (!this._recommendationsLoaded) {
         return '<div class="cartuplift-recommendations-loading">Loading recommendations...</div>';
       }
       
-      // If no recommendations, this method shouldn't be called due to shouldShowRecommendations logic
-      // But add safety check
       if (!this.recommendations || this.recommendations.length === 0) {
-        console.log('🛒 getRecommendationItems called with no recommendations - this should not happen');
-        return '';
+        return '<div class="cartuplift-recommendations-empty">No products available</div>';
       }
       
       const layout = this.settings.recommendationLayout || 'column';
@@ -379,7 +360,7 @@
             ${this.recommendations.map(product => `
               <div class="cartuplift-recommendation-card">
                 <img src="${product.image}" alt="${product.title}" loading="lazy">
-                <h4><a href="${product.url}" class="cartuplift-product-link">${product.title}</a></h4>
+                <h4>${product.title}</h4>
                 <div class="cartuplift-recommendation-price">${this.formatMoney(product.price)}</div>
                 <button class="cartuplift-add-recommendation" data-variant-id="${product.variant_id}">
                   Add+
@@ -393,7 +374,7 @@
           <div class="cartuplift-recommendation-item">
             <img src="${product.image}" alt="${product.title}" loading="lazy">
             <div class="cartuplift-recommendation-info">
-              <h4><a href="${product.url}" class="cartuplift-product-link">${product.title}</a></h4>
+              <h4>${product.title}</h4>
               <div class="cartuplift-recommendation-price">${this.formatMoney(product.price)}</div>
             </div>
             <button class="cartuplift-add-recommendation-circle" data-variant-id="${product.variant_id}">
@@ -508,37 +489,16 @@
           const line = button.dataset.line;
           this.updateQuantity(line, 0);
         } else if (e.target.classList.contains('cartuplift-add-recommendation')) {
-          e.preventDefault();
-          e.stopPropagation();
           const variantId = e.target.dataset.variantId;
           this.addToCart(variantId, 1);
         } else if (e.target.classList.contains('cartuplift-add-recommendation-circle')) {
-          e.preventDefault();
-          e.stopPropagation();
           const variantId = e.target.dataset.variantId;
           this.addToCart(variantId, 1);
         } else if (e.target.classList.contains('cartuplift-recommendations-toggle') || e.target.closest('.cartuplift-recommendations-toggle')) {
           console.log('🛒 Toggle recommendations clicked');
-          const toggleButton = e.target.classList.contains('cartuplift-recommendations-toggle') 
-            ? e.target 
-            : e.target.closest('.cartuplift-recommendations-toggle');
           const recommendations = container.querySelector('.cartuplift-recommendations');
           if (recommendations) {
-            const isCollapsed = recommendations.classList.contains('collapsed');
             recommendations.classList.toggle('collapsed');
-            
-            // Update arrow direction with your SVGs
-            const arrow = toggleButton.querySelector('svg path');
-            if (arrow) {
-              if (isCollapsed) {
-                // Expanding - arrow points down (your original SVG)
-                arrow.setAttribute('d', 'm19.5 8.25-7.5 7.5-7.5-7.5');
-              } else {
-                // Collapsing - arrow points up (your collapse SVG)
-                arrow.setAttribute('d', 'm4.5 15.75 7.5-7.5 7.5 7.5');
-              }
-            }
-            
             console.log('🛒 Recommendations collapsed:', recommendations.classList.contains('collapsed'));
           }
         }
@@ -582,27 +542,7 @@
     }
 
     async addToCart(variantId, quantity = 1) {
-      // Prevent multiple rapid clicks
-      if (this._addToCartBusy) {
-        console.log('🛒 Add to cart already in progress, ignoring click');
-        return;
-      }
-      
-      this._addToCartBusy = true;
-      
       try {
-        // Disable the button temporarily with better UX
-        const buttons = document.querySelectorAll(`[data-variant-id="${variantId}"]`);
-        buttons.forEach(button => {
-          button.disabled = true;
-          button.style.opacity = '0.6';
-          button.style.transform = 'scale(0.95)';
-          // Keep the + sign, just make it look pressed
-        });
-        
-        // Add delay to prevent rate limiting (invisible to user)
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
         const formData = new FormData();
         formData.append('id', variantId);
         formData.append('quantity', quantity);
@@ -613,32 +553,12 @@
         });
 
         if (response.ok) {
-          // Reset button state immediately on success with success animation
-          buttons.forEach(button => {
-            button.disabled = false;
-            button.style.opacity = '1';
-            button.style.transform = 'scale(1)';
-            button.style.background = '#22c55e'; // Green success flash
-            setTimeout(() => {
-              button.style.background = '';
-            }, 300);
-          });
-          
           // Remove the added product from recommendations
           if (this.recommendations && this.recommendations.length > 0) {
             this.recommendations = this.recommendations.filter(rec => 
               rec.variant_id !== variantId
             );
             console.log('🛒 Removed added product from recommendations, remaining:', this.recommendations.length);
-            
-            // Auto-hide section if all products have been added
-            if (this.recommendations.length === 0) {
-              console.log('🛒 All recommendations added, hiding section completely');
-              // Regenerate drawer content to hide the entire recommendations section
-              setTimeout(() => {
-                this.updateDrawerContent();
-              }, 500); // Small delay to let user see the item was added
-            }
           }
           
           await this.fetchCart();
@@ -651,42 +571,9 @@
               recommendationsContent.innerHTML = this.getRecommendationItems();
             }
           }
-        } else if (response.status === 429) {
-          console.error('🛒 Rate limited, retrying with longer delay...');
-          // Silently retry after longer delay - no user feedback
-          buttons.forEach(button => {
-            button.disabled = false;
-            button.style.opacity = '1';
-            button.style.transform = 'scale(1)';
-          });
-          // Don't show rate limit message to user
-        } else {
-          console.error('🛒 Error adding to cart:', response.status, response.statusText);
-          // Re-enable buttons on error with subtle shake
-          buttons.forEach(button => {
-            button.disabled = false;
-            button.style.opacity = '1';
-            button.style.transform = 'scale(1)';
-            button.style.animation = 'shake 0.3s ease-in-out';
-            setTimeout(() => {
-              button.style.animation = '';
-            }, 300);
-          });
         }
       } catch (error) {
         console.error('🛒 Error adding to cart:', error);
-        // Re-enable buttons on error
-        const buttons = document.querySelectorAll(`[data-variant-id="${variantId}"]`);
-        buttons.forEach(button => {
-          button.disabled = false;
-          button.style.opacity = '1';
-          button.style.transform = 'scale(1)';
-        });
-      } finally {
-        // Always reset the busy flag after a shorter delay
-        setTimeout(() => {
-          this._addToCartBusy = false;
-        }, 500);
       }
     }
 
@@ -700,11 +587,11 @@
         // Get product recommendations based on cart items, or popular products if cart is empty
         if (this.cart && this.cart.items && this.cart.items.length > 0) {
           const productId = this.cart.items[0].product_id;
-          apiUrl = `/recommendations/products.json?product_id=${productId}&limit=4`;
+          apiUrl = `/recommendations/products.json?product_id=${productId}&limit=6`;
           console.log('🛒 Loading recommendations based on cart item:', productId);
         } else {
           // Load popular/featured products when cart is empty
-          apiUrl = `/products.json?limit=4`;
+          apiUrl = `/products.json?limit=6`;
           console.log('🛒 Loading popular products (cart is empty)');
         }
         
@@ -719,10 +606,10 @@
         }
         
         // If we don't have enough products, load more from general products endpoint
-        if (products.length < 4) {
-          console.log('🛒 Loading additional products to reach 4 total...');
+        if (products.length < 6) {
+          console.log('🛒 Loading additional products to reach 6 total...');
           try {
-            const fallbackResponse = await fetch('/products.json?limit=8'); // Load more for better filtering
+            const fallbackResponse = await fetch('/products.json?limit=12'); // Load more for better filtering
             if (fallbackResponse.ok) {
               const fallbackData = await fallbackResponse.json();
               const fallbackProducts = fallbackData.products || [];
@@ -740,8 +627,8 @@
                 product.variants[0].available
               );
               
-              // Add filtered products until we have 4 total
-              const needed = 4 - products.length;
+              // Add filtered products until we have 6 total
+              const needed = 6 - products.length;
               products = products.concat(filteredProducts.slice(0, needed));
               
               console.log('🛒 Added', Math.min(needed, filteredProducts.length), 'fallback products');
@@ -800,7 +687,13 @@
         
         if (originalCount !== this.recommendations.length) {
           console.log('🛒 Filtered out', originalCount - this.recommendations.length, 'cart items from recommendations');
-          // Don't auto-refill recommendations - let them get depleted naturally
+          
+          // If we have fewer than 4 recommendations, try to load more
+          if (this.recommendations.length < 4 && this._recommendationsLoaded) {
+            console.log('🛒 Too few recommendations remaining, reloading...');
+            this._recommendationsLoaded = false;
+            this.loadRecommendations();
+          }
         }
       }
       

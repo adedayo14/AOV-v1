@@ -399,24 +399,26 @@
 }
 
 /* ========================================
-   Recommendations Section - BOTTOM POSITIONED
+   Recommendations Section - FIXED POSITION
    ======================================== */
 .cartuplift-recommendations {
   border-top: 1px solid var(--cartuplift-border);
   background: #fff;
-  padding: 16px 24px;
-  /* Position naturally above footer */
-  flex-shrink: 0;
-  /* Default expanded state */
-  max-height: 250px;
-  overflow: hidden;
+  padding: 12px 24px 0 24px;
+  margin-bottom: 20px;
+  /* Fixed height allocation for recommendations */
+  min-height: 200px;
+  max-height: 300px;
+  display: flex;
+  flex-direction: column;
   transition: all 0.3s ease;
 }
 
 /* When collapsed, minimize the section */
 .cartuplift-recommendations.collapsed {
+  min-height: 60px; /* Just enough for header */
   max-height: 60px; /* Just enough for header */
-  padding: 16px 24px 8px 24px;
+  padding: 12px 24px;
 }
 
 .cartuplift-recommendations-header {
@@ -680,18 +682,6 @@
   background: var(--cartuplift-teal);
   color: #fff;
   transform: scale(1.02); /* Reduced scale to prevent jittering */
-}
-
-/* Better UX animations for add to cart buttons */
-.cartuplift-add-recommendation-circle,
-.cartuplift-add-recommendation {
-  transition: all 0.2s ease, background-color 0.3s ease !important;
-}
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-2px); }
-  75% { transform: translateX(2px); }
 }
 
 /* ========================================

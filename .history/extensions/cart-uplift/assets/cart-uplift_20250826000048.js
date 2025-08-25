@@ -591,17 +591,16 @@
       this._addToCartBusy = true;
       
       try {
-        // Disable the button temporarily with better UX
+        // Disable the button temporarily
         const buttons = document.querySelectorAll(`[data-variant-id="${variantId}"]`);
         buttons.forEach(button => {
           button.disabled = true;
-          button.style.opacity = '0.6';
-          button.style.transform = 'scale(0.95)';
-          // Keep the + sign, just make it look pressed
+          button.style.opacity = '0.5';
+          button.textContent = 'Adding...';
         });
         
-        // Add delay to prevent rate limiting (invisible to user)
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // Add delay to prevent rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         const formData = new FormData();
         formData.append('id', variantId);
@@ -613,17 +612,6 @@
         });
 
         if (response.ok) {
-          // Reset button state immediately on success with success animation
-          buttons.forEach(button => {
-            button.disabled = false;
-            button.style.opacity = '1';
-            button.style.transform = 'scale(1)';
-            button.style.background = '#22c55e'; // Green success flash
-            setTimeout(() => {
-              button.style.background = '';
-            }, 300);
-          });
-          
           // Remove the added product from recommendations
           if (this.recommendations && this.recommendations.length > 0) {
             this.recommendations = this.recommendations.filter(rec => 
@@ -652,25 +640,23 @@
             }
           }
         } else if (response.status === 429) {
-          console.error('🛒 Rate limited, retrying with longer delay...');
-          // Silently retry after longer delay - no user feedback
+          console.error('🛒 Rate limited, please wait before trying again');
+          // Show user-friendly message
           buttons.forEach(button => {
-            button.disabled = false;
-            button.style.opacity = '1';
-            button.style.transform = 'scale(1)';
+            button.textContent = 'Rate limited - wait';
+            setTimeout(() => {
+              button.disabled = false;
+              button.style.opacity = '1';
+              button.textContent = '+';
+            }, 3000);
           });
-          // Don't show rate limit message to user
         } else {
           console.error('🛒 Error adding to cart:', response.status, response.statusText);
-          // Re-enable buttons on error with subtle shake
+          // Re-enable buttons on error
           buttons.forEach(button => {
             button.disabled = false;
             button.style.opacity = '1';
-            button.style.transform = 'scale(1)';
-            button.style.animation = 'shake 0.3s ease-in-out';
-            setTimeout(() => {
-              button.style.animation = '';
-            }, 300);
+            button.textContent = '+';
           });
         }
       } catch (error) {
@@ -680,13 +666,13 @@
         buttons.forEach(button => {
           button.disabled = false;
           button.style.opacity = '1';
-          button.style.transform = 'scale(1)';
+          button.textContent = '+';
         });
       } finally {
-        // Always reset the busy flag after a shorter delay
+        // Always reset the busy flag after a delay
         setTimeout(() => {
           this._addToCartBusy = false;
-        }, 500);
+        }, 2000);
       }
     }
 

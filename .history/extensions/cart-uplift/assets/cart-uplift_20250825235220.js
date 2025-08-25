@@ -177,11 +177,10 @@
             </div>
             
             <div class="cartuplift-scrollable-content">
+              ${shouldShowRecommendations ? this.getRecommendationsHTML() : ''}
               ${this.settings.enableAddons ? this.getAddonsHTML() : ''}
             </div>
           </div>
-          
-          ${shouldShowRecommendations ? this.getRecommendationsHTML() : ''}
           
           <div class="cartuplift-footer">
             ${this.settings.enableDiscountCode ? this.getDiscountHTML() : ''}
@@ -527,15 +526,15 @@
             const isCollapsed = recommendations.classList.contains('collapsed');
             recommendations.classList.toggle('collapsed');
             
-            // Update arrow direction with your SVGs
+            // Update arrow direction
             const arrow = toggleButton.querySelector('svg path');
             if (arrow) {
               if (isCollapsed) {
-                // Expanding - arrow points down (your original SVG)
-                arrow.setAttribute('d', 'm19.5 8.25-7.5 7.5-7.5-7.5');
+                // Expanding - arrow points up
+                arrow.setAttribute('d', 'M12 10L8 6L4 10');
               } else {
-                // Collapsing - arrow points up (your collapse SVG)
-                arrow.setAttribute('d', 'm4.5 15.75 7.5-7.5 7.5 7.5');
+                // Collapsing - arrow points down
+                arrow.setAttribute('d', 'M12 6L8 10L4 6');
               }
             }
             
@@ -591,17 +590,12 @@
       this._addToCartBusy = true;
       
       try {
-        // Disable the button temporarily with better UX
+        // Disable the button temporarily
         const buttons = document.querySelectorAll(`[data-variant-id="${variantId}"]`);
         buttons.forEach(button => {
           button.disabled = true;
-          button.style.opacity = '0.6';
-          button.style.transform = 'scale(0.95)';
-          // Keep the + sign, just make it look pressed
+          button.style.opacity = '0.5';
         });
-        
-        // Add delay to prevent rate limiting (invisible to user)
-        await new Promise(resolve => setTimeout(resolve, 800));
         
         const formData = new FormData();
         formData.append('id', variantId);
@@ -613,17 +607,6 @@
         });
 
         if (response.ok) {
-          // Reset button state immediately on success with success animation
-          buttons.forEach(button => {
-            button.disabled = false;
-            button.style.opacity = '1';
-            button.style.transform = 'scale(1)';
-            button.style.background = '#22c55e'; // Green success flash
-            setTimeout(() => {
-              button.style.background = '';
-            }, 300);
-          });
-          
           // Remove the added product from recommendations
           if (this.recommendations && this.recommendations.length > 0) {
             this.recommendations = this.recommendations.filter(rec => 
@@ -651,26 +634,12 @@
               recommendationsContent.innerHTML = this.getRecommendationItems();
             }
           }
-        } else if (response.status === 429) {
-          console.error('🛒 Rate limited, retrying with longer delay...');
-          // Silently retry after longer delay - no user feedback
-          buttons.forEach(button => {
-            button.disabled = false;
-            button.style.opacity = '1';
-            button.style.transform = 'scale(1)';
-          });
-          // Don't show rate limit message to user
         } else {
           console.error('🛒 Error adding to cart:', response.status, response.statusText);
-          // Re-enable buttons on error with subtle shake
+          // Re-enable buttons on error
           buttons.forEach(button => {
             button.disabled = false;
             button.style.opacity = '1';
-            button.style.transform = 'scale(1)';
-            button.style.animation = 'shake 0.3s ease-in-out';
-            setTimeout(() => {
-              button.style.animation = '';
-            }, 300);
           });
         }
       } catch (error) {
@@ -680,13 +649,9 @@
         buttons.forEach(button => {
           button.disabled = false;
           button.style.opacity = '1';
-          button.style.transform = 'scale(1)';
         });
       } finally {
-        // Always reset the busy flag after a shorter delay
-        setTimeout(() => {
-          this._addToCartBusy = false;
-        }, 500);
+        this._addToCartBusy = false;
       }
     }
 

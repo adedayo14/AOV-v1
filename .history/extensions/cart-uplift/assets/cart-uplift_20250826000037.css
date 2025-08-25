@@ -682,18 +682,6 @@
   transform: scale(1.02); /* Reduced scale to prevent jittering */
 }
 
-/* Better UX animations for add to cart buttons */
-.cartuplift-add-recommendation-circle,
-.cartuplift-add-recommendation {
-  transition: all 0.2s ease, background-color 0.3s ease !important;
-}
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-2px); }
-  75% { transform: translateX(2px); }
-}
-
 /* ========================================
    Add-ons Section
    ======================================== */

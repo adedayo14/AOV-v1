@@ -1,0 +1,163 @@
+{% comment %} Cart Uplift – Enhanced App Embed (6-setting compliant) {% endcomment %}
+
+<link rel="stylesheet" href="{{ 'cart-uplift.css' | asset_url }}">
+
+  <script>
+    (function() {
+      // Base defaults (will be overridden by backend settings)
+      const defaults = {
+        // Theme embed settings (frequently changed)
+        autoOpenCart: true,
+        enableFreeShipping: true,
+        freeShippingThreshold: 150,
+        buttonColor: "#4CAF50",
+        textColor: "#1a1a1a",
+
+        // Backend general settings (configured once)
+        enableApp: true,
+        enableStickyCart: true,
+        showOnlyOnCartPage: false,
+        cartPosition: "bottom-right",
+        cartIcon: "cart",
+        backgroundColor: "#ffffff",
+        freeShippingText: "Spend {amount} more for free shipping!",
+        freeShippingAchievedText: "🎉 Free shipping unlocked!",
+
+        // Features
+        enableRecommendations: true,
+        recommendationLayout: "column",
+        maxRecommendations: 4,
+        enableAddons: false,
+        enableDiscountCode: false,
+        enableNotes: false,
+        enableExpressCheckout: true,
+
+        // Advanced
+        drawerWidth: 540,
+        borderRadius: 8,
+        showBrandBadge: true,
+        enableQuantitySelectors: true,
+        enableItemRemoval: true,
+        enableAnalytics: false
+      };
+
+      // Theme embed settings (these override defaults)
+      const themeSettings = {
+        autoOpenCart: {{ block.settings.auto_open_cart | default: true | json }},
+        enableFreeShipping: {{ block.settings.enable_free_shipping | default: true | json }},
+        freeShippingThreshold: {{ block.settings.free_shipping_threshold | default: 100 | json }},
+        buttonColor: {{ block.settings.button_color | default: '#4CAF50' | json }},
+        textColor: {{ block.settings.text_color | default: '#1a1a1a' | json }}
+      };
+
+      // Fetch backend settings from your app's API
+      let backendSettings = {};
+      
+      // Try to get backend settings (this will be from your app's management page)
+      fetch('/apps/cart-uplift/api/settings')
+        .then(response => response.json())
+        .then(data => {
+          backendSettings = data || {};
+          // Merge all settings: defaults < backendSettings < themeSettings
+          window.CartUpliftSettings = Object.assign({}, defaults, backendSettings, themeSettings);
+          console.log('🛒 Cart Uplift Settings (with backend):', window.CartUpliftSettings);
+          
+          // Initialize cart if enabled
+          if (window.CartUpliftSettings.enableApp) {
+            // Create new cart drawer instance
+            if (window.CartUpliftDrawer) {
+              window.cartUpliftDrawer = new window.CartUpliftDrawer(window.CartUpliftSettings);
+            }
+          }
+        })
+        .catch(error => {
+          console.log('🛒 Cart Uplift: Using local settings (backend unavailable)');
+          // Fallback to local settings only
+          window.CartUpliftSettings = Object.assign({}, defaults, themeSettings);
+          console.log('🛒 Cart Uplift Settings (local):', window.CartUpliftSettings);
+          
+          // Initialize cart if enabled
+          if (window.CartUpliftSettings.enableApp) {
+            // Create new cart drawer instance
+            if (window.CartUpliftDrawer) {
+              window.cartUpliftDrawer = new window.CartUpliftDrawer(window.CartUpliftSettings);
+            }
+          }
+        });
+
+      // Set money format
+      window.CartUpliftMoneyFormat = {{ shop.money_format | json }};
+    })();
+  </script>
+
+  <script src="{{ 'cart-uplift.js' | asset_url }}" defer></script>
+
+  <script>
+    // Analytics will be enabled based on backend settings
+    document.addEventListener('DOMContentLoaded', function() {
+      if (window.CartUpliftSettings && window.CartUpliftSettings.enableAnalytics) {
+        document.addEventListener('cartuplift:opened', function() {
+          if (typeof gtag !== 'undefined') {
+            gtag('event', 'view_cart', { event_category: 'Cart Uplift', event_label: 'Cart Drawer Opened' });
+          }
+        });
+        document.addEventListener('cartuplift:item_added', function(e) {
+          if (typeof gtag !== 'undefined') {
+            gtag('event', 'add_to_cart', { event_category: 'Cart Uplift', event_label: 'Item Added', value: e.detail.price });
+          }
+        });
+      }
+    });
+  </script>
+
+{% schema %}
+{
+  "name": "Free Shipping Bar",
+  "target": "body",
+  "settings": [
+    {
+      "type": "header",
+      "content": "🛒 Cart Behavior"
+    },
+    {
+      "type": "checkbox",
+      "id": "auto_open_cart",
+      "label": "Auto-open cart when item added",
+      "default": true,
+      "info": "Automatically show cart drawer when customers add items"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_free_shipping",
+      "label": "Show free shipping progress",
+      "default": true,
+      "info": "Display progress bar and messages for free shipping threshold"
+    },
+    {
+      "type": "number",
+      "id": "free_shipping_threshold",
+      "label": "Free shipping threshold",
+      "default": 150,
+      "info": "Minimum order amount for free shipping (in shop currency)"
+    },
+    {
+      "type": "header",
+      "content": "🎨 Appearance"
+    },
+    {
+      "type": "color",
+      "id": "button_color",
+      "label": "Button & accent color",
+      "default": "#4CAF50",
+      "info": "Primary color for buttons and progress bars"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#1a1a1a",
+      "info": "Main text color in the cart drawer"
+    }
+  ]
+}
+{% endschema %}

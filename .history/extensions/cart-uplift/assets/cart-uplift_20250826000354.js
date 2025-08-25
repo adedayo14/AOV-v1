@@ -680,13 +680,13 @@
         buttons.forEach(button => {
           button.disabled = false;
           button.style.opacity = '1';
-          button.style.transform = 'scale(1)';
+          button.textContent = '+';
         });
       } finally {
-        // Always reset the busy flag after a shorter delay
+        // Always reset the busy flag after a delay
         setTimeout(() => {
           this._addToCartBusy = false;
-        }, 500);
+        }, 2000);
       }
     }
 

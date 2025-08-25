@@ -613,15 +613,11 @@
         });
 
         if (response.ok) {
-          // Reset button state immediately on success with success animation
+          // Reset button state immediately on success
           buttons.forEach(button => {
             button.disabled = false;
             button.style.opacity = '1';
-            button.style.transform = 'scale(1)';
-            button.style.background = '#22c55e'; // Green success flash
-            setTimeout(() => {
-              button.style.background = '';
-            }, 300);
+            button.textContent = '+';
           });
           
           // Remove the added product from recommendations
@@ -652,25 +648,23 @@
             }
           }
         } else if (response.status === 429) {
-          console.error('🛒 Rate limited, retrying with longer delay...');
-          // Silently retry after longer delay - no user feedback
+          console.error('🛒 Rate limited, please wait before trying again');
+          // Show user-friendly message
           buttons.forEach(button => {
-            button.disabled = false;
-            button.style.opacity = '1';
-            button.style.transform = 'scale(1)';
+            button.textContent = 'Rate limited - wait';
+            setTimeout(() => {
+              button.disabled = false;
+              button.style.opacity = '1';
+              button.textContent = '+';
+            }, 3000);
           });
-          // Don't show rate limit message to user
         } else {
           console.error('🛒 Error adding to cart:', response.status, response.statusText);
-          // Re-enable buttons on error with subtle shake
+          // Re-enable buttons on error
           buttons.forEach(button => {
             button.disabled = false;
             button.style.opacity = '1';
-            button.style.transform = 'scale(1)';
-            button.style.animation = 'shake 0.3s ease-in-out';
-            setTimeout(() => {
-              button.style.animation = '';
-            }, 300);
+            button.textContent = '+';
           });
         }
       } catch (error) {
@@ -680,13 +674,13 @@
         buttons.forEach(button => {
           button.disabled = false;
           button.style.opacity = '1';
-          button.style.transform = 'scale(1)';
+          button.textContent = '+';
         });
       } finally {
-        // Always reset the busy flag after a shorter delay
+        // Always reset the busy flag after a delay
         setTimeout(() => {
           this._addToCartBusy = false;
-        }, 500);
+        }, 2000);
       }
     }
 
