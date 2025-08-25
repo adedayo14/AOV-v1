@@ -38,7 +38,7 @@
         
         // Free shipping settings
         enableFreeShipping: {{ block.settings.enable_free_shipping | default: true | json }},
-        freeShippingThreshold: {{ block.settings.free_shipping_threshold | default: 100 | json }},
+        freeShippingThreshold: {{ block.settings.free_shipping_threshold | default: 10000 | json }},
         freeShippingText: {{ block.settings.free_shipping_text | default: 'You are away from free shipping!' | json }},
         freeShippingAchievedText: {{ block.settings.free_shipping_achieved_text | default: 'You have earned free shipping!' | json }},
         
@@ -241,8 +241,8 @@
       "type": "number",
       "id": "free_shipping_threshold",
       "label": "Free Shipping Threshold",
-      "default": 100,
-      "info": "Amount in dollars (e.g., 100 = $100, 250 = $250)"
+      "default": 10000,
+      "info": "Amount in your store's currency (in cents, e.g., 10000 = $100)"
     },
     {
       "type": "text",

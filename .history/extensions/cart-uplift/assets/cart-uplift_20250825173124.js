@@ -548,23 +548,24 @@
     }
 
     getHeaderHTML(itemCount) {
-      let threshold = this.settings.freeShippingThreshold || 100; // default $100
+      let threshold = this.settings.freeShippingThreshold || 10000; // stored value (could be cents OR mis-entered dollars)
       const currentTotal = this.cart ? this.cart.total_price : 0; // always cents from Shopify
 
-      // Convert threshold from dollars to cents for comparison with Shopify cart total
-      // Merchants enter dollars (like 100 for $100), but Shopify stores prices in cents
-      if (threshold < 1000) {
-        // If threshold is less than 1000, treat it as dollars and convert to cents
-        threshold = threshold * 100;
-        console.log('🛒 Converting threshold from dollars to cents:', { original: this.settings.freeShippingThreshold, converted: threshold });
-      } else {
-        // If threshold is already a large number, assume it's already in cents
-        console.log('🛒 Using threshold as-is (assuming already in cents):', threshold);
+      // Heuristic: merchants sometimes enter a dollar amount instead of cents (e.g. 10000 intending $10,000 not $100.00)
+      // If the cart total massively exceeds threshold and threshold is below a plausible large target, scale it up.
+      // Conditions:
+      //  - currentTotal > threshold * 2  (cart already far beyond threshold)
+      //  - threshold < 500000 ( < $5,000 ) but merchant likely meant a larger amount
+      //  - threshold % 100 === 0 (looks like a whole dollar figure)
+      // In this case assume the merchant gave dollars, so convert to cents by *100.
+      if (threshold && currentTotal > threshold * 2 && threshold < 500000 && threshold % 100 === 0) {
+        console.log('🛒 Detected probable dollar input for threshold. Auto-scaling', { originalThreshold: threshold, scaledTo: threshold * 100 });
+        threshold = threshold * 100; // treat original as dollars -> cents
       }
 
       // Safety: avoid division by zero
       if (!threshold || threshold <= 0) {
-        threshold = 10000; // fallback $100 in cents
+        threshold = 10000; // fallback $100
       }
 
       const remaining = Math.max(0, threshold - currentTotal);
