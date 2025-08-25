@@ -76,10 +76,7 @@
     }
 
     isCartPage() {
-      const pathname = window.location.pathname.toLowerCase();
-      const isCart = pathname === '/cart' || pathname === '/cart/';
-      console.log('🛒 Cart page detection:', { pathname, isCart });
-      return isCart;
+      return window.location.pathname === '/cart' || window.location.pathname.startsWith('/cart/');
     }
 
     createCartDrawer() {
@@ -127,25 +124,32 @@
     }
 
     renderCartItems() {
-      if (!this.cart || !this.cart.items || this.cart.items.length === 0) {
-        return '<div class="upcart-empty-cart">Your cart is empty</div>';
-      }
-      
-      return this.cart.items.map(item => `
-        <div class="upcart-product-item" data-variant-id="${item.variant_id}">
-          <div class="upcart-product-image">
-            <img src="${item.featured_image?.url || item.image}" alt="${item.title}">
+      if (!this.cart || this.cart.items.length === 0) {
+        return `
+          <div class="upcart-cart-empty">
+            <h3>Your cart is empty</h3>
+            <p>Add some products to get started!</p>
+            <a href="/collections/all" class="upcart-continue-shopping">Continue Shopping</a>
           </div>
-          <div class="upcart-product-details">
-            <h4 class="upcart-product-title">${item.title}</h4>
-            <div class="upcart-product-price">${this.formatMoney(item.price)}</div>
+        `;
+      }
+
+      return this.cart.items.map(item => `
+        <div class="upcart-cart-item" data-variant-id="${item.variant_id}">
+          <div class="upcart-item-image">
+            <img src="${item.image}" alt="${item.title}" />
+          </div>
+          <div class="upcart-item-details">
+            <h4 class="upcart-item-title">${item.product_title}</h4>
+            ${item.variant_title ? `<p class="upcart-item-variant">${item.variant_title}</p>` : ''}
+            <div class="upcart-item-price">${this.formatMoney(item.price)}</div>
             <div class="upcart-quantity-controls">
               <button class="upcart-quantity-minus" data-variant-id="${item.variant_id}">-</button>
-              <input class="upcart-quantity-input" type="number" value="${item.quantity}" data-variant-id="${item.variant_id}">
+              <input type="number" class="upcart-quantity-input" value="${item.quantity}" data-variant-id="${item.variant_id}" min="0">
               <button class="upcart-quantity-plus" data-variant-id="${item.variant_id}">+</button>
             </div>
           </div>
-          <button class="upcart-remove-item" data-variant-id="${item.variant_id}">Remove</button>
+          <button class="upcart-remove-item" data-variant-id="${item.variant_id}" aria-label="Remove item">×</button>
         </div>
       `).join('');
     }
@@ -183,50 +187,45 @@
           this.updateQuantity(variantId, 0);
         }
       });
+      
+      // Quantity input changes
+      container.addEventListener('change', (e) => {
+        if (e.target.classList.contains('upcart-quantity-input')) {
+          const variantId = e.target.dataset.variantId;
+          const newQty = Math.max(0, parseInt(e.target.value) || 0);
+          this.updateQuantity(variantId, newQty);
+        }
+      });
     }
 
     hijackThemeCartDrawer() {
-      console.log('🛒 Setting up theme cart drawer hijacking...');
-      
-      // Override theme cart drawer opening
-      const originalAddEventListener = HTMLElement.prototype.addEventListener;
-      HTMLElement.prototype.addEventListener = function(type, listener, options) {
-        if (type === 'click' && this.matches && this.matches('[data-cart-drawer-toggle], .cart-toggle, .js-drawer-open-cart')) {
-          // Intercept cart drawer open clicks
-          const newListener = function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('🛒 Intercepted cart drawer open, showing UpCart instead');
-            window.UpCart.openDrawer();
-          };
-          return originalAddEventListener.call(this, type, newListener, options);
+      // Intercept all cart clicks and redirect to our drawer
+      document.addEventListener('click', (e) => {
+        const target = e.target.closest('a[href*="/cart"], button[data-cart-drawer], .cart-drawer-trigger, [data-drawer-trigger="CartDrawer"]');
+        if (target && !target.closest('#upcart-app-container')) {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🛒 Intercepted cart click, opening UpCart drawer instead');
+          this.openDrawer();
         }
-        return originalAddEventListener.call(this, type, listener, options);
-      };
+      }, true);
       
-      // Watch for theme cart drawers and hide them
-      const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          mutation.addedNodes.forEach((node) => {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-              // Hide theme cart drawers when they appear
-              const themeDrawers = node.querySelectorAll ? 
-                node.querySelectorAll('#CartPopup, #cart-drawer, .cart-drawer:not(.upcart-cart)') : [];
-              
-              themeDrawers.forEach(drawer => {
-                if (!drawer.classList.contains('upcart-cart')) {
-                  console.log('🛒 Hiding theme cart drawer:', drawer);
-                  drawer.style.display = 'none';
-                }
-              });
-            }
-          });
+      // Hide theme cart drawers
+      const hideSelectors = [
+        'cart-drawer',
+        '[data-drawer="CartDrawer"]',
+        '.cart-drawer',
+        '#CartDrawer',
+        'cart-notification-product',
+        'cart-notification'
+      ];
+      
+      hideSelectors.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+          el.style.display = 'none !important';
+          el.style.visibility = 'hidden !important';
         });
-      });
-      
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true
       });
     }
 
@@ -257,11 +256,11 @@
 
     updateCartDrawerContent() {
       const cartPopup = document.getElementById('upcart-cart-popup');
-      if (cartPopup && this.cart) {
+      if (cartPopup) {
         // Update header count
         const headerText = cartPopup.querySelector('.upcart-header-text');
         if (headerText) {
-          headerText.textContent = `Cart • ${this.cart.item_count}`;
+          headerText.textContent = `Cart • ${this.cart?.item_count || 0}`;
         }
         
         // Update products section
@@ -273,12 +272,12 @@
         // Update checkout button
         const checkoutButton = cartPopup.querySelector('.upcart-checkout-button');
         if (checkoutButton) {
-          checkoutButton.textContent = `Checkout • ${this.formatMoney(this.cart.total_price)}`;
+          checkoutButton.textContent = `Checkout • ${this.formatMoney(this.cart?.total_price || 0)}`;
         }
         
         // Update free shipping if enabled
         if (this.settings.enableFreeShipping) {
-          const freeShippingSection = cartPopup.querySelector('.upcart-free-shipping');
+          const freeShippingSection = cartPopup.querySelector('.upcart-free-shipping-section');
           if (freeShippingSection) {
             freeShippingSection.innerHTML = this.getFreeShippingHTML();
           }
@@ -293,7 +292,7 @@
         <div class="upcart-sticky-cart-content">
           <div class="upcart-sticky-cart-icon">
             <svg viewBox="0 0 24 24" width="20" height="20">
-              <path d="M7 4V2a1 1 0 0 1 2 0v2h6V2a1 1 0 0 1 2 0v2h1a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h1zM6 6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H6zm2 6a1 1 0 0 1 1-1h6a1 1 0 0 1 0 2H9a1 1 0 0 1-1-1z"/>
+              <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
             </svg>
           </div>
           <div class="upcart-sticky-cart-text">
@@ -315,56 +314,47 @@
     }
 
     createFreeShippingBar() {
-      const freeShippingThreshold = parseFloat(this.settings.freeShippingThreshold) || 50;
-      const currentTotal = this.cart?.total_price ? parseFloat(this.cart.total_price) / 100 : 0;
-      const remainingAmount = Math.max(0, freeShippingThreshold - currentTotal);
-      
       const freeShippingBar = document.createElement('div');
       freeShippingBar.id = 'upcart-free-shipping-bar';
+      freeShippingBar.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 999999 !important;
+        background: #f8f8f8;
+        padding: 12px 20px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      `;
       
-      if (remainingAmount > 0) {
-        freeShippingBar.innerHTML = `
-          <div class="upcart-shipping-message">
-            Add ${this.formatMoney(remainingAmount * 100)} more for FREE shipping!
-          </div>
-          <div class="upcart-shipping-progress">
-            <div class="upcart-shipping-progress-bar" style="width: ${Math.min(100, (currentTotal / freeShippingThreshold) * 100)}%"></div>
-          </div>
-        `;
-      } else {
-        freeShippingBar.innerHTML = `
-          <div class="upcart-shipping-message upcart-shipping-achieved">
-            🎉 You've qualified for FREE shipping!
-          </div>
-        `;
-      }
+      document.body.prepend(freeShippingBar);
+      this.updateFreeShippingBar();
       
-      document.body.appendChild(freeShippingBar);
       console.log('🛒 Free shipping bar created');
     }
 
     getFreeShippingHTML() {
-      const freeShippingThreshold = parseFloat(this.settings.freeShippingThreshold) || 50;
-      const currentTotal = this.cart?.total_price ? parseFloat(this.cart.total_price) / 100 : 0;
-      const remainingAmount = Math.max(0, freeShippingThreshold - currentTotal);
+      if (!this.cart || !this.settings.enableFreeShipping) return '';
       
-      if (remainingAmount > 0) {
+      const threshold = this.getNormalizedThreshold();
+      const remaining = Math.max(0, threshold - this.cart.total_price);
+      const progress = Math.min((this.cart.total_price / threshold) * 100, 100);
+      
+      if (remaining > 0) {
+        const message = this.settings.shippingMessage.replace('{amount}', this.formatMoney(remaining));
         return `
-          <div class="upcart-free-shipping">
-            <div class="upcart-shipping-message">
-              Add ${this.formatMoney(remainingAmount * 100)} more for FREE shipping!
-            </div>
+          <div class="upcart-free-shipping-section">
+            <div class="upcart-shipping-message">${message}</div>
             <div class="upcart-shipping-progress">
-              <div class="upcart-shipping-progress-bar" style="width: ${Math.min(100, (currentTotal / freeShippingThreshold) * 100)}%"></div>
+              <div class="upcart-shipping-progress-bar" style="width: ${progress}%"></div>
             </div>
           </div>
         `;
       } else {
         return `
-          <div class="upcart-free-shipping">
-            <div class="upcart-shipping-message upcart-shipping-achieved">
-              🎉 You've qualified for FREE shipping!
-            </div>
+          <div class="upcart-free-shipping-section upcart-shipping-success">
+            <div class="upcart-shipping-message">${this.settings.shippingSuccessMessage}</div>
           </div>
         `;
       }
@@ -407,38 +397,41 @@
 
     updateStickyCart() {
       const stickyCart = document.getElementById('upcart-sticky-cart');
-      if (stickyCart) {
-        const countElement = stickyCart.querySelector('.upcart-sticky-cart-count');
-        const totalElement = stickyCart.querySelector('.upcart-sticky-cart-total');
+      if (stickyCart && this.cart) {
+        const count = stickyCart.querySelector('.upcart-sticky-cart-count');
+        const total = stickyCart.querySelector('.upcart-sticky-cart-total');
         
-        if (countElement) countElement.textContent = this.cart?.item_count || 0;
-        if (totalElement) totalElement.textContent = this.formatMoney(this.cart?.total_price || 0);
+        if (count) count.textContent = this.cart.item_count;
+        if (total) total.textContent = this.formatMoney(this.cart.total_price);
       }
-      
-      // Update free shipping bar
-      const freeShippingBar = document.getElementById('upcart-free-shipping-bar');
-      if (freeShippingBar && this.settings.enableFreeShipping) {
-        const freeShippingThreshold = parseFloat(this.settings.freeShippingThreshold) || 50;
-        const currentTotal = this.cart?.total_price ? parseFloat(this.cart.total_price) / 100 : 0;
-        const remainingAmount = Math.max(0, freeShippingThreshold - currentTotal);
-        
-        if (remainingAmount > 0) {
-          freeShippingBar.innerHTML = `
-            <div class="upcart-shipping-message">
-              Add ${this.formatMoney(remainingAmount * 100)} more for FREE shipping!
-            </div>
-            <div class="upcart-shipping-progress">
-              <div class="upcart-shipping-progress-bar" style="width: ${Math.min(100, (currentTotal / freeShippingThreshold) * 100)}%"></div>
-            </div>
-          `;
-        } else {
-          freeShippingBar.innerHTML = `
-            <div class="upcart-shipping-message upcart-shipping-achieved">
-              🎉 You've qualified for FREE shipping!
-            </div>
-          `;
-        }
+    }
+
+    updateFreeShippingBar() {
+      const bar = document.getElementById('upcart-free-shipping-bar');
+      if (!bar || !this.cart || !this.settings.enableFreeShipping) return;
+
+      const threshold = this.getNormalizedThreshold();
+      const remaining = Math.max(0, threshold - this.cart.total_price);
+      const progress = Math.min((this.cart.total_price / threshold) * 100, 100);
+
+      if (remaining > 0) {
+        const message = this.settings.shippingMessage.replace('{amount}', this.formatMoney(remaining));
+        bar.innerHTML = `
+          <div>${message}</div>
+          <div style="width: 100%; height: 4px; background: #e0e0e0; border-radius: 2px; margin-top: 8px;">
+            <div style="width: ${progress}%; height: 100%; background: #28a745; border-radius: 2px; transition: width 0.3s ease;"></div>
+          </div>
+        `;
+      } else {
+        bar.innerHTML = `<div>${this.settings.shippingSuccessMessage}</div>`;
       }
+    }
+
+    getNormalizedThreshold() {
+      // Clamp extreme values to prevent invisible progress bars
+      const raw = Number(this.settings.freeShippingThreshold || 100);
+      if (raw >= 100000) return 10000; // Cap at $100 if entered as cents
+      return raw * 100; // Convert dollars to cents
     }
 
     listenToCartEvents() {
@@ -459,23 +452,18 @@
 
     interceptAddToCart() {
       // Intercept add to cart forms
-      document.addEventListener('submit', (e) => {
-        if (e.target.querySelector('[name="add"]')) {
-          console.log('🛒 Add to cart form detected');
+      document.addEventListener('submit', async (e) => {
+        const form = e.target;
+        if (form.action && form.action.includes('/cart/add')) {
           e.preventDefault();
-          this.handleAddToCart(e.target);
-        }
-      });
-      
-      // Intercept add to cart buttons
-      document.addEventListener('click', (e) => {
-        if (e.target.matches('[data-add-to-cart], .btn-add-to-cart, .product-form__cart-submit')) {
-          console.log('🛒 Add to cart button detected');
-          e.preventDefault();
-          const form = e.target.closest('form') || e.target.closest('[data-product-form]');
-          if (form) {
-            this.handleAddToCart(form);
+          
+          const formData = new FormData(form);
+          const data = {};
+          for (let [key, value] of formData.entries()) {
+            data[key] = value;
           }
+          
+          await this.handleAddToCart(form);
         }
       });
     }
@@ -494,7 +482,7 @@
           this.updateCartDrawerContent();
           this.updateStickyCart();
           this.openDrawer();
-          console.log('🛒 Product added to cart successfully');
+          console.log('🛒 Product added to cart');
         }
       } catch (error) {
         console.error('🛒 Error adding to cart:', error);
@@ -502,9 +490,8 @@
     }
 
     formatMoney(cents) {
-      const format = window.UpCartMoneyFormat || '${{amount}}';
-      const amount = (cents / 100).toFixed(2);
-      return format.replace(/\{\{amount\}\}/g, amount);
+      // Basic formatting - ideally use Shopify's money format
+      return '$' + (cents / 100).toFixed(2);
     }
   }
 
@@ -516,11 +503,14 @@
   }
 
   function initUpCart() {
+    console.log('🛒 Initializing UpCart...');
+    console.log('🛒 Available settings:', window.UpCartSettings);
+    
     if (window.UpCartSettings) {
       window.UpCart = new UpCartDrawer(window.UpCartSettings);
-      console.log('🛒 UpCart initialized with settings:', window.UpCartSettings);
+      console.log('🛒 UpCart instance created:', window.UpCart);
     } else {
-      console.warn('🛒 UpCart settings not found');
+      console.error('🛒 UpCartSettings not found!');
     }
   }
 

@@ -1,0 +1,185 @@
+{% comment %} 
+This is the app embed that merchants enable in theme editor 
+{% endcomment %}
+
+{% if block.settings.enable_app %}
+  <script src="{{ 'cart-drawer.js' | asset_url }}" defer="defer"></script>
+  <link rel="stylesheet" href="{{ 'cart-drawer.css' | asset_url }}">
+  
+  <!-- Main UpCart Container (like UpcartPopup) -->
+  <div id="upcart-app-container" style="display: none;">
+    <div id="upcart-backdrop" class="upcart-backdrop"></div>
+    <div id="upcart-cart-popup" class="upcart-cart-popup"></div>
+  </div>
+  
+  <!-- Settings and initialization -->
+  <script>
+    // Preload cart data (like working app)
+    window.UpCartPreloadedCart = {{ cart | json }};
+    window.UpCartMoneyFormat = {{ shop.money_format | json }};
+    window.UpCartShopDomain = {{ shop.permanent_domain | json }};
+    
+    // Main settings object
+    window.UpCartSettings = {
+      enableStickyCart: {{ block.settings.enable_sticky_cart | json }},
+      enableFreeShipping: {{ block.settings.enable_free_shipping | json }},
+      freeShippingThreshold: {{ block.settings.free_shipping_threshold | json }},
+      cartPosition: "{{ block.settings.cart_position }}",
+      cartIcon: "{{ block.settings.cart_icon }}",
+      backgroundColor: "{{ block.settings.background_color }}",
+      textColor: "{{ block.settings.text_color }}",
+      buttonColor: "{{ block.settings.button_color }}",
+      enableUpsells: {{ block.settings.enable_upsells | json }},
+      shippingMessage: "{{ block.settings.shipping_message }}",
+      shippingSuccessMessage: "{{ block.settings.shipping_success_message }}",
+      showOnlyOnCartPage: {{ block.settings.show_only_on_cart_page | json }},
+      shopDomain: "{{ shop.permanent_domain }}"
+    };
+  </script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "UpCart Cart Drawer",
+  "target": "body",
+  "settings": [
+    {
+      "type": "header",
+      "content": "General Settings"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_app",
+      "label": "Enable UpCart",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Sticky Cart Settings"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_sticky_cart",
+      "label": "Enable Sticky Cart Button",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_only_on_cart_page",
+      "label": "Show only on cart page",
+      "default": false,
+      "info": "If enabled, the cart drawer will only appear on the cart page"
+    },
+    {
+      "type": "select",
+      "id": "cart_position",
+      "label": "Cart Position",
+      "options": [
+        {
+          "value": "bottom-right",
+          "label": "Bottom Right"
+        },
+        {
+          "value": "bottom-left",
+          "label": "Bottom Left"
+        },
+        {
+          "value": "middle-right",
+          "label": "Middle Right"
+        },
+        {
+          "value": "middle-left",
+          "label": "Middle Left"
+        }
+      ],
+      "default": "bottom-right"
+    },
+    {
+      "type": "select",
+      "id": "cart_icon",
+      "label": "Cart Icon Style",
+      "options": [
+        {
+          "value": "bag",
+          "label": "Shopping Bag"
+        },
+        {
+          "value": "cart",
+          "label": "Shopping Cart"
+        },
+        {
+          "value": "basket",
+          "label": "Basket"
+        }
+      ],
+      "default": "cart"
+    },
+    {
+      "type": "header",
+      "content": "Free Shipping Bar"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_free_shipping",
+      "label": "Enable Free Shipping Bar",
+      "default": true
+    },
+    {
+      "type": "number",
+      "id": "free_shipping_threshold",
+      "label": "Free Shipping Threshold ($)",
+      "default": 100
+    },
+    {
+      "type": "text",
+      "id": "shipping_message",
+      "label": "Shipping Message",
+      "default": "You're {amount} away from free shipping!"
+    },
+    {
+      "type": "text",
+      "id": "shipping_success_message",
+      "label": "Free Shipping Achieved Message",
+      "default": "🎉 Congratulations! You've unlocked free shipping!"
+    },
+    {
+      "type": "header",
+      "content": "Styling"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background Color",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text Color",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "color",
+      "id": "button_color",
+      "label": "Button Color",
+      "default": "#4CAF50"
+    },
+    {
+      "type": "header",
+      "content": "Upsells & Cross-sells"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_upsells",
+      "label": "Enable Product Upsells",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_quantity_breaks",
+      "label": "Enable Quantity Breaks",
+      "default": false
+    }
+  ]
+}
+{% endschema %}

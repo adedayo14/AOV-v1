@@ -62,7 +62,7 @@
         // Free shipping settings
         enableFreeShipping: {{ block.settings.enable_free_shipping | default: true | json }},
         freeShippingThreshold: {{ block.settings.free_shipping_threshold | default: 100 | json }},
-        shippingMessage: {% assign default_msg = 'You are {amount} away from free shipping!' %}{{ block.settings.shipping_message | default: default_msg | json }},
+        shippingMessage: {{ block.settings.shipping_message | default: 'You are {amount} away from free shipping!' | json }},
         shippingSuccessMessage: {{ block.settings.shipping_success_message | default: '🎉 Congratulations! You have unlocked free shipping!' | json }},
         
         // Styling settings
