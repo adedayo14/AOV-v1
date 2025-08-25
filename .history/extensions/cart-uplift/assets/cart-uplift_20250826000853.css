@@ -73,7 +73,7 @@
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
-  overflow-y: auto; /* Allow full vertical scrolling including recommendations */
+  overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -214,7 +214,10 @@
 }
 
 /* When recommendations are present, limit cart items height */
-/* Removed restrictive max-height so cart + recommendations can scroll naturally */
+.cartuplift-drawer.has-recommendations .cartuplift-items {
+  flex: 1;
+  max-height: 0vh; /* Reduced further to make more room for recommendations near bottom */
+}
 
 .cartuplift-scrollable-content {
   flex: 0 0 auto; /* Don't grow/shrink */
@@ -793,7 +796,7 @@
   font-weight: 600;
   color: var(--cartuplift-text-primary);
   padding: 16px 0;
-  /* Removed top border line per design request */
+  border-top: 1px solid var(--cartuplift-border);
 }
 
 .cartuplift-checkout-btn {

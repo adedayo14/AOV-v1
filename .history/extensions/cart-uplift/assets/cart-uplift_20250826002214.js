@@ -24,18 +24,6 @@
       this._quantityBusy = false;
       this._recommendationsLoaded = false;
       this.recommendations = [];
-      this._allRecommendations = []; // Master list to allow re-show after removal from cart
-
-      // Listen early for late settings injection
-      document.addEventListener('cartuplift:settings:updated', () => {
-        this.settings = Object.assign(this.settings, window.CartUpliftSettings || {});
-        // Re-filter recommendations if we already have master list
-        if (this._allRecommendations.length) {
-          this.rebuildRecommendationsFromMaster();
-          this.updateRecommendationsSection();
-          this.refreshRecommendationLayout();
-        }
-      });
       
       this.initPromise = this.init();
     }
@@ -359,7 +347,7 @@
 
     getRecommendationsHTML() {
       const layout = this.settings.recommendationLayout || 'column';
-  const title = (this.settings.recommendationsTitle || 'You might also like');
+      const title = (this.settings.recommendationsTitle || 'You might also like').toUpperCase();
       
       return `
         <div class="cartuplift-recommendations cartuplift-recommendations-${layout}">
@@ -389,16 +377,8 @@
       // Update title
       const titleEl = section.querySelector('.cartuplift-recommendations-title');
       if (titleEl) {
-        titleEl.textContent = (this.settings.recommendationsTitle || 'You might also like');
+        titleEl.textContent = (this.settings.recommendationsTitle || 'You might also like').toUpperCase();
       }
-    }
-
-    rebuildRecommendationsFromMaster() {
-      if (!this._allRecommendations.length) return;
-      const cartProductIds = (this.cart?.items || []).map(i => i.product_id);
-      const filtered = this._allRecommendations.filter(r => !cartProductIds.includes(r.id));
-      const max = this.settings.maxRecommendations || 4;
-      this.recommendations = filtered.slice(0, max);
     }
 
     getRecommendationItems() {
@@ -667,8 +647,22 @@
             }, 300);
           });
           
-          // Do NOT permanently remove; we'll simply re-filter so it disappears while in cart
-          this.rebuildRecommendationsFromMaster();
+          // Remove the added product from recommendations
+          if (this.recommendations && this.recommendations.length > 0) {
+            this.recommendations = this.recommendations.filter(rec => 
+              rec.variant_id !== variantId
+            );
+            console.log('🛒 Removed added product from recommendations, remaining:', this.recommendations.length);
+            
+            // Auto-hide section if all products have been added
+            if (this.recommendations.length === 0) {
+              console.log('🛒 All recommendations added, hiding section completely');
+              // Regenerate drawer content to hide the entire recommendations section
+              setTimeout(() => {
+                this.updateDrawerContent();
+              }, 500); // Small delay to let user see the item was added
+            }
+          }
           
           await this.fetchCart();
           this.updateDrawerContent();
@@ -781,7 +775,7 @@
         }
         
         // Convert to our format
-  this._allRecommendations = products.map(product => ({
+        this.recommendations = products.map(product => ({
           id: product.id,
           title: product.title,
           price: product.variants && product.variants[0] ? product.variants[0].price : 0,
@@ -790,8 +784,8 @@
           variant_id: product.variants && product.variants[0] ? product.variants[0].id : null,
           url: product.handle ? `/products/${product.handle}` : (product.url || '#')
         })).filter(item => item.variant_id); // Only include products with valid variants
-  this.rebuildRecommendationsFromMaster();
-  console.log('🛒 Final recommendations loaded (master):', this._allRecommendations.length, 'showing:', this.recommendations.length);
+        
+        console.log('🛒 Final recommendations loaded:', this.recommendations.length);
         
         // Update recommendations display if drawer is open
         if (this.isOpen) {
@@ -819,9 +813,18 @@
       popup.innerHTML = this.getDrawerHTML();
       this.attachDrawerEvents();
       
-      // Rebuild recommendations each render so removed cart items come back
-      if (this._allRecommendations.length) {
-        this.rebuildRecommendationsFromMaster();
+      // Filter out cart items from recommendations
+      if (this.recommendations && this.cart && this.cart.items) {
+        const cartProductIds = this.cart.items.map(item => item.product_id);
+        const originalCount = this.recommendations.length;
+        this.recommendations = this.recommendations.filter(rec => 
+          !cartProductIds.includes(rec.id)
+        );
+        
+        if (originalCount !== this.recommendations.length) {
+          console.log('🛒 Filtered out', originalCount - this.recommendations.length, 'cart items from recommendations');
+          // Don't auto-refill recommendations - let them get depleted naturally
+        }
       }
       
       // Update sticky cart
