@@ -43,14 +43,11 @@
     async setup() {
       console.log('🛒 Setting up Cart Uplift...');
       
-      // Fetch initial cart data FIRST
+      // Fetch initial cart data
       await this.fetchCart();
       
-      // Create cart drawer AFTER cart is fetched
+      // Create cart drawer
       this.createDrawer();
-      
-      // Update drawer content with actual cart data
-      this.updateDrawerContent();
       
       // Handle sticky cart
       if (this.settings.enableStickyCart) {
@@ -68,10 +65,8 @@
       
       // Load recommendations if enabled (only once during setup)
       if (this.settings.enableRecommendations && !this._recommendationsLoaded) {
-        await this.loadRecommendations();
+        this.loadRecommendations();
         this._recommendationsLoaded = true;
-        // Update drawer content again with recommendations
-        this.updateDrawerContent();
       }
       
       console.log('🛒 Cart Uplift setup complete.');
@@ -191,51 +186,27 @@
       let threshold = this.settings.freeShippingThreshold || 100;
       const currentTotal = this.cart ? this.cart.total_price : 0;
 
-      // Shopify prices are always in the smallest currency unit (pence for GBP, cents for USD)
-      // So if threshold is 100, it means £100 = 10000 pence
-      // But let's make sure the threshold is properly converted to match the currency
-      const thresholdInSmallestUnit = threshold * 100; // Convert £100 to 10000 pence
+      // Convert threshold to cents if needed
+      if (threshold < 1000) {
+        threshold = threshold * 100;
+      }
 
-      const remaining = Math.max(0, thresholdInSmallestUnit - currentTotal);
-      const progress = Math.min((currentTotal / thresholdInSmallestUnit) * 100, 100);
-      
-      // Debug logging
-      console.log('🛒 Free Shipping Debug:', {
-        thresholdInSmallestUnit: thresholdInSmallestUnit,
-        currentTotal: currentTotal,
-        remaining: remaining,
-        progress: progress,
-        rawThreshold: this.settings.freeShippingThreshold,
-        cartExists: !!this.cart,
-        itemCount: itemCount,
-        buttonColor: this.settings.buttonColor,
-        settings: {
-          freeShippingText: this.settings.freeShippingText,
-          freeShippingAchievedText: this.settings.freeShippingAchievedText,
-          enableFreeShipping: this.settings.enableFreeShipping
-        }
-      });
+      const remaining = Math.max(0, threshold - currentTotal);
+      const progress = Math.min((currentTotal / threshold) * 100, 100);
       
       let freeShippingText = '';
       if (this.settings.enableFreeShipping) {
-        // If cart is not loaded yet or is empty, show full threshold needed
-        if (!this.cart || currentTotal === 0) {
-          freeShippingText = (this.settings.freeShippingText || "Spend {amount} more for free shipping!")
-            .replace(/{amount}/g, this.formatMoney(thresholdInSmallestUnit));
-          console.log('🛒 Free Shipping: Empty cart, showing threshold needed');
-        } else if (remaining > 0) {
-          freeShippingText = (this.settings.freeShippingText || "Spend {amount} more for free shipping!")
+        if (remaining > 0) {
+          freeShippingText = (this.settings.freeShippingText || 'You are {amount} away from free shipping!')
             .replace(/{amount}/g, this.formatMoney(remaining));
-          console.log('🛒 Free Shipping: Showing remaining amount needed:', this.formatMoney(remaining));
         } else {
-          freeShippingText = this.settings.freeShippingAchievedText || "🎉 Free shipping unlocked!";
-          console.log('🛒 Free Shipping: Goal achieved!');
+          freeShippingText = this.settings.freeShippingAchievedText || 'You have earned free shipping!';
         }
       }
       
       return `
         <div class="cartuplift-header">
-          <h2 class="cartuplift-cart-title">Cart (${itemCount})</h2>
+          <h3 class="cartuplift-title">CART (${itemCount})</h3>
           ${this.settings.enableFreeShipping ? `
             <div class="cartuplift-shipping-info">
               <p class="cartuplift-shipping-message">${freeShippingText}</p>
@@ -247,43 +218,17 @@
             </svg>
           </button>
         </div>
-        ${this.settings.enableFreeShipping ? (() => {
-          console.log('🛒 Progress Bar Debug:', {
-            progress: progress,
-            buttonColor: this.settings.buttonColor,
-            progressBarHTML: `width: ${progress}%; background: ${this.settings.buttonColor || '#4CAF50'} !important;`
-          });
-          return `
+        ${this.settings.enableFreeShipping ? `
           <div class="cartuplift-shipping-bar">
             <div class="cartuplift-shipping-progress">
-              <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${this.settings.buttonColor || '#4CAF50'} !important; display: block;"></div>
+              <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%;"></div>
             </div>
-          </div>`;
-        })() : ''}
+          </div>
+        ` : ''}
       `;
     }
 
-    getVariantOptionsHTML(item) {
-    // If no variant title or it's the default, check for individual options
-    if (!item.variant_title || item.variant_title === 'Default Title') {
-      if (item.options_with_values && item.options_with_values.length > 0) {
-        const validOptions = item.options_with_values.filter(option => 
-          option.value && option.value !== 'Default Title'
-        );
-        if (validOptions.length > 0) {
-          return validOptions.map(option => 
-            `<div class="cartuplift-item-variant">${option.name}: ${option.value}</div>`
-          ).join('');
-        }
-      }
-      return '';
-    }
-    
-    // Use variant title if available
-    return `<div class="cartuplift-item-variant">${item.variant_title}</div>`;
-  }
-
-  getCartItemsHTML() {
+    getCartItemsHTML() {
       if (!this.cart || !this.cart.items || this.cart.items.length === 0) {
         return `
           <div class="cartuplift-empty">
@@ -302,7 +247,8 @@
             <h4 class="cartuplift-item-title">
               <a href="${item.url}">${item.product_title}</a>
             </h4>
-            ${this.getVariantOptionsHTML(item)}
+            ${item.variant_title && item.variant_title !== 'Default Title' ? 
+              `<div class="cartuplift-item-variant">${item.variant_title}</div>` : ''}
             <div class="cartuplift-item-quantity-wrapper">
               <div class="cartuplift-quantity">
                 <button class="cartuplift-qty-minus" data-line="${index + 1}">−</button>
@@ -497,12 +443,10 @@
         } else if (e.target.classList.contains('cartuplift-add-recommendation-circle')) {
           const variantId = e.target.dataset.variantId;
           this.addToCart(variantId, 1);
-        } else if (e.target.classList.contains('cartuplift-recommendations-toggle') || e.target.closest('.cartuplift-recommendations-toggle')) {
-          console.log('🛒 Toggle recommendations clicked');
+        } else if (e.target.classList.contains('cartuplift-recommendations-toggle')) {
           const recommendations = container.querySelector('.cartuplift-recommendations');
           if (recommendations) {
             recommendations.classList.toggle('collapsed');
-            console.log('🛒 Recommendations collapsed:', recommendations.classList.contains('collapsed'));
           }
         }
       });
@@ -568,44 +512,36 @@
       try {
         console.log('🛒 Loading recommendations...');
         
-        let apiUrl = '';
-        
-        // Get product recommendations based on cart items, or popular products if cart is empty
+        // Get product recommendations based on cart items
         if (this.cart && this.cart.items && this.cart.items.length > 0) {
           const productId = this.cart.items[0].product_id;
-          apiUrl = `/recommendations/products.json?product_id=${productId}&limit=${this.settings.maxRecommendations || 4}`;
-          console.log('🛒 Loading recommendations based on cart item:', productId);
-        } else {
-          // Load popular/featured products when cart is empty
-          apiUrl = `/products.json?limit=${this.settings.maxRecommendations || 4}`;
-          console.log('🛒 Loading popular products (cart is empty)');
-        }
-        
-        const response = await fetch(apiUrl);
-        
-        if (response.ok) {
-          const data = await response.json();
-          const products = data.products || [];
+          const response = await fetch(`/recommendations/products.json?product_id=${productId}&limit=${this.settings.maxRecommendations || 4}`);
           
-          this.recommendations = products.map(product => ({
-            title: product.title,
-            price: product.variants[0].price,
-            image: product.images[0] || product.featured_image,
-            variant_id: product.variants[0].id,
-            url: product.handle ? `/products/${product.handle}` : product.url
-          }));
-          
-          console.log('🛒 Loaded', this.recommendations.length, 'recommendations');
-          
-          // Update recommendations display if drawer is open
-          if (this.isOpen) {
-            const recommendationsContent = document.getElementById('cartuplift-recommendations-content');
-            if (recommendationsContent) {
-              recommendationsContent.innerHTML = this.getRecommendationItems();
+          if (response.ok) {
+            const data = await response.json();
+            this.recommendations = data.products.map(product => ({
+              title: product.title,
+              price: product.price,
+              image: product.featured_image,
+              variant_id: product.variants[0].id,
+              url: product.url
+            }));
+            
+            console.log('🛒 Loaded', this.recommendations.length, 'recommendations');
+            
+            // Update recommendations display if drawer is open
+            if (this.isOpen) {
+              const recommendationsContent = document.getElementById('cartuplift-recommendations-content');
+              if (recommendationsContent) {
+                recommendationsContent.innerHTML = this.getRecommendationItems();
+              }
             }
+          } else {
+            console.log('🛒 No recommendations available from API');
+            this.recommendations = [];
           }
         } else {
-          console.log('🛒 No recommendations available from API');
+          console.log('🛒 No cart items for recommendations');
           this.recommendations = [];
         }
         
@@ -621,9 +557,8 @@
 
     updateDrawerContent() {
       const popup = document.querySelector('#cartuplift-cart-popup');
-      if (!popup) return;
+      if (!popup || !this.cart) return;
       
-      console.log('🛒 Updating drawer content, cart:', this.cart);
       popup.innerHTML = this.getDrawerHTML();
       this.attachDrawerEvents();
       
@@ -648,9 +583,6 @@
         this._isAnimating = false;
         return;
       }
-
-      // Update drawer content before showing to ensure latest data
-      this.updateDrawerContent();
 
       // Show container and add active class
       container.style.display = 'block';

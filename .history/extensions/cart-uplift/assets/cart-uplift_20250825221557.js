@@ -263,27 +263,7 @@
       `;
     }
 
-    getVariantOptionsHTML(item) {
-    // If no variant title or it's the default, check for individual options
-    if (!item.variant_title || item.variant_title === 'Default Title') {
-      if (item.options_with_values && item.options_with_values.length > 0) {
-        const validOptions = item.options_with_values.filter(option => 
-          option.value && option.value !== 'Default Title'
-        );
-        if (validOptions.length > 0) {
-          return validOptions.map(option => 
-            `<div class="cartuplift-item-variant">${option.name}: ${option.value}</div>`
-          ).join('');
-        }
-      }
-      return '';
-    }
-    
-    // Use variant title if available
-    return `<div class="cartuplift-item-variant">${item.variant_title}</div>`;
-  }
-
-  getCartItemsHTML() {
+    getCartItemsHTML() {
       if (!this.cart || !this.cart.items || this.cart.items.length === 0) {
         return `
           <div class="cartuplift-empty">
@@ -302,7 +282,8 @@
             <h4 class="cartuplift-item-title">
               <a href="${item.url}">${item.product_title}</a>
             </h4>
-            ${this.getVariantOptionsHTML(item)}
+            ${item.variant_title && item.variant_title !== 'Default Title' ? 
+              `<div class="cartuplift-item-variant">${item.variant_title}</div>` : ''}
             <div class="cartuplift-item-quantity-wrapper">
               <div class="cartuplift-quantity">
                 <button class="cartuplift-qty-minus" data-line="${index + 1}">−</button>

@@ -191,51 +191,45 @@
       let threshold = this.settings.freeShippingThreshold || 100;
       const currentTotal = this.cart ? this.cart.total_price : 0;
 
-      // Shopify prices are always in the smallest currency unit (pence for GBP, cents for USD)
-      // So if threshold is 100, it means £100 = 10000 pence
-      // But let's make sure the threshold is properly converted to match the currency
-      const thresholdInSmallestUnit = threshold * 100; // Convert £100 to 10000 pence
+      // Convert threshold to cents if needed (Shopify prices are in cents)
+      if (threshold < 1000) {
+        threshold = threshold * 100;
+      }
 
-      const remaining = Math.max(0, thresholdInSmallestUnit - currentTotal);
-      const progress = Math.min((currentTotal / thresholdInSmallestUnit) * 100, 100);
+      const remaining = Math.max(0, threshold - currentTotal);
+      const progress = Math.min((currentTotal / threshold) * 100, 100);
       
       // Debug logging
       console.log('🛒 Free Shipping Debug:', {
-        thresholdInSmallestUnit: thresholdInSmallestUnit,
+        threshold: threshold,
         currentTotal: currentTotal,
         remaining: remaining,
         progress: progress,
         rawThreshold: this.settings.freeShippingThreshold,
         cartExists: !!this.cart,
-        itemCount: itemCount,
-        buttonColor: this.settings.buttonColor,
-        settings: {
-          freeShippingText: this.settings.freeShippingText,
-          freeShippingAchievedText: this.settings.freeShippingAchievedText,
-          enableFreeShipping: this.settings.enableFreeShipping
-        }
+        itemCount: itemCount
       });
       
       let freeShippingText = '';
       if (this.settings.enableFreeShipping) {
         // If cart is not loaded yet or is empty, show full threshold needed
         if (!this.cart || currentTotal === 0) {
-          freeShippingText = (this.settings.freeShippingText || "Spend {amount} more for free shipping!")
-            .replace(/{amount}/g, this.formatMoney(thresholdInSmallestUnit));
+          freeShippingText = (this.settings.freeShippingText || "You're {amount} away from free shipping!")
+            .replace(/{amount}/g, this.formatMoney(threshold));
           console.log('🛒 Free Shipping: Empty cart, showing threshold needed');
         } else if (remaining > 0) {
-          freeShippingText = (this.settings.freeShippingText || "Spend {amount} more for free shipping!")
+          freeShippingText = (this.settings.freeShippingText || "You're {amount} away from free shipping!")
             .replace(/{amount}/g, this.formatMoney(remaining));
           console.log('🛒 Free Shipping: Showing remaining amount needed:', this.formatMoney(remaining));
         } else {
-          freeShippingText = this.settings.freeShippingAchievedText || "🎉 Free shipping unlocked!";
+          freeShippingText = this.settings.freeShippingAchievedText || "🎉 Congratulations! You've unlocked free shipping!";
           console.log('🛒 Free Shipping: Goal achieved!');
         }
       }
       
       return `
         <div class="cartuplift-header">
-          <h2 class="cartuplift-cart-title">Cart (${itemCount})</h2>
+          <h3 class="cartuplift-title">CART (${itemCount})</h3>
           ${this.settings.enableFreeShipping ? `
             <div class="cartuplift-shipping-info">
               <p class="cartuplift-shipping-message">${freeShippingText}</p>
@@ -247,43 +241,17 @@
             </svg>
           </button>
         </div>
-        ${this.settings.enableFreeShipping ? (() => {
-          console.log('🛒 Progress Bar Debug:', {
-            progress: progress,
-            buttonColor: this.settings.buttonColor,
-            progressBarHTML: `width: ${progress}%; background: ${this.settings.buttonColor || '#4CAF50'} !important;`
-          });
-          return `
+        ${this.settings.enableFreeShipping ? `
           <div class="cartuplift-shipping-bar">
             <div class="cartuplift-shipping-progress">
-              <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${this.settings.buttonColor || '#4CAF50'} !important; display: block;"></div>
+              <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%;"></div>
             </div>
-          </div>`;
-        })() : ''}
+          </div>
+        ` : ''}
       `;
     }
 
-    getVariantOptionsHTML(item) {
-    // If no variant title or it's the default, check for individual options
-    if (!item.variant_title || item.variant_title === 'Default Title') {
-      if (item.options_with_values && item.options_with_values.length > 0) {
-        const validOptions = item.options_with_values.filter(option => 
-          option.value && option.value !== 'Default Title'
-        );
-        if (validOptions.length > 0) {
-          return validOptions.map(option => 
-            `<div class="cartuplift-item-variant">${option.name}: ${option.value}</div>`
-          ).join('');
-        }
-      }
-      return '';
-    }
-    
-    // Use variant title if available
-    return `<div class="cartuplift-item-variant">${item.variant_title}</div>`;
-  }
-
-  getCartItemsHTML() {
+    getCartItemsHTML() {
       if (!this.cart || !this.cart.items || this.cart.items.length === 0) {
         return `
           <div class="cartuplift-empty">
@@ -302,7 +270,8 @@
             <h4 class="cartuplift-item-title">
               <a href="${item.url}">${item.product_title}</a>
             </h4>
-            ${this.getVariantOptionsHTML(item)}
+            ${item.variant_title && item.variant_title !== 'Default Title' ? 
+              `<div class="cartuplift-item-variant">${item.variant_title}</div>` : ''}
             <div class="cartuplift-item-quantity-wrapper">
               <div class="cartuplift-quantity">
                 <button class="cartuplift-qty-minus" data-line="${index + 1}">−</button>
@@ -648,9 +617,6 @@
         this._isAnimating = false;
         return;
       }
-
-      // Update drawer content before showing to ensure latest data
-      this.updateDrawerContent();
 
       // Show container and add active class
       container.style.display = 'block';

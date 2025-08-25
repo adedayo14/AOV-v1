@@ -194,7 +194,7 @@
   flex: 1;
   overflow-y: auto;
   background: #ffffff;
-  padding: 0 24px; /* Increased padding from 16px to 24px */
+  padding: 0 16px; /* Added left and right padding to cart items */
 }
 
 .cartuplift-empty {

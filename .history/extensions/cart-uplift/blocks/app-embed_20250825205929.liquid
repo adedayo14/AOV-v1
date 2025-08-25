@@ -9,7 +9,7 @@
         // Theme embed settings (frequently changed)
         autoOpenCart: true,
         enableFreeShipping: true,
-        freeShippingThreshold: 150,
+        freeShippingThreshold: 100,
         buttonColor: "#4CAF50",
         textColor: "#1a1a1a",
 
@@ -20,8 +20,8 @@
         cartPosition: "bottom-right",
         cartIcon: "cart",
         backgroundColor: "#ffffff",
-        freeShippingText: "Spend {amount} more for free shipping!",
-        freeShippingAchievedText: "🎉 Free shipping unlocked!",
+        freeShippingText: "You're {amount} away from free shipping!",
+        freeShippingAchievedText: "🎉 Congratulations! You've unlocked free shipping!",
 
         // Features
         enableRecommendations: true,
@@ -33,7 +33,7 @@
         enableExpressCheckout: true,
 
         // Advanced
-        drawerWidth: 540,
+        drawerWidth: 480,
         borderRadius: 8,
         showBrandBadge: true,
         enableQuantitySelectors: true,
@@ -63,11 +63,8 @@
           console.log('🛒 Cart Uplift Settings (with backend):', window.CartUpliftSettings);
           
           // Initialize cart if enabled
-          if (window.CartUpliftSettings.enableApp) {
-            // Create new cart drawer instance
-            if (window.CartUpliftDrawer) {
-              window.cartUpliftDrawer = new window.CartUpliftDrawer(window.CartUpliftSettings);
-            }
+          if (window.CartUpliftSettings.enableApp && window.CartUplift) {
+            window.CartUplift.init(window.CartUpliftSettings);
           }
         })
         .catch(error => {
@@ -77,11 +74,8 @@
           console.log('🛒 Cart Uplift Settings (local):', window.CartUpliftSettings);
           
           // Initialize cart if enabled
-          if (window.CartUpliftSettings.enableApp) {
-            // Create new cart drawer instance
-            if (window.CartUpliftDrawer) {
-              window.cartUpliftDrawer = new window.CartUpliftDrawer(window.CartUpliftSettings);
-            }
+          if (window.CartUpliftSettings.enableApp && window.CartUplift) {
+            window.CartUplift.init(window.CartUpliftSettings);
           }
         });
 
@@ -137,7 +131,7 @@
       "type": "number",
       "id": "free_shipping_threshold",
       "label": "Free shipping threshold",
-      "default": 150,
+      "default": 100,
       "info": "Minimum order amount for free shipping (in shop currency)"
     },
     {

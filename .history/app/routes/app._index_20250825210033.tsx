@@ -1,5 +1,6 @@
+import { useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { Link } from "@remix-run/react";
+import { useFetcher, Link } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -7,10 +8,11 @@ import {
   Card,
   Button,
   BlockStack,
+  Box,
   List,
   InlineStack,
 } from "@shopify/polaris";
-import { TitleBar } from "@shopify/app-bridge-react";
+import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -166,6 +168,31 @@ export default function Index() {
             </BlockStack>
           </Layout.Section>
         </Layout>
+        
+        {fetcher.data?.product && (
+          <Layout>
+            <Layout.Section>
+              <Card>
+                <BlockStack gap="200">
+                  <Text as="h3" variant="headingMd">
+                    Product Created Successfully!
+                  </Text>
+                  <Text variant="bodyMd" as="p">
+                    Your sample product "{fetcher.data.product.title}" has been created.
+                  </Text>
+                  <Box>
+                    <Button
+                      url={`shopify:admin/products/${productId}`}
+                      target="_blank"
+                    >
+                      View Product in Admin
+                    </Button>
+                  </Box>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+          </Layout>
+        )}
       </BlockStack>
     </Page>
   );

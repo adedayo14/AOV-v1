@@ -1,5 +1,6 @@
+import { useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { Link } from "@remix-run/react";
+import { useFetcher, Link } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -7,10 +8,11 @@ import {
   Card,
   Button,
   BlockStack,
+  Box,
   List,
   InlineStack,
 } from "@shopify/polaris";
-import { TitleBar } from "@shopify/app-bridge-react";
+import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -89,9 +91,32 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Index() {
+  const fetcher = useFetcher<typeof action>();
+
+  const shopify = useAppBridge();
+  const isLoading =
+    ["loading", "submitting"].includes(fetcher.state) &&
+    fetcher.formMethod === "POST";
+  const productId = fetcher.data?.product?.id.replace(
+    "gid://shopify/Product/",
+    "",
+  );
+
+  useEffect(() => {
+    if (productId) {
+      shopify.toast.show("Product created");
+    }
+  }, [productId, shopify]);
+  
+  const generateProduct = () => fetcher.submit({}, { method: "POST" });
+
   return (
     <Page>
-      <TitleBar title="UpCart - Cart Drawer App" />
+      <TitleBar title="UpCart - Cart Drawer App">
+        <button variant="primary" onClick={generateProduct}>
+          Generate a product
+        </button>
+      </TitleBar>
       <BlockStack gap="500">
         <Layout>
           <Layout.Section>
@@ -117,8 +142,11 @@ export default function Index() {
                     <Button variant="primary">General Settings</Button>
                   </Link>
                   <Link to="/app/cart-drawer">
-                    <Button>Dashboard</Button>
+                    <Button>Configure Cart Drawer</Button>
                   </Link>
+                  <Button onClick={generateProduct} loading={isLoading}>
+                    Generate Sample Product
+                  </Button>
                 </InlineStack>
               </BlockStack>
             </Card>
@@ -166,6 +194,31 @@ export default function Index() {
             </BlockStack>
           </Layout.Section>
         </Layout>
+        
+        {fetcher.data?.product && (
+          <Layout>
+            <Layout.Section>
+              <Card>
+                <BlockStack gap="200">
+                  <Text as="h3" variant="headingMd">
+                    Product Created Successfully!
+                  </Text>
+                  <Text variant="bodyMd" as="p">
+                    Your sample product "{fetcher.data.product.title}" has been created.
+                  </Text>
+                  <Box>
+                    <Button
+                      url={`shopify:admin/products/${productId}`}
+                      target="_blank"
+                    >
+                      View Product in Admin
+                    </Button>
+                  </Box>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+          </Layout>
+        )}
       </BlockStack>
     </Page>
   );

@@ -5,7 +5,6 @@ import {
   Layout,
   Text,
   Card,
-  Button,
   BlockStack,
   List,
   InlineStack,
@@ -166,6 +165,31 @@ export default function Index() {
             </BlockStack>
           </Layout.Section>
         </Layout>
+        
+        {fetcher.data?.product && (
+          <Layout>
+            <Layout.Section>
+              <Card>
+                <BlockStack gap="200">
+                  <Text as="h3" variant="headingMd">
+                    Product Created Successfully!
+                  </Text>
+                  <Text variant="bodyMd" as="p">
+                    Your sample product "{fetcher.data.product.title}" has been created.
+                  </Text>
+                  <Box>
+                    <Button
+                      url={`shopify:admin/products/${productId}`}
+                      target="_blank"
+                    >
+                      View Product in Admin
+                    </Button>
+                  </Box>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+          </Layout>
+        )}
       </BlockStack>
     </Page>
   );

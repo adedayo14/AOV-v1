@@ -1,0 +1,505 @@
+{% comment %} 
+  Cart Uplift - Theme App Extension.
+  This app embed enables a custom cart drawer with upsells and free shipping progress
+{% endcomment %}
+
+{% if block.settings.enable_app %}
+  {% comment %} Load CSS first {% endcomment %}
+  <link rel="stylesheet" href="{{ 'cart-uplift.css' | asset_url }}">
+  
+  {% comment %} Initialize Cart Uplift with settings and data BEFORE loading the main script {% endcomment %}
+  <script>
+    (function() {
+      // Preload cart data for faster initial load
+      window.CartUpliftPreloadedCart = {{ cart | json }};
+      
+      // Store money format for proper price display
+      window.CartUpliftMoneyFormat = {{ shop.money_format | json }};
+      
+      // Store shop information
+      window.CartUpliftShopInfo = {
+        domain: {{ shop.permanent_domain | json }},
+        currency: {{ shop.currency | json }},
+        moneyFormat: {{ shop.money_format | json }},
+        moneyWithCurrencyFormat: {{ shop.money_with_currency_format | json }}
+      };
+      
+      // Main Cart Uplift settings from theme editor
+      window.CartUpliftSettings = {
+        // General settings
+        enableApp: {{ block.settings.enable_app | default: true | json }},
+        shopDomain: {{ shop.permanent_domain | json }},
+        
+        // Sticky cart settings
+        enableStickyCart: {{ block.settings.enable_sticky_cart | default: true | json }},
+        showOnlyOnCartPage: {{ block.settings.show_only_on_cart_page | default: false | json }},
+        cartPosition: {{ block.settings.cart_position | default: 'bottom-right' | json }},
+        cartIcon: {{ block.settings.cart_icon | default: 'cart' | json }},
+        
+        // Free shipping settings
+        enableFreeShipping: {{ block.settings.enable_free_shipping | default: true | json }},
+        freeShippingThreshold: {{ block.settings.free_shipping_threshold | default: 100 | json }},
+        freeShippingText: {{ block.settings.free_shipping_text | default: 'You are {amount} away from free shipping!' | json }},
+        freeShippingAchievedText: {{ block.settings.free_shipping_achieved_text | default: 'You have earned free shipping!' | json }},
+        
+        // Styling settings
+        backgroundColor: {{ block.settings.background_color | default: '#1a1a1a' | json }},
+        textColor: {{ block.settings.text_color | default: '#FFFFFF' | json }},
+        buttonColor: {{ block.settings.button_color | default: '#45C0B6' | json }},
+        
+        // Upsell and recommendation settings
+        enableUpsells: {{ block.settings.enable_upsells | default: true | json }},
+        enableRecommendations: {{ block.settings.enable_recommendations | default: true | json }},
+        recommendationLayout: {{ block.settings.recommendation_layout | default: 'column' | json }},
+        enableQuantityBreaks: {{ block.settings.enable_quantity_breaks | default: false | json }},
+        maxUpsells: {{ block.settings.max_upsells | default: 4 | json }},
+        
+        // Add-on settings
+        enableAddons: {{ block.settings.enable_addons | default: false | json }},
+        enableExpressCheckout: {{ block.settings.enable_express_checkout | default: true | json }},
+        
+        // Additional settings
+        enableNotes: {{ block.settings.enable_notes | default: false | json }},
+        enableDiscountCode: {{ block.settings.enable_discount_code | default: false | json }},
+        autoOpenCart: {{ block.settings.auto_open_cart | default: true | json }},
+        
+        // Analytics
+        enableAnalytics: {{ block.settings.enable_analytics | default: false | json }},
+        
+        // Localization
+        locale: {{ request.locale.iso_code | json }},
+        
+        // Page context
+        currentPage: {
+          template: {{ template | json }},
+          pageType: {{ request.page_type | json }},
+          isCartPage: {% if template contains 'cart' %}true{% else %}false{% endif %},
+          isProductPage: {% if template contains 'product' %}true{% else %}false{% endif %},
+          isCheckoutPage: {% if template contains 'checkout' %}true{% else %}false{% endif %}
+        }
+      };
+
+      // Apply custom colors if set
+      if (window.CartUpliftSettings.buttonColor || window.CartUpliftSettings.backgroundColor) {
+        const style = document.createElement('style');
+        style.id = 'cartuplift-color-overrides';
+        style.textContent = `
+          :root {
+            --cartuplift-bg-color: ${window.CartUpliftSettings.backgroundColor || '#1a1a1a'};
+            --cartuplift-text-color: ${window.CartUpliftSettings.textColor || '#FFFFFF'};
+            --cartuplift-button-color: ${window.CartUpliftSettings.buttonColor || '#45C0B6'};
+          }
+          
+          .cartuplift-sticky-btn {
+            background-color: var(--cartuplift-bg-color) !important;
+            color: var(--cartuplift-text-color) !important;
+          }
+          
+          .cartuplift-checkout-btn {
+            background-color: var(--cartuplift-button-color) !important;
+          }
+          
+          .cartuplift-shipping-progress-fill {
+            background: var(--cartuplift-button-color) !important;
+          }
+          
+          .cartuplift-add-recommendation-circle {
+            border-color: var(--cartuplift-button-color) !important;
+            color: var(--cartuplift-button-color) !important;
+          }
+          
+          .cartuplift-add-recommendation-circle:hover {
+            background-color: var(--cartuplift-button-color) !important;
+            color: #fff !important;
+          }
+          
+          .cartuplift-discount-apply {
+            background-color: var(--cartuplift-button-color) !important;
+          }
+          
+          .cartuplift-recommendations-header h3 {
+            color: var(--cartuplift-button-color) !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
+      // Debug mode (only in development)
+      {% if shop.permanent_domain contains '.myshopify.com' %}
+        window.CartUpliftDebug = true;
+        console.log('🛒 Cart Uplift Debug Mode Enabled');
+        console.log('🛒 Settings:', window.CartUpliftSettings);
+        console.log('🛒 Cart Data:', window.CartUpliftPreloadedCart);
+      {% endif %}
+
+      // Initialize Cart Uplift when the script is loaded and DOM is ready
+      function initCartUplift() {
+        if (!window.CartUpliftDrawer) {
+          console.error('🛒 Cart Uplift script not loaded');
+          return;
+        }
+        
+        // Destroy existing instance to prevent double-initialization
+        if (window.cartUpliftDrawer?.destroy) {
+          window.cartUpliftDrawer.destroy();
+        }
+        
+        // Create a single instance, with settings guaranteed to exist
+        window.CartUplift = new CartUpliftDrawer(window.CartUpliftSettings);
+        window.cartUpliftDrawer = window.CartUplift;
+        console.log('🛒 Cart Uplift initialised with settings', window.CartUpliftSettings);
+        
+        // Dispatch custom event for third-party integrations
+        window.dispatchEvent(new CustomEvent('cartuplift:initialized', {
+          detail: { cart: window.CartUpliftPreloadedCart }
+        }));
+      }
+
+      // Wait for DOM and script to be ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCartUplift);
+      } else {
+        setTimeout(initCartUplift, 0);
+      }
+    })();
+  </script>
+  
+  {% comment %} Load JavaScript assets AFTER settings are defined {% endcomment %}
+  <script src="{{ 'cart-uplift.js' | asset_url }}" defer="defer"></script>
+  
+  {% comment %} Main Cart Drawer Container {% endcomment %}
+  <div id="cartuplift-app-container" class="cartuplift-container" style="display: none;">
+    <div id="cartuplift-backdrop" class="cartuplift-backdrop"></div>
+    <div id="cartuplift-cart-popup" class="cartuplift-cart-popup">
+      {% comment %} Cart content will be dynamically inserted here by JavaScript {% endcomment %}
+    </div>
+  </div>
+  
+  {% comment %} Global Free Shipping Bar (if enabled and not restricted to cart page) {% endcomment %}
+  {% unless block.settings.show_only_on_cart_page %}
+    {% if block.settings.enable_free_shipping %}
+      <div id="cartuplift-shipping-bar" class="cartuplift-shipping-bar" style="display: none;">
+        <div class="cartuplift-shipping-content">
+          <p class="cartuplift-shipping-text"></p>
+          <div class="cartuplift-shipping-progress">
+            <div class="cartuplift-shipping-progress-bar"></div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  {% endunless %}
+  
+  {% comment %} Analytics tracking {% endcomment %}
+  {% if block.settings.enable_analytics %}
+    <script>
+      document.addEventListener('cartuplift:opened', function() {
+        if (typeof gtag !== 'undefined') {
+          gtag('event', 'view_cart', {
+            'event_category': 'Cart Uplift',
+            'event_label': 'Cart Drawer Opened'
+          });
+        }
+        
+        // Facebook Pixel tracking
+        if (typeof fbq !== 'undefined') {
+          fbq('track', 'ViewContent', {
+            'content_type': 'cart',
+            'content_category': 'Cart Uplift'
+          });
+        }
+        
+        // Custom tracking
+        if (window.CartUpliftAnalytics && typeof window.CartUpliftAnalytics.trackCartOpen === 'function') {
+          window.CartUpliftAnalytics.trackCartOpen();
+        }
+      });
+      
+      document.addEventListener('cartuplift:item_added', function(e) {
+        if (typeof gtag !== 'undefined') {
+          gtag('event', 'add_to_cart', {
+            'event_category': 'Cart Uplift',
+            'event_label': 'Item Added',
+            'value': e.detail.price
+          });
+        }
+        
+        // Facebook Pixel tracking
+        if (typeof fbq !== 'undefined') {
+          fbq('track', 'AddToCart', {
+            'value': e.detail.price / 100, // Convert cents to dollars
+            'currency': '{{ shop.currency }}',
+            'content_name': e.detail.product_title,
+            'content_type': 'product'
+          });
+        }
+        
+        // Custom tracking
+        if (window.CartUpliftAnalytics && typeof window.CartUpliftAnalytics.trackItemAdded === 'function') {
+          window.CartUpliftAnalytics.trackItemAdded(e.detail);
+        }
+      });
+      
+      document.addEventListener('cartuplift:checkout_started', function(e) {
+        if (typeof gtag !== 'undefined') {
+          gtag('event', 'begin_checkout', {
+            'event_category': 'Cart Uplift',
+            'value': e.detail.total_price / 100,
+            'currency': '{{ shop.currency }}'
+          });
+        }
+        
+        // Facebook Pixel tracking
+        if (typeof fbq !== 'undefined') {
+          fbq('track', 'InitiateCheckout', {
+            'value': e.detail.total_price / 100,
+            'currency': '{{ shop.currency }}',
+            'num_items': e.detail.item_count
+          });
+        }
+        
+        // Custom tracking
+        if (window.CartUpliftAnalytics && typeof window.CartUpliftAnalytics.trackCheckoutStarted === 'function') {
+          window.CartUpliftAnalytics.trackCheckoutStarted(e.detail);
+        }
+      });
+    </script>
+  {% endif %}
+  
+{% endif %}
+
+{% schema %}
+{
+  "name": "Cart Uplift",
+  "target": "body",
+  "settings": [
+    {
+      "type": "header",
+      "content": "⚙️ General Configuration"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_app",
+      "label": "Enable Cart Uplift",
+      "default": true,
+      "info": "Turn on/off the entire cart drawer functionality"
+    },
+    {
+      "type": "checkbox",
+      "id": "auto_open_cart",
+      "label": "Auto-open cart on add to cart",
+      "default": true,
+      "info": "Automatically open cart drawer when items are added"
+    },
+    {
+      "type": "header",
+      "content": "🛒 Sticky Cart Button"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_sticky_cart",
+      "label": "Enable Sticky Cart Button",
+      "default": true,
+      "info": "Shows a floating cart button on your store"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_only_on_cart_page",
+      "label": "Show only on cart page",
+      "default": false,
+      "info": "Only display sticky cart button on the cart page"
+    },
+    {
+      "type": "select",
+      "id": "cart_position",
+      "label": "Cart Button Position",
+      "default": "bottom-right",
+      "options": [
+        {
+          "value": "bottom-right",
+          "label": "Bottom Right"
+        },
+        {
+          "value": "bottom-left",
+          "label": "Bottom Left"
+        },
+        {
+          "value": "middle-right",
+          "label": "Middle Right"
+        },
+        {
+          "value": "middle-left",
+          "label": "Middle Left"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "cart_icon",
+      "label": "Cart Icon Style",
+      "default": "cart",
+      "options": [
+        {
+          "value": "cart",
+          "label": "Shopping Cart"
+        },
+        {
+          "value": "bag",
+          "label": "Shopping Bag"
+        },
+        {
+          "value": "basket",
+          "label": "Shopping Basket"
+        }
+      ]
+    },
+    {
+      "type": "header",
+      "content": "🚚 Free Shipping Progress"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_free_shipping",
+      "label": "Enable Free Shipping Progress",
+      "default": true,
+      "info": "Shows progress toward free shipping threshold"
+    },
+    {
+      "type": "number",
+      "id": "free_shipping_threshold",
+      "label": "Free Shipping Threshold",
+      "default": 100,
+      "info": "Amount in dollars (e.g., 100 = $100, 250 = $250)"
+    },
+    {
+      "type": "text",
+      "id": "free_shipping_text", 
+      "label": "Free Shipping Progress Text",
+      "default": "You are {amount} away from free shipping!",
+      "info": "Text shown for free shipping progress. Use {amount} for remaining amount."
+    },
+    {
+      "type": "text",
+      "id": "free_shipping_achieved_text",
+      "label": "Free Shipping Achieved Text", 
+      "default": "You have earned free shipping!",
+      "info": "Text shown when free shipping is achieved"
+    },
+    {
+      "type": "header",
+      "content": "🎨 Styling & Colors"
+    },
+    {
+      "type": "color",
+      "id": "button_color",
+      "label": "Button/Progress Color",
+      "default": "#45C0B6",
+      "info": "Primary color for buttons, progress bars, and accents"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Sticky Cart Background",
+      "default": "#1a1a1a",
+      "info": "Background color for sticky cart button"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Sticky Cart Text Color",
+      "default": "#FFFFFF",
+      "info": "Text color for sticky cart button"
+    },
+    {
+      "type": "header",
+      "content": "🛍️ Product Recommendations"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_recommendations",
+      "label": "Enable Product Recommendations",
+      "default": true,
+      "info": "Show recommended products in cart"
+    },
+    {
+      "type": "select",
+      "id": "recommendation_layout",
+      "label": "Recommendation Layout",
+      "default": "column",
+      "options": [
+        {
+          "value": "column",
+          "label": "Column Layout (Vertical)"
+        },
+        {
+          "value": "row",
+          "label": "Row Layout (Horizontal Scroll)"
+        }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_upsells",
+      "label": "Enable Upsells",
+      "default": true,
+      "info": "Show upsell products based on cart contents"
+    },
+    {
+      "type": "number",
+      "id": "max_upsells",
+      "label": "Maximum Upsells",
+      "default": 4,
+      "info": "Maximum number of upsell products to show"
+    },
+    {
+      "type": "header",
+      "content": "🎁 Add-ons & Features"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_addons",
+      "label": "Enable Add-ons",
+      "default": false,
+      "info": "Show add-on products or services"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_express_checkout",
+      "label": "Enable Express Checkout",
+      "default": true,
+      "info": "Show PayPal and Shop Pay express checkout buttons"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_notes",
+      "label": "Enable Order Notes",
+      "default": false,
+      "info": "Allow customers to add notes to their order"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_discount_code",
+      "label": "Enable Discount Codes",
+      "default": false,
+      "info": "Allow customers to apply discount codes"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_quantity_breaks",
+      "label": "Enable Quantity Breaks",
+      "default": false,
+      "info": "Show quantity-based pricing tiers"
+    },
+    {
+      "type": "header",
+      "content": "📊 Analytics & Tracking"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_analytics",
+      "label": "Enable Analytics Tracking",
+      "default": false,
+      "info": "Track cart events with Google Analytics and Facebook Pixel"
+    }
+  ]
+}
+{% endschema %}

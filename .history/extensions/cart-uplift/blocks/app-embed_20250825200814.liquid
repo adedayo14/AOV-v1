@@ -1,0 +1,131 @@
+{% comment %} Cart Uplift – App Embed (6-setting compliant) {% endcomment %}
+
+{% if block.settings.enable_app %}
+  <link rel="stylesheet" href="{{ 'cart-uplift.css' | asset_url }}">
+
+  <script>
+    (function() {
+      // Base defaults (fallbacks if not provided in config_json)
+      const defaults = {
+        enableApp: true,
+        autoOpenCart: true,
+
+        // Sticky cart
+        enableStickyCart: true,
+        cartPosition: "bottom-right",
+        cartIcon: "cart",
+
+        // Free shipping
+        enableFreeShipping: true,
+        freeShippingThreshold: 100,
+        freeShippingText: "You are {amount} away from free shipping!",
+        freeShippingAchievedText: "You have earned free shipping!",
+
+        // Recommendations
+        enableRecommendations: true,
+        recommendationLayout: "column",
+        maxRecommendations: 4,
+
+        // Add-ons and extras
+        enableAddons: false,
+        enableDiscountCode: false,
+        enableNotes: false,
+        enableExpressCheckout: true,
+
+        // Styling
+        buttonColor: "#45C0B6",
+
+        // Analytics
+        enableAnalytics: false
+      };
+
+      // Parse JSON config safely
+      let userConfig = {};
+      try {
+        const raw = {{ block.settings.config_json | default: '' | json }};
+        if (raw && typeof raw === 'string') {
+          userConfig = JSON.parse(raw);
+        }
+      } catch(e) {
+        console.warn('Cart Uplift: Invalid JSON in config_json. Falling back to defaults.', e);
+      }
+
+      // Merge with minimal UI settings (these 5 stay as first-class settings)
+      const ui = {
+        enableApp: {{ block.settings.enable_app | default: true | json }},
+        autoOpenCart: {{ block.settings.auto_open_cart | default: true | json }},
+        enableFreeShipping: {{ block.settings.enable_free_shipping | default: true | json }},
+        freeShippingThreshold: {{ block.settings.free_shipping_threshold | default: 100 | json }},
+        buttonColor: {{ block.settings.button_color | default: '#45C0B6' | json }}
+      };
+
+      // Final settings
+      window.CartUpliftMoneyFormat = {{ shop.money_format | json }};
+      window.CartUpliftSettings = Object.assign({}, defaults, userConfig, ui);
+
+      console.log('🛒 Cart Uplift Settings:', window.CartUpliftSettings);
+    })();
+  </script>
+
+  <script src="{{ 'cart-uplift.js' | asset_url }}" defer></script>
+
+  {% if block.settings.enable_analytics %}
+    <script>
+      document.addEventListener('cartuplift:opened', function() {
+        if (typeof gtag !== 'undefined') {
+          gtag('event', 'view_cart', { event_category: 'Cart Uplift', event_label: 'Cart Drawer Opened' });
+        }
+      });
+      document.addEventListener('cartuplift:item_added', function(e) {
+        if (typeof gtag !== 'undefined') {
+          gtag('event', 'add_to_cart', { event_category: 'Cart Uplift', event_label: 'Item Added', value: e.detail.price });
+        }
+      });
+    </script>
+  {% endif %}
+{% endif %}
+
+{% schema %}
+{
+  "name": "Cart Uplift",
+  "target": "body",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_app",
+      "label": "Enable Cart Uplift",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "auto_open_cart",
+      "label": "Auto-open cart on add",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_free_shipping",
+      "label": "Enable free shipping progress",
+      "default": true
+    },
+    {
+      "type": "number",
+      "id": "free_shipping_threshold",
+      "label": "Free shipping threshold",
+      "default": 100
+    },
+    {
+      "type": "color",
+      "id": "button_color",
+      "label": "Accent colour",
+      "default": "#45C0B6"
+    },
+    {
+      "type": "textarea",
+      "id": "config_json",
+      "label": "Advanced config (JSON)",
+      "info": "Override any default setting. Example: {\"enableRecommendations\": true, \"maxRecommendations\": 6, \"freeShippingText\": \"Spend {amount} to get free shipping\"}"
+    }
+  ]
+}
+{% endschema %}
