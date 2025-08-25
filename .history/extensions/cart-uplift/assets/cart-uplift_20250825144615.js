@@ -247,7 +247,15 @@
       return `
         <div class="cartuplift-drawer">
           <div class="cartuplift-header">
-            ${this.getHeaderHTML(itemCount)}
+            <div class="cartuplift-header-top">
+              <h3 class="cartuplift-title">CART (${itemCount})</h3>
+              <button class="cartuplift-close" aria-label="Close cart">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            ${this.settings.enableFreeShipping ? this.getFreeShippingHeaderHTML() : ''}
           </div>
           
           <div class="cartuplift-items">
@@ -353,52 +361,53 @@
       `;
     }
 
-    getHeaderHTML(itemCount) {
+    getFreeShippingHTML() {
+      if (!this.settings.enableFreeShipping) return '';
+      
       const threshold = this.settings.freeShippingThreshold;
       const currentTotal = this.cart ? this.cart.total_price : 0;
       const remaining = Math.max(0, threshold - currentTotal);
       const progress = Math.min((currentTotal / threshold) * 100, 100);
       
-      // Get free shipping text from settings
-      const freeShippingText = remaining > 0 
-        ? (this.settings.freeShippingText || `You're ${this.formatMoney(remaining)} away from free shipping!`)
-        : (this.settings.freeShippingAchievedText || `You've earned free shipping!`);
-      
       return `
-        <div class="cartuplift-header-top" style="width: 100%; padding: 0; margin: 0;">
-          <div class="cartuplift-header-row" style="display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 15px; width: 100%; padding: 0; margin: 0;">
-            <div class="cartuplift-header-left">
-              <h3 class="cartuplift-title text-xs font-medium uppercase">CART (${itemCount})</h3>
-            </div>
-            <div class="cartuplift-header-center" style="text-align: center; justify-self: center;">
-              ${this.settings.enableFreeShipping ? `
-                <p class="cartuplift-shipping-text text-sm">
-                  ${freeShippingText}
-                </p>
-              ` : ''}
-            </div>
-            <div class="cartuplift-header-right" style="justify-self: end;">
-              <button class="cartuplift-close cursor-pointer" aria-label="Close cart">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 24px; height: 24px;">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+        <div class="cartuplift-shipping-bar">
+          <div class="cartuplift-shipping-message">
+            ${remaining > 0 
+              ? `🚚 You're ${this.formatMoney(remaining)} away from free shipping!`
+              : `🎉 You qualify for free shipping!`}
           </div>
-          ${this.settings.enableFreeShipping ? `
-            <div class="cartuplift-shipping-progress-row" style="width: 100%; margin-top: 10px;">
-              <div class="cartuplift-shipping-progress" style="width: 100%;">
-                <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%"></div>
-              </div>
+          <div class="cartuplift-shipping-progress">
+            <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%"></div>
+          </div>
+          ${remaining > 0 ? `
+            <div class="cartuplift-shipping-remaining">
+              Add ${this.formatMoney(remaining)} more for free shipping
             </div>
           ` : ''}
         </div>
       `;
     }
 
-    getFreeShippingHTML() {
-      // This function is now deprecated - free shipping is integrated into the header
-      return '';
+    getFreeShippingHeaderHTML() {
+      if (!this.settings.enableFreeShipping) return '';
+      
+      const threshold = this.settings.freeShippingThreshold;
+      const currentTotal = this.cart ? this.cart.total_price : 0;
+      const remaining = Math.max(0, threshold - currentTotal);
+      const progress = Math.min((currentTotal / threshold) * 100, 100);
+      
+      return `
+        <div class="cartuplift-header-shipping">
+          <div class="cartuplift-header-shipping-message">
+            ${remaining > 0 
+              ? `You're ${this.formatMoney(remaining)} away from free shipping!`
+              : `You qualify for free shipping!`}
+          </div>
+          <div class="cartuplift-header-shipping-progress">
+            <div class="cartuplift-header-shipping-progress-fill" style="width: ${progress}%"></div>
+          </div>
+        </div>
+      `;
     }
 
     capitalizeFirstLetter(string) {
@@ -553,6 +562,48 @@
       
       // Load existing order notes
       this.loadOrderNotes();
+      
+      // Add global backdrop click handler for theme overlays
+      this.addBackdropClickHandler();
+    }
+
+    addBackdropClickHandler() {
+      // Add global click handler for theme cart overlays that might persist
+      const globalBackdropHandler = (e) => {
+        if (!this.isOpen) return;
+        
+        // Check if clicked element is a theme cart overlay
+        const isThemeOverlay = e.target.matches([
+          '.cart-drawer__overlay',
+          '.drawer-overlay',
+          '.modal-overlay', 
+          '.backdrop',
+          '.overlay',
+          '.cart-overlay',
+          '.theme-overlay',
+          '[data-cart-drawer-overlay]',
+          '[data-overlay]',
+          '[data-backdrop]'
+        ].join(','));
+
+        if (isThemeOverlay) {
+          console.log('🛒 Theme overlay clicked - cleaning up and closing cart');
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Remove the overlay element
+          e.target.style.display = 'none';
+          if (e.target.parentNode) {
+            e.target.remove();
+          }
+          
+          // Close our cart and clean up
+          this.closeDrawer();
+        }
+      };
+
+      document.addEventListener('click', globalBackdropHandler, true);
+      this._unbindFns.push(() => document.removeEventListener('click', globalBackdropHandler, true));
     }
 
     ensureDrawerRendered(context = '') {
@@ -816,12 +867,21 @@
         // CRITICAL: Remove the page blur/loading protection when cart closes
         this.restorePageInteraction();
 
+        // Force clean theme artifacts immediately  
+        this.forceCleanThemeArtifacts();
+
         // Stop blur monitoring
         this.stopBlurMonitoring();
 
         this.isOpen = false;
         this._isAnimating = false; // release lock
         console.log('🛒 Close cleanup complete - page interaction restored');
+        
+        // Additional safety cleanup after a short delay
+        setTimeout(() => {
+          this.forceCleanThemeArtifacts();
+          console.log('🛒 Secondary cleanup completed');
+        }, 100);
       };
 
       const onEnd = (e) => {
@@ -979,18 +1039,43 @@
         '.drawer-overlay', '.modal-overlay', '.backdrop', '.overlay',
         '.cart-drawer-overlay', '.js-overlay', '.menu-overlay',
         '.site-overlay', '.page-overlay', '.theme-overlay',
-        '[data-overlay]', '[data-backdrop]'
+        '.cart-drawer__overlay', // Shopify Dawn theme specific
+        '#CartDrawer-Overlay', // Shopify common
+        '[data-overlay]', '[data-backdrop]', '[data-cart-drawer-overlay]'
       ];
       
       overlaySelectors.forEach(selector => {
         document.querySelectorAll(selector).forEach(el => {
           if (!el.closest('#cartuplift-app-container')) {
+            console.log('🛒 Removing theme overlay element:', el);
             el.style.display = 'none';
             el.style.opacity = '0';
             el.style.visibility = 'hidden';
             el.style.pointerEvents = 'none';
             el.style.zIndex = '-1';
+            // Actually remove persistent overlays
+            if (el.classList.contains('cart-drawer__overlay') || 
+                el.id === 'CartDrawer-Overlay' ||
+                el.hasAttribute('data-cart-drawer-overlay')) {
+              el.remove();
+            }
           }
+        });
+      });
+
+      // Force remove common Shopify theme cart drawer elements that might persist
+      const themeCartSelectors = [
+        '#CartDrawer:not(#cartuplift-cart-popup)',
+        '.cart-drawer:not(.cartuplift-drawer)',
+        '.drawer--cart:not(.cartuplift-drawer)',
+        '[data-cart-drawer]:not([data-cartuplift-hidden])'
+      ];
+      
+      themeCartSelectors.forEach(selector => {
+        document.querySelectorAll(selector).forEach(el => {
+          el.style.display = 'none';
+          el.style.transform = 'translateX(100%)';
+          el.classList.remove('active', 'open', 'is-open');
         });
       });
 

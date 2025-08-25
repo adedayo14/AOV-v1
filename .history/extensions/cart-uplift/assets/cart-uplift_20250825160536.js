@@ -359,46 +359,55 @@
       const remaining = Math.max(0, threshold - currentTotal);
       const progress = Math.min((currentTotal / threshold) * 100, 100);
       
-      // Get free shipping text from settings
-      const freeShippingText = remaining > 0 
-        ? (this.settings.freeShippingText || `You're ${this.formatMoney(remaining)} away from free shipping!`)
-        : (this.settings.freeShippingAchievedText || `You've earned free shipping!`);
-      
       return `
-        <div class="cartuplift-header-top" style="width: 100%; padding: 0; margin: 0;">
-          <div class="cartuplift-header-row" style="display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 15px; width: 100%; padding: 0; margin: 0;">
-            <div class="cartuplift-header-left">
-              <h3 class="cartuplift-title text-xs font-medium uppercase">CART (${itemCount})</h3>
-            </div>
-            <div class="cartuplift-header-center" style="text-align: center; justify-self: center;">
-              ${this.settings.enableFreeShipping ? `
-                <p class="cartuplift-shipping-text text-sm">
-                  ${freeShippingText}
-                </p>
-              ` : ''}
-            </div>
-            <div class="cartuplift-header-right" style="justify-self: end;">
-              <button class="cartuplift-close cursor-pointer" aria-label="Close cart">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 24px; height: 24px;">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
+        <div class="flex w-full items-center justify-between">
+          <h3 class="cartuplift-title text-xs font-medium uppercase">CART (${itemCount})</h3>
           ${this.settings.enableFreeShipping ? `
-            <div class="cartuplift-shipping-progress-row" style="width: 100%; margin-top: 10px;">
-              <div class="cartuplift-shipping-progress" style="width: 100%;">
-                <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%"></div>
-              </div>
-            </div>
+            <p class="text-light-charcoal hidden text-center text-sm md:block">
+              ${remaining > 0 
+                ? `You're ${this.formatMoney(remaining)} away from free shipping!`
+                : `You've earned free shipping!`}
+            </p>
           ` : ''}
+          <button class="cartuplift-close ml-auto cursor-pointer md:ml-0" aria-label="Close cart">
+            <svg class="size-8" fill="none" viewBox="0 0 24 24">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M8.31539 6.89807C8.12013 6.7028 7.80354 6.7028 7.60828 6.89807C7.41302 7.09333 7.41302 7.40991 7.60828 7.60517L11.7104 11.7073L7.31557 16.1021C7.12031 16.2974 7.12031 16.614 7.31557 16.8092C7.51083 17.0045 7.82742 17.0045 8.02268 16.8092L12.4175 12.4144L16.8007 16.7976C16.9959 16.9928 17.3125 16.9928 17.5078 16.7976C17.703 16.6023 17.703 16.2857 17.5078 16.0905L13.1246 11.7073L17.2151 7.61684C17.4103 7.42157 17.4103 7.10499 17.2151 6.90973C17.0198 6.71447 16.7032 6.71447 16.508 6.90973L12.4175 11.0002L8.31539 6.89807Z" fill="currentColor"></path>
+            </svg>
+          </button>
         </div>
+        ${this.settings.enableFreeShipping ? `
+          <div class="cartuplift-shipping-progress mt-2">
+            <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%"></div>
+          </div>
+        ` : ''}
       `;
     }
 
     getFreeShippingHTML() {
-      // This function is now deprecated - free shipping is integrated into the header
-      return '';
+      if (!this.settings.enableFreeShipping) return '';
+      
+      const threshold = this.settings.freeShippingThreshold;
+      const currentTotal = this.cart ? this.cart.total_price : 0;
+      const remaining = Math.max(0, threshold - currentTotal);
+      const progress = Math.min((currentTotal / threshold) * 100, 100);
+      
+      return `
+        <div class="cartuplift-shipping-bar">
+          <div class="cartuplift-shipping-message">
+            ${remaining > 0 
+              ? `🚚 You're ${this.formatMoney(remaining)} away from free shipping!`
+              : `🎉 You qualify for free shipping!`}
+          </div>
+          <div class="cartuplift-shipping-progress">
+            <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%"></div>
+          </div>
+          ${remaining > 0 ? `
+            <div class="cartuplift-shipping-remaining">
+              Add ${this.formatMoney(remaining)} more for free shipping
+            </div>
+          ` : ''}
+        </div>
+      `;
     }
 
     capitalizeFirstLetter(string) {
