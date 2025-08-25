@@ -291,7 +291,7 @@ body:not(.cartuplift-drawer-open) *:not(#cartuplift-app-container):not(#cartupli
 }
 
 .cartuplift-item-quantity-wrapper {
-  margin-top: 36px;
+  margin-top: 32px;
   display: flex;
   align-items: flex-end;
 }
@@ -318,8 +318,8 @@ body:not(.cartuplift-drawer-open) *:not(#cartuplift-app-container):not(#cartupli
   background: none;
   border: none;
   color: #1a1a1a;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
@@ -331,8 +331,8 @@ body:not(.cartuplift-drawer-open) *:not(#cartuplift-app-container):not(#cartupli
 }
 
 .cartuplift-item-remove-x svg {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   stroke: currentColor;
   stroke-width: 1.5;
 }

@@ -245,193 +245,111 @@
       const totalPrice = this.cart?.total_price || 0;
       
       return `
-        <div class="cartuplift-drawer">
-          <div class="cartuplift-header">
-            <h3 class="cartuplift-title">CART (${itemCount})</h3>
-            <button class="cartuplift-close" aria-label="Close cart">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
+        <div class="upcart-cart">
+          <div class="upcart-header">
+            <h3>Your Cart (${itemCount})</h3>
+            <button class="upcart-close" aria-label="Close cart">×</button>
           </div>
           
-          ${this.settings.enableFreeShipping ? this.getFreeShippingHTML() : ''}
+          ${this.settings.enableFreeShipping ? `
+            <div class="upcart-progress-section">
+              ${this.getFreeShippingProgressHTML()}
+            </div>
+          ` : ''}
           
-          <div class="cartuplift-items">
+          <div class="upcart-items">
             ${this.getCartItemsHTML()}
           </div>
           
-          ${this.settings.enableRecommendations ? this.getRecommendationsHTML() : ''}
-          
-          ${this.settings.enableAddons ? this.getAddonsHTML() : ''}
-          
-          <div class="cartuplift-footer">
-            ${this.settings.enableDiscountCode ? this.getDiscountHTML() : ''}
-            ${this.settings.enableNotes ? this.getNotesHTML() : ''}
-            
-            <div class="cartuplift-subtotal">
-              <span>Subtotal</span>
-              <span class="cartuplift-subtotal-amount">${this.formatMoney(totalPrice)}</span>
-            </div>
-            
-            <button class="cartuplift-checkout-btn" onclick="window.cartUpliftDrawer.proceedToCheckout()">
-              CHECKOUT
-            </button>
-            
-            ${this.settings.enableExpressCheckout ? `
-              <div class="cartuplift-express-checkout">
-                <button class="cartuplift-paypal-btn">
-                  <img src="https://www.paypalobjects.com/webstatic/en_US/i/buttons/PP_logo_h_100x26.png" alt="PayPal">
-                </button>
-                <button class="cartuplift-shoppay-btn">
-                  <span>Shop</span><span>Pay</span>
-                </button>
+          <div class="upcart-footer">
+            ${this.settings.enableDiscountCode ? `
+              <div class="upcart-discount-section">
+                <div class="upcart-discount-input-wrapper">
+                  <input type="text" id="upcart-discount-code" class="upcart-discount-input" placeholder="Discount code" autocomplete="off">
+                  <button type="button" class="upcart-discount-apply" onclick="window.cartUpliftDrawer.applyDiscountCode()">Apply</button>
+                </div>
+                <div id="upcart-discount-message" class="upcart-discount-message"></div>
               </div>
             ` : ''}
+            
+            ${this.settings.enableNotes ? `
+              <div class="upcart-notes-section">
+                <label for="upcart-order-notes" class="upcart-notes-label">Add a note to your order</label>
+                <textarea id="upcart-order-notes" class="upcart-notes-textarea" placeholder="Special instructions for your order..." rows="3" maxlength="500"></textarea>
+              </div>
+            ` : ''}
+            
+            <div class="upcart-subtotal">
+              <span>Subtotal</span>
+              <span class="upcart-subtotal-price">${this.formatMoney(totalPrice)}</span>
+            </div>
+            <div class="upcart-actions">
+              <button class="upcart-checkout" onclick="window.cartUpliftDrawer.proceedToCheckout()">
+                Checkout • ${this.formatMoney(totalPrice)}
+              </button>
+            </div>
           </div>
         </div>
       `;
     }
 
-    // Duplicate methods removed - using updated versions below
-
-    getRecommendationsHTML() {
-      if (!this.settings.enableRecommendations) return '';
+    getFreeShippingProgressHTML() {
+      if (!this.cart || !this.settings.enableFreeShipping) return '';
       
-      return `
-        <div class="cartuplift-recommendations">
-          <div class="cartuplift-recommendations-header">
-            <h3>You may also like</h3>
-            <button class="cartuplift-recommendations-toggle" data-toggle="recommendations">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M12 6L8 10L4 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-          </div>
-          <div class="cartuplift-recommendations-content" id="cartuplift-recommendations-content">
-            <div class="cartuplift-recommendations-loading">Loading recommendations...</div>
-          </div>
-        </div>
-      `;
-    }
-
-    getAddonsHTML() {
-      if (!this.settings.enableAddons) return '';
-      
-      return `
-        <div class="cartuplift-addons">
-          <div class="cartuplift-addons-header">
-            <h3>Add these to your order</h3>
-            <button class="cartuplift-addons-toggle" data-toggle="addons">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M12 6L8 10L4 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-          </div>
-          <div class="cartuplift-addons-content" id="cartuplift-addons-content">
-            <div class="cartuplift-addons-loading">Loading add-ons...</div>
-          </div>
-        </div>
-      `;
-    }
-
-    getDiscountHTML() {
-      if (!this.settings.enableDiscountCode) return '';
-      
-      return `
-        <div class="cartuplift-discount">
-          <div class="cartuplift-discount-input-wrapper">
-            <input type="text" id="cartuplift-discount-code" class="cartuplift-discount-input" placeholder="Discount code" autocomplete="off">
-            <button type="button" class="cartuplift-discount-apply" onclick="window.cartUpliftDrawer.applyDiscountCode()">Apply</button>
-          </div>
-          <div id="cartuplift-discount-message" class="cartuplift-discount-message"></div>
-        </div>
-      `;
-    }
-
-    getNotesHTML() {
-      if (!this.settings.enableNotes) return '';
-      
-      return `
-        <div class="cartuplift-notes">
-          <label for="cartuplift-order-notes" class="cartuplift-notes-label">Order notes</label>
-          <textarea id="cartuplift-order-notes" class="cartuplift-notes-textarea" placeholder="Special instructions for your order..." rows="3" maxlength="500"></textarea>
-        </div>
-      `;
-    }
-
-    getFreeShippingHTML() {
-      if (!this.settings.enableFreeShipping) return '';
-      
-      const threshold = this.settings.freeShippingThreshold;
-      const currentTotal = this.cart ? this.cart.total_price : 0;
+      const threshold = this.settings.freeShippingThreshold * 100;
+      const currentTotal = this.cart.total_price;
       const remaining = Math.max(0, threshold - currentTotal);
       const progress = Math.min((currentTotal / threshold) * 100, 100);
       
       return `
-        <div class="cartuplift-shipping-bar">
-          <div class="cartuplift-shipping-message">
+        <div class="upcart-free-shipping-bar">
+          <div class="upcart-free-shipping-text">
             ${remaining > 0 
               ? `🚚 You're ${this.formatMoney(remaining)} away from free shipping!`
               : `🎉 You qualify for free shipping!`}
           </div>
-          <div class="cartuplift-shipping-progress">
-            <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%"></div>
+          <div class="upcart-progress-bar">
+            <div class="upcart-progress-fill" style="width: ${progress}%"></div>
           </div>
-          ${remaining > 0 ? `
-            <div class="cartuplift-shipping-remaining">
-              Add ${this.formatMoney(remaining)} more for free shipping
-            </div>
-          ` : ''}
+          <div class="upcart-progress-remaining">
+            ${remaining > 0 
+              ? `Add ${this.formatMoney(remaining)} more for free shipping`
+              : `You qualify for free shipping! 🎉`}
+          </div>
         </div>
       `;
-    }
-
-    capitalizeFirstLetter(string) {
-      return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
     }
 
     getCartItemsHTML() {
       if (!this.cart || !this.cart.items || this.cart.items.length === 0) {
         return `
-          <div class="cartuplift-empty">
+          <div class="upcart-empty">
             <h4>Your cart is empty</h4>
             <p>Add some products to get started!</p>
           </div>
         `;
       }
       
-      return this.cart.items.map((item, index) => `
-        <div class="cartuplift-item" data-variant-id="${item.variant_id}" data-line="${index + 1}">
-          <div class="cartuplift-item-image">
-            <img src="${item.image}" alt="${item.product_title}" loading="lazy">
-          </div>
-          <div class="cartuplift-item-info">
-            <div class="cartuplift-item-title">
-              <a href="${item.url}">${item.product_title}</a>
-            </div>
-            ${item.variant_title ? `<div class="cartuplift-item-variant">${item.variant_title}</div>` : ''}
-            ${item.options_with_values && item.options_with_values.length > 1 ? 
-              item.options_with_values.map(option => `<div class="cartuplift-item-option">${this.capitalizeFirstLetter(option.name)}: ${option.value}</div>`).join('') 
-              : ''}
-            <div class="cartuplift-item-quantity-wrapper">
-              <div class="cartuplift-quantity">
-                <button class="cartuplift-qty-minus" data-line="${index + 1}" aria-label="Decrease quantity"> - </button>
-                <span class="cartuplift-qty-display">${item.quantity}</span>
-                <button class="cartuplift-qty-plus" data-line="${index + 1}" aria-label="Increase quantity"> + </button>
+      return `
+        <div class="upcart-items-list">
+          ${this.cart.items.map((item, index) => `
+            <div class="upcart-item" data-variant-id="${item.variant_id}" data-line="${index + 1}">
+              <div class="upcart-item-image">
+                <img src="${item.image}" alt="${item.product_title}" loading="lazy">
+              </div>
+              <div class="upcart-item-details">
+                <a href="${item.url}" class="upcart-item-title">${item.product_title}</a>
+                ${item.variant_title ? `<div class="upcart-item-variant">${item.variant_title}</div>` : ''}
+                <div class="upcart-item-price">${this.formatMoney(item.final_price)}</div>
+                <div class="upcart-item-quantity">
+                  <input type="number" class="upcart-quantity-input" value="${item.quantity}" min="0" data-line="${index + 1}" data-variant-id="${item.variant_id}">
+                  <button class="upcart-remove-btn" data-line="${index + 1}" data-variant-id="${item.variant_id}">Remove</button>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="cartuplift-item-price-actions">
-            <div class="cartuplift-item-price">${this.formatMoney(item.final_price)}</div>
-            <button class="cartuplift-item-remove-x" data-line="${index + 1}" data-variant-id="${item.variant_id}" aria-label="Remove item">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+          `).join('')}
         </div>
-      `).join('');
+      `;
     }
 
     attachDrawerEvents() {
@@ -439,7 +357,7 @@
       if (!container) return;
 
       // Close button
-      const closeBtn = container.querySelector('.cartuplift-close');
+      const closeBtn = container.querySelector('.upcart-close');
       if (closeBtn) {
         const closeHandler = () => this.closeDrawer();
         closeBtn.addEventListener('click', closeHandler);
@@ -469,7 +387,7 @@
         // Close on click outside the drawer (and not the sticky trigger)
         const onDocDown = (e) => {
           if (!this.isOpen) return;
-          const insideDrawer = e.target.closest('.cartuplift-drawer');
+          const insideDrawer = e.target.closest('.upcart-cart');
           const hitTrigger = e.target.closest('#cartuplift-sticky');
           if (!insideDrawer && !hitTrigger) {
             this.closeDrawer();
@@ -484,7 +402,7 @@
 
       // Quantity controls
       const changeHandler = (e) => {
-        if (e.target.classList.contains('cartuplift-qty-input')) {
+        if (e.target.classList.contains('upcart-quantity-input')) {
           const line = e.target.dataset.line;
           const quantity = Math.max(0, parseInt(e.target.value) || 0);
           console.log('🛒 Quantity change detected:', { line, quantity });
@@ -495,42 +413,9 @@
       this._unbindFns.push(() => container.removeEventListener('change', changeHandler));
       
       const clickHandler = (e) => {
-        // Handle quantity plus button
-        if (e.target.classList.contains('cartuplift-qty-plus')) {
-          e.preventDefault();
-          e.stopPropagation();
+        if (e.target.classList.contains('upcart-remove-btn')) {
           const line = e.target.dataset.line;
-          const display = container.querySelector(`[data-line="${line}"] .cartuplift-qty-display`);
-          if (display) {
-            const currentValue = parseInt(display.textContent) || 0;
-            const newQuantity = currentValue + 1;
-            console.log('🛒 Plus button clicked:', { line, currentValue, newQuantity });
-            this.updateQuantity(line, newQuantity);
-          }
-        }
-        // Handle quantity minus button  
-        else if (e.target.classList.contains('cartuplift-qty-minus')) {
-          e.preventDefault();
-          e.stopPropagation();
-          const line = e.target.dataset.line;
-          const display = container.querySelector(`[data-line="${line}"] .cartuplift-qty-display`);
-          if (display) {
-            const currentValue = parseInt(display.textContent) || 0;
-            const newQuantity = Math.max(0, currentValue - 1);
-            console.log('🛒 Minus button clicked:', { line, currentValue, newQuantity });
-            this.updateQuantity(line, newQuantity);
-          }
-        }
-        // Handle X remove button  
-        else if (e.target.classList.contains('cartuplift-item-remove-x') || 
-                 e.target.closest('.cartuplift-item-remove-x')) {
-          e.preventDefault();
-          e.stopPropagation();
-          const button = e.target.classList.contains('cartuplift-item-remove-x') 
-            ? e.target 
-            : e.target.closest('.cartuplift-item-remove-x');
-          const line = button.dataset.line;
-          console.log('🛒 X button clicked:', { line });
+          console.log('🛒 Remove button clicked:', { line });
           this.updateQuantity(line, 0);
         }
       };
@@ -542,17 +427,17 @@
     }
 
     ensureDrawerRendered(context = '') {
-      const popup = document.querySelector('#cartuplift-cart-popup');
+      const popup = document.querySelector('#upcart-cart-popup');
       if (!popup) return;
       
-      const cart = popup.querySelector('.cartuplift-drawer');
+      const cart = popup.querySelector('.upcart-cart');
       const isBlank = !cart || cart.innerHTML.trim() === '';
       
       // Check specific elements
       const checkElements = {
-        hasHeader: !!popup.querySelector('.cartuplift-header'),
-        hasItemsWrapper: !!popup.querySelector('.cartuplift-items'),
-        hasFooter: !!popup.querySelector('.cartuplift-footer'),
+        hasHeader: !!popup.querySelector('.upcart-header'),
+        hasItemsWrapper: !!popup.querySelector('.upcart-items'),
+        hasFooter: !!popup.querySelector('.upcart-footer'),
         textLength: popup.textContent?.length || 0
       };
       
@@ -598,11 +483,12 @@
       try {
         console.log('🛒 Updating quantity:', { line, quantity });
         
-        // Show loading state (disabled for cleaner UX)
-        // const lineItem = document.querySelector(`[data-line="${line}"]`);
-        // if (lineItem) {
-        //   lineItem.classList.add('loading');
-        // }
+        // Show loading state
+        const lineItem = document.querySelector(`[data-line="${line}"]`);
+        if (lineItem) {
+          lineItem.classList.add('loading');
+          // Optional: show spinner or loading text
+        }
 
         const formData = new FormData();
         formData.append('line', line);
@@ -627,19 +513,19 @@
         this.cart = cartData;
         this.updateDrawerContent();
         
-        // Remove loading state (disabled since we don't show it)
-        // if (lineItem) {
-        //   lineItem.classList.remove('loading');
-        // }
+        // Remove loading state
+        if (lineItem) {
+          lineItem.classList.remove('loading');
+        }
         
         console.log('🛒 Quantity updated successfully');
       } catch (error) {
         console.error('🛒 Error updating quantity:', error);
-        // Remove loading state on error (disabled since we don't show it)
-        // const lineItem = document.querySelector(`[data-line="${line}"]`);
-        // if (lineItem) {
-        //   lineItem.classList.remove('loading');
-        // }
+        // Remove loading state on error
+        const lineItem = document.querySelector(`[data-line="${line}"]`);
+        if (lineItem) {
+          lineItem.classList.remove('loading');
+        }
       } finally {
         this._quantityBusy = false; // release lock
       }
@@ -655,8 +541,8 @@
       }
       
       // Check if drawer was open before updating content
-      const container = document.getElementById('cartuplift-app-container');
-      const wasOpen = container && container.classList.contains('active');
+      const existingDrawer = popup.querySelector('.upcart-cart');
+      const wasOpen = existingDrawer && existingDrawer.classList.contains('is-open');
       
       // Update the entire drawer content
       popup.innerHTML = this.getDrawerHTML();
@@ -664,8 +550,11 @@
       this.loadOrderNotes(); // ensure textarea gets prefilled after re-render
       
       // Restore the open state if it was open before
-      if (wasOpen && container) {
-        container.classList.add('active');
+      if (wasOpen) {
+        const newDrawer = popup.querySelector('.upcart-cart');
+        if (newDrawer) {
+          newDrawer.classList.add('is-open');
+        }
       }
       
       // Update sticky cart if exists
@@ -720,23 +609,23 @@
       document.body.style.overflow = 'hidden';
 
       container.style.display = '';
-      container.classList.add('active');
+      container.classList.add('cartuplift-active');
 
       // Ensure content exists before showing
       const popup = container.querySelector('#cartuplift-cart-popup');
-      if (!popup || !popup.querySelector('.cartuplift-drawer')) {
+      if (!popup || !popup.querySelector('.upcart-cart')) {
         popup.innerHTML = this.getDrawerHTML();
         this.attachDrawerEvents();
         this.loadOrderNotes();
       }
 
       const backdrop = container.querySelector('#cartuplift-backdrop');
-      const drawer = container.querySelector('.cartuplift-drawer');
+      const drawer = container.querySelector('.upcart-cart');
 
-      // Remove any old animation classes
       if (backdrop) backdrop.classList.remove('is-closing');
       if (drawer) {
         drawer.classList.remove('is-closing');
+        drawer.classList.add('is-open');
       }
 
       // Start continuous monitoring for theme interference
@@ -778,16 +667,23 @@
         return;
       }
 
-      const drawer = container.querySelector('.cartuplift-drawer');
+      const drawer = container.querySelector('.upcart-cart');
       const backdrop = container.querySelector('#cartuplift-backdrop');
 
-      // Start close animations by removing the active class
-      container.classList.remove('active');
+      // Start close animations
+      if (drawer) {
+        drawer.classList.remove('is-open');
+        drawer.classList.add('is-closing');
+      }
+      if (backdrop) {
+        backdrop.classList.add('is-closing');
+      }
 
-      // Wait for CSS transition to complete, then clean up
+      // When animations end, fully reset state and restore page interaction
       const finishClose = () => {
         console.log('🛒 Finishing close - restoring page interaction');
         
+        container.classList.remove('cartuplift-active');
         container.style.display = 'none';
 
         // Remove our own flags
@@ -797,7 +693,8 @@
         document.body.style.overflow = '';
 
         // Clean animation classes for next time
-        // (No specific animation classes needed - CSS handles transitions)
+        if (drawer) drawer.classList.remove('is-closing');
+        if (backdrop) backdrop.classList.remove('is-closing');
 
         // CRITICAL: Remove the page blur/loading protection when cart closes
         this.restorePageInteraction();
@@ -1583,7 +1480,7 @@
       const container = document.getElementById('cartuplift-app-container');
       if (container) {
         container.style.display = 'none';
-        container.classList.remove('active');
+        container.classList.remove('cartuplift-active');
       }
 
       // Remove sticky cart

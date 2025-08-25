@@ -504,6 +504,7 @@
           if (display) {
             const currentValue = parseInt(display.textContent) || 0;
             const newQuantity = currentValue + 1;
+            display.textContent = newQuantity;
             console.log('🛒 Plus button clicked:', { line, currentValue, newQuantity });
             this.updateQuantity(line, newQuantity);
           }
@@ -517,6 +518,7 @@
           if (display) {
             const currentValue = parseInt(display.textContent) || 0;
             const newQuantity = Math.max(0, currentValue - 1);
+            display.textContent = newQuantity;
             console.log('🛒 Minus button clicked:', { line, currentValue, newQuantity });
             this.updateQuantity(line, newQuantity);
           }

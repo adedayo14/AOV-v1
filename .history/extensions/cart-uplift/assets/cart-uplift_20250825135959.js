@@ -412,13 +412,13 @@
             </div>
             ${item.variant_title ? `<div class="cartuplift-item-variant">${item.variant_title}</div>` : ''}
             ${item.options_with_values && item.options_with_values.length > 1 ? 
-              item.options_with_values.map(option => `<div class="cartuplift-item-option">${this.capitalizeFirstLetter(option.name)}: ${option.value}</div>`).join('') 
+              item.options_with_values.map(option => `<div class="cartuplift-item-option">${option.name}: ${option.value}</div>`).join('') 
               : ''}
             <div class="cartuplift-item-quantity-wrapper">
               <div class="cartuplift-quantity">
-                <button class="cartuplift-qty-minus" data-line="${index + 1}" aria-label="Decrease quantity"> - </button>
-                <span class="cartuplift-qty-display">${item.quantity}</span>
-                <button class="cartuplift-qty-plus" data-line="${index + 1}" aria-label="Increase quantity"> + </button>
+                <button class="cartuplift-qty-minus" data-line="${index + 1}">−</button>
+                <input type="number" class="cartuplift-qty-input" value="${item.quantity}" min="0" data-line="${index + 1}" data-variant-id="${item.variant_id}">
+                <button class="cartuplift-qty-plus" data-line="${index + 1}">+</button>
               </div>
             </div>
           </div>
@@ -500,10 +500,11 @@
           e.preventDefault();
           e.stopPropagation();
           const line = e.target.dataset.line;
-          const display = container.querySelector(`[data-line="${line}"] .cartuplift-qty-display`);
-          if (display) {
-            const currentValue = parseInt(display.textContent) || 0;
+          const input = container.querySelector(`[data-line="${line}"].cartuplift-qty-input`);
+          if (input) {
+            const currentValue = parseInt(input.value) || 0;
             const newQuantity = currentValue + 1;
+            input.value = newQuantity;
             console.log('🛒 Plus button clicked:', { line, currentValue, newQuantity });
             this.updateQuantity(line, newQuantity);
           }
@@ -513,23 +514,20 @@
           e.preventDefault();
           e.stopPropagation();
           const line = e.target.dataset.line;
-          const display = container.querySelector(`[data-line="${line}"] .cartuplift-qty-display`);
-          if (display) {
-            const currentValue = parseInt(display.textContent) || 0;
+          const input = container.querySelector(`[data-line="${line}"].cartuplift-qty-input`);
+          if (input) {
+            const currentValue = parseInt(input.value) || 0;
             const newQuantity = Math.max(0, currentValue - 1);
+            input.value = newQuantity;
             console.log('🛒 Minus button clicked:', { line, currentValue, newQuantity });
             this.updateQuantity(line, newQuantity);
           }
         }
         // Handle X remove button  
-        else if (e.target.classList.contains('cartuplift-item-remove-x') || 
-                 e.target.closest('.cartuplift-item-remove-x')) {
+        else if (e.target.classList.contains('cartuplift-item-remove-x')) {
           e.preventDefault();
           e.stopPropagation();
-          const button = e.target.classList.contains('cartuplift-item-remove-x') 
-            ? e.target 
-            : e.target.closest('.cartuplift-item-remove-x');
-          const line = button.dataset.line;
+          const line = e.target.dataset.line;
           console.log('🛒 X button clicked:', { line });
           this.updateQuantity(line, 0);
         }

@@ -27,41 +27,41 @@
       // Main Cart Uplift settings from theme editor
       window.CartUpliftSettings = {
         // General settings
-        enableApp: {{ block.settings.enable_app | default: true | json }},
+        enableApp: true,
         shopDomain: {{ shop.permanent_domain | json }},
         
         // Sticky cart settings
         enableStickyCart: {{ block.settings.enable_sticky_cart | default: true | json }},
-        showOnlyOnCartPage: false, // Default fallback since not in schema
-        cartPosition: 'bottom-right', // Default fallback since not in schema
-        cartIcon: 'cart', // Default fallback since not in schema
+        showOnlyOnCartPage: {{ block.settings.show_only_on_cart_page | default: false | json }},
+        cartPosition: {{ block.settings.cart_position | default: 'bottom-right' | json }},
+        cartIcon: {{ block.settings.cart_icon | default: 'cart' | json }},
         
         // Free shipping settings
         enableFreeShipping: {{ block.settings.enable_free_shipping | default: true | json }},
         freeShippingThreshold: {{ block.settings.free_shipping_threshold | default: 100 | json }},
-        shippingMessage: 'You are {amount} away from free shipping!', // Default fallback
-        shippingSuccessMessage: '🎉 Congratulations! You have unlocked free shipping!', // Default fallback
+        shippingMessage: {% assign default_msg = 'You are {amount} away from free shipping!' %}{{ block.settings.shipping_message | default: default_msg | json }},
+        shippingSuccessMessage: {{ block.settings.shipping_success_message | default: '🎉 Congratulations! You have unlocked free shipping!' | json }},
         
         // Styling settings
-        backgroundColor: '#1a1a1a', // Default fallback since not in schema
-        textColor: '#FFFFFF', // Default fallback since not in schema
+        backgroundColor: {{ block.settings.background_color | default: '#1a1a1a' | json }},
+        textColor: {{ block.settings.text_color | default: '#FFFFFF' | json }},
         buttonColor: {{ block.settings.button_color | default: '#4CAF50' | json }},
         
         // Upsell and recommendation settings
-        enableUpsells: true, // Default fallback since not in schema
+        enableUpsells: {{ block.settings.enable_upsells | default: true | json }},
         enableRecommendations: {{ block.settings.enable_recommendations | default: true | json }},
-        recommendationLayout: 'row', // Default fallback since not in schema
-        enableQuantityBreaks: false, // Default fallback since not in schema
-        maxUpsells: 4, // Default fallback since not in schema
+        recommendationLayout: {{ block.settings.recommendation_layout | default: 'row' | json }},
+        enableQuantityBreaks: {{ block.settings.enable_quantity_breaks | default: false | json }},
+        maxUpsells: {{ block.settings.max_upsells | default: 4 | json }},
         
         // Add-on settings
-        enableAddons: false, // Default fallback since not in schema
-        enableExpressCheckout: true, // Default fallback since not in schema
+        enableAddons: {{ block.settings.enable_addons | default: false | json }},
+        enableExpressCheckout: {{ block.settings.enable_express_checkout | default: true | json }},
         
         // Additional settings
-        enableNotes: false, // Default fallback since not in schema
-        enableDiscountCode: false, // Default fallback since not in schema
-        autoOpenCart: true, // Default fallback since not in schema
+        enableNotes: {{ block.settings.enable_notes | default: false | json }},
+        enableDiscountCode: {{ block.settings.enable_discount_code | default: false | json }},
+        autoOpenCart: {{ block.settings.auto_open_cart | default: true | json }},
         
         // Localization
         locale: {{ request.locale.iso_code | json }},
@@ -250,6 +250,46 @@
       "id": "button_color",
       "label": "Button/Progress Color",
       "default": "#4CAF50"
+    }
+  ]
+}
+{% endschema %}
+      "id": "enable_express_checkout",
+      "label": "Enable Express Checkout",
+      "default": true,
+      "info": "Show PayPal, Shop Pay buttons"
+    },
+    {
+      "type": "header",
+      "content": "🔧 Additional Options"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_notes",
+      "label": "Enable Order Notes",
+      "default": false,
+      "info": "Allow customers to add notes to their order"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_discount_code",
+      "label": "Show Discount Code Field",
+      "default": false,
+      "info": "Display discount code input in cart"
+    },
+    {
+      "type": "checkbox",
+      "id": "auto_open_cart",
+      "label": "Auto-open Cart on Add",
+      "default": true,
+      "info": "Automatically open cart when item is added"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_analytics",
+      "label": "Enable Analytics Tracking",
+      "default": false,
+      "info": "Track cart events in Google Analytics"
     }
   ]
 }

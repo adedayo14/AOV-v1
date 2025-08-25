@@ -504,6 +504,7 @@
           if (display) {
             const currentValue = parseInt(display.textContent) || 0;
             const newQuantity = currentValue + 1;
+            display.textContent = newQuantity;
             console.log('🛒 Plus button clicked:', { line, currentValue, newQuantity });
             this.updateQuantity(line, newQuantity);
           }
@@ -517,19 +518,16 @@
           if (display) {
             const currentValue = parseInt(display.textContent) || 0;
             const newQuantity = Math.max(0, currentValue - 1);
+            display.textContent = newQuantity;
             console.log('🛒 Minus button clicked:', { line, currentValue, newQuantity });
             this.updateQuantity(line, newQuantity);
           }
         }
         // Handle X remove button  
-        else if (e.target.classList.contains('cartuplift-item-remove-x') || 
-                 e.target.closest('.cartuplift-item-remove-x')) {
+        else if (e.target.classList.contains('cartuplift-item-remove-x')) {
           e.preventDefault();
           e.stopPropagation();
-          const button = e.target.classList.contains('cartuplift-item-remove-x') 
-            ? e.target 
-            : e.target.closest('.cartuplift-item-remove-x');
-          const line = button.dataset.line;
+          const line = e.target.dataset.line;
           console.log('🛒 X button clicked:', { line });
           this.updateQuantity(line, 0);
         }

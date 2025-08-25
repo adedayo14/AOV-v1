@@ -291,7 +291,7 @@ body:not(.cartuplift-drawer-open) *:not(#cartuplift-app-container):not(#cartupli
 }
 
 .cartuplift-item-quantity-wrapper {
-  margin-top: 36px;
+  margin-top: 32px;
   display: flex;
   align-items: flex-end;
 }

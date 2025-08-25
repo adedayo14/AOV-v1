@@ -387,10 +387,6 @@
       `;
     }
 
-    capitalizeFirstLetter(string) {
-      return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
-    }
-
     getCartItemsHTML() {
       if (!this.cart || !this.cart.items || this.cart.items.length === 0) {
         return `
@@ -406,29 +402,17 @@
           <div class="cartuplift-item-image">
             <img src="${item.image}" alt="${item.product_title}" loading="lazy">
           </div>
-          <div class="cartuplift-item-info">
-            <div class="cartuplift-item-title">
-              <a href="${item.url}">${item.product_title}</a>
-            </div>
+          <div class="cartuplift-item-details">
+            <a href="${item.url}" class="cartuplift-item-title">${item.product_title}</a>
             ${item.variant_title ? `<div class="cartuplift-item-variant">${item.variant_title}</div>` : ''}
-            ${item.options_with_values && item.options_with_values.length > 1 ? 
-              item.options_with_values.map(option => `<div class="cartuplift-item-option">${this.capitalizeFirstLetter(option.name)}: ${option.value}</div>`).join('') 
-              : ''}
-            <div class="cartuplift-item-quantity-wrapper">
+            <div class="cartuplift-item-price">${this.formatMoney(item.final_price)}</div>
+            <div class="cartuplift-item-controls">
               <div class="cartuplift-quantity">
-                <button class="cartuplift-qty-minus" data-line="${index + 1}" aria-label="Decrease quantity"> - </button>
-                <span class="cartuplift-qty-display">${item.quantity}</span>
-                <button class="cartuplift-qty-plus" data-line="${index + 1}" aria-label="Increase quantity"> + </button>
+                <button class="cartuplift-qty-minus" data-line="${index + 1}">−</button>
+                <input type="number" class="cartuplift-qty-input" value="${item.quantity}" min="0" data-line="${index + 1}" data-variant-id="${item.variant_id}">
+                <button class="cartuplift-qty-plus" data-line="${index + 1}">+</button>
               </div>
             </div>
-          </div>
-          <div class="cartuplift-item-price-actions">
-            <div class="cartuplift-item-price">${this.formatMoney(item.final_price)}</div>
-            <button class="cartuplift-item-remove-x" data-line="${index + 1}" data-variant-id="${item.variant_id}" aria-label="Remove item">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-            </button>
           </div>
         </div>
       `).join('');
@@ -500,10 +484,11 @@
           e.preventDefault();
           e.stopPropagation();
           const line = e.target.dataset.line;
-          const display = container.querySelector(`[data-line="${line}"] .cartuplift-qty-display`);
-          if (display) {
-            const currentValue = parseInt(display.textContent) || 0;
+          const input = container.querySelector(`[data-line="${line}"].cartuplift-qty-input`);
+          if (input) {
+            const currentValue = parseInt(input.value) || 0;
             const newQuantity = currentValue + 1;
+            input.value = newQuantity;
             console.log('🛒 Plus button clicked:', { line, currentValue, newQuantity });
             this.updateQuantity(line, newQuantity);
           }
@@ -513,25 +498,14 @@
           e.preventDefault();
           e.stopPropagation();
           const line = e.target.dataset.line;
-          const display = container.querySelector(`[data-line="${line}"] .cartuplift-qty-display`);
-          if (display) {
-            const currentValue = parseInt(display.textContent) || 0;
+          const input = container.querySelector(`[data-line="${line}"].cartuplift-qty-input`);
+          if (input) {
+            const currentValue = parseInt(input.value) || 0;
             const newQuantity = Math.max(0, currentValue - 1);
+            input.value = newQuantity;
             console.log('🛒 Minus button clicked:', { line, currentValue, newQuantity });
             this.updateQuantity(line, newQuantity);
           }
-        }
-        // Handle X remove button  
-        else if (e.target.classList.contains('cartuplift-item-remove-x') || 
-                 e.target.closest('.cartuplift-item-remove-x')) {
-          e.preventDefault();
-          e.stopPropagation();
-          const button = e.target.classList.contains('cartuplift-item-remove-x') 
-            ? e.target 
-            : e.target.closest('.cartuplift-item-remove-x');
-          const line = button.dataset.line;
-          console.log('🛒 X button clicked:', { line });
-          this.updateQuantity(line, 0);
         }
       };
       container.addEventListener('click', clickHandler);
@@ -599,7 +573,7 @@
         console.log('🛒 Updating quantity:', { line, quantity });
         
         // Show loading state (disabled for cleaner UX)
-        // const lineItem = document.querySelector(`[data-line="${line}"]`);
+        const lineItem = document.querySelector(`[data-line="${line}"]`);
         // if (lineItem) {
         //   lineItem.classList.add('loading');
         // }
