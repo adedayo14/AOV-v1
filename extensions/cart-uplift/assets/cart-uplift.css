@@ -464,7 +464,7 @@
   max-height: 180px; /* Increased from 160px to show more of first card */
   overflow-y: auto;
   overflow-x: hidden;
-  padding-top: 4px; /* Add small padding to ensure top of first card is visible */
+  padding-top: 12px; /* Increased padding to ensure top of first card is fully visible */
 }
 
 .cartuplift-recommendations.collapsed .cartuplift-recommendations-content {
@@ -956,26 +956,7 @@
   margin-left: auto; /* Push to right side */
 }
 
-/* 4. Align toggle button */
-.cartuplift-recommendations-toggle {
-  background: transparent;
-  border: 2px solid #16a085;
-  padding: 0;
-  cursor: pointer;
-  color: #16a085;
-  transition: all 0.2s ease;
-  width: 24px;  /* Match the plus button size */
-  height: 24px; /* Match the plus button size */
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.cartuplift-recommendations-toggle svg {
-  width: 12px; /* Reduced from 14px */
-  height: 12px;
-}
+/* 4. Align toggle button - REMOVED DUPLICATE */
 
 /* 5. Fix recommendation item grid for better alignment */
 .cartuplift-recommendations-column .cartuplift-recommendation-item {
