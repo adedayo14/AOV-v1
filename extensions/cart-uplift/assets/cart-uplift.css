@@ -186,7 +186,7 @@
   flex-direction: column;
   overflow: hidden; /* Changed from overflow-y: auto */
   min-height: 0;
-  max-height: calc(100vh - 300px); /* Reduced from 400px to give recommendations more space */
+  max-height: calc(100vh - 250px); /* Reduced from 300px since footer is smaller */
 }
 
 .cartuplift-items {
@@ -643,10 +643,10 @@
 }
 
 /* ========================================
-   Footer Section
+   Footer Section - COMPACT LIKE IMAGE 2
    ======================================== */
 .cartuplift-footer {
-  padding: 16px 20px; /* Reduced from 20px for more compact footer */
+  padding: 12px 20px; /* Reduced from 16px/20px for compact footer */
   background: var(--cartuplift-background);
   border-top: 1px solid var(--cartuplift-border);
   flex-shrink: 0;
@@ -655,16 +655,16 @@
 /* Discount Code */
 .cartuplift-discount {
   display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 6px; /* Reduced from 8px */
+  margin-bottom: 10px; /* Reduced from 16px */
 }
 
 .cartuplift-discount-input {
   flex: 1;
-  padding: 10px 14px;
+  padding: 8px 12px; /* Reduced from 10px 14px */
   border: 1px solid #ddd;
   border-radius: var(--cartuplift-border-radius);
-  font-size: 14px;
+  font-size: 13px; /* Reduced from 14px */
   outline: none;
   transition: border-color 0.2s ease;
 }
@@ -674,12 +674,12 @@
 }
 
 .cartuplift-discount-apply {
-  padding: 10px 20px;
+  padding: 8px 16px; /* Reduced from 10px 20px */
   background: var(--cartuplift-button-color);
   color: white;
   border: none;
   border-radius: var(--cartuplift-border-radius);
-  font-size: 13px;
+  font-size: 12px; /* Reduced from 13px */
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -693,18 +693,18 @@
 
 /* Notes */
 .cartuplift-notes {
-  margin-bottom: 16px;
+  margin-bottom: 10px; /* Reduced from 16px */
 }
 
 .cartuplift-notes-input {
   width: 100%;
-  padding: 10px 14px;
+  padding: 8px 12px; /* Reduced from 10px 14px */
   border: 1px solid #ddd;
   border-radius: var(--cartuplift-border-radius);
-  font-size: 14px;
+  font-size: 13px; /* Reduced from 14px */
   font-family: inherit;
   resize: vertical;
-  min-height: 60px;
+  min-height: 45px; /* Reduced from 60px */
   outline: none;
   transition: border-color 0.2s ease;
 }
@@ -718,9 +718,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px; /* Reduced from 16px */
-  padding: 12px 0; /* Reduced from 16px */
-  font-size: 16px;
+  margin-bottom: 4px; /* Reduced from 8px for tighter spacing */
+  padding: 6px 0; /* Reduced from 8px for even tighter spacing */
+  font-size: 15px; /* Reduced from 16px */
   font-weight: 600;
   color: var(--cartuplift-primary);
   border-top: 1px solid var(--cartuplift-border);
@@ -729,18 +729,19 @@
 /* Checkout Button */
 .cartuplift-checkout-btn {
   width: 100%;
-  padding: 14px 20px; /* Reduced from 16px */
+  padding: 12px 16px; /* Reduced from 14px 20px */
   background: var(--cartuplift-primary);
   color: white;
   border: none;
   border-radius: var(--cartuplift-border-radius);
-  font-size: 14px;
+  font-size: 13px; /* Reduced from 14px */
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 10px; /* Reduced from 12px */
+  margin-bottom: 6px; /* Reduced from 10px */
+  margin-top: 0; /* Ensure no top margin for tight spacing */
 }
 
 .cartuplift-checkout-btn:hover {
@@ -752,13 +753,13 @@
 /* Express Checkout */
 .cartuplift-express-checkout {
   display: flex;
-  gap: 10px;
+  gap: 8px; /* Reduced from 10px */
 }
 
 .cartuplift-paypal-btn,
 .cartuplift-shoppay-btn {
   flex: 1;
-  padding: 10px; /* Reduced from 12px */
+  padding: 8px; /* Reduced from 10px */
   border: 1px solid #ddd;
   border-radius: var(--cartuplift-border-radius);
   cursor: pointer;
@@ -776,7 +777,7 @@
 }
 
 .cartuplift-paypal-btn img {
-  height: 16px; /* Reduced from 18px */
+  height: 14px; /* Reduced from 16px */
 }
 
 .cartuplift-shoppay-btn {
@@ -784,7 +785,7 @@
   color: white;
   border-color: #5a31f4;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px; /* Reduced from 13px */
 }
 
 /* ========================================
@@ -976,8 +977,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding: 16px 0;
+  margin-bottom: 6px;
+  padding: 6px 0;
   font-size: 16px;
   font-weight: 600;
   color: #1a1a1a;
@@ -986,7 +987,7 @@
 
 /* 7. Add top border to footer for separation */
 .cartuplift-footer {
-  padding: 20px;
+  padding: 8px 20px; /* Compact footer padding */
   background: #ffffff;
   border-top: 1px solid #e5e5e5;
   flex-shrink: 0;
