@@ -568,24 +568,8 @@
       // Backdrop click to close
       const backdrop = container.querySelector('#cartuplift-backdrop');
       if (backdrop) {
-        backdrop.addEventListener('click', (e) => {
-          // Only close if the click is directly on the backdrop, not a child
-          if (e.target === backdrop) {
-            this.closeDrawer();
-          }
-        });
+        backdrop.addEventListener('click', () => this.closeDrawer());
       }
-
-      // Fallback: click outside the drawer closes it
-      document.addEventListener('mousedown', (e) => {
-        if (!this.isOpen) return;
-        const popup = document.getElementById('cartuplift-cart-popup');
-        if (!popup) return;
-        // If click is outside the popup and not on sticky cart button
-        if (!popup.contains(e.target) && !e.target.closest('.cartuplift-sticky-btn')) {
-          this.closeDrawer();
-        }
-      });
 
       // Escape key to close
       document.addEventListener('keydown', (e) => {

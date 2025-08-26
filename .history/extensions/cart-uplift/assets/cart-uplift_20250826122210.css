@@ -1,0 +1,920 @@
+/* Cart Uplift - Complete Cart Drawer Styles */
+
+/* ========================================
+   CSS Variables
+   ======================================== */
+:root {
+  --cartuplift-button-color: #45C0B6;
+  --cartuplift-teal: #16a085;
+  --cartuplift-border: #e5e5e5;
+  --cartuplift-text-primary: #1a1a1a;
+  --cartuplift-text-secondary: #666;
+}
+
+/* ========================================
+   Container and Backdrop
+   ======================================== */
+#cartuplift-app-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 999999;
+  display: none;
+  pointer-events: none;
+}
+
+#cartuplift-app-container.active {
+  display: block !important;
+  pointer-events: auto !important;
+}
+
+#cartuplift-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999998;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  cursor: pointer;
+}
+
+#cartuplift-app-container.active #cartuplift-backdrop {
+  opacity: 1;
+}
+
+#cartuplift-cart-popup {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 520px;  /* Increased width for more breathing room */
+  max-width: 90vw;
+  z-index: 999999;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+#cartuplift-app-container.active #cartuplift-cart-popup {
+  transform: translateX(0);
+}
+
+/* ========================================
+   Main Cart Drawer
+   ======================================== */
+.cartuplift-drawer {
+  width: 100%;
+  height: 100vh;
+  background: #ffffff;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ========================================
+   Header Section - More Compact
+   ======================================== */
+.cartuplift-header {
+  padding: 16px 20px;
+  background: #ffffff;
+  flex-shrink: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.cartuplift-header h2,
+.cartuplift-cart-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cartuplift-text-primary);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  justify-self: start;
+}
+
+.cartuplift-shipping-info {
+  justify-self: center;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.cartuplift-shipping-info p,
+.cartuplift-shipping-message {
+  margin: 0;
+  color: #1a1a1a;
+  font-size: 13px;
+  font-weight: 500;
+  display: block;
+  white-space: nowrap;
+}
+
+.cartuplift-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--cartuplift-text-secondary);
+  transition: color 0.2s ease;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  justify-self: end;
+}
+
+.cartuplift-close:hover {
+  color: #000;
+  background: #f5f5f5;
+}
+
+/* ========================================
+   Free Shipping Progress Section - Compact
+   ======================================== */
+.cartuplift-shipping-bar {
+  padding: 0 20px 12px;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.cartuplift-shipping-progress {
+  width: 100%;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.cartuplift-shipping-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+  position: relative;
+  min-width: 2px;
+  background: #4CAF50;
+}
+
+/* ========================================
+   Cart Content Wrapper - Scrollable
+   ======================================== */
+.cartuplift-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+/* Cart Items Section */
+.cartuplift-items {
+  flex: 0 1 auto;
+  background: #ffffff;
+  padding: 0 20px;
+  min-height: 100px;
+}
+
+.cartuplift-scrollable-content {
+  flex: 0 0 auto;
+  background: #ffffff;
+  position: relative;
+}
+
+.cartuplift-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--cartuplift-text-secondary);
+}
+
+.cartuplift-empty h4 {
+  font-size: 16px;
+  margin: 0 0 8px 0;
+  color: var(--cartuplift-text-primary);
+}
+
+.cartuplift-empty p {
+  font-size: 13px;
+  margin: 0;
+}
+
+/* ========================================
+   Cart Item Styles - Compact
+   ======================================== */
+.cartuplift-item {
+  display: grid;
+  grid-template-columns: 70px 1fr auto;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e5e5e5;
+  align-items: start;
+}
+
+.cartuplift-item:last-child {
+  border-bottom: none;
+}
+
+.cartuplift-item-image {
+  width: 70px;
+  height: 70px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.cartuplift-item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cartuplift-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cartuplift-item-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.cartuplift-item-title a {
+  color: #1a1a1a;
+  text-decoration: none;
+  font-weight: inherit;
+}
+
+.cartuplift-item-title a:hover {
+  text-decoration: underline;
+}
+
+.cartuplift-item-variant {
+  font-size: 11px;
+  color: #666;
+  margin: 2px 0;
+  line-height: 1.2;
+}
+
+.cartuplift-item-quantity-wrapper {
+  margin-top: 12px;
+}
+
+.cartuplift-item-price-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  min-width: 50px;
+  padding-top: 4px;
+}
+
+.cartuplift-item-price {
+  font-weight: 700;
+  font-size: 15px;
+  color: #1a1a1a;
+  letter-spacing: 0.2px;
+}
+
+.cartuplift-item-remove-x {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: #666;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+
+.cartuplift-item-remove-x svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+}
+
+.cartuplift-item-remove-x:hover {
+  background-color: #f5f5f5;
+  color: #333;
+  transform: scale(1.05);
+}
+
+.cartuplift-item-remove-x:active {
+  transform: scale(0.95);
+}
+
+/* ========================================
+   Quantity Controls - Compact
+   ======================================== */
+.cartuplift-quantity {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #d1d5db;
+  border-radius: 18px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.cartuplift-qty-minus,
+.cartuplift-qty-plus {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  transition: all 0.2s ease;
+}
+
+.cartuplift-qty-minus:hover,
+.cartuplift-qty-plus:hover {
+  background: #f0f0f0;
+}
+
+.cartuplift-qty-display {
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cartuplift-text-primary);
+  min-width: 32px;
+  text-align: center;
+}
+
+/* ========================================
+   Recommendations Section - Compact & Clean
+   ======================================== */
+.cartuplift-recommendations {
+  background: #fff;
+  padding: 12px 20px 8px 20px;
+  flex-shrink: 0;
+  overflow: visible;
+  transition: all 0.3s ease;
+  margin-top: 20px;
+}
+
+.cartuplift-recommendations.collapsed {
+  max-height: 48px;
+  padding: 10px 20px;
+  overflow: hidden;
+}
+
+.cartuplift-recommendations-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+  height: 28px;
+}
+
+.cartuplift-recommendations-header h3 {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin: 0;
+  color: var(--cartuplift-teal);
+  text-transform: uppercase;
+  line-height: 28px;
+}
+
+.cartuplift-recommendations-toggle {
+  background: #fff;
+  border: 2px solid var(--cartuplift-teal);
+  padding: 0;
+  cursor: pointer;
+  color: var(--cartuplift-teal);
+  transition: all 0.2s ease;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.cartuplift-recommendations-toggle:hover {
+  background: var(--cartuplift-teal);
+  color: #fff;
+}
+
+.cartuplift-recommendations-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cartuplift-recommendations-content {
+  overflow-y: visible;
+}
+
+.cartuplift-recommendations.collapsed .cartuplift-recommendations-content {
+  display: none;
+}
+
+.cartuplift-recommendations.collapsed .cartuplift-recommendations-toggle {
+  transform: rotate(180deg);
+}
+
+/* Row Layout (Horizontal Scroll) - Compact Cards */
+.cartuplift-recommendations-row .cartuplift-recommendations-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-behavior: smooth;
+}
+
+.cartuplift-recommendations-row .cartuplift-recommendations-scroll::-webkit-scrollbar {
+  height: 3px;
+}
+
+.cartuplift-recommendations-row .cartuplift-recommendations-scroll::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 2px;
+}
+
+.cartuplift-recommendations-row .cartuplift-recommendations-scroll::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 2px;
+}
+
+.cartuplift-recommendation-card {
+  flex: 0 0 120px;
+  background: #fff;
+  border: 1px solid var(--cartuplift-border);
+  border-radius: 6px;
+  padding: 8px;
+  text-align: center;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cartuplift-recommendation-card:hover {
+  border-color: var(--cartuplift-teal);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.cartuplift-recommendation-card img {
+  width: 100%;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.cartuplift-recommendation-card h4 {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cartuplift-text-primary);
+  margin: 0 0 4px 0;
+  text-transform: uppercase;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.cartuplift-recommendation-card .cartuplift-product-link {
+  color: inherit !important;
+  text-decoration: none !important;
+  cursor: pointer;
+  display: block;
+  transition: none;
+}
+
+.cartuplift-recommendation-price {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cartuplift-teal);
+  margin-bottom: 6px;
+}
+
+.cartuplift-add-recommendation {
+  width: 100%;
+  padding: 4px 8px;
+  background: var(--cartuplift-button-color);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+}
+
+.cartuplift-add-recommendation:hover {
+  filter: brightness(0.9);
+  transform: translateY(-1px);
+}
+
+/* Column Layout (Vertical List) - Clean & Compact */
+.cartuplift-recommendations-column .cartuplift-recommendation-item {
+  display: grid;
+  grid-template-columns: 56px 1fr 32px;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+  align-items: center;
+}
+
+.cartuplift-recommendations-column .cartuplift-recommendation-item:hover {
+  border-color: var(--cartuplift-teal);
+  background: #fafafa;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.cartuplift-recommendation-item img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.cartuplift-recommendation-info {
+  flex: 1;
+  min-width: 0;
+  padding-right: 8px;
+}
+
+.cartuplift-recommendation-info h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cartuplift-text-primary);
+  margin: 0 0 4px 0;
+  line-height: 1.3;
+}
+
+.cartuplift-product-link {
+  color: inherit !important;
+  text-decoration: none !important;
+  cursor: pointer;
+  display: block;
+  transition: none;
+}
+
+.cartuplift-recommendation-info .cartuplift-recommendation-price {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cartuplift-teal);
+  margin: 0;
+}
+
+.cartuplift-add-recommendation-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #1a1a1a;
+  background: #fff;
+  color: #1a1a1a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  font-size: 18px;
+  font-weight: normal;  /* Remove bold for cleaner look */
+  justify-self: end;
+}
+
+.cartuplift-add-recommendation-circle:hover {
+  background: #1a1a1a;
+  color: #fff;
+  transform: scale(1.05);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+/* ========================================
+   Add-ons Section - Compact
+   ======================================== */
+.cartuplift-addons {
+  padding: 12px 20px;
+  border-top: 1px solid var(--cartuplift-border);
+}
+
+.cartuplift-addon-btn {
+  width: 100%;
+  padding: 10px 14px;
+  background: #f8f9fa;
+  border: 1px solid var(--cartuplift-border);
+  border-radius: 6px;
+  color: var(--cartuplift-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.cartuplift-addon-btn:hover {
+  background: #e9ecef;
+  border-color: var(--cartuplift-text-primary);
+}
+
+/* ========================================
+   Footer Section - Compact
+   ======================================== */
+.cartuplift-footer {
+  padding: 16px 20px;
+  background: #ffffff;
+  flex-shrink: 0;
+  border-top: 1px solid #f0f0f0;
+}
+
+.cartuplift-discount {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.cartuplift-discount-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+}
+
+.cartuplift-discount-input:focus {
+  border-color: var(--cartuplift-text-primary);
+}
+
+.cartuplift-discount-apply {
+  padding: 10px 16px;
+  background: var(--cartuplift-button-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+}
+
+.cartuplift-discount-apply:hover {
+  filter: brightness(0.9);
+}
+
+.cartuplift-notes {
+  margin-bottom: 12px;
+}
+
+.cartuplift-notes-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 50px;
+  outline: none;
+}
+
+.cartuplift-notes-input:focus {
+  border-color: var(--cartuplift-text-primary);
+}
+
+.cartuplift-subtotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--cartuplift-text-primary);
+  padding: 12px 0;
+}
+
+.cartuplift-checkout-btn {
+  width: 100%;
+  padding: 14px 20px;
+  background: var(--cartuplift-text-primary);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.cartuplift-checkout-btn:hover {
+  filter: brightness(0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.cartuplift-express-checkout {
+  display: flex;
+  gap: 10px;
+}
+
+.cartuplift-paypal-btn,
+.cartuplift-shoppay-btn {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+
+.cartuplift-paypal-btn:hover,
+.cartuplift-shoppay-btn:hover {
+  border-color: var(--cartuplift-text-primary);
+  transform: translateY(-1px);
+}
+
+.cartuplift-paypal-btn img {
+  height: 18px;
+}
+
+.cartuplift-shoppay-btn {
+  background: #5a31f4;
+  color: #fff;
+  border-color: #5a31f4;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* ========================================
+   Sticky Cart Button
+   ======================================== */
+.cartuplift-sticky {
+  position: fixed;
+  z-index: 99999;
+  transition: all 0.3s ease;
+}
+
+.cartuplift-sticky.bottom-right {
+  bottom: 20px;
+  right: 20px;
+}
+
+.cartuplift-sticky.bottom-left {
+  bottom: 20px;
+  left: 20px;
+}
+
+.cartuplift-sticky-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  background: var(--cartuplift-text-primary);
+  color: #ffffff;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.cartuplift-sticky-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.cartuplift-sticky-count {
+  background: #ff4444;
+  color: white;
+  border-radius: 10px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: bold;
+  min-width: 18px;
+  text-align: center;
+}
+
+.cartuplift-sticky-total {
+  font-weight: 700;
+}
+
+/* ========================================
+   Loading States
+   ======================================== */
+.cartuplift-item.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.cartuplift-recommendations-loading,
+.cartuplift-recommendations-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--cartuplift-text-secondary);
+  font-size: 13px;
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+@media (max-width: 768px) {
+  #cartuplift-cart-popup {
+    width: 100%;
+    max-width: 100vw;
+  }
+  
+  .cartuplift-item {
+    grid-template-columns: 60px 1fr auto;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+  
+  .cartuplift-item-image {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .cartuplift-recommendation-card {
+    flex: 0 0 100px;
+  }
+  
+  .cartuplift-express-checkout {
+    flex-direction: column;
+  }
+  
+  .cartuplift-shipping-info {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .cartuplift-header {
+    padding: 14px 16px;
+    grid-template-columns: 1fr auto;
+  }
+  
+  .cartuplift-header h2,
+  .cartuplift-cart-title {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  
+  .cartuplift-shipping-info {
+    display: none;
+  }
+  
+  .cartuplift-close {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  
+  .cartuplift-shipping-bar,
+  .cartuplift-footer,
+  .cartuplift-recommendations,
+  .cartuplift-addons {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  
+  .cartuplift-item {
+    padding: 10px 16px;
+  }
+}

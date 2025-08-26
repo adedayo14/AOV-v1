@@ -14,7 +14,6 @@
   --cartuplift-success: #22c55e;
   --cartuplift-drawer-width: 520px;
   --cartuplift-border-radius: 6px;
-  --cartuplift-recommendations-bg: #f6fafd; /* Visually distinct, light blue-grey */
 }
 
 /* ========================================
@@ -391,9 +390,8 @@
 /* ========================================
    Recommendations Section
    ======================================== */
-
 .cartuplift-recommendations {
-  background: var(--cartuplift-recommendations-bg);
+  background: var(--cartuplift-background);
   padding: 16px 20px;
   border-top: 1px solid var(--cartuplift-border);
   flex-shrink: 0;
@@ -427,56 +425,35 @@
   text-transform: uppercase;
 }
 
-/* --- Modern icon-only buttons for recommendations section --- */
 .cartuplift-recommendations-toggle {
   background: transparent;
-  border: none;
+  border: 2px solid var(--cartuplift-teal);
   padding: 0;
   cursor: pointer;
   color: var(--cartuplift-teal);
-  transition: background 0.2s, color 0.2s;
-  width: 28px;
-  height: 28px;
+  transition: all 0.2s ease;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%; /* for hover effect only */
-  z-index: 1;
-}
-.cartuplift-recommendations-toggle svg {
-  width: 18px;
-  height: 18px;
-  transition: transform 0.2s ease;
-  pointer-events: none;
-}
-.cartuplift-recommendations-toggle:focus {
-  outline: 2px solid var(--cartuplift-teal);
-  outline-offset: 2px;
-}
-.cartuplift-recommendations-toggle:hover {
-  background: var(--cartuplift-teal);
-  color: #fff;
 }
 
-.cartuplift-add-recommendation-circle {
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  color: var(--cartuplift-primary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  border-radius: 50%; /* for hover effect only */
-  margin-left: auto;
-  transition: background 0.2s, color 0.2s;
+.cartuplift-recommendations-toggle:hover {
+  background: var(--cartuplift-teal);
+  color: white;
 }
-.cartuplift-add-recommendation-circle:hover {
-  background: var(--cartuplift-primary);
-  color: #fff;
-  transform: scale(1.05);
+
+.cartuplift-recommendations-toggle svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s ease;
+}
+
+/* Rotate arrow when collapsed */
+.cartuplift-recommendations.collapsed .cartuplift-recommendations-toggle svg {
+  transform: rotate(180deg);
 }
 
 .cartuplift-recommendations-content {

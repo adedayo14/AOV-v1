@@ -564,28 +564,12 @@
       if (closeBtn) {
         closeBtn.addEventListener('click', () => this.closeDrawer());
       }
-
+      
       // Backdrop click to close
       const backdrop = container.querySelector('#cartuplift-backdrop');
       if (backdrop) {
-        backdrop.addEventListener('click', (e) => {
-          // Only close if the click is directly on the backdrop, not a child
-          if (e.target === backdrop) {
-            this.closeDrawer();
-          }
-        });
+        backdrop.addEventListener('click', () => this.closeDrawer());
       }
-
-      // Fallback: click outside the drawer closes it
-      document.addEventListener('mousedown', (e) => {
-        if (!this.isOpen) return;
-        const popup = document.getElementById('cartuplift-cart-popup');
-        if (!popup) return;
-        // If click is outside the popup and not on sticky cart button
-        if (!popup.contains(e.target) && !e.target.closest('.cartuplift-sticky-btn')) {
-          this.closeDrawer();
-        }
-      });
 
       // Escape key to close
       document.addEventListener('keydown', (e) => {
@@ -594,7 +578,7 @@
         }
       });
 
-      // Quantity controls and recommendations toggle
+      // Quantity controls
       container.addEventListener('click', (e) => {
         if (e.target.classList.contains('cartuplift-qty-plus')) {
           const line = e.target.dataset.line;
@@ -627,22 +611,16 @@
           e.stopPropagation();
           const variantId = e.target.dataset.variantId;
           this.addToCart(variantId, 1);
-        } else if (
-          e.target.classList.contains('cartuplift-recommendations-toggle') ||
-          (e.target.closest && e.target.closest('.cartuplift-recommendations-toggle'))
-        ) {
-          // Robustly find the toggle button and recommendations section
-          const toggleButton = e.target.classList.contains('cartuplift-recommendations-toggle')
-            ? e.target
+        } else if (e.target.classList.contains('cartuplift-recommendations-toggle') || e.target.closest('.cartuplift-recommendations-toggle')) {
+          console.log('🛒 Toggle recommendations clicked');
+          const toggleButton = e.target.classList.contains('cartuplift-recommendations-toggle') 
+            ? e.target 
             : e.target.closest('.cartuplift-recommendations-toggle');
-          // Find the recommendations section relative to the toggle button
-          let recommendations = toggleButton.closest('.cartuplift-recommendations');
-          if (!recommendations) {
-            recommendations = container.querySelector('.cartuplift-recommendations');
-          }
+          const recommendations = container.querySelector('.cartuplift-recommendations');
           if (recommendations) {
             const isCollapsed = recommendations.classList.contains('collapsed');
             recommendations.classList.toggle('collapsed');
+            
             // Update arrow direction with your SVGs
             const arrow = toggleButton.querySelector('svg path');
             if (arrow) {
@@ -654,6 +632,7 @@
                 arrow.setAttribute('d', 'm4.5 15.75 7.5-7.5 7.5 7.5');
               }
             }
+            
             console.log('🛒 Recommendations collapsed:', recommendations.classList.contains('collapsed'));
           }
         }
