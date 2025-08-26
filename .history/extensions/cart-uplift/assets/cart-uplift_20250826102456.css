@@ -82,8 +82,7 @@
    ======================================== */
 .cartuplift-header {
   padding: 20px 24px;
-  /* Removed bottom border for cleaner header */
-  border-bottom: none;
+  border-bottom: 1px solid var(--cartuplift-border);
   background: #ffffff;
   flex-shrink: 0;
   position: relative;
@@ -160,14 +159,6 @@
   padding: 0 24px 16px;
   background: #ffffff;
   flex-shrink: 0;
-  /* Remove top border/line */
-  border-top: none;
-  margin-top: 0;
-}
-
-/* Remove any potential border from progress bar itself */
-.cartuplift-shipping-progress {
-  border-top: none;
 }
 
 .cartuplift-shipping-message {
@@ -212,9 +203,15 @@
   flex: 1; /* Take all available space when no recommendations */
   background: #ffffff;
   padding: 0 24px;
-  /* Allow natural height so recommendations are pushed further down */
+  overflow-y: auto;
+  /* Hide scrollbar but keep functionality */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
 }
-/* Removed internal scroll hiding; whole drawer now scrolls */
+
+.cartuplift-items::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
 
 /* When recommendations are present, limit cart items height */
 /* Removed restrictive max-height so cart + recommendations can scroll naturally */
@@ -399,27 +396,24 @@
 }
 
 /* ========================================
-   Recommendations Section - MOVED DOWN WITH MORE SPACING
+   Recommendations Section - BOTTOM POSITIONED
    ======================================== */
 .cartuplift-recommendations {
-  /* Removed top border per design request */
-  border-top: none;
+  border-top: 1px solid var(--cartuplift-border);
   background: #fff;
-  padding: 16px 24px 8px 24px;
+  padding: 16px 24px;
   /* Position naturally above footer */
   flex-shrink: 0;
-  /* Let content define height (cleaner and further down) */
-  max-height: none;
-  overflow: visible;
+  /* Default expanded state */
+  max-height: 250px;
+  overflow: hidden;
   transition: all 0.3s ease;
-  /* Increased top margin to push section down more */
-  margin-top: 48px;
 }
 
 /* When collapsed, minimize the section */
 .cartuplift-recommendations.collapsed {
   max-height: 60px; /* Just enough for header */
-  padding: 12px 24px; /* Tighter when collapsed */
+  padding: 16px 24px 8px 24px;
 }
 
 .cartuplift-recommendations-header {
@@ -442,11 +436,11 @@
 }
 
 .cartuplift-recommendations-toggle {
-  background: #fff;
-  border: 2px solid var(--cartuplift-teal);
+  background: none;
+  border: none;
   padding: 0;
   cursor: pointer;
-  color: var(--cartuplift-teal);
+  color: var(--cartuplift-text-secondary);
   transition: transform 0.2s ease;
   width: 36px; /* Match the + circle width */
   height: 36px; /* Match the + circle height */
@@ -457,8 +451,7 @@
 }
 
 .cartuplift-recommendations-toggle:hover {
-  background: var(--cartuplift-teal);
-  color: #fff;
+  background: #f5f5f5;
 }
 
 .cartuplift-recommendations-toggle svg {
@@ -594,15 +587,14 @@
 
 /* Column Layout (Vertical List) */
 .cartuplift-recommendations-column .cartuplift-recommendation-item {
-  display: grid;
-  grid-template-columns: 60px 1fr 36px;
+  display: flex;
+  align-items: center;
   gap: 12px;
   padding: 12px;
   border: 1px solid #f0f0f0;
   border-radius: 8px;
   margin-bottom: 12px;
   transition: all 0.2s ease;
-  align-items: center;
 }
 
 .cartuplift-recommendations-column .cartuplift-recommendation-item:hover {
@@ -679,8 +671,6 @@
   flex-shrink: 0;
   font-size: 20px;
   font-weight: 600;
-  /* Position in grid to align with toggle arrow */
-  justify-self: end;
 }
 
 .cartuplift-add-recommendation-circle:hover {
@@ -734,8 +724,7 @@
 .cartuplift-footer {
   padding: 20px 24px;
   background: #ffffff;
-  /* Removed top divider for cleaner transition to subtotal */
-  border-top: none;
+  border-top: 1px solid var(--cartuplift-border);
   flex-shrink: 0;
 }
 
@@ -805,7 +794,6 @@
   color: var(--cartuplift-text-primary);
   padding: 16px 0;
   /* Removed top border line per design request */
-  border-top: none;
 }
 
 .cartuplift-checkout-btn {

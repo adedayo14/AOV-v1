@@ -165,11 +165,6 @@
   margin-top: 0;
 }
 
-/* Remove any potential border from progress bar itself */
-.cartuplift-shipping-progress {
-  border-top: none;
-}
-
 .cartuplift-shipping-message {
   font-size: 14px;
   font-weight: 500;
@@ -413,7 +408,7 @@
   overflow: visible;
   transition: all 0.3s ease;
   /* Increased top margin to push section down more */
-  margin-top: 48px;
+  margin-top: 32px;
 }
 
 /* When collapsed, minimize the section */
@@ -594,15 +589,14 @@
 
 /* Column Layout (Vertical List) */
 .cartuplift-recommendations-column .cartuplift-recommendation-item {
-  display: grid;
-  grid-template-columns: 60px 1fr 36px;
+  display: flex;
+  align-items: center;
   gap: 12px;
   padding: 12px;
   border: 1px solid #f0f0f0;
   border-radius: 8px;
   margin-bottom: 12px;
   transition: all 0.2s ease;
-  align-items: center;
 }
 
 .cartuplift-recommendations-column .cartuplift-recommendation-item:hover {
@@ -679,8 +673,8 @@
   flex-shrink: 0;
   font-size: 20px;
   font-weight: 600;
-  /* Position in grid to align with toggle arrow */
-  justify-self: end;
+  /* Align plus circle under arrow - removed right margin */
+  margin-right: 0;
 }
 
 .cartuplift-add-recommendation-circle:hover {

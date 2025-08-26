@@ -1,9 +1,7 @@
 (function() {
   'use strict';
   
-  // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v136';
-  console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
+  console.log('🛒 Cart Uplift script loaded!');
 
   class CartUpliftDrawer {
     constructor(settings) {
