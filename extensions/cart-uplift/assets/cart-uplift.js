@@ -528,33 +528,52 @@
     }
 
     getRecommendationItems() {
-      // Show loading state if not loaded yet
       if (!this._recommendationsLoaded) {
         return '<div class="cartuplift-recommendations-loading">Loading recommendations...</div>';
       }
       
-      // If no recommendations, this method shouldn't be called due to shouldShowRecommendations logic
-      // But add safety check
       if (!this.recommendations || this.recommendations.length === 0) {
-        console.log('🛒 getRecommendationItems called with no recommendations - this should not happen');
         return '';
       }
       
-      const layout = this.settings.recommendationLayout || 'column';
+      const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'row' };
+      const layoutRaw = this.settings.recommendationLayout || 'row';
+      const layout = layoutMap[layoutRaw] || layoutRaw;
       
       if (layout === 'row') {
         return `
-          <div class="cartuplift-recommendations-scroll">
+          <div class="cartuplift-recommendations-track">
             ${this.recommendations.map(product => `
               <div class="cartuplift-recommendation-card">
-                <img src="${product.image}" alt="${product.title}" loading="lazy">
-                <h4><a href="${product.url}" class="cartuplift-product-link">${product.title}</a></h4>
-                <div class="cartuplift-recommendation-price">${this.formatMoney(product.price)}</div>
-                <button class="cartuplift-add-recommendation" data-variant-id="${product.variant_id}">
-                  Add+
-                </button>
+                <div class="cartuplift-card-content">
+                  <div class="cartuplift-product-image">
+                    <img src="${product.image}" alt="${product.title}" loading="lazy">
+                  </div>
+                  <div class="cartuplift-product-info">
+                    <h4><a href="${product.url || '#'}" class="cartuplift-product-link">${product.title}</a></h4>
+                    ${this.generateVariantSelector(product)}
+                  </div>
+                  <div class="cartuplift-product-actions">
+                    <div class="cartuplift-recommendation-price">${this.formatMoney(product.price)}</div>
+                    <button class="cartuplift-add-recommendation" data-product-id="${product.id}" data-variant-id="${product.variant_id}">
+                      Add+
+                    </button>
+                  </div>
+                </div>
               </div>
             `).join('')}
+          </div>
+          <div class="cartuplift-carousel-controls">
+            <button class="cartuplift-carousel-nav prev" data-nav="prev" aria-label="Previous">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 12l-4-4 4-4"/>
+              </svg>
+            </button>
+            <button class="cartuplift-carousel-nav next" data-nav="next" aria-label="Next">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 12l4-4-4-4"/>
+              </svg>
+            </button>
           </div>
         `;
       } else {
@@ -573,6 +592,32 @@
       }
     }
 
+    generateVariantSelector(product) {
+      // If product has variants with multiple meaningful options, generate a proper selector
+      if (product.variants && product.variants.length > 1) {
+        // Get the option name (typically Size, Color, etc.)
+        const optionName = product.options && product.options.length > 0 ? product.options[0] : 'Option';
+        
+        return `
+          <div class="cartuplift-product-variation">
+            <select class="cartuplift-size-dropdown" data-product-id="${product.id}">
+              <option value="">Select ${optionName}</option>
+              ${product.variants.map(variant => 
+                variant.available ? `
+                  <option value="${variant.id}" data-price="${variant.price}">
+                    ${variant.title}
+                  </option>
+                ` : ''
+              ).join('')}
+            </select>
+          </div>
+        `;
+      } else {
+        // Simple product or single variant - hide selector completely
+        return `<div class="cartuplift-product-variation hidden"></div>`;
+      }
+    }
+
     refreshRecommendationLayout() {
       // Reload settings to get latest changes
       const recommendationsContainer = document.querySelector('.cartuplift-recommendations-content');
@@ -588,8 +633,160 @@
           // Remove old layout classes and add new one
           recommendationsSection.classList.remove('cartuplift-recommendations-row', 'cartuplift-recommendations-column');
           recommendationsSection.classList.add(`cartuplift-recommendations-${layout}`);
+          
+          // Setup carousel navigation if horizontal layout
+          if (layout === 'row') {
+            setTimeout(() => {
+              const scrollContainer = document.querySelector('.cartuplift-recommendations-content');
+              if (scrollContainer) {
+                this.setupScrollControls(scrollContainer);
+                this.updateCarouselButtons(scrollContainer);
+                // Add scroll listener for real-time button updates
+                scrollContainer.addEventListener('scroll', () => {
+                  this.updateCarouselButtons(scrollContainer);
+                });
+              }
+            }, 100);
+          }
         }
       }
+    }
+
+    setupScrollControls(scrollContainer) {
+      // Calculate scroll amounts based on card width (300px + 15px gap = 315px)
+      this.cardWidth = 300;
+      this.gap = 15;
+      this.scrollAmount = this.cardWidth + this.gap;
+      
+      // Bind navigation events
+      const prevBtn = document.querySelector('.cartuplift-carousel-nav.prev');
+      const nextBtn = document.querySelector('.cartuplift-carousel-nav.next');
+      
+      if (prevBtn && nextBtn) {
+        prevBtn.addEventListener('click', () => this.scrollPrev(scrollContainer));
+        nextBtn.addEventListener('click', () => this.scrollNext(scrollContainer));
+      }
+    }
+
+    scrollPrev(scrollContainer) {
+      if (!scrollContainer) return;
+      const currentScroll = scrollContainer.scrollLeft;
+      const targetScroll = Math.max(0, currentScroll - this.scrollAmount);
+      
+      scrollContainer.scrollTo({
+        left: targetScroll,
+        behavior: 'smooth'
+      });
+    }
+
+    scrollNext(scrollContainer) {
+      if (!scrollContainer) return;
+      const currentScroll = scrollContainer.scrollLeft;
+      const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+      const targetScroll = Math.min(maxScroll, currentScroll + this.scrollAmount);
+      
+      scrollContainer.scrollTo({
+        left: targetScroll,
+        behavior: 'smooth'
+      });
+    }
+
+    updateCarouselButtons(scrollContainer) {
+      if (!scrollContainer) return;
+      
+      const prevBtn = document.querySelector('.cartuplift-carousel-nav.prev');
+      const nextBtn = document.querySelector('.cartuplift-carousel-nav.next');
+      
+      if (!prevBtn || !nextBtn) return;
+      
+      const scrollLeft = scrollContainer.scrollLeft;
+      const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+      const scrollable = maxScroll > 5;
+
+      // Show/hide controls based on content
+      const controls = document.querySelector('.cartuplift-carousel-controls');
+      if (controls) {
+        if (!scrollable) {
+          controls.style.display = 'none';
+        } else {
+          controls.style.display = 'flex';
+        }
+      }
+      
+      // Update button states
+      prevBtn.disabled = scrollLeft <= 0;
+      nextBtn.disabled = scrollLeft >= maxScroll - 1;
+      
+      // Add visual feedback
+      if (prevBtn.disabled) {
+        prevBtn.style.opacity = '0.3';
+      } else {
+        prevBtn.style.opacity = '1';
+      }
+      
+      if (nextBtn.disabled) {
+        nextBtn.style.opacity = '0.3';
+      } else {
+        nextBtn.style.opacity = '1';
+      }
+    }
+
+    handleVariantChange(select) {
+      const card = select.closest('.cartuplift-recommendation-card');
+      if (!card) return;
+      
+      const variantId = select.value;
+      const selectedOption = select.options[select.selectedIndex];
+      const price = selectedOption.dataset.price;
+      
+      // Update add button with selected variant
+      const addBtn = card.querySelector('.cartuplift-add-recommendation');
+      if (addBtn && variantId) {
+        addBtn.dataset.variantId = variantId;
+      }
+      
+      // Update price display if available
+      if (price) {
+        const priceElement = card.querySelector('.cartuplift-recommendation-price');
+        if (priceElement) {
+          priceElement.textContent = this.formatMoney(parseInt(price));
+        }
+      }
+    }
+
+    showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `cartuplift-toast cartuplift-toast-${type}`;
+      toast.textContent = message;
+      
+      const bgColor = type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6';
+      
+      toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${bgColor};
+        color: white;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 99999;
+        animation: cartupliftSlideUp 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      `;
+      
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+          }
+        }, 300);
+      }, 3000);
     }
 
     getAddonsHTML() {
@@ -697,16 +894,42 @@
         } else if (e.target.classList.contains('cartuplift-add-recommendation')) {
           e.preventDefault();
           e.stopPropagation();
-          const variantId = e.target.dataset.variantId;
-          const productTitle = e.target.dataset.productTitle || `Product ${variantId}`;
+          
+          const card = e.target.closest('.cartuplift-recommendation-card');
+          if (!card) return;
+          
+          // Check if size needs to be selected
+          const sizeSelect = card.querySelector('.cartuplift-size-dropdown:not([disabled])');
+          let selectedVariantId = e.target.dataset.variantId;
+          
+          if (sizeSelect && !sizeSelect.value) {
+            this.showToast('Please select an option', 'error');
+            sizeSelect.focus();
+            return;
+          }
+          
+          // Use selected variant from dropdown if available
+          if (sizeSelect && sizeSelect.value) {
+            selectedVariantId = sizeSelect.value;
+          }
+          
+          if (!selectedVariantId) {
+            this.showToast('Please select options', 'error');
+            return;
+          }
+          
+          const productTitle = card.querySelector('h4')?.textContent || `Product ${selectedVariantId}`;
           
           // Track product click
           CartAnalytics.trackEvent('product_click', {
-            productId: variantId,
+            productId: selectedVariantId,
             productTitle: productTitle
           });
           
-          this.addToCart(variantId, 1);
+          this.addToCart(selectedVariantId, 1);
+        } else if (e.target.classList.contains('cartuplift-size-dropdown')) {
+          // Handle variant selection
+          this.handleVariantChange(e.target);
         } else if (e.target.classList.contains('cartuplift-add-recommendation-circle')) {
           e.preventDefault();
           e.stopPropagation();
@@ -748,6 +971,31 @@
               }
             }
             console.log('🛒 Recommendations collapsed:', recommendations.classList.contains('collapsed'));
+          }
+        } else if (e.target.classList.contains('cartuplift-carousel-nav') || e.target.closest('.cartuplift-carousel-nav')) {
+          // Handle carousel navigation
+          const navButton = e.target.classList.contains('cartuplift-carousel-nav') 
+            ? e.target 
+            : e.target.closest('.cartuplift-carousel-nav');
+          const direction = navButton.dataset.nav;
+          const scrollContainer = container.querySelector('.cartuplift-recommendations-content');
+          
+          if (scrollContainer && direction) {
+            const cardWidth = 300; // Match card width from CSS (300px)
+            const gap = 15; // Match gap from CSS (15px)
+            const scrollAmount = cardWidth + gap;
+            
+            if (direction === 'prev') {
+              const targetScroll = Math.max(0, scrollContainer.scrollLeft - scrollAmount);
+              scrollContainer.scrollTo({ left: targetScroll, behavior: 'smooth' });
+            } else if (direction === 'next') {
+              const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+              const targetScroll = Math.min(maxScroll, scrollContainer.scrollLeft + scrollAmount);
+              scrollContainer.scrollTo({ left: targetScroll, behavior: 'smooth' });
+            }
+            
+            // Update button states after scroll
+            setTimeout(() => this.updateCarouselButtons(scrollContainer), 100);
           }
         }
       });
@@ -953,7 +1201,9 @@
           image: product.images && product.images[0] ? product.images[0].src || product.images[0] : 
                  product.featured_image || 'https://via.placeholder.com/150x150?text=No+Image',
           variant_id: product.variants && product.variants[0] ? product.variants[0].id : null,
-          url: product.handle ? `/products/${product.handle}` : (product.url || '#')
+          url: product.handle ? `/products/${product.handle}` : (product.url || '#'),
+          variants: product.variants || [],
+          options: product.options || []
         })).filter(item => item.variant_id); // Only include products with valid variants
   this.rebuildRecommendationsFromMaster();
   console.log('🛒 Final recommendations loaded (master):', this._allRecommendations.length, 'showing:', this.recommendations.length);

@@ -389,116 +389,325 @@
 }
 
 /* ========================================
-   Recommendations Section
+   Recommendations Section - EXACT Repository Match
    ======================================== */
 
 .cartuplift-recommendations {
-  background: var(--cartuplift-recommendations-bg);
-  padding: 16px 20px;
-  border-top: 1px solid var(--cartuplift-border);
+  background: #f5f5f5;
+  padding: 20px 0;
+  margin: 20px 0;
+  border-top: none;
   flex-shrink: 0;
   transition: all 0.3s ease;
-  max-height: 200px; /* Fixed maximum height */
-  overflow-y: auto; /* Make recommendations scrollable if too many */
-  overflow-x: hidden;
+  overflow: visible;
+  position: relative;
 }
 
 .cartuplift-recommendations.collapsed {
-  padding: 12px 20px;
+  padding: 12px 0;
 }
 
 .cartuplift-recommendations-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  height: 24px;
+  padding: 0 15px 15px; /* Reduced left padding from 20px to 15px */
+  margin-bottom: 0;
 }
 
 .cartuplift-recommendations.collapsed .cartuplift-recommendations-header {
   margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 .cartuplift-recommendations-title {
   font-size: 14px;
   font-weight: 600;
-  letter-spacing: normal;
-  color: var(--cartuplift-teal);
+  letter-spacing: 1.5px;
+  color: #000;
   text-transform: uppercase;
+  margin: 0;
 }
 
-/* --- Modern icon-only buttons for recommendations section --- */
+/* Toggle button - TOP RIGHT */
 .cartuplift-recommendations-toggle {
-  background: transparent;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  color: var(--cartuplift-teal);
-  transition: background 0.2s, color 0.2s;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%; /* for hover effect only */
-  z-index: 1;
-}
-.cartuplift-recommendations-toggle svg {
-  width: 18px;
-  height: 18px;
-  transition: transform 0.2s ease;
-  pointer-events: none;
-}
-.cartuplift-recommendations-toggle:focus {
-  outline: 2px solid var(--cartuplift-teal);
-  outline-offset: 2px;
-}
-.cartuplift-recommendations-toggle:hover {
-  background: var(--cartuplift-teal);
-  color: #fff;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  color: #333;
 }
 
-.cartuplift-add-recommendation-circle {
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  color: var(--cartuplift-primary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  border-radius: 50%; /* for hover effect only */
-  margin-left: auto;
-  transition: background 0.2s, color 0.2s;
+.cartuplift-recommendations-toggle svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s ease;
 }
-.cartuplift-add-recommendation-circle:hover {
-  background: var(--cartuplift-primary);
-  color: #fff;
-  transform: scale(1.05);
+
+.cartuplift-recommendations-toggle:hover {
+  border-color: #999;
+  background: #f5f5f5;
+}
+
+.cartuplift-recommendations-toggle[aria-expanded="false"] {
+  transform: rotate(180deg);
 }
 
 .cartuplift-recommendations-content {
   overflow: visible;
-}
-
-/* For column layout - limit visible items */
-.cartuplift-recommendations-column .cartuplift-recommendations-content {
-  max-height: 180px; /* Increased from 160px to show more of first card */
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-top: 12px; /* Increased padding to ensure top of first card is fully visible */
+  position: relative;
 }
 
 .cartuplift-recommendations.collapsed .cartuplift-recommendations-content {
   display: none;
 }
 
-/* Column Layout */
+/* Row Layout Container */
+.cartuplift-recommendations-row {
+  position: relative;
+}
+
+/* Scroll container - EXACT match from repository */
+.cartuplift-recommendations-row .cartuplift-recommendations-content {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 15px 40px; /* Reduced left padding from 20px to 15px */
+  position: relative;
+}
+
+/* Hide scrollbar completely */
+.cartuplift-recommendations-row .cartuplift-recommendations-content::-webkit-scrollbar {
+  display: none;
+}
+
+/* For Firefox */
+.cartuplift-recommendations-row .cartuplift-recommendations-content {
+  scrollbar-width: none;
+}
+
+/* Track - EXACT match */
+.cartuplift-recommendations-track {
+  display: flex;
+  gap: 15px;
+  padding-bottom: 10px;
+}
+
+/* Navigation Controls - ABSOLUTELY FIXED outside scroll container */
+.cartuplift-carousel-controls {
+  position: absolute;
+  right: 15px; /* Adjusted to match new padding */
+  bottom: 10px;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  z-index: 10; /* Higher z-index */
+  pointer-events: auto; /* Always allow clicks */
+  background: rgba(255, 255, 255, 0.95); /* Slight background for visibility */
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.cartuplift-carousel-nav {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  pointer-events: auto;
+}
+
+.cartuplift-carousel-nav:hover {
+  background: #f0f0f0;
+  border-color: #999;
+  /* Removed transform and shadow animations */
+}
+
+.cartuplift-carousel-nav:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.cartuplift-carousel-nav svg {
+  width: 16px;
+  height: 16px;
+  color: #333;
+  stroke-width: 2;
+}
+
+/* Product Cards - EXACT 3-Column Layout with NO animations */
+.cartuplift-recommendation-card {
+  flex: 0 0 300px;
+  background: white;
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 15px;
+  min-height: 120px;
+  /* Removed hover animations */
+}
+
+.cartuplift-card-content {
+  display: flex;
+  flex-direction: row;
+  gap: 15px;
+  width: 100%;
+  align-items: flex-start; /* Changed from center to flex-start */
+  height: 100%;
+}
+
+/* Column 1: Product Image */
+.cartuplift-product-image {
+  width: 90px;
+  height: 90px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cartuplift-recommendation-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Column 2: Product Info (Title + Variations) */
+.cartuplift-product-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px; /* Increased from 4px for better spacing */
+  min-width: 0;
+  padding-top: 2px; /* Small padding to align with image */
+}
+
+.cartuplift-recommendation-card h4 {
+  font-size: 14px;
+  font-weight: 500;
+  color: #000;
+  margin: 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  margin-bottom: 4px; /* Add margin for consistent spacing */
+}
+
+/* Variation selector - only show if product has multiple variants */
+.cartuplift-product-variation {
+  margin-top: 2px; /* Reduced spacing */
+}
+
+.cartuplift-size-dropdown {
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 16px;
+  background: white;
+  font-size: 11px;
+  font-weight: 500;
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg width='8' height='5' viewBox='0 0 8 5' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L4 4L7 1' stroke='%23666' stroke-width='1.2'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  padding-right: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.cartuplift-size-dropdown:focus {
+  outline: none;
+  border-color: #999;
+}
+
+/* Hide variation section if no variants */
+.cartuplift-product-variation.hidden {
+  display: none;
+}
+
+/* Column 3: Price + Add Button */
+.cartuplift-product-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between; /* Changed to space-between for better distribution */
+  flex-shrink: 0;
+  width: 80px;
+  height: 90px; /* Match image height for proper alignment */
+  padding-top: 2px; /* Small padding to align with image */
+}
+
+.cartuplift-recommendation-card .cartuplift-recommendation-price {
+  font-size: 15px;
+  font-weight: 600;
+  color: #000;
+  margin: 0;
+  text-align: right;
+}
+
+.cartuplift-add-recommendation {
+  padding: 6px 12px;
+  background: #000;
+  color: white;
+  border: 1px solid #000;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  min-width: 60px;
+  text-align: center;
+  margin-top: auto;
+  /* Removed transitions and hover effects */
+}
+
+.cartuplift-add-recommendation.loading {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cartuplift-add-recommendation.added {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: white;
+}
+
+/* Column Layout - for vertical mode */
+.cartuplift-recommendations-column .cartuplift-recommendations-content {
+  max-height: 180px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: 12px;
+}
+
 .cartuplift-recommendations-column .cartuplift-recommendation-item {
   display: grid;
-  grid-template-columns: 56px 1fr 24px; /* Adjusted last column to match button size */
+  grid-template-columns: 56px 1fr 24px;
   gap: 12px;
   padding: 12px;
   border: 1px solid #f0f0f0;
@@ -508,12 +717,8 @@
   transition: all 0.2s ease;
 }
 
-.cartuplift-recommendations-column .cartuplift-recommendation-item:last-child {
-  margin-bottom: 0;
-}
-
 .cartuplift-recommendations-column .cartuplift-recommendation-item:hover {
-  border-color: var(--cartuplift-teal);
+  border-color: #ddd;
   background: #fafafa;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -549,12 +754,12 @@
 .cartuplift-recommendation-price {
   font-size: 14px;
   font-weight: 500;
-  color: var(--cartuplift-teal);
+  color: #000;
 }
 
 .cartuplift-add-recommendation-circle {
-  width: 24px;  /* Reduced from 32px */
-  height: 24px; /* Reduced from 32px */
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 2px solid #1a1a1a;
   background: #ffffff;
@@ -564,101 +769,36 @@
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  font-size: 14px; /* Reduced from 18px */
+  font-size: 14px;
   font-weight: normal;
-  margin-left: auto; /* Push to right side */
 }
 
-/* Row Layout */
-.cartuplift-recommendations-row .cartuplift-recommendations-scroll {
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  scroll-behavior: smooth;
-}
-
-.cartuplift-recommendations-row .cartuplift-recommendations-scroll::-webkit-scrollbar {
-  height: 4px;
-}
-
-.cartuplift-recommendations-row .cartuplift-recommendations-scroll::-webkit-scrollbar-track {
-  background: #f0f0f0;
-  border-radius: 2px;
-}
-
-.cartuplift-recommendations-row .cartuplift-recommendations-scroll::-webkit-scrollbar-thumb {
-  background: #ccc;
-  border-radius: 2px;
-}
-
-.cartuplift-recommendation-card {
-  flex: 0 0 120px;
-  background: var(--cartuplift-background);
-  border: 1px solid var(--cartuplift-border);
-  border-radius: 6px;
-  padding: 8px;
-  text-align: center;
-  transition: all 0.2s ease;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.cartuplift-recommendation-card:hover {
-  border-color: var(--cartuplift-teal);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.cartuplift-recommendation-card img {
-  width: 100%;
-  height: 60px;
-  object-fit: cover;
-  border-radius: 4px;
-  margin-bottom: 6px;
-}
-
-.cartuplift-recommendation-card h4 {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--cartuplift-primary);
-  margin: 0 0 4px 0;
-  text-transform: uppercase;
-  line-height: 1.2;
-}
-
-.cartuplift-recommendation-card .cartuplift-recommendation-price {
-  font-size: 13px;
-  margin-bottom: 6px;
-}
-
-.cartuplift-add-recommendation {
-  width: 100%;
-  padding: 4px 8px;
-  background: var(--cartuplift-button-color);
+.cartuplift-add-recommendation-circle:hover {
+  background: #1a1a1a;
   color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-transform: uppercase;
 }
 
-.cartuplift-add-recommendation:hover {
-  filter: brightness(0.9);
-  transform: translateY(-1px);
-}
-
-/* Loading States */
 .cartuplift-recommendations-loading,
 .cartuplift-recommendations-empty {
   padding: 20px;
   text-align: center;
-  color: var(--cartuplift-secondary);
+  color: #666;
   font-size: 13px;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 768px) {
+  .cartuplift-carousel-nav {
+    display: none;
+  }
+  
+  .cartuplift-recommendation-card {
+    flex: 0 0 280px;
+  }
+  
+  .cartuplift-product-image {
+    height: 80px;
+  }
 }
 
 /* ========================================
@@ -867,6 +1007,17 @@
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-2px); }
   75% { transform: translateX(2px); }
+}
+
+@keyframes cartupliftSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ========================================
