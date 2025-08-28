@@ -1,42 +1,27 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
+import { getSettings, saveSettings } from "../models/settings.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    // Default backend settings (these are the "General Settings" from your management page)
-    const settings = {
-      // Core functionality
-      enableApp: true,
-      enableStickyCart: true,
-      showOnlyOnCartPage: false,
-      
-      // Cart appearance
-      cartPosition: "bottom-right",
-      cartIcon: "cart",
-      backgroundColor: "#ffffff",
-      
-      // Messages
-      freeShippingText: "You're {amount} away from free shipping!",
-      freeShippingAchievedText: "🎉 Congratulations! You've unlocked free shipping!",
-      
-      // Features
-      enableRecommendations: true,
-      recommendationLayout: "column",
-      maxRecommendations: 4,
-      enableAddons: false,
-      enableDiscountCode: false,
-      enableNotes: false,
-      enableExpressCheckout: true,
-      
-      // Advanced
-      drawerWidth: 480,
-      borderRadius: 8,
-      showBrandBadge: true,
-      enableQuantitySelectors: true,
-      enableItemRemoval: true,
-      enableAnalytics: false
+    console.log('🔧 API Settings called:', request.url);
+    
+    // Get shop from request (you might need to extract this from headers or params)
+    const url = new URL(request.url);
+    const shop = url.searchParams.get('shop') || 'test-lab-101.myshopify.com'; // Use default for testing
+    
+    console.log('🔧 Loading settings for shop:', shop);
+    
+    const settings = await getSettings(shop);
+    // Normalize layout for theme (row/column expected in CSS/JS)
+    const layoutMap: Record<string, string> = { horizontal: 'row', vertical: 'column', grid: 'row' };
+    const normalized = {
+      ...settings,
+      recommendationLayout: layoutMap[settings.recommendationLayout] || settings.recommendationLayout,
     };
+    
+    console.log('🔧 Settings loaded:', settings);
 
-    return json(settings, {
+  return json(normalized, {
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -55,13 +40,23 @@ export async function action({ request }: LoaderFunctionArgs) {
   }
 
   try {
-    const settings = await request.json();
+    const url = new URL(request.url);
+    const shop = url.searchParams.get('shop') || 'default';
     
-    // Here you would save the settings to your database
-    // For now, we'll just return success
-    console.log("Saving settings:", settings);
+    const contentType = request.headers.get('content-type');
+    let settings;
     
-    return json({ success: true, settings });
+    if (contentType?.includes('application/json')) {
+      settings = await request.json();
+    } else {
+      // Handle form data (URL-encoded)
+      const formData = await request.formData();
+      settings = Object.fromEntries(formData);
+    }
+    
+    const savedSettings = await saveSettings(shop, settings);
+    
+    return json({ success: true, settings: savedSettings });
   } catch (error) {
     console.error("Save settings error:", error);
     return json({ error: "Failed to save settings" }, { status: 500 });

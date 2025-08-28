@@ -2,7 +2,7 @@
 
 client_id = "06d17c445a3713f419add1e31894bcc3"
 name = "cart-uplift-app"
-application_url = "https://between-karma-kazakhstan-urls.trycloudflare.com"
+application_url = "https://ltd-simultaneously-nearly-contain.trycloudflare.com"
 embedded = true
 handle = "cart-uplift-app-7"
 
@@ -26,12 +26,12 @@ api_version = "2025-07"
 scopes = "write_products,read_orders,write_orders,read_customers,write_themes,read_themes,write_script_tags,read_script_tags"
 
 [auth]
-redirect_urls = ["https://between-karma-kazakhstan-urls.trycloudflare.com/auth/callback", "https://between-karma-kazakhstan-urls.trycloudflare.com/auth/shopify/callback", "https://between-karma-kazakhstan-urls.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://ltd-simultaneously-nearly-contain.trycloudflare.com/auth/callback", "https://ltd-simultaneously-nearly-contain.trycloudflare.com/auth/shopify/callback", "https://ltd-simultaneously-nearly-contain.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
 
 [app_proxy]
-url = "https://between-karma-kazakhstan-urls.trycloudflare.com/apps/proxy"
+url = "https://ltd-simultaneously-nearly-contain.trycloudflare.com/apps/proxy"
 subpath = "cart-uplift"
 prefix = "apps"

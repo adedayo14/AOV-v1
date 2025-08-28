@@ -1,4 +1,5 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { Link } from "@remix-run/react";
 import {
   Page,
@@ -16,7 +17,7 @@ import { authenticate } from "../shopify.server";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
 
-  return null;
+  return json({});
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -44,48 +45,34 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               }
             }
           }
+          userErrors {
+            field
+            message
+          }
         }
       }`,
     {
       variables: {
         product: {
           title: `${color} Snowboard`,
+          handle: `${color.toLowerCase()}-snowboard`,
+          status: "ACTIVE",
+          variants: [
+            {
+              price: "10.00",
+              inventoryQuantity: 100,
+              requiresShipping: true,
+            },
+          ],
         },
       },
     },
   );
   const responseJson = await response.json();
+  const product = responseJson.data?.productCreate?.product;
+  const userErrors = responseJson.data?.productCreate?.userErrors;
 
-  const product = responseJson.data!.productCreate!.product!;
-  const variantId = product.variants.edges[0]!.node!.id!;
-
-  const variantResponse = await admin.graphql(
-    `#graphql
-    mutation shopifyRemixTemplateUpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-        productVariants {
-          id
-          price
-          barcode
-          createdAt
-        }
-      }
-    }`,
-    {
-      variables: {
-        productId: product.id,
-        variants: [{ id: variantId, price: "100.00" }],
-      },
-    },
-  );
-
-  const variantResponseJson = await variantResponse.json();
-
-  return {
-    product: responseJson!.data!.productCreate!.product,
-    variant:
-      variantResponseJson!.data!.productVariantsBulkUpdate!.productVariants,
-  };
+  return json({ product, userErrors });
 };
 
 export default function Index() {
@@ -114,53 +101,83 @@ export default function Index() {
                 </BlockStack>
                 <InlineStack gap="300">
                   <Link to="/app/settings">
-                    <Button variant="primary">General Settings</Button>
+                    <Button variant="primary">Settings & Preview</Button>
                   </Link>
-                  <Link to="/app/cart-drawer">
-                    <Button>Dashboard</Button>
+                  <Link to="/app/dashboard">
+                    <Button>Dashboard & Analytics</Button>
                   </Link>
                 </InlineStack>
               </BlockStack>
             </Card>
           </Layout.Section>
+
           <Layout.Section variant="oneThird">
             <BlockStack gap="500">
               <Card>
-                <BlockStack gap="200">
+                <BlockStack gap="400">
                   <Text as="h3" variant="headingMd">
-                    Quick Setup
+                    🚀 Quick Setup Guide
                   </Text>
-                  <Text variant="bodyMd" as="p">
-                    1. Go to your theme editor
+                  <Text variant="bodyMd" as="p" tone="subdued">
+                    Follow these steps to enable your cart drawer:
                   </Text>
-                  <Text variant="bodyMd" as="p">
-                    2. Enable the "UpCart Cart Drawer" app embed
-                  </Text>
-                  <Text variant="bodyMd" as="p">
-                    3. Configure settings in this app
-                  </Text>
-                  <Text variant="bodyMd" as="p">
-                    4. Save and preview!
+                  <BlockStack gap="200">
+                    <Text variant="bodyMd" as="p">
+                      <strong>1.</strong> Go to your theme editor
+                    </Text>
+                    <Text variant="bodyMd" as="p">
+                      <strong>2.</strong> Click on "App embeds" in the left sidebar
+                    </Text>
+                    <Text variant="bodyMd" as="p">
+                      <strong>3.</strong> Find "UpCart Cart Drawer" and toggle it on
+                    </Text>
+                    <Text variant="bodyMd" as="p">
+                      <strong>4.</strong> Configure your settings in the Settings tab
+                    </Text>
+                    <Text variant="bodyMd" as="p">
+                      <strong>5.</strong> Save your theme
+                    </Text>
+                  </BlockStack>
+                  <Text variant="bodyMd" as="p" tone="success">
+                    ✅ Make sure the app embed is enabled in your theme editor first.
                   </Text>
                 </BlockStack>
               </Card>
+
+              <Card>
+                <BlockStack gap="400">
+                  <Text as="h3" variant="headingMd">
+                    ⚡ Theme Embed Settings
+                  </Text>
+                  <Text variant="bodyMd" as="p" tone="subdued">
+                    Frequently Used - Available in your theme customizer for quick access:
+                  </Text>
+                  <List>
+                    <List.Item>Auto-open cart on add - Behavior setting</List.Item>
+                    <List.Item>Free shipping progress - Enable/disable</List.Item>
+                    <List.Item>Free shipping threshold - Dollar amount</List.Item>
+                    <List.Item>Button & accent color - Color picker</List.Item>
+                    <List.Item>Text color - Color picker</List.Item>
+                    <List.Item>Recommendation layout - Layout options</List.Item>
+                  </List>
+                  <Text variant="bodyMd" as="p" tone="subdued">
+                    💡 <strong>Tip:</strong> Use the theme customizer for quick styling changes, and the Settings page for detailed configuration.
+                  </Text>
+                </BlockStack>
+              </Card>
+
               <Card>
                 <BlockStack gap="200">
                   <Text as="h3" variant="headingMd">
-                    Features
+                    📈 Key Benefits
                   </Text>
-                  <Text variant="bodyMd" as="p">
-                    • Increase conversion rates
-                  </Text>
-                  <Text variant="bodyMd" as="p">
-                    • Boost average order value
-                  </Text>
-                  <Text variant="bodyMd" as="p">
-                    • Improve user experience
-                  </Text>
-                  <Text variant="bodyMd" as="p">
-                    • Drive more sales
-                  </Text>
+                  <List>
+                    <List.Item>Increase conversion rates</List.Item>
+                    <List.Item>Boost average order value</List.Item>
+                    <List.Item>Improve user experience</List.Item>
+                    <List.Item>Drive more sales</List.Item>
+                    <List.Item>Reduce cart abandonment</List.Item>
+                  </List>
                 </BlockStack>
               </Card>
             </BlockStack>

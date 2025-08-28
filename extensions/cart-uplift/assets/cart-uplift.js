@@ -2,12 +2,82 @@
   'use strict';
   
   // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v136';
+  const CART_UPLIFT_VERSION = 'v138';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
+
+  // Analytics tracking helper
+  const CartAnalytics = {
+    sessionId: null,
+    shop: (typeof window !== 'undefined' && (window.CartUpliftShop || window.location?.hostname)) || '',
+    
+    init() {
+      // Generate session ID for tracking
+      this.sessionId = this.generateSessionId();
+      
+      // Track page load as potential cart opportunity
+      this.trackEvent('page_view');
+    },
+    
+    generateSessionId() {
+      return 'cart_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+    },
+    
+    trackEvent(eventType, data = {}) {
+      try {
+        const eventData = {
+          eventType,
+          sessionId: this.sessionId,
+          timestamp: new Date().toISOString(),
+          shop: this.shop,
+          ...data
+        };
+        
+        // Send to tracking endpoint
+        fetch('/apps/cart-uplift/api/cart-tracking', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            eventType: eventData.eventType,
+            sessionId: eventData.sessionId,
+            shop: eventData.shop || '',
+            productId: eventData.productId || '',
+            productTitle: eventData.productTitle || '',
+            revenue: eventData.revenue || ''
+          })
+        }).then(response => {
+          if (response.ok) {
+            console.log('📊 Cart event tracked:', eventData.eventType);
+          }
+        }).catch(error => {
+          console.warn('Cart tracking failed:', error);
+        });
+        
+        // Also send to GA4 if available
+        if (typeof gtag !== 'undefined') {
+          gtag('event', eventType, {
+            custom_parameter_1: eventData.sessionId,
+            custom_parameter_2: eventData.productId
+          });
+        }
+      } catch (error) {
+        console.warn('Cart analytics error:', error);
+      }
+    }
+  };
+  
+  // Initialize analytics tracking
+  CartAnalytics.init();
 
   class CartUpliftDrawer {
     constructor(settings) {
       this.settings = settings || window.CartUpliftSettings || {};
+      // Normalize recommendation layout values (admin uses horizontal/vertical, theme uses row/column)
+      if (this.settings && this.settings.recommendationLayout) {
+        const map = { horizontal: 'row', vertical: 'column', grid: 'row' };
+        this.settings.recommendationLayout = map[this.settings.recommendationLayout] || this.settings.recommendationLayout;
+      }
       
       // Ensure boolean settings are properly set
       this.settings.enableStickyCart = Boolean(this.settings.enableStickyCart);
@@ -409,7 +479,10 @@
     }
 
     getRecommendationsHTML() {
-      const layout = this.settings.recommendationLayout || 'column';
+  // Normalize again in case settings arrived late
+  const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'row' };
+  const layoutRaw = this.settings.recommendationLayout || 'column';
+  const layout = layoutMap[layoutRaw] || layoutRaw;
   const title = (this.settings.recommendationsTitle || 'You might also like');
       
       return `
@@ -434,7 +507,9 @@
       const section = document.querySelector('.cartuplift-recommendations');
       if (!section) return;
       // Update layout class
-      const layout = this.settings.recommendationLayout || 'column';
+  const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'row' };
+  const layoutRaw = this.settings.recommendationLayout || 'column';
+  const layout = layoutMap[layoutRaw] || layoutRaw;
       section.classList.remove('cartuplift-recommendations-row', 'cartuplift-recommendations-column');
       section.classList.add(`cartuplift-recommendations-${layout}`);
       // Update title
@@ -507,7 +582,9 @@
         // Re-apply layout class to container  
         const recommendationsSection = document.querySelector('.cartuplift-recommendations');
         if (recommendationsSection) {
-          const layout = this.settings.recommendationLayout || 'column';
+          const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'row' };
+          const layoutRaw = this.settings.recommendationLayout || 'column';
+          const layout = layoutMap[layoutRaw] || layoutRaw;
           // Remove old layout classes and add new one
           recommendationsSection.classList.remove('cartuplift-recommendations-row', 'cartuplift-recommendations-column');
           recommendationsSection.classList.add(`cartuplift-recommendations-${layout}`);
@@ -621,11 +698,27 @@
           e.preventDefault();
           e.stopPropagation();
           const variantId = e.target.dataset.variantId;
+          const productTitle = e.target.dataset.productTitle || `Product ${variantId}`;
+          
+          // Track product click
+          CartAnalytics.trackEvent('product_click', {
+            productId: variantId,
+            productTitle: productTitle
+          });
+          
           this.addToCart(variantId, 1);
         } else if (e.target.classList.contains('cartuplift-add-recommendation-circle')) {
           e.preventDefault();
           e.stopPropagation();
           const variantId = e.target.dataset.variantId;
+          const productTitle = e.target.dataset.productTitle || `Product ${variantId}`;
+          
+          // Track product click
+          CartAnalytics.trackEvent('product_click', {
+            productId: variantId,
+            productTitle: productTitle
+          });
+          
           this.addToCart(variantId, 1);
         } else if (
           e.target.classList.contains('cartuplift-recommendations-toggle') ||
@@ -911,6 +1004,9 @@
     openDrawer() {
       if (this._isAnimating || this.isOpen) return;
       
+      // Track cart open event
+      CartAnalytics.trackEvent('cart_open');
+      
       this._isAnimating = true;
       const container = document.getElementById('cartuplift-app-container');
       if (!container) {
@@ -944,6 +1040,9 @@
 
     closeDrawer() {
       if (this._isAnimating || !this.isOpen) return;
+      
+      // Track cart close event
+      CartAnalytics.trackEvent('cart_close');
       
       this._isAnimating = true;
       const container = document.getElementById('cartuplift-app-container');
@@ -1033,6 +1132,11 @@
     }
 
     proceedToCheckout() {
+      // Track checkout start
+      CartAnalytics.trackEvent('checkout_start', {
+        revenue: this.cart ? this.cart.total_price / 100 : 0 // Convert from cents
+      });
+      
       const notes = document.getElementById('cartuplift-notes-input');
       if (notes && notes.value.trim()) {
         fetch('/cart/update.js', {

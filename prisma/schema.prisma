@@ -30,3 +30,44 @@ model Session {
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
 }
+
+model Settings {
+  id                      String   @id @default(cuid())
+  shop                    String   @unique
+  
+  // Core Features
+  enableApp               Boolean  @default(true)
+  enableStickyCart        Boolean  @default(true)
+  showOnlyOnCartPage      Boolean  @default(false)
+  enableFreeShipping      Boolean  @default(true)
+  freeShippingThreshold   Float    @default(100)
+  
+  // Advanced Features
+  enableRecommendations   Boolean  @default(true)
+  enableAddons            Boolean  @default(false)
+  enableDiscountCode      Boolean  @default(true)
+  enableNotes             Boolean  @default(false)
+  enableExpressCheckout   Boolean  @default(true)
+  enableAnalytics         Boolean  @default(true)
+  
+  // Cart Behavior & Position
+  cartPosition            String   @default("bottom-right")
+  cartIcon                String   @default("cart")
+  
+  // Messages & Text
+  freeShippingText        String   @default("You're {amount} away from free shipping!")
+  freeShippingAchievedText String  @default("🎉 Congratulations! You've unlocked free shipping!")
+  recommendationsTitle    String   @default("You might also like")
+  
+  // Appearance
+  backgroundColor         String   @default("#ffffff")
+  textColor               String   @default("#1A1A1A")
+  buttonColor             String   @default("#000000")
+  
+  // Recommendation Settings
+  recommendationLayout    String   @default("horizontal")
+  maxRecommendations      Int      @default(6)
+  
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}

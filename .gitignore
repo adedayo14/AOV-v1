@@ -14,10 +14,10 @@ database.sqlite
 .env
 .env.*
 
+# VS Code history files
+.history/
 
-
-
-
+# Extensions dist
 /extensions/*/dist
 
 # Ignore shopify files created during app dev

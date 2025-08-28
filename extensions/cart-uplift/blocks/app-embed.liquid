@@ -4,6 +4,8 @@
 
   <script>
     (function() {
+  // Expose shop domain early for analytics & API calls
+  window.CartUpliftShop = {{ shop.permanent_domain | json }};
       // Base defaults (will be overridden by backend settings)
       const defaults = {
         // Theme embed settings (frequently changed)
@@ -54,9 +56,22 @@
       let backendSettings = {};
       
       // Try to get backend settings (this will be from your app's management page)
-      fetch('/apps/cart-uplift/api/settings')
-        .then(response => response.json())
+  const shopDomain = '{{ shop.permanent_domain }}';
+  // Use app proxy to fetch settings to ensure storefront accessibility
+  const apiUrl = `/apps/cart-uplift/api/settings?shop=${encodeURIComponent(shopDomain)}`;
+      console.log('🔧 Fetching settings from:', apiUrl);
+      console.log('🔧 Shop domain:', shopDomain);
+      
+      fetch(apiUrl)
+        .then(response => {
+          console.log('🔧 API Response status:', response.status);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          return response.json();
+        })
         .then(data => {
+          console.log('🔧 Backend settings received:', data);
           backendSettings = data || {};
           // Merge all settings: defaults < backendSettings < themeSettings
           window.CartUpliftSettings = Object.assign({}, defaults, backendSettings, themeSettings);
@@ -71,6 +86,7 @@
           }
         })
         .catch(error => {
+          console.log('🔧 Backend settings fetch failed:', error);
           console.log('🛒 Cart Uplift: Using local settings (backend unavailable)');
           // Fallback to local settings only
           window.CartUpliftSettings = Object.assign({}, defaults, themeSettings);
