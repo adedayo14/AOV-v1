@@ -167,6 +167,35 @@ export default function Index() {
               </Card>
 
               <Card>
+                <BlockStack gap="400">
+                  <Text as="h3" variant="headingMd">
+                    🛒 Cart Preview
+                  </Text>
+                  <Text variant="bodyMd" as="p" tone="subdued">
+                    Test your cart drawer functionality:
+                  </Text>
+                  <InlineStack gap="300">
+                    <Button 
+                      url="https://test-lab-101.myshopify.com/" 
+                      external 
+                      variant="primary"
+                    >
+                      Open Storefront
+                    </Button>
+                    <Button 
+                      url="https://test-lab-101.myshopify.com/admin/themes/current/editor" 
+                      external
+                    >
+                      Theme Editor
+                    </Button>
+                  </InlineStack>
+                  <Text variant="bodyMd" as="p" tone="subdued">
+                    💡 <strong>Tip:</strong> Open your storefront to test the cart drawer with your current settings. The layout, colors, and functionality should match exactly what customers see.
+                  </Text>
+                </BlockStack>
+              </Card>
+
+              <Card>
                 <BlockStack gap="200">
                   <Text as="h3" variant="headingMd">
                     📈 Key Benefits

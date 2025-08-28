@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
@@ -12,13 +12,23 @@ import {
   Button,
   Badge,
   Divider,
-  Box,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 
+// Type declarations for window objects
+declare global {
+  interface Window {
+    mockCartData: any;
+    mockRecommendations: any;
+    CartUpliftSettings: any;
+    CartUpliftDrawer: any;
+    cartUpliftDrawer: any;
+  }
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
 
   // In production, load settings from database
   const settings = {
@@ -33,26 +43,185 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     enableRecommendations: true,
   };
 
-  return json({ settings });
+  return json({ 
+    settings,
+    shop: session.shop,
+  });
 };
 
 export default function LivePreviewPage() {
-  const { settings } = useLoaderData<typeof loader>();
-  const [cartTotal, setCartTotal] = useState(45.99);
+  const { settings, shop } = useLoaderData<typeof loader>();
+  const [isDrawerLoaded, setIsDrawerLoaded] = useState(false);
 
-  const remainingForShipping = Math.max(0, settings.freeShippingThreshold - cartTotal);
-  const hasReachedFreeShipping = remainingForShipping === 0;
+  useEffect(() => {
+    // Load the actual cart drawer scripts and styles
+    const loadCartDrawer = () => {
+      // Load CSS
+      const cssLink = document.createElement('link');
+      cssLink.rel = 'stylesheet';
+      cssLink.href = `https://${shop}/apps/cart-uplift/assets/cart-uplift.css`;
+      document.head.appendChild(cssLink);
 
-  const mockCartItems = [
-    { id: 1, title: "Wireless Headphones", price: 29.99, quantity: 1, image: "/placeholder-product.jpg" },
-    { id: 2, title: "Phone Case", price: 15.99, quantity: 1, image: "/placeholder-product.jpg" },
-  ];
+      // Load JS
+      const script = document.createElement('script');
+      script.src = `https://${shop}/apps/cart-uplift/assets/cart-uplift.js`;
+      script.onload = () => {
+        // Mock cart data for preview
+        window.mockCartData = {
+          items: [
+            {
+              id: 1,
+              product_id: 123,
+              variant_id: 456,
+              product_title: "Wireless Headphones",
+              variant_title: "Black / Medium",
+              quantity: 1,
+              final_price: 2999,
+              image: "https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-6_large.png",
+              url: "/products/wireless-headphones",
+              options_with_values: [
+                { name: "Color", value: "Black" },
+                { name: "Size", value: "Medium" }
+              ]
+            },
+            {
+              id: 2,
+              product_id: 124,
+              variant_id: 457,
+              product_title: "Phone Case",
+              variant_title: "Clear",
+              quantity: 1,
+              final_price: 1599,
+              image: "https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-5_large.png",
+              url: "/products/phone-case",
+              options_with_values: [
+                { name: "Style", value: "Clear" }
+              ]
+            }
+          ],
+          item_count: 2,
+          total_price: 4598
+        };
 
-  const mockRecommendations = [
-    { id: 3, title: "Bluetooth Speaker", price: 49.99, image: "/placeholder-product.jpg" },
-    { id: 4, title: "Wireless Charger", price: 24.99, image: "/placeholder-product.jpg" },
-    { id: 5, title: "USB Cable", price: 12.99, image: "/placeholder-product.jpg" },
-  ];
+        // Mock recommendations
+        window.mockRecommendations = [
+          {
+            id: 789,
+            title: "Bluetooth Speaker",
+            price: 4999,
+            image: "https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png",
+            variant_id: 101,
+            url: "/products/bluetooth-speaker",
+            variants: [{ id: 101, title: "Default", price: 4999, available: true }],
+            options: []
+          },
+          {
+            id: 790,
+            title: "Wireless Charger",
+            price: 2499,
+            image: "https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-2_large.png",
+            variant_id: 102,
+            url: "/products/wireless-charger",
+            variants: [{ id: 102, title: "White", price: 2499, available: true }],
+            options: []
+          },
+          {
+            id: 791,
+            title: "USB Cable",
+            price: 1299,
+            image: "https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-3_large.png",
+            variant_id: 103,
+            url: "/products/usb-cable",
+            variants: [{ id: 103, title: "3ft", price: 1299, available: true }],
+            options: []
+          }
+        ];
+
+        // Override fetch for preview mode
+        const originalFetch = window.fetch;
+        window.fetch = async function(url: RequestInfo | URL, options?: RequestInit): Promise<Response> {
+          const urlStr = typeof url === 'string' ? url : url.toString();
+          
+          if (urlStr.includes('/cart.js')) {
+            return {
+              ok: true,
+              json: () => Promise.resolve(window.mockCartData),
+              headers: new Headers(),
+              redirected: false,
+              status: 200,
+              statusText: 'OK',
+              type: 'basic' as ResponseType,
+              url: urlStr,
+              clone: () => ({} as Response),
+              body: null,
+              bodyUsed: false,
+              arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+              blob: () => Promise.resolve(new Blob()),
+              formData: () => Promise.resolve(new FormData()),
+              text: () => Promise.resolve(''),
+            } as Response;
+          }
+          
+          if (urlStr.includes('/recommendations/products.json') || urlStr.includes('/products.json')) {
+            return {
+              ok: true,
+              json: () => Promise.resolve({ products: window.mockRecommendations }),
+              headers: new Headers(),
+              redirected: false,
+              status: 200,
+              statusText: 'OK',
+              type: 'basic' as ResponseType,
+              url: urlStr,
+              clone: () => ({} as Response),
+              body: null,
+              bodyUsed: false,
+              arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+              blob: () => Promise.resolve(new Blob()),
+              formData: () => Promise.resolve(new FormData()),
+              text: () => Promise.resolve(''),
+            } as Response;
+          }
+          
+          return originalFetch.call(this, url, options);
+        };
+
+        // Set up cart settings with current theme settings
+        window.CartUpliftSettings = {
+          enableApp: true,
+          enableRecommendations: settings.enableRecommendations,
+          recommendationLayout: settings.recommendationLayout === 'horizontal' ? 'row' : 'column',
+          maxRecommendations: 4,
+          recommendationsTitle: "You might also like",
+          enableFreeShipping: settings.enableFreeShipping,
+          freeShippingThreshold: settings.freeShippingThreshold,
+          freeShippingText: settings.freeShippingText,
+          buttonColor: settings.buttonColor,
+          backgroundColor: settings.backgroundColor,
+          textColor: settings.textColor,
+          autoOpenCart: false,
+          enableStickyCart: false // Disable sticky cart for preview
+        };
+
+        // Initialize cart drawer
+        if (window.CartUpliftDrawer) {
+          window.cartUpliftDrawer = new window.CartUpliftDrawer(window.CartUpliftSettings);
+          setIsDrawerLoaded(true);
+        }
+      };
+      document.head.appendChild(script);
+    };
+
+    // Load after component mounts
+    if (!isDrawerLoaded) {
+      loadCartDrawer();
+    }
+  }, [shop, settings, isDrawerLoaded]);
+
+  const openCartDrawer = () => {
+    if (window.cartUpliftDrawer) {
+      window.cartUpliftDrawer.openDrawer();
+    }
+  };
 
   return (
     <Page>
@@ -62,224 +231,64 @@ export default function LivePreviewPage() {
           <BlockStack gap="500">
             <Card>
               <BlockStack gap="400">
-                <Text variant="headingLg" as="h2">Live Cart Preview</Text>
+                <Text variant="headingLg" as="h2">🛒 Live Cart Drawer Preview</Text>
                 <Text variant="bodyMd" as="p">
-                  Use the preview below to see how your cart drawer will look and behave with your current settings.
+                  This preview shows your actual cart drawer exactly as customers will see it on your storefront,
+                  using your current theme settings and the real cart uplift extension.
                 </Text>
                 
                 <InlineStack gap="300">
                   <Button 
-                    onClick={() => setCartTotal(25.99)} 
-                    variant={cartTotal < 50 ? "primary" : "secondary"}
+                    onClick={openCartDrawer}
+                    variant="primary"
+                    size="large"
+                    disabled={!isDrawerLoaded}
                   >
-                    Set Low Cart ($25.99)
+                    {isDrawerLoaded ? '🛒 Open Cart Drawer' : 'Loading Cart...'}
                   </Button>
-                  <Button 
-                    onClick={() => setCartTotal(75.50)} 
-                    variant={cartTotal >= 50 && cartTotal < 100 ? "primary" : "secondary"}
-                  >
-                    Set Medium Cart ($75.50)
-                  </Button>
-                  <Button 
-                    onClick={() => setCartTotal(125.00)} 
-                    variant={cartTotal >= 100 ? "primary" : "secondary"}
-                  >
-                    Set High Cart ($125.00)
-                  </Button>
+                  {isDrawerLoaded && (
+                    <Badge tone="success">Cart Drawer Ready</Badge>
+                  )}
                 </InlineStack>
+
+                <Text variant="bodyMd" as="p" tone="subdued">
+                  <strong>Settings Applied:</strong> Free shipping at ${settings.freeShippingThreshold}, 
+                  {settings.enableRecommendations ? ` ${settings.recommendationLayout} recommendations,` : ' no recommendations,'} 
+                  {settings.buttonColor} accent color
+                </Text>
               </BlockStack>
             </Card>
 
             <Card>
               <BlockStack gap="400">
-                <InlineStack gap="200" align="space-between">
-                  <Text variant="headingMd" as="h3">Cart Preview</Text>
-                  <Badge tone={cartTotal >= 100 ? "success" : "attention"}>
-                    Settings: {settings.cartPosition}, {settings.recommendationLayout}
-                  </Badge>
-                </InlineStack>
-                
-                {/* Mock Cart Drawer */}
-                <Box
-                  background="bg-surface-secondary"
-                  padding="400"
-                  borderRadius="200"
-                  borderWidth="025"
-                  borderColor="border"
-                >
-                  <div 
-                    style={{ 
-                      backgroundColor: settings.backgroundColor,
-                      color: settings.textColor,
-                      padding: '16px',
-                      borderRadius: '8px',
-                      border: '1px solid #e1e3e5',
-                      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif'
-                    }}
-                  >
-                    {/* Cart Header */}
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center',
-                      marginBottom: '16px'
-                    }}>
-                      <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
-                        🛒 Cart ({mockCartItems.length}) • ${cartTotal.toFixed(2)}
-                      </h3>
-                      <button style={{ 
-                        background: 'none', 
-                        border: 'none', 
-                        fontSize: '20px', 
-                        cursor: 'pointer',
-                        color: settings.textColor
-                      }}>×</button>
-                    </div>
-
-                    {/* Free Shipping Progress */}
-                    {settings.enableFreeShipping && (
-                      <div style={{ marginBottom: '16px' }}>
-                        <div style={{ 
-                          fontSize: '14px', 
-                          marginBottom: '8px',
-                          color: hasReachedFreeShipping ? '#008060' : settings.textColor
-                        }}>
-                          {hasReachedFreeShipping 
-                            ? "🎉 Congratulations! You've unlocked free shipping!"
-                            : settings.freeShippingText.replace('{amount}', `$${remainingForShipping.toFixed(2)}`)
-                          }
-                        </div>
-                        <div style={{ 
-                          backgroundColor: '#f0f0f0', 
-                          height: '8px', 
-                          borderRadius: '4px',
-                          overflow: 'hidden'
-                        }}>
-                          <div style={{ 
-                            backgroundColor: settings.buttonColor,
-                            height: '100%',
-                            width: `${Math.min(100, (cartTotal / settings.freeShippingThreshold) * 100)}%`,
-                            transition: 'width 0.3s ease'
-                          }} />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Cart Items */}
-                    <div style={{ marginBottom: '16px' }}>
-                      {mockCartItems.map((item) => (
-                        <div key={item.id} style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center',
-                          padding: '8px 0',
-                          borderBottom: '1px solid #f0f0f0'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{ 
-                              width: '40px', 
-                              height: '40px', 
-                              backgroundColor: '#f8f8f8',
-                              borderRadius: '4px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '12px',
-                              color: '#999'
-                            }}>IMG</div>
-                            <div>
-                              <div style={{ fontSize: '14px', fontWeight: '500' }}>{item.title}</div>
-                              <div style={{ fontSize: '12px', color: '#666' }}>Qty: {item.quantity}</div>
-                            </div>
-                          </div>
-                          <div style={{ fontSize: '14px', fontWeight: '600' }}>${item.price}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Recommendations */}
-                    {settings.enableRecommendations && (
-                      <div style={{ marginBottom: '16px' }}>
-                        <div style={{ 
-                          fontSize: '16px', 
-                          fontWeight: '600', 
-                          marginBottom: '12px' 
-                        }}>
-                          You might also like
-                        </div>
-                        <div style={{ 
-                          display: settings.recommendationLayout === 'horizontal' ? 'flex' : 'block',
-                          gap: settings.recommendationLayout === 'horizontal' ? '12px' : '8px',
-                          overflowX: settings.recommendationLayout === 'horizontal' ? 'auto' : 'visible'
-                        }}>
-                          {mockRecommendations.slice(0, 3).map((product) => (
-                            <div key={product.id} style={{ 
-                              flex: settings.recommendationLayout === 'horizontal' ? '0 0 120px' : 'none',
-                              border: '1px solid #e1e3e5',
-                              borderRadius: '6px',
-                              padding: '8px',
-                              textAlign: 'center',
-                              marginBottom: settings.recommendationLayout === 'vertical' ? '8px' : '0'
-                            }}>
-                              <div style={{ 
-                                width: '100%', 
-                                height: '60px', 
-                                backgroundColor: '#f8f8f8',
-                                borderRadius: '4px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '10px',
-                                color: '#999',
-                                marginBottom: '6px'
-                              }}>IMG</div>
-                              <div style={{ fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>
-                                {product.title}
-                              </div>
-                              <div style={{ fontSize: '12px', fontWeight: '600', color: settings.buttonColor }}>
-                                ${product.price}
-                              </div>
-                              <button style={{
-                                backgroundColor: settings.buttonColor,
-                                color: 'white',
-                                border: 'none',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                fontSize: '11px',
-                                marginTop: '6px',
-                                cursor: 'pointer',
-                                width: '100%'
-                              }}>
-                                Add
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Checkout Button */}
-                    <button style={{
-                      backgroundColor: settings.buttonColor,
-                      color: 'white',
-                      border: 'none',
-                      padding: '12px',
-                      borderRadius: '6px',
-                      fontSize: '16px',
-                      fontWeight: '600',
-                      width: '100%',
-                      cursor: 'pointer'
-                    }}>
-                      Checkout • ${cartTotal.toFixed(2)}
-                    </button>
-                  </div>
-                </Box>
-
-                <Text variant="bodyMd" as="p" tone="subdued">
-                  <strong>Position:</strong> {settings.cartPosition} | <strong>Free shipping at:</strong> ${settings.freeShippingThreshold}
+                <Text variant="headingMd" as="h3">🎛️ Test Your Settings Live</Text>
+                <Text variant="bodyMd" as="p">
+                  Make changes to your settings and refresh this page to see the updates immediately:
                 </Text>
-                <Text variant="bodyMd" as="p" tone="subdued">
-                  <strong>Colors:</strong> {settings.backgroundColor} background, {settings.textColor} text, {settings.buttonColor} accent
+                
+                <InlineStack gap="300">
+                  <Button url="/app/settings" variant="primary">
+                    ⚙️ Modify Settings
+                  </Button>
+                  <Button 
+                    url={`https://${shop}/admin/themes/current/editor`}
+                    external
+                  >
+                    🎨 Theme Editor
+                  </Button>
+                  <Button 
+                    url={`https://${shop}/`}
+                    external
+                  >
+                    🏪 View Storefront
+                  </Button>
+                </InlineStack>
+
+                <Divider />
+
+                <Text variant="bodyMd" as="p">
+                  <strong>Preview includes:</strong> Mock cart with 2 items ($45.98 total), 
+                  3 recommendation products, and live free shipping progress bar.
                 </Text>
               </BlockStack>
             </Card>
@@ -290,36 +299,51 @@ export default function LivePreviewPage() {
           <BlockStack gap="500">
             <Card>
               <BlockStack gap="300">
-                <Text variant="headingMd" as="h3">Quick Test Actions</Text>
-                <Text variant="bodyMd" as="p">
-                  Make sure the app embed is enabled in your theme editor first.
-                </Text>
-                <Button variant="primary" size="large" url="https://test-lab-101.myshopify.com" external>
-                  Visit Storefront
-                </Button>
-              </BlockStack>
-            </Card>
-
-            <Card>
-              <BlockStack gap="300">
-                <Text variant="headingMd" as="h3">Configuration</Text>
-                <Text variant="bodyMd" as="p">
-                  Current cart settings:
-                </Text>
+                <Text variant="headingMd" as="h3">📋 Current Configuration</Text>
                 <BlockStack gap="200">
                   <Text variant="bodyMd" as="p">
                     • <strong>Position:</strong> {settings.cartPosition}
                   </Text>
                   <Text variant="bodyMd" as="p">
-                    • <strong>Free shipping:</strong> ${settings.freeShippingThreshold}
+                    • <strong>Free shipping threshold:</strong> ${settings.freeShippingThreshold}
                   </Text>
                   <Text variant="bodyMd" as="p">
-                    • <strong>Recommendations:</strong> {settings.recommendationLayout} layout
+                    • <strong>Recommendations:</strong> {settings.enableRecommendations ? `${settings.recommendationLayout} layout` : 'Disabled'}
+                  </Text>
+                  <Text variant="bodyMd" as="p">
+                    • <strong>Colors:</strong> {settings.buttonColor} accent
                   </Text>
                 </BlockStack>
-                <Button url="/app/settings">
-                  Modify Settings
-                </Button>
+              </BlockStack>
+            </Card>
+
+            <Card>
+              <BlockStack gap="300">
+                <Text variant="headingMd" as="h3">🚀 Quick Actions</Text>
+                <Text variant="bodyMd" as="p" tone="subdued">
+                  Test your cart drawer in different environments:
+                </Text>
+                <BlockStack gap="200">
+                  <Button 
+                    variant="primary" 
+                    size="large" 
+                    url={`https://${shop}`} 
+                    external
+                  >
+                    Visit Storefront
+                  </Button>
+                  <Button 
+                    url={`https://${shop}/admin/themes/current/editor`}
+                    external
+                  >
+                    Open Theme Editor
+                  </Button>
+                  <Button 
+                    onClick={() => window.location.reload()}
+                  >
+                    Refresh Preview
+                  </Button>
+                </BlockStack>
               </BlockStack>
             </Card>
           </BlockStack>
