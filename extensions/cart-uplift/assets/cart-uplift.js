@@ -2,7 +2,7 @@
   'use strict';
   
   // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v138';
+  const CART_UPLIFT_VERSION = 'v140';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
   // Analytics tracking helper
@@ -55,8 +55,8 @@
         });
         
         // Also send to GA4 if available
-        if (typeof gtag !== 'undefined') {
-          gtag('event', eventType, {
+        if (typeof window !== 'undefined' && typeof window.gtag !== 'undefined') {
+          window.gtag('event', eventType, {
             custom_parameter_1: eventData.sessionId,
             custom_parameter_2: eventData.productId
           });
@@ -83,7 +83,7 @@
       this.settings.enableStickyCart = Boolean(this.settings.enableStickyCart);
       this.settings.enableFreeShipping = Boolean(this.settings.enableFreeShipping);
       this.settings.enableApp = this.settings.enableApp !== false;
-      this.settings.enableRecommendations = Boolean(this.settings.enableRecommendations);
+      this.settings.enableRecommendations = this.settings.enableRecommendations !== false; // DEFAULT TO TRUE
       this.settings.enableAddons = Boolean(this.settings.enableAddons);
       this.settings.enableNotes = Boolean(this.settings.enableNotes);
       this.settings.enableDiscountCode = Boolean(this.settings.enableDiscountCode);
@@ -98,16 +98,40 @@
       this.recommendations = [];
       this._allRecommendations = []; // Master list to allow re-show after removal from cart
 
-      // Listen early for late settings injection
-      document.addEventListener('cartuplift:settings:updated', () => {
-        this.settings = Object.assign(this.settings, window.CartUpliftSettings || {});
-        // Re-filter recommendations if we already have master list
-        if (this._allRecommendations.length) {
-          this.rebuildRecommendationsFromMaster();
-          this.updateRecommendationsSection();
-          this.refreshRecommendationLayout();
+      // CRITICAL FIX: Listen for settings updates BEFORE initialization
+      this._settingsUpdateHandler = async (event) => {
+        console.log('🛒 Settings update received:', event);
+        
+        // Deep merge the settings
+        this.settings = Object.assign({}, this.settings, window.CartUpliftSettings || {});
+        
+        // Normalize layout again after update
+        if (this.settings.recommendationLayout) {
+          const map = { horizontal: 'row', vertical: 'column', grid: 'row' };
+          this.settings.recommendationLayout = map[this.settings.recommendationLayout] || this.settings.recommendationLayout;
         }
-      });
+        
+        console.log('🛒 Updated settings:', this.settings);
+        
+        // If recommendations were just enabled and not loaded yet
+        if (this.settings.enableRecommendations && !this._recommendationsLoaded) {
+          console.log('🛒 Loading recommendations after settings update...');
+          await this.loadRecommendations();
+          this._recommendationsLoaded = true;
+        } else if (this._allRecommendations.length) {
+          // Re-filter recommendations from master list
+          this.rebuildRecommendationsFromMaster();
+        }
+        
+        // Re-render drawer to apply new settings
+        this.updateDrawerContent();
+        
+        // Update specific sections if they exist
+        this.updateRecommendationsSection();
+      };
+      
+      // Attach the listener BEFORE init
+      document.addEventListener('cartuplift:settings:updated', this._settingsUpdateHandler);
       
       this.initPromise = this.init();
     }
@@ -158,13 +182,34 @@
         this.updateDrawerContent();
       }
       
+      // IMPORTANT: Check if recommendations settings have arrived
+      // Give a small delay to allow the upsell embed to load
+      setTimeout(async () => {
+        // Re-check settings from window
+        if (window.CartUpliftSettings) {
+          this.settings = Object.assign({}, this.settings, window.CartUpliftSettings);
+        }
+        
+        // Load recommendations if enabled and not loaded
+        if (this.settings.enableRecommendations && !this._recommendationsLoaded) {
+          console.log('🛒 Loading recommendations (delayed check)...');
+          await this.loadRecommendations();
+          this._recommendationsLoaded = true;
+          this.updateDrawerContent();
+        }
+      }, 500);
+      
       console.log('🛒 Cart Uplift setup complete.');
 
       // Listen for late settings injection (upsell embed) and refresh recommendations
-      document.addEventListener('cartuplift:settings:updated', () => {
+      document.addEventListener('cartuplift:settings:updated', async () => {
         // Merge any new settings
         this.settings = Object.assign(this.settings, window.CartUpliftSettings || {});
-        this.updateRecommendationsSection();
+        if (this.settings.enableRecommendations && !this._recommendationsLoaded) {
+          await this.loadRecommendations();
+        }
+        // Re-render to ensure changes are reflected immediately
+        this.updateDrawerContent();
       });
     }
 
@@ -478,18 +523,33 @@
       `).join('');
     }
 
-    getRecommendationsHTML() {
+  getRecommendationsHTML() {
   // Normalize again in case settings arrived late
   const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'row' };
   const layoutRaw = this.settings.recommendationLayout || 'column';
   const layout = layoutMap[layoutRaw] || layoutRaw;
   const title = (this.settings.recommendationsTitle || 'You might also like');
       
+      // For row layout, render controls outside the scroll container so they don't scroll
+      const controlsHTML = `
+        <div class="cartuplift-carousel-controls">
+          <button class="cartuplift-carousel-nav prev" data-nav="prev" aria-label="Previous">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 12l-4-4 4-4"/>
+            </svg>
+          </button>
+          <button class="cartuplift-carousel-nav next" data-nav="next" aria-label="Next">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 12l4-4-4-4"/>
+            </svg>
+          </button>
+        </div>`;
+
       return `
         <div class="cartuplift-recommendations cartuplift-recommendations-${layout}">
           <div class="cartuplift-recommendations-header">
             <h3 class="cartuplift-recommendations-title">${title}</h3>
-            <button class="cartuplift-recommendations-toggle" data-toggle="recommendations">
+            <button class="cartuplift-recommendations-toggle" data-toggle="recommendations" aria-expanded="true" aria-controls="cartuplift-recommendations-content">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
               </svg>
@@ -498,6 +558,7 @@
           <div class="cartuplift-recommendations-content" id="cartuplift-recommendations-content">
             ${this.getRecommendationItems()}
           </div>
+          ${layout === 'row' ? controlsHTML : ''}
         </div>
       `;
     }
@@ -505,17 +566,40 @@
     /** Update recommendations title & layout after settings injected later (e.g. upsell embed loads after main) */
     updateRecommendationsSection() {
       const section = document.querySelector('.cartuplift-recommendations');
-      if (!section) return;
+      if (!section) {
+        // If section doesn't exist but should, recreate the entire drawer
+        if (this.settings.enableRecommendations && this._recommendationsLoaded && this.recommendations.length > 0) {
+          console.log('🛒 Recommendations section missing, recreating drawer...');
+          this.updateDrawerContent();
+          return;
+        }
+        return;
+      }
+      
       // Update layout class
-  const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'row' };
-  const layoutRaw = this.settings.recommendationLayout || 'column';
-  const layout = layoutMap[layoutRaw] || layoutRaw;
-      section.classList.remove('cartuplift-recommendations-row', 'cartuplift-recommendations-column');
-      section.classList.add(`cartuplift-recommendations-${layout}`);
+      const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'row' };
+      const layoutRaw = this.settings.recommendationLayout || 'column';
+      const layout = layoutMap[layoutRaw] || layoutRaw;
+      section.className = `cartuplift-recommendations cartuplift-recommendations-${layout}`;
+      
       // Update title
       const titleEl = section.querySelector('.cartuplift-recommendations-title');
       if (titleEl) {
         titleEl.textContent = (this.settings.recommendationsTitle || 'You might also like');
+      }
+      
+      // Update content
+      const contentEl = section.querySelector('.cartuplift-recommendations-content');
+      if (contentEl) {
+        contentEl.innerHTML = this.getRecommendationItems();
+        
+        // Re-setup carousel controls if needed
+        if (layout === 'row') {
+          setTimeout(() => {
+            this.setupScrollControls(contentEl);
+            this.updateCarouselButtons(contentEl);
+          }, 100);
+        }
       }
     }
 
@@ -527,7 +611,7 @@
       this.recommendations = filtered.slice(0, max);
     }
 
-    getRecommendationItems() {
+  getRecommendationItems() {
       if (!this._recommendationsLoaded) {
         return '<div class="cartuplift-recommendations-loading">Loading recommendations...</div>';
       }
@@ -541,6 +625,7 @@
       const layout = layoutMap[layoutRaw] || layoutRaw;
       
       if (layout === 'row') {
+        // Only return the scroll track; controls are rendered outside the scroll container
         return `
           <div class="cartuplift-recommendations-track">
             ${this.recommendations.map(product => `
@@ -563,18 +648,6 @@
               </div>
             `).join('')}
           </div>
-          <div class="cartuplift-carousel-controls">
-            <button class="cartuplift-carousel-nav prev" data-nav="prev" aria-label="Previous">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M10 12l-4-4 4-4"/>
-              </svg>
-            </button>
-            <button class="cartuplift-carousel-nav next" data-nav="next" aria-label="Next">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M6 12l4-4-4-4"/>
-              </svg>
-            </button>
-          </div>
         `;
       } else {
         return this.recommendations.map(product => `
@@ -592,16 +665,17 @@
       }
     }
 
-    generateVariantSelector(product) {
+  generateVariantSelector(product) {
       // If product has variants with multiple meaningful options, generate a proper selector
       if (product.variants && product.variants.length > 1) {
         // Get the option name (typically Size, Color, etc.)
-        const optionName = product.options && product.options.length > 0 ? product.options[0] : 'Option';
+    const firstOption = (product.options && product.options.length > 0) ? product.options[0] : null;
+    const optionLabel = typeof firstOption === 'string' ? firstOption : (firstOption && firstOption.name) ? firstOption.name : 'Option';
         
         return `
           <div class="cartuplift-product-variation">
             <select class="cartuplift-size-dropdown" data-product-id="${product.id}">
-              <option value="">Select ${optionName}</option>
+        <option value="">Select ${optionLabel}</option>
               ${product.variants.map(variant => 
                 variant.available ? `
                   <option value="${variant.id}" data-price="${variant.price}">
@@ -618,7 +692,7 @@
       }
     }
 
-    refreshRecommendationLayout() {
+  refreshRecommendationLayout() {
       // Reload settings to get latest changes
       const recommendationsContainer = document.querySelector('.cartuplift-recommendations-content');
       if (recommendationsContainer && this._recommendationsLoaded) {
@@ -634,14 +708,30 @@
           recommendationsSection.classList.remove('cartuplift-recommendations-row', 'cartuplift-recommendations-column');
           recommendationsSection.classList.add(`cartuplift-recommendations-${layout}`);
           
-          // Setup carousel navigation if horizontal layout
+          // Ensure controls exist and setup navigation if horizontal layout
           if (layout === 'row') {
+            const section = document.querySelector('.cartuplift-recommendations');
+            if (section && !section.querySelector('.cartuplift-carousel-controls')) {
+              const controls = document.createElement('div');
+              controls.className = 'cartuplift-carousel-controls';
+              controls.innerHTML = `
+                <button class="cartuplift-carousel-nav prev" data-nav="prev" aria-label="Previous">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10 12l-4-4 4-4"/>
+                  </svg>
+                </button>
+                <button class="cartuplift-carousel-nav next" data-nav="next" aria-label="Next">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 12l4-4-4-4"/>
+                  </svg>
+                </button>`;
+              section.appendChild(controls);
+            }
             setTimeout(() => {
               const scrollContainer = document.querySelector('.cartuplift-recommendations-content');
               if (scrollContainer) {
                 this.setupScrollControls(scrollContainer);
                 this.updateCarouselButtons(scrollContainer);
-                // Add scroll listener for real-time button updates
                 scrollContainer.addEventListener('scroll', () => {
                   this.updateCarouselButtons(scrollContainer);
                 });
@@ -653,8 +743,8 @@
     }
 
     setupScrollControls(scrollContainer) {
-      // Calculate scroll amounts based on card width (300px + 15px gap = 315px)
-      this.cardWidth = 300;
+      // Calculate scroll amounts based on card width (340px + 15px gap = 355px)
+      this.cardWidth = 340;
       this.gap = 15;
       this.scrollAmount = this.cardWidth + this.gap;
       
@@ -943,7 +1033,7 @@
           });
           
           this.addToCart(variantId, 1);
-        } else if (
+  } else if (
           e.target.classList.contains('cartuplift-recommendations-toggle') ||
           (e.target.closest && e.target.closest('.cartuplift-recommendations-toggle'))
         ) {
@@ -959,6 +1049,12 @@
           if (recommendations) {
             const isCollapsed = recommendations.classList.contains('collapsed');
             recommendations.classList.toggle('collapsed');
+            // Update content aria-hidden
+            const content = recommendations.querySelector('#cartuplift-recommendations-content');
+            if (content) {
+              const nowCollapsed = recommendations.classList.contains('collapsed');
+              content.setAttribute('aria-hidden', nowCollapsed ? 'true' : 'false');
+            }
             // Update arrow direction with your SVGs
             const arrow = toggleButton.querySelector('svg path');
             if (arrow) {
@@ -970,6 +1066,9 @@
                 arrow.setAttribute('d', 'm4.5 15.75 7.5-7.5 7.5 7.5');
               }
             }
+            // Sync aria state
+            const nowCollapsed = recommendations.classList.contains('collapsed');
+            toggleButton.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
             console.log('🛒 Recommendations collapsed:', recommendations.classList.contains('collapsed'));
           }
         } else if (e.target.classList.contains('cartuplift-carousel-nav') || e.target.closest('.cartuplift-carousel-nav')) {
@@ -981,22 +1080,25 @@
           const scrollContainer = container.querySelector('.cartuplift-recommendations-content');
           
           if (scrollContainer && direction) {
-            const cardWidth = 300; // Match card width from CSS (300px)
-            const gap = 15; // Match gap from CSS (15px)
-            const scrollAmount = cardWidth + gap;
-            
+            // Ensure shared scroll config is set
+            this.setupScrollControls(scrollContainer);
             if (direction === 'prev') {
-              const targetScroll = Math.max(0, scrollContainer.scrollLeft - scrollAmount);
-              scrollContainer.scrollTo({ left: targetScroll, behavior: 'smooth' });
+              this.scrollPrev(scrollContainer);
             } else if (direction === 'next') {
-              const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
-              const targetScroll = Math.min(maxScroll, scrollContainer.scrollLeft + scrollAmount);
-              scrollContainer.scrollTo({ left: targetScroll, behavior: 'smooth' });
+              this.scrollNext(scrollContainer);
             }
             
             // Update button states after scroll
             setTimeout(() => this.updateCarouselButtons(scrollContainer), 100);
           }
+        }
+      });
+
+      // Variant dropdown change handler (ensure updates fire on change)
+      container.addEventListener('change', (e) => {
+        const select = e.target;
+        if (select && select.classList && select.classList.contains('cartuplift-size-dropdown')) {
+          this.handleVariantChange(select);
         }
       });
     }

@@ -1,31 +1,74 @@
 {% comment %} Cart Uplift – Upsells Settings {% endcomment %}
 
-{% if block.settings.enable_recommendations %}
-  <script>
-    (function() {
-      // Extend existing CartUpliftSettings with upsell config
-      if (window.CartUpliftSettings) {
-        window.CartUpliftSettings = Object.assign(window.CartUpliftSettings, {
-          // Upsell settings
-          enableRecommendations: {{ block.settings.enable_recommendations | default: true | json }},
-          recommendationLayout: {{ block.settings.recommendation_layout | default: 'column' | json }},
-          maxRecommendations: {{ block.settings.max_recommendations | default: 4 | json }},
-          recommendationsTitle: {{ block.settings.recommendations_title | default: 'You might also like' | json }}
-        });
-  // Notify main script that settings updated (in case loaded after drawer render)
-  document.dispatchEvent(new CustomEvent('cartuplift:settings:updated'));
-        
-        console.log('🛒 Cart Uplift Upsells Config Applied:', {
-          enableRecommendations: window.CartUpliftSettings.enableRecommendations,
-          recommendationLayout: window.CartUpliftSettings.recommendationLayout,
-          maxRecommendations: window.CartUpliftSettings.maxRecommendations
-        });
-      } else {
-        console.warn('🛒 Cart Uplift main settings not found. Ensure the main Free Shipping Bar app embed is enabled.');
+{% comment %} Cart Uplift – Upsells Settings {% endcomment %}
+
+<script>
+  (function() {
+    // Wait for document to be ready
+    function updateSettings() {
+      // Ensure global settings exist
+      window.CartUpliftSettings = window.CartUpliftSettings || {};
+      
+      // Merge in the recommendation settings
+      Object.assign(window.CartUpliftSettings, {
+        enableRecommendations: {{ block.settings.enable_recommendations | default: true | json }},
+        recommendationLayout: {{ block.settings.recommendation_layout | default: 'column' | json }},
+        maxRecommendations: {{ block.settings.max_recommendations | default: 4 | json }},
+        recommendationsTitle: {{ block.settings.recommendations_title | default: 'You might also like' | json }}
+      });
+      
+      console.log('🛒 Upsell settings applied:', {
+        enableRecommendations: window.CartUpliftSettings.enableRecommendations,
+        recommendationLayout: window.CartUpliftSettings.recommendationLayout,
+        maxRecommendations: window.CartUpliftSettings.maxRecommendations,
+        recommendationsTitle: window.CartUpliftSettings.recommendationsTitle
+      });
+      
+      // Dispatch event to notify drawer
+      try {
+        document.dispatchEvent(new CustomEvent('cartuplift:settings:updated', {
+          detail: { source: 'upsell-embed' }
+        }));
+        console.log('🛒 Dispatched settings update event');
+      } catch (e) {
+        console.warn('🛒 Failed to dispatch settings update:', e);
       }
-    })();
-  </script>
-{% endif %}
+      
+      // If drawer already exists, force update
+      if (window.cartUpliftDrawer && window.cartUpliftDrawer.updateDrawerContent) {
+        console.log('🛒 Directly updating drawer with new settings');
+        window.cartUpliftDrawer.settings = Object.assign(
+          window.cartUpliftDrawer.settings || {}, 
+          window.CartUpliftSettings
+        );
+        
+        // Load recommendations if not loaded
+        if (window.CartUpliftSettings.enableRecommendations && 
+            !window.cartUpliftDrawer._recommendationsLoaded) {
+          window.cartUpliftDrawer.loadRecommendations().then(() => {
+            window.cartUpliftDrawer.updateDrawerContent();
+          });
+        } else {
+          window.cartUpliftDrawer.updateDrawerContent();
+        }
+      }
+    }
+    
+    // Run immediately
+    updateSettings();
+    
+    // Also run when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', updateSettings);
+    } else {
+      // DOM is already ready, run with a small delay
+      setTimeout(updateSettings, 100);
+    }
+    
+    // Final fallback after everything should be loaded
+    setTimeout(updateSettings, 1000);
+  })();
+</script>
 
 {% schema %}
 {

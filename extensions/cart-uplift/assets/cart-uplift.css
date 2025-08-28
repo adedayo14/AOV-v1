@@ -226,7 +226,7 @@
 /* Item Image */
 .cartuplift-item-image {
   width: 80px;
-  height: 100px;  /* Increased from 80px */
+  height: 88px;  /* Reduced from 100px to tighten vertical space */
   border-radius: var(--cartuplift-border-radius);
   overflow: hidden;
   background: #f8f8f8;
@@ -331,7 +331,7 @@
   justify-content: space-between;
   gap: 8px;
   height: 100%;
-  min-height: 100px;  /* Increased from 80px to match image height */
+  min-height: 88px;  /* Match reduced image height to remove extra space */
 }
 
 .cartuplift-item-price {
@@ -394,8 +394,8 @@
 
 .cartuplift-recommendations {
   background: #f5f5f5;
-  padding: 20px 0;
-  margin: 20px 0;
+  padding: 12px 0; /* Reduced vertical padding to shrink section height */
+  margin: 14px 0; /* Slightly reduced margin */
   border-top: none;
   flex-shrink: 0;
   transition: all 0.3s ease;
@@ -411,7 +411,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 15px 15px; /* Reduced left padding from 20px to 15px */
+  padding: 0 15px 10px; /* Reduced bottom padding for tighter layout */
   margin-bottom: 0;
 }
 
@@ -479,7 +479,7 @@
   overflow-y: hidden;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
-  padding: 0 15px 40px; /* Reduced left padding from 20px to 15px */
+  padding: 0 15px 28px 4px; /* Extra bottom padding so controls can sit below cards */
   position: relative;
 }
 
@@ -497,43 +497,47 @@
 .cartuplift-recommendations-track {
   display: flex;
   gap: 15px;
-  padding-bottom: 10px;
+  padding-bottom: 6px; /* Less bottom padding */
+  margin-top: 4px; /* Slightly tighter to header */
 }
 
-/* Navigation Controls - ABSOLUTELY FIXED outside scroll container */
+/* Navigation Controls - FIXED OUTSIDE scroll container */
 .cartuplift-carousel-controls {
   position: absolute;
-  right: 15px; /* Adjusted to match new padding */
-  bottom: 10px;
+  right: 6px; /* Closer to cards */
+  bottom: 4px; /* sit closer to the section bottom, below cards */
   display: flex;
   flex-direction: row;
   gap: 8px;
-  z-index: 10; /* Higher z-index */
-  pointer-events: auto; /* Always allow clicks */
-  background: rgba(255, 255, 255, 0.95); /* Slight background for visibility */
-  padding: 4px;
-  border-radius: 8px;
+  z-index: 20; /* Even higher z-index */
+  pointer-events: auto;
+  background: transparent; /* Inherit/transparent background */
+  padding: 0; /* No wrapper padding */
+  border-radius: 0; /* No wrapper shape */
+  /* Ensure it's positioned relative to the row container, not the scrollable content */
+  transform: translateY(0);
+  /* Add margin to push it below the scrollable area */
+  /* removed margin-top to avoid extra space */
 }
 
 .cartuplift-carousel-nav {
   width: 32px;
   height: 32px;
   border: 1px solid #ddd;
-  background: white;
+  background: transparent; /* transparent button background */
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: border-color 0.2s ease, opacity 0.2s ease;
+  box-shadow: none; /* remove button shadow */
   pointer-events: auto;
 }
 
 .cartuplift-carousel-nav:hover {
-  background: #f0f0f0;
+  background: transparent; /* keep transparent on hover */
   border-color: #999;
-  /* Removed transform and shadow animations */
 }
 
 .cartuplift-carousel-nav:disabled {
@@ -550,16 +554,16 @@
 
 /* Product Cards - EXACT 3-Column Layout with NO animations */
 .cartuplift-recommendation-card {
-  flex: 0 0 300px;
+  flex: 0 0 340px; /* Increased width */
   background: white;
   border-radius: 12px;
-  padding: 15px;
+  padding: 12px 15px 10px 10px; /* Reduce bottom padding to bring actions closer */
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   display: flex;
   flex-direction: row;
   align-items: flex-start;
   gap: 15px;
-  min-height: 120px;
+  min-height: 132px; /* Slightly reduced to cut excess vertical space */
   /* Removed hover animations */
 }
 
@@ -572,10 +576,10 @@
   height: 100%;
 }
 
-/* Column 1: Product Image */
+/* Column 1: Product Image - REDUCED SIZE for more name space */
 .cartuplift-product-image {
-  width: 90px;
-  height: 90px;
+  width: 70px; /* Reduced from 90px */
+  height: 70px; /* Reduced from 90px */
   flex-shrink: 0;
   border-radius: 8px;
   overflow: hidden;
@@ -583,6 +587,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-left: 0; /* Ensure image hugs the left edge of the card */
 }
 
 .cartuplift-recommendation-card img {
@@ -599,6 +604,7 @@
   gap: 6px; /* Increased from 4px for better spacing */
   min-width: 0;
   padding-top: 2px; /* Small padding to align with image */
+  height: 100%; /* Allow pushing variation to the bottom */
 }
 
 .cartuplift-recommendation-card h4 {
@@ -618,7 +624,7 @@
 
 /* Variation selector - only show if product has multiple variants */
 .cartuplift-product-variation {
-  margin-top: 2px; /* Reduced spacing */
+  margin-top: auto; /* Push option to bottom to align with Add button */
 }
 
 .cartuplift-size-dropdown {
@@ -638,6 +644,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 120px;
+  display: inline-flex;
+  align-items: center;
+  height: 28px; /* Visual alignment with Add button */
 }
 
 .cartuplift-size-dropdown:focus {
@@ -657,8 +666,9 @@
   align-items: flex-end;
   justify-content: space-between; /* Changed to space-between for better distribution */
   flex-shrink: 0;
-  width: 80px;
-  height: 90px; /* Match image height for proper alignment */
+  width: 78px; /* Slightly slimmer to free space for title */
+  height: 100%; /* Span full card height to align Add button with bottom */
+  min-height: 80px; /* Reduce to tighten space under Add button */
   padding-top: 2px; /* Small padding to align with image */
 }
 
@@ -793,7 +803,7 @@
   }
   
   .cartuplift-recommendation-card {
-    flex: 0 0 280px;
+    flex: 0 0 300px;
   }
   
   .cartuplift-product-image {
@@ -1100,7 +1110,7 @@
 
 /* 2. Fix recommendations positioning - now inside scrollable area */
 .cartuplift-recommendations {
-  background: #ffffff;
+  background: #f6f6f6; /* Greyish background so white cards are clearer */
   padding: 16px 20px;
   border-top: 1px solid #e5e5e5;
   margin-top: 0; /* Remove margin since it's now positioned naturally */
