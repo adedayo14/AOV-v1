@@ -366,8 +366,7 @@
           ${shouldShowRecommendations ? this.getRecommendationsHTML() : ''}
           
           <div class="cartuplift-footer">
-            ${this.settings.enableDiscountCode ? this.getDiscountHTML() : ''}
-            ${this.settings.enableNotes ? this.getNotesHTML() : ''}
+            ${this.settings.enableDiscountCode || this.settings.enableNotes ? this.getDiscountHTML() : ''}
             
             <div class="cartuplift-subtotal">
               <span>Subtotal</span>
@@ -937,9 +936,13 @@
 
     getDiscountHTML() {
       return `
-        <div class="cartuplift-discount">
-          <input type="text" id="cartuplift-discount-code" class="cartuplift-discount-input" placeholder="Discount code">
-          <button class="cartuplift-discount-apply" onclick="window.cartUpliftDrawer.applyDiscountCode()">Apply</button>
+        <div class="cartuplift-gift-options">
+          <button class="cartuplift-gift-bar" onclick="window.cartUpliftDrawer.openGiftModal()">
+            <span>✨ Add Gift Note, Voucher Code & More</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+          </button>
         </div>
       `;
     }
@@ -950,6 +953,105 @@
           <textarea id="cartuplift-notes-input" class="cartuplift-notes-input" placeholder="Order notes..." rows="3"></textarea>
         </div>
       `;
+    }
+
+    openGiftModal() {
+      // Create modal if it doesn't exist
+      let modal = document.getElementById('cartuplift-gift-modal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'cartuplift-gift-modal';
+        modal.className = 'cartuplift-gift-modal';
+        modal.innerHTML = `
+          <div class="cartuplift-gift-modal-content">
+            <div class="cartuplift-gift-modal-header">
+              <h3 class="cartuplift-gift-modal-title">Gift Message and Packaging</h3>
+              <button class="cartuplift-gift-modal-close" onclick="window.cartUpliftDrawer.closeGiftModal()">×</button>
+            </div>
+            
+            <div class="cartuplift-gift-form-group">
+              <label for="gift-message">Gift Message (Optional)</label>
+              <textarea id="gift-message" placeholder="Type your message here, but avoid emojis and special characters." rows="4" maxlength="160"></textarea>
+              <div class="cartuplift-gift-char-count"><span id="char-count">160</span> Characters Remaining</div>
+            </div>
+            
+            <div class="cartuplift-gift-checkbox">
+              <input type="checkbox" id="logo-free-packaging">
+              <label for="logo-free-packaging">Logo-Free Packaging (This will be hidden on the box)</label>
+            </div>
+            
+            <div class="cartuplift-gift-form-group">
+              <label for="discount-code">Voucher Code</label>
+              <input type="text" id="discount-code" placeholder="Enter discount code">
+            </div>
+            
+            <div class="cartuplift-gift-modal-actions">
+              <button class="cartuplift-gift-modal-btn secondary" onclick="window.cartUpliftDrawer.closeGiftModal()">Cancel</button>
+              <button class="cartuplift-gift-modal-btn primary" onclick="window.cartUpliftDrawer.saveGiftOptions()">Save</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Add character counter
+        const textarea = modal.querySelector('#gift-message');
+        const charCount = modal.querySelector('#char-count');
+        textarea.addEventListener('input', function() {
+          const remaining = 160 - this.value.length;
+          charCount.textContent = remaining;
+        });
+      }
+      
+      modal.classList.add('active');
+    }
+
+    closeGiftModal() {
+      const modal = document.getElementById('cartuplift-gift-modal');
+      if (modal) {
+        modal.classList.remove('active');
+      }
+    }
+
+    saveGiftOptions() {
+      const modal = document.getElementById('cartuplift-gift-modal');
+      if (modal) {
+        const giftMessage = modal.querySelector('#gift-message').value;
+        const logoFree = modal.querySelector('#logo-free-packaging').checked;
+        const discountCode = modal.querySelector('#discount-code').value;
+        
+        // Save to cart properties (you can implement this based on your needs)
+        console.log('Gift options saved:', { giftMessage, logoFree, discountCode });
+        
+        // Apply discount code if provided
+        if (discountCode) {
+          this.applyDiscountCode(discountCode);
+        }
+        
+        this.closeGiftModal();
+        this.showToast('Gift options saved!', 'success');
+      }
+    }
+
+    async applyDiscountCode(code = null) {
+      const discountCode = code || document.getElementById('discount-code')?.value;
+      if (!discountCode) return;
+      
+      try {
+        const response = await fetch('/discount/' + encodeURIComponent(discountCode), {
+          method: 'POST'
+        });
+        
+        if (response.ok) {
+          await this.fetchCart();
+          this.updateDrawerContent();
+          this.showToast('Discount applied!', 'success');
+        } else {
+          this.showToast('Invalid discount code', 'error');
+        }
+      } catch (error) {
+        console.error('Error applying discount:', error);
+        this.showToast('Error applying discount', 'error');
+      }
     }
 
     getExpressCheckoutHTML() {
@@ -1587,14 +1689,6 @@
       }
       
       return '$' + amount;
-    }
-
-    async applyDiscountCode() {
-      const input = document.getElementById('cartuplift-discount-code');
-      if (!input || !input.value.trim()) return;
-      
-      const code = input.value.trim();
-      window.location.href = `/discount/${encodeURIComponent(code)}?redirect=${encodeURIComponent(window.location.pathname)}`;
     }
 
     proceedToCheckout() {

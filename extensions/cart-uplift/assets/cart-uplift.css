@@ -86,25 +86,25 @@
 }
 
 /* ========================================
-   Header Section
+   Header Section - Compact Design
    ======================================== */
 .cartuplift-header {
-  padding: 20px;
+  padding: 12px 16px 8px 16px;
   background: var(--cartuplift-background);
-  /*border-bottom: 1px solid var(--cartuplift-border);*/
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 12px;
+  min-height: 40px;
 }
 
 .cartuplift-cart-title {
   margin: 0;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   color: #000;
-  letter-spacing: normal;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   flex-shrink: 0;
 }
@@ -117,8 +117,8 @@
 
 .cartuplift-shipping-message {
   margin: 0;
-  color: #333;
-  font-size: 14px;
+  color: #666;
+  font-size: 12px;
   font-weight: 400;
   white-space: nowrap;
   overflow: hidden;
@@ -128,41 +128,43 @@
 .cartuplift-close {
   background: transparent;
   border: none;
-  padding: 0;
+  padding: 4px;
   cursor: pointer;
   color: var(--cartuplift-secondary);
   transition: color 0.2s ease;
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border-radius: 4px;
 }
 
 .cartuplift-close:hover {
   color: var(--cartuplift-primary);
+  background: #f5f5f5;
 }
 
 .cartuplift-close svg {
-  width: 24px;
-  height: 24px;
+  width: 16px;
+  height: 16px;
 }
 
 /* ========================================
-   Free Shipping Progress Bar
+   Free Shipping Progress Bar - Compact
    ======================================== */
 .cartuplift-shipping-bar {
-  padding: 0 20px 16px;
+  padding: 0 16px 8px;
   background: var(--cartuplift-background);
   flex-shrink: 0;
 }
 
 .cartuplift-shipping-progress {
   width: 100%;
-  height: 8px;
+  height: 6px;
   background: #f0f0f0;
-  border-radius: 4px;
+  border-radius: 3px;
   overflow: hidden;
   position: relative;
 }
@@ -170,7 +172,7 @@
 .cartuplift-shipping-progress-fill {
   height: 100%;
   background: var(--cartuplift-button-color);
-  border-radius: 4px;
+  border-radius: 3px;
   transition: width 0.5s ease, background 0.3s ease;
   min-width: 2px;
 }
@@ -181,37 +183,37 @@
 }
 
 /* ========================================
-   Content Wrapper
+   Content Wrapper - Compact
    ======================================== */
 .cartuplift-content-wrapper {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Changed from overflow-y: auto */
+  overflow: hidden;
   min-height: 0;
-  max-height: calc(100vh - 250px); /* Reduced from 300px since footer is smaller */
+  max-height: calc(100vh - 180px);
 }
 
 .cartuplift-items {
   flex: 1;
   background: var(--cartuplift-background);
-  padding: 0 20px;
-  overflow-y: auto; /* Make only this section scrollable */
+  padding: 0 16px;
+  overflow-y: auto;
   overflow-x: hidden;
-  padding-bottom: 40px; /* Add extra padding at bottom to push recommendations further down */
+  padding-bottom: 20px;
 }
 
 /* ========================================
-   Cart Items
+   Cart Items - Updated Layout for 106x106 Images
    ======================================== */
 .cartuplift-item {
-  display: grid;
-  grid-template-columns: 80px 1fr 40px;
-  gap: 12px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--cartuplift-border);
-  align-items: start;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
   position: relative;
+  min-height: 112px;
 }
 
 .cartuplift-item:last-child {
@@ -223,37 +225,41 @@
   pointer-events: none;
 }
 
-/* Item Image */
+/* Item Image - 106x106 */
 .cartuplift-item-image {
-  width: 80px;
-  height: 88px;  /* Reduced from 100px to tighten vertical space */
-  border-radius: var(--cartuplift-border-radius);
+  width: 106px;
+  height: 106px;
+  border-radius: 6px;
   overflow: hidden;
   background: #f8f8f8;
+  flex-shrink: 0;
 }
 
 .cartuplift-item-image img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 
-/* Item Info */
+/* Item Info - 375x112 Text Area */
 .cartuplift-item-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
   min-width: 0;
+  width: 375px;
+  height: 112px;
   padding-right: 8px;
+  justify-content: space-between;
 }
 
 .cartuplift-item-title {
-  margin: 0 0 6px 0;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.4;
-  text-transform: none;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-transform: uppercase;
   letter-spacing: normal;
 }
 
@@ -267,28 +273,34 @@
   text-decoration: underline;
 }
 
-/* Variant Options - Stacked */
+/* Variant Options - Match reference styling */
 .cartuplift-item-variant {
-  font-size: 14px;
-  color: #555;
-  line-height: 1.4;
-  margin: 3px 0;
+  font-size: 12px;
+  color: #666;
+  line-height: 1.2;
+  margin: 0;
   font-weight: 400;
+  width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Quantity Selector */
+/* Quantity Selector - 32px height, 100px min-width */
 .cartuplift-item-quantity-wrapper {
-  margin-top: 8px;
+  margin-top: auto;
 }
 
 .cartuplift-quantity {
   display: inline-flex;
   align-items: center;
-  border: 1px solid #d1d5db;
-  border-radius: 24px;
+  border: 1px solid #e0e0e0;
+  border-radius: 20px;
   background: var(--cartuplift-background);
-  height: 36px;
+  height: 32px;
+  min-width: 100px;
   overflow: hidden;
+  justify-content: space-around;
 }
 
 .cartuplift-qty-minus,
@@ -296,8 +308,8 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 0 12px;
-  font-size: 18px;
+  padding: 8px;
+  font-size: 14px;
   font-weight: 400;
   color: #333;
   height: 100%;
@@ -305,97 +317,98 @@
   align-items: center;
   justify-content: center;
   transition: background 0.2s ease;
-  min-width: 36px;
+  min-width: 28px;
 }
 
-
+.cartuplift-qty-minus:hover,
+.cartuplift-qty-plus:hover {
+  background: #f5f5f5;
+}
 
 .cartuplift-qty-display {
-  padding: 0 16px;
-  font-size: 15px;
+  padding: 0 10px;
+  font-size: 12px;
   font-weight: 500;
   color: #000;
-  min-width: 40px;
   text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100%;
+  flex: 1;
 }
 
-/* Price & Remove Column */
+/* Price & Remove - Right Side */
 .cartuplift-item-price-actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: space-between;
+  align-items: center;
   gap: 8px;
-  height: 100%;
-  min-height: 88px;  /* Match reduced image height to remove extra space */
+  flex-shrink: 0;
 }
 
 .cartuplift-item-price {
-  font-weight: 500;
-  font-size: 16px;
+  font-weight: 600;
+  font-size: 13px;
   color: #000;
   letter-spacing: normal;
+  white-space: nowrap;
 }
 
 .cartuplift-item-remove-x {
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 6px;
-  color: var(--cartuplift-secondary);
+  padding: 4px;
+  color: #ccc;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  margin-top: auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
 }
 
 .cartuplift-item-remove-x:hover {
-  color: var(--cartuplift-primary);
-  transform: scale(1.1);
+  color: #ff4444;
+  background: #fff;
 }
 
 .cartuplift-item-remove-x svg {
-  width: 20px;
-  height: 20px;
+  width: 12px;
+  height: 12px;
   stroke-width: 2;
 }
 
 /* ========================================
-   Empty Cart State
+   Empty Cart State - Compact
    ======================================== */
 .cartuplift-empty {
-  padding: 60px 20px;
+  padding: 40px 20px;
   text-align: center;
   color: var(--cartuplift-secondary);
 }
 
 .cartuplift-empty h4 {
-  font-size: 16px;
-  margin: 0 0 8px 0;
+  font-size: 14px;
+  margin: 0 0 6px 0;
   color: var(--cartuplift-primary);
   font-weight: 600;
 }
 
 .cartuplift-empty p {
-  font-size: 14px;
+  font-size: 12px;
   margin: 0;
 }
 
 /* ========================================
-   Recommendations Section - EXACT Repository Match
+   Recommendations Section - Compact
    ======================================== */
 
 .cartuplift-recommendations {
   background: #f5f5f5;
-  padding: 12px 0; /* Reduced vertical padding to shrink section height */
-  margin: 14px 0; /* Slightly reduced margin */
+  padding: 8px 0;
+  margin: 8px 0;
   border-top: none;
   flex-shrink: 0;
   transition: all 0.3s ease;
@@ -404,14 +417,14 @@
 }
 
 .cartuplift-recommendations.collapsed {
-  padding: 12px 0;
+  padding: 8px 0;
 }
 
 .cartuplift-recommendations-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 15px 10px; /* Reduced bottom padding for tighter layout */
+  padding: 0 12px 6px;
   margin-bottom: 0;
 }
 
@@ -421,18 +434,18 @@
 }
 
 .cartuplift-recommendations-title {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 1.5px;
+  letter-spacing: 0.5px;
   color: #000;
   text-transform: uppercase;
   margin: 0;
 }
 
-/* Toggle button - TOP RIGHT */
+/* Toggle button - Compact */
 .cartuplift-recommendations-toggle {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   border: 1px solid #ddd;
   background: white;
   border-radius: 50%;
@@ -445,8 +458,8 @@
 }
 
 .cartuplift-recommendations-toggle svg {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   transition: transform 0.2s ease;
 }
 
@@ -473,13 +486,12 @@
   position: relative;
 }
 
-/* Scroll container - EXACT match from repository */
+/* Scroll container - Compact */
 .cartuplift-recommendations-row .cartuplift-recommendations-content {
   overflow-x: auto;
   overflow-y: hidden;
   scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-  padding: 0 15px 28px 4px; /* Extra bottom padding so controls can sit below cards */
+  padding: 0 12px 20px 4px;
   position: relative;
 }
 
@@ -552,42 +564,40 @@
   stroke-width: 2;
 }
 
-/* Product Cards - EXACT 3-Column Layout with NO animations */
+/* Product Cards - Updated for 80x80 images */
 .cartuplift-recommendation-card {
-  flex: 0 0 340px; /* Increased width */
+  flex: 0 0 300px;
   background: white;
-  border-radius: 12px;
-  padding: 12px 15px 10px 10px; /* Reduce bottom padding to bring actions closer */
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-  gap: 15px;
-  min-height: 132px; /* Slightly reduced to cut excess vertical space */
-  /* Removed hover animations */
+  gap: 12px;
+  min-height: 104px;
 }
 
 .cartuplift-card-content {
   display: flex;
   flex-direction: row;
-  gap: 15px;
+  gap: 12px;
   width: 100%;
-  align-items: flex-start; /* Changed from center to flex-start */
+  align-items: flex-start;
   height: 100%;
 }
 
-/* Column 1: Product Image - REDUCED SIZE for more name space */
+/* Column 1: Product Image - 80x80 for recommendations */
 .cartuplift-product-image {
-  width: 70px; /* Reduced from 90px */
-  height: 70px; /* Reduced from 90px */
+  width: 80px;
+  height: 80px;
   flex-shrink: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   overflow: hidden;
   background: #fafafa;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-left: 0; /* Ensure image hugs the left edge of the card */
 }
 
 .cartuplift-recommendation-card img {
@@ -812,139 +822,108 @@
 }
 
 /* ========================================
-   Footer Section - COMPACT LIKE IMAGE 2
+   Footer Section - COMPACT DESIGN
    ======================================== */
 .cartuplift-footer {
-  padding: 8px 20px; /* Compact footer padding */
+  padding: 12px 16px;
   background: #ffffff;
   border-top: 1px solid #e5e5e5;
   flex-shrink: 0;
 }
 
-/* Discount Code */
-.cartuplift-discount {
+/* Gift Options Bar */
+.cartuplift-gift-options {
+  margin-bottom: 8px;
+}
+
+.cartuplift-gift-bar {
+  width: 100%;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
   display: flex;
-  gap: 6px; /* Reduced from 8px */
-  margin-bottom: 10px; /* Reduced from 16px */
-}
-
-.cartuplift-discount-input {
-  flex: 1;
-  padding: 8px 12px; /* Reduced from 10px 14px */
-  border: 1px solid #ddd;
-  border-radius: var(--cartuplift-border-radius);
-  font-size: 13px; /* Reduced from 14px */
-  outline: none;
-  transition: border-color 0.2s ease;
-}
-
-.cartuplift-discount-input:focus {
-  border-color: var(--cartuplift-primary);
-}
-
-.cartuplift-discount-apply {
-  padding: 8px 16px; /* Reduced from 10px 20px */
-  background: var(--cartuplift-button-color);
-  color: white;
-  border: none;
-  border-radius: var(--cartuplift-border-radius);
-  font-size: 12px; /* Reduced from 13px */
-  font-weight: 600;
+  align-items: center;
+  justify-content: space-between;
   cursor: pointer;
   transition: all 0.2s ease;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
 }
 
-.cartuplift-discount-apply:hover {
-  filter: brightness(0.9);
+.cartuplift-gift-bar:hover {
+  background: #f0f0f0;
+  border-color: #ccc;
 }
 
-/* Notes */
-.cartuplift-notes {
-  margin-bottom: 10px; /* Reduced from 16px */
+.cartuplift-gift-bar svg {
+  opacity: 0.6;
 }
 
-.cartuplift-notes-input {
-  width: 100%;
-  padding: 8px 12px; /* Reduced from 10px 14px */
-  border: 1px solid #ddd;
-  border-radius: var(--cartuplift-border-radius);
-  font-size: 13px; /* Reduced from 14px */
-  font-family: inherit;
-  resize: vertical;
-  min-height: 45px; /* Reduced from 60px */
-  outline: none;
-  transition: border-color 0.2s ease;
-}
-
-.cartuplift-notes-input:focus {
-  border-color: var(--cartuplift-primary);
-}
-
-/* Subtotal */
+/* Subtotal - Compact */
 .cartuplift-subtotal {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
-  padding: 6px 0;
-  font-size: 16px;
+  margin-bottom: 8px;
+  padding: 8px 0;
+  font-size: 15px;
   font-weight: 600;
   color: #000;
-  border-top: none; /* Remove this border */
+  border-top: 1px solid #f0f0f0;
 }
 
-/* Checkout Button */
+/* Checkout Button - Compact */
 .cartuplift-checkout-btn {
   width: 100%;
-  padding: 12px 16px; /* Reduced from 14px 20px */
+  padding: 12px 16px;
   background: var(--cartuplift-primary);
   color: white;
   border: none;
-  border-radius: var(--cartuplift-border-radius);
-  font-size: 14px;
+  border-radius: 6px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.3px;
   text-transform: uppercase;
-  margin-bottom: 6px; /* Reduced from 10px */
-  margin-top: 0; /* Ensure no top margin for tight spacing */
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .cartuplift-checkout-btn:hover {
   filter: brightness(0.9);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Express Checkout */
+/* Express Checkout - Horizontal Row */
 .cartuplift-express-checkout {
   display: flex;
-  gap: 8px; /* Reduced from 10px */
+  gap: 8px;
 }
 
 .cartuplift-paypal-btn,
 .cartuplift-shoppay-btn {
   flex: 1;
-  padding: 8px; /* Reduced from 10px */
+  padding: 8px;
   border: 1px solid #ddd;
-  border-radius: var(--cartuplift-border-radius);
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   background: white;
+  font-size: 12px;
 }
 
 .cartuplift-paypal-btn:hover,
 .cartuplift-shoppay-btn:hover {
   border-color: var(--cartuplift-primary);
-  transform: translateY(-1px);
 }
 
 .cartuplift-paypal-btn img {
-  height: 14px; /* Reduced from 16px */
+  height: 12px;
 }
 
 .cartuplift-shoppay-btn {
@@ -952,8 +931,144 @@
   color: white;
   border-color: #5a31f4;
   font-weight: 600;
-  font-size: 14px;
 }
+
+/* Gift Modal */
+.cartuplift-gift-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.cartuplift-gift-modal.active {
+  display: flex;
+}
+
+.cartuplift-gift-modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 400px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.cartuplift-gift-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.cartuplift-gift-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.cartuplift-gift-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cartuplift-gift-form-group {
+  margin-bottom: 16px;
+}
+
+.cartuplift-gift-form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+.cartuplift-gift-form-group input,
+.cartuplift-gift-form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.cartuplift-gift-form-group input:focus,
+.cartuplift-gift-form-group textarea:focus {
+  border-color: var(--cartuplift-button-color);
+}
+
+.cartuplift-gift-char-count {
+  font-size: 12px;
+  color: #666;
+  text-align: right;
+  margin-top: 4px;
+}
+
+.cartuplift-gift-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.cartuplift-gift-checkbox input[type="checkbox"] {
+  width: auto;
+}
+
+.cartuplift-gift-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.cartuplift-gift-modal-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cartuplift-gift-modal-btn.primary {
+  background: var(--cartuplift-button-color);
+  color: white;
+}
+
+.cartuplift-gift-modal-btn.secondary {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.cartuplift-gift-modal-btn:hover {
+  filter: brightness(0.9);
+}
+
 
 /* ========================================
    Sticky Cart Button

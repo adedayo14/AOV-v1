@@ -2,7 +2,7 @@
 
 client_id = "06d17c445a3713f419add1e31894bcc3"
 name = "cart-uplift-app"
-application_url = "https://hispanic-amount-voting-idaho.trycloudflare.com"
+application_url = "https://donate-homeland-rocket-beaches.trycloudflare.com"
 embedded = true
 handle = "cart-uplift-app-7"
 
@@ -26,12 +26,12 @@ api_version = "2025-07"
 scopes = "write_products,read_orders,write_orders,read_customers,write_themes,read_themes,write_script_tags,read_script_tags"
 
 [auth]
-redirect_urls = ["https://hispanic-amount-voting-idaho.trycloudflare.com/auth/callback", "https://hispanic-amount-voting-idaho.trycloudflare.com/auth/shopify/callback", "https://hispanic-amount-voting-idaho.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://donate-homeland-rocket-beaches.trycloudflare.com/auth/callback", "https://donate-homeland-rocket-beaches.trycloudflare.com/auth/shopify/callback", "https://donate-homeland-rocket-beaches.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
 
 [app_proxy]
-url = "https://hispanic-amount-voting-idaho.trycloudflare.com/apps/proxy"
+url = "https://donate-homeland-rocket-beaches.trycloudflare.com/apps/proxy"
 subpath = "cart-uplift"
 prefix = "apps"
