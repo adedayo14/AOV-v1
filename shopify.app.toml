@@ -2,7 +2,7 @@
 
 client_id = "06d17c445a3713f419add1e31894bcc3"
 name = "cart-uplift-app"
-application_url = "https://wagon-values-showers-rapidly.trycloudflare.com"
+application_url = "https://weekends-contributing-wheel-by.trycloudflare.com"
 embedded = true
 handle = "cart-uplift-app-7"
 
@@ -26,12 +26,12 @@ api_version = "2025-07"
 scopes = "write_products,read_orders,write_orders,read_customers,write_themes,read_themes,write_script_tags,read_script_tags"
 
 [auth]
-redirect_urls = ["https://wagon-values-showers-rapidly.trycloudflare.com/auth/callback", "https://wagon-values-showers-rapidly.trycloudflare.com/auth/shopify/callback", "https://wagon-values-showers-rapidly.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://weekends-contributing-wheel-by.trycloudflare.com/auth/callback", "https://weekends-contributing-wheel-by.trycloudflare.com/auth/shopify/callback", "https://weekends-contributing-wheel-by.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
 
 [app_proxy]
-url = "https://wagon-values-showers-rapidly.trycloudflare.com/apps/proxy"
+url = "https://weekends-contributing-wheel-by.trycloudflare.com/apps/proxy"
 subpath = "cart-uplift"
 prefix = "apps"

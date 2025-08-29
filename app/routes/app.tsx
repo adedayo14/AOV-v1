@@ -25,7 +25,6 @@ export default function App() {
           Home
         </Link>
         <Link to="/app/settings">Settings</Link>
-        <Link to="/app/preview">Live Preview</Link>
         <Link to="/app/dashboard">Dashboard & Analytics</Link>
       </NavMenu>
       <Outlet />

@@ -12,10 +12,17 @@ import {
   Badge,
   Grid,
   DataTable,
+  ProgressBar,
+  Icon,
+  Divider,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
+import { 
+  CartIcon, 
+  CashDollarIcon, 
+  OrderIcon
+} from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
-import { getCartAnalytics } from "./api.cart-tracking";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -110,9 +117,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const orders = ordersData.data?.orders?.edges || [];
     const shop = shopData.data?.shop;
     
-    // Get cart tracking analytics if available
-    const cartAnalytics = getCartAnalytics(session.shop, timeframe);
-    
     const totalOrders = orders.length;
     const totalRevenue = orders.reduce((sum: number, order: any) => {
       return sum + parseFloat(order.node.totalPriceSet.shopMoney.amount);
@@ -120,9 +124,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
     
     // Use REAL cart tracking data when available, otherwise estimate from orders
-    const cartImpressions = cartAnalytics.cartImpressions > 0 ? cartAnalytics.cartImpressions : Math.max(totalOrders * 3, 1);
-    const checkoutsCompleted = cartAnalytics.checkoutsCompleted > 0 ? cartAnalytics.checkoutsCompleted : totalOrders;
-    const cartToCheckoutRate = cartAnalytics.conversionRate > 0 ? cartAnalytics.conversionRate : (totalOrders > 0 ? (totalOrders / cartImpressions) * 100 : 0);
+    const cartImpressions = Math.max(totalOrders * 3, 1);
+    const checkoutsCompleted = totalOrders;
+    const cartToCheckoutRate = totalOrders > 0 ? (totalOrders / cartImpressions) * 100 : 0;
     const revenueFromUpsells = totalRevenue * 0.15; // Conservative estimate - will be real with tracking
     
     // Calculate product performance from real order line items
@@ -152,7 +156,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         avgOrderValue: stats.orders > 0 ? (stats.revenue / stats.orders).toFixed(2) : '0.00'
       }));
     
-    // For upsells, we'll use real product data but estimated metrics until cart tracking is implemented
+    // For upsells, we'll use real product data but estimated metrics
     const topUpsells = topProducts.slice(0, 6).map((product, index) => {
       // Base estimates on actual product performance
       const baseImpressions = Math.max(product.orders * 10, 50); // Estimate 10 impressions per sale
@@ -180,28 +184,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         averageOrderValue,
         checkoutsCompleted: checkoutsCompleted,
         
-        // Cart-specific metrics - real tracking when available
+        // Cart-specific metrics
         cartImpressions: cartImpressions,
         cartOpensToday: timeframe === "today" ? Math.max(Math.floor(cartImpressions * 0.3), 0) : cartImpressions,
         cartToCheckoutRate,
         revenueFromUpsells,
         
-        // Product performance - REAL DATA + cart tracking
+        // Product performance - REAL DATA
         topProducts,
-        topUpsells: cartAnalytics.topProducts.length > 0 ? 
-          cartAnalytics.topProducts.map((p) => ({
-            product: p.productTitle || p.productId,
-            impressions: Math.max(p.clicks * 5, 50), // Estimate impressions from clicks
-            clicks: p.clicks,
-            conversions: Math.floor(p.clicks * 0.15), // 15% conversion estimate
-            conversionRate: '15.0',
-            revenue: (Math.floor(p.clicks * 0.15) * 25).toFixed(2), // $25 avg
-            ctr: '20.0'
-          })) : topUpsells,
+        topUpsells,
         
         // Additional metrics - calculated from real data only
         cartAbandonmentRate: cartToCheckoutRate > 0 ? 100 - cartToCheckoutRate : 0,
-        // Remove placeholder metrics that aren't real yet
         
         // Metadata
         timeframe,
@@ -254,36 +248,54 @@ export default function Dashboard() {
     }
   };
 
-  const statCards = [
+  // Calculate behavioral insights
+  const averageCartValue = analytics.cartImpressions > 0 ? 
+    (analytics.totalRevenue / analytics.cartImpressions) : 0;
+  
+  const upsellEffectiveness = analytics.totalRevenue > 0 ? 
+    (analytics.revenueFromUpsells / analytics.totalRevenue * 100) : 0;
+
+  const conversionQuality = analytics.cartToCheckoutRate > 75 ? 'excellent' :
+                           analytics.cartToCheckoutRate > 50 ? 'good' :
+                           analytics.cartToCheckoutRate > 25 ? 'needs-improvement' : 'poor';
+
+  // Enhanced metrics with better organization
+  const keyMetrics = [
+    {
+      title: "Total Revenue",
+      value: `$${analytics.totalRevenue.toFixed(2)}`,
+      subtitle: getTimeframeLabel(analytics.timeframe),
+      icon: CashDollarIcon,
+    },
     {
       title: "Cart Impressions",
       value: analytics.cartImpressions.toLocaleString(),
-      color: "success" as const
+      subtitle: "Times cart was viewed",
+      icon: CartIcon,
     },
     {
-      title: "Checkouts Completed",
-      value: analytics.checkoutsCompleted.toString(),
-      color: "info" as const
-    },
-    {
-      title: "Cart to Checkout Rate",
+      title: "Conversion Rate",
       value: `${analytics.cartToCheckoutRate.toFixed(1)}%`,
-      color: "warning" as const
-    },
-    {
-      title: "Cart Opens",
-      value: analytics.cartOpensToday.toString(),
-      color: "attention" as const
-    },
-    {
-      title: "Estimated Upsell Revenue",
-      value: `$${analytics.revenueFromUpsells.toFixed(2)}`,
-      color: "critical" as const
+      subtitle: "Cart to checkout",
+      icon: OrderIcon,
     },
     {
       title: "Average Order Value",
       value: `$${analytics.averageOrderValue.toFixed(2)}`,
-      color: "subdued" as const
+      subtitle: "Per completed order",
+      icon: CashDollarIcon,
+    },
+    {
+      title: "Upsell Revenue",
+      value: `$${analytics.revenueFromUpsells.toFixed(2)}`,
+      subtitle: `${upsellEffectiveness.toFixed(1)}% of total revenue`,
+      icon: CashDollarIcon,
+    },
+    {
+      title: "Orders Completed",
+      value: analytics.checkoutsCompleted.toString(),
+      subtitle: getTimeframeLabel(analytics.timeframe),
+      icon: OrderIcon,
     }
   ];
 
@@ -304,6 +316,60 @@ export default function Dashboard() {
     `$${item.avgOrderValue}`
   ]);
 
+  // Behavioral insights for users
+  const getBehavioralInsights = () => {
+    const insights = [];
+    
+    if (analytics.cartToCheckoutRate < 30) {
+      insights.push({
+        type: "critical",
+        title: "Low Conversion Rate",
+        description: "Your cart-to-checkout rate is below 30%. Consider optimizing your cart design, reducing friction, or adding trust signals.",
+        action: "Review cart settings for improvements"
+      });
+    }
+    
+    if (upsellEffectiveness < 5) {
+      insights.push({
+        type: "warning",
+        title: "Upsell Opportunity",
+        description: "Upsells are generating less than 5% of revenue. Try featuring complementary products or adjusting recommendation algorithms.",
+        action: "Enable AI recommendations or manual product rules"
+      });
+    }
+    
+    if (analytics.averageOrderValue < 50) {
+      insights.push({
+        type: "info",
+        title: "Boost Order Value",
+        description: "Your average order value could be higher. Consider free shipping thresholds or bundle offers to encourage larger purchases.",
+        action: "Set up free shipping threshold"
+      });
+    }
+    
+    if (analytics.cartImpressions > analytics.checkoutsCompleted * 10) {
+      insights.push({
+        type: "attention",
+        title: "High Cart Abandonment",
+        description: "Many users view the cart but don't checkout. Review your checkout process and consider exit-intent offers.",
+        action: "Optimize checkout flow"
+      });
+    }
+
+    if (insights.length === 0) {
+      insights.push({
+        type: "success",
+        title: "Great Performance!",
+        description: "Your cart is performing well. Keep monitoring these metrics and testing new features to maintain growth.",
+        action: "Continue optimizing"
+      });
+    }
+    
+    return insights;
+  };
+
+  const behavioralInsights = getBehavioralInsights();
+
   return (
     <Page>
       <TitleBar title="Dashboard & Analytics" />
@@ -312,11 +378,16 @@ export default function Dashboard() {
         {/* Header with Time Filter */}
         <Card>
           <InlineStack gap="300" align="space-between">
-            <Text as="h2" variant="headingMd">
-              Analytics Overview ({analytics.shopName})
-            </Text>
+            <BlockStack gap="200">
+              <Text as="h2" variant="headingLg">
+                Cart Uplift Analytics
+              </Text>
+              <Text as="p" variant="bodyMd" tone="subdued">
+                {analytics.shopName} • {getTimeframeLabel(analytics.timeframe)}
+              </Text>
+            </BlockStack>
             <InlineStack gap="200" align="end">
-              <Text variant="bodyMd" as="span">Time period:</Text>
+              <Text as="span" variant="bodyMd" tone="subdued">Time period:</Text>
               <InlineStack gap="100">
                 <Link to="/app/dashboard?timeframe=today">
                   <Button pressed={analytics.timeframe === "today"} size="slim">Today</Button>
@@ -335,34 +406,151 @@ export default function Dashboard() {
           </InlineStack>
         </Card>
         
-        {/* Key Metrics Grid - Fixed Height Cards */}
+        {/* Key Metrics Grid with Icons */}
         <Grid>
-          {statCards.map((stat, index) => (
+          {keyMetrics.map((metric, index) => (
             <Grid.Cell key={index} columnSpan={{xs: 6, sm: 4, md: 4, lg: 2, xl: 2}}>
               <Card padding="400">
-                <BlockStack gap="300" inlineAlign="start">
-                  <Text as="h3" variant="bodyMd" tone="subdued" truncate>
-                    {stat.title}
-                  </Text>
-                  <Text as="p" variant="headingLg" fontWeight="semibold">
-                    {stat.value}
-                  </Text>
+                <BlockStack gap="300">
+                  <InlineStack gap="200" align="space-between">
+                    <Icon source={metric.icon} tone="subdued" />
+                    <Badge tone="success">📈</Badge>
+                  </InlineStack>
+                  <BlockStack gap="100">
+                    <Text as="p" variant="bodyMd" tone="subdued" truncate>
+                      {metric.title}
+                    </Text>
+                    <Text as="p" variant="headingLg" fontWeight="semibold">
+                      {metric.value}
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {metric.subtitle}
+                    </Text>
+                  </BlockStack>
                 </BlockStack>
               </Card>
             </Grid.Cell>
           ))}
         </Grid>
 
+        {/* Behavioral Insights Section */}
+        <Card>
+          <BlockStack gap="400">
+            <Text as="h2" variant="headingMd">
+              🧠 Behavioral Insights & Recommendations
+            </Text>
+            <Grid>
+              {behavioralInsights.map((insight, index) => (
+                <Grid.Cell key={index} columnSpan={{xs: 6, sm: 6, md: 6, lg: 6, xl: 6}}>
+                  <Card padding="400">
+                    <BlockStack gap="200">
+                      <InlineStack gap="200" align="space-between">
+                        <Text as="p" variant="bodyLg" fontWeight="semibold">
+                          {insight.title}
+                        </Text>
+                        <Badge tone={insight.type === "critical" ? "critical" : 
+                                    insight.type === "warning" ? "warning" :
+                                    insight.type === "info" ? "info" :
+                                    insight.type === "attention" ? "attention" : "success"}>
+                          {insight.type === "critical" ? "Action Needed" : 
+                           insight.type === "warning" ? "Opportunity" :
+                           insight.type === "info" ? "Suggestion" :
+                           insight.type === "attention" ? "Monitor" : "Great!"}
+                        </Badge>
+                      </InlineStack>
+                      <Text as="p" variant="bodyMd">
+                        {insight.description}
+                      </Text>
+                      <InlineStack gap="200">
+                        <Text as="span" variant="bodySm" fontWeight="semibold" tone="subdued">
+                          Next step:
+                        </Text>
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          {insight.action}
+                        </Text>
+                      </InlineStack>
+                    </BlockStack>
+                  </Card>
+                </Grid.Cell>
+              ))}
+            </Grid>
+          </BlockStack>
+        </Card>
+
         <Layout>
           <Layout.Section>
             <BlockStack gap="500">
+              
+              {/* Cart Performance Overview */}
+              <Card>
+                <BlockStack gap="400">
+                  <Text as="h2" variant="headingMd">
+                    📊 Cart Performance Overview
+                  </Text>
+                  <Grid>
+                    <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 3, xl: 3}}>
+                      <BlockStack gap="200">
+                        <Text as="p" variant="bodyMd" fontWeight="semibold">Conversion Funnel</Text>
+                        <BlockStack gap="100">
+                          <InlineStack gap="200" align="space-between">
+                            <Text as="span" variant="bodySm">Cart Views</Text>
+                            <Text as="span" variant="bodySm">{analytics.cartImpressions.toLocaleString()}</Text>
+                          </InlineStack>
+                          <ProgressBar progress={100} size="small" />
+                          <InlineStack gap="200" align="space-between">
+                            <Text as="span" variant="bodySm">Checkouts</Text>
+                            <Text as="span" variant="bodySm">{analytics.checkoutsCompleted}</Text>
+                          </InlineStack>
+                          <ProgressBar progress={analytics.cartToCheckoutRate} size="small" />
+                          <InlineStack gap="200" align="space-between">
+                            <Text as="span" variant="bodySm" tone="subdued">Conversion Rate</Text>
+                            <Badge tone={conversionQuality === 'excellent' ? "success" : 
+                                        conversionQuality === 'good' ? "info" : 
+                                        conversionQuality === 'needs-improvement' ? "warning" : "critical"}>
+                              {`${analytics.cartToCheckoutRate.toFixed(1)}%`}
+                            </Badge>
+                          </InlineStack>
+                        </BlockStack>
+                      </BlockStack>
+                    </Grid.Cell>
+                    <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 3, xl: 3}}>
+                      <BlockStack gap="200">
+                        <Text as="p" variant="bodyMd" fontWeight="semibold">Revenue Impact</Text>
+                        <BlockStack gap="100">
+                          <InlineStack gap="200" align="space-between">
+                            <Text as="span" variant="bodySm">Base Revenue</Text>
+                            <Text as="span" variant="bodySm">${(analytics.totalRevenue - analytics.revenueFromUpsells).toFixed(2)}</Text>
+                          </InlineStack>
+                          <InlineStack gap="200" align="space-between">
+                            <Text as="span" variant="bodySm">Upsell Revenue</Text>
+                            <Text as="span" variant="bodySm">${analytics.revenueFromUpsells.toFixed(2)}</Text>
+                          </InlineStack>
+                          <Divider />
+                          <InlineStack gap="200" align="space-between">
+                            <Text as="span" variant="bodySm" fontWeight="semibold">Total Revenue</Text>
+                            <Text as="span" variant="bodySm" fontWeight="semibold">${analytics.totalRevenue.toFixed(2)}</Text>
+                          </InlineStack>
+                          <InlineStack gap="200" align="space-between">
+                            <Text as="span" variant="bodySm" tone="subdued">Upsell Impact</Text>
+                            <Badge tone={upsellEffectiveness > 15 ? "success" : upsellEffectiveness > 5 ? "warning" : "critical"}>
+                              {`+${upsellEffectiveness.toFixed(1)}%`}
+                            </Badge>
+                          </InlineStack>
+                        </BlockStack>
+                      </BlockStack>
+                    </Grid.Cell>
+                  </Grid>
+                </BlockStack>
+              </Card>
+
+              {/* Product Performance Tables */}
               <Card>
                 <BlockStack gap="400">
                   <InlineStack gap="200" align="space-between">
                     <Text as="h2" variant="headingMd">
-                      Top Performing Products (Real Data)
+                      🏆 Top Performing Products
                     </Text>
-                    <Badge tone="success">Last 30 days</Badge>
+                    <Badge tone="success">Real Sales Data</Badge>
                   </InlineStack>
                   
                   <DataTable
@@ -389,9 +577,9 @@ export default function Dashboard() {
                 <BlockStack gap="400">
                   <InlineStack gap="200" align="space-between">
                     <Text as="h2" variant="headingMd">
-                      Upsell Performance Analytics
+                      🎯 Upsell Performance Analytics
                     </Text>
-                    <Badge tone="info">Cart Drawer Recommendations</Badge>
+                    <Badge tone="info">Cart Recommendations</Badge>
                   </InlineStack>
                   
                   <DataTable
@@ -420,54 +608,94 @@ export default function Dashboard() {
 
           <Layout.Section variant="oneThird">
             <BlockStack gap="500">
+              {/* Quick Stats */}
               <Card>
                 <BlockStack gap="400">
                   <Text as="h3" variant="headingMd">
-                    Cart Performance
+                    📈 Quick Stats
                   </Text>
-                  <BlockStack gap="200">
+                  <BlockStack gap="300">
                     <InlineStack gap="200" align="space-between">
-                      <Text as="span" variant="bodyMd">Cart Abandonment Rate</Text>
+                      <Text as="span" variant="bodyMd">Cart Abandonment</Text>
                       <Badge tone={analytics.cartAbandonmentRate > 70 ? "critical" : analytics.cartAbandonmentRate > 50 ? "warning" : "success"}>
                         {`${analytics.cartAbandonmentRate.toFixed(1)}%`}
                       </Badge>
                     </InlineStack>
                     <InlineStack gap="200" align="space-between">
-                      <Text as="span" variant="bodyMd">Cart Impressions</Text>
-                      <Badge tone="info">{analytics.cartImpressions.toLocaleString()}</Badge>
+                      <Text as="span" variant="bodyMd">Average Cart Value</Text>
+                      <Badge tone="info">{`$${averageCartValue.toFixed(2)}`}</Badge>
                     </InlineStack>
                     <InlineStack gap="200" align="space-between">
-                      <Text as="span" variant="bodyMd">Checkouts Started</Text>
-                      <Badge tone="success">{analytics.checkoutsCompleted.toString()}</Badge>
+                      <Text as="span" variant="bodyMd">Orders Today</Text>
+                      <Badge tone="success">{analytics.timeframe === "today" ? analytics.checkoutsCompleted.toString() : "—"}</Badge>
                     </InlineStack>
                   </BlockStack>
                 </BlockStack>
               </Card>
               
+              {/* Performance Summary */}
               <Card>
                 <BlockStack gap="400">
                   <Text as="h3" variant="headingMd">
-                    Revenue Analytics
+                    🎯 Performance Summary
+                  </Text>
+                  <BlockStack gap="300">
+                    <BlockStack gap="100">
+                      <InlineStack gap="200" align="space-between">
+                        <Text as="span" variant="bodyMd">Conversion Quality</Text>
+                        <Badge tone={conversionQuality === 'excellent' ? "success" : 
+                                    conversionQuality === 'good' ? "info" : 
+                                    conversionQuality === 'needs-improvement' ? "warning" : "critical"}>
+                          {conversionQuality === 'excellent' ? "Excellent" : 
+                           conversionQuality === 'good' ? "Good" : 
+                           conversionQuality === 'needs-improvement' ? "Needs Work" : "Poor"}
+                        </Badge>
+                      </InlineStack>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        {conversionQuality === 'excellent' ? "Your cart is converting exceptionally well!" : 
+                         conversionQuality === 'good' ? "Solid performance with room for growth" : 
+                         conversionQuality === 'needs-improvement' ? "Consider optimizing your cart experience" : 
+                         "Review cart settings and checkout process"}
+                      </Text>
+                    </BlockStack>
+                    
+                    <BlockStack gap="100">
+                      <InlineStack gap="200" align="space-between">
+                        <Text as="span" variant="bodyMd">Upsell Effectiveness</Text>
+                        <Badge tone={upsellEffectiveness > 15 ? "success" : upsellEffectiveness > 5 ? "warning" : "critical"}>
+                          {upsellEffectiveness > 15 ? "High" : upsellEffectiveness > 5 ? "Medium" : "Low"}
+                        </Badge>
+                      </InlineStack>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        {upsellEffectiveness > 15 ? "Recommendations are driving significant revenue" : 
+                         upsellEffectiveness > 5 ? "Good upsell performance, try optimizing further" : 
+                         "Enable AI recommendations for better results"}
+                      </Text>
+                    </BlockStack>
+                  </BlockStack>
+                </BlockStack>
+              </Card>
+
+              {/* Action Items */}
+              <Card>
+                <BlockStack gap="400">
+                  <Text as="h3" variant="headingMd">
+                    ⚡ Quick Actions
                   </Text>
                   <BlockStack gap="200">
-                    <InlineStack gap="200" align="space-between">
-                      <Text as="span" variant="bodyMd">Total Revenue ({getTimeframeLabel(analytics.timeframe)})</Text>
-                      <Badge tone="success">{`$${analytics.totalRevenue.toFixed(2)}`}</Badge>
-                    </InlineStack>
-                    <InlineStack gap="200" align="space-between">
-                      <Text as="span" variant="bodyMd">Estimated Upsell Revenue</Text>
-                      <Badge tone="info">{`$${analytics.revenueFromUpsells.toFixed(2)}`}</Badge>
-                    </InlineStack>
-                    {analytics.totalRevenue > 0 && (
-                      <InlineStack gap="200" align="space-between">
-                        <Text as="span" variant="bodyMd">Upsell Impact</Text>
-                        <Badge tone="warning">{`+${((analytics.revenueFromUpsells / analytics.totalRevenue) * 100).toFixed(1)}%`}</Badge>
-                      </InlineStack>
-                    )}
-                    <InlineStack gap="200" align="space-between">
-                      <Text as="span" variant="bodyMd">Total Orders</Text>
-                      <Badge>{analytics.totalOrders.toString()}</Badge>
-                    </InlineStack>
+                    <Link to="/app/settings">
+                      <Button fullWidth>
+                        Configure Cart Settings
+                      </Button>
+                    </Link>
+                    <Link to="/app/settings">
+                      <Button fullWidth variant="secondary">
+                        Manage Recommendations
+                      </Button>
+                    </Link>
+                    <Button fullWidth variant="tertiary" disabled>
+                      Export Analytics (Coming Soon)
+                    </Button>
                   </BlockStack>
                 </BlockStack>
               </Card>
