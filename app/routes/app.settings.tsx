@@ -100,9 +100,9 @@ export default function SettingsPage() {
   ];
 
   const complementDetectionModeOptions = [
-    { label: "🤖 Automatic (AI-Powered) - 87% accuracy", value: "automatic" },
-    { label: "📝 Manual Rules Only", value: "manual" },
-    { label: "🎯 Hybrid (Auto + Overrides) ✓ Recommended", value: "hybrid" },
+    { label: "✨ Automatic (AI-Powered)", value: "automatic" },
+    { label: "⚙️ Manual Rules Only", value: "manual" },
+    { label: "🔄 Hybrid (Auto + Overrides)", value: "hybrid" },
   ];
 
   return (
@@ -355,7 +355,7 @@ export default function SettingsPage() {
                   />
                   
                   <Select
-                    label="🤖 Smart Complement Detection Mode"
+                    label="✨ Smart Complement Detection Mode"
                     options={complementDetectionModeOptions}
                     value={(formSettings as any).complementDetectionMode || 'automatic'}
                     onChange={(value) => updateSetting("complementDetectionMode", value)}
@@ -370,7 +370,7 @@ export default function SettingsPage() {
             {formSettings.enableRecommendations && (formSettings as any).complementDetectionMode !== 'automatic' && (
               <Card>
                 <BlockStack gap="400">
-                  <Text variant="headingLg" as="h2">🎯 Manual Complement Rules</Text>
+                  <Text variant="headingLg" as="h2">⚙️ Manual Complement Rules</Text>
                   <Text variant="bodyMd" as="p" tone="subdued">
                     Override AI detection with custom rules. Define which products should recommend specific complements.
                   </Text>
@@ -378,7 +378,7 @@ export default function SettingsPage() {
                   <FormLayout>
                     <BlockStack gap="300">
                       <div className="cartuplift-detection-preview">
-                        <Text variant="headingMd" as="h3">Automatic Detections Preview (87% confidence):</Text>
+                        <Text variant="headingMd" as="h3">✨ Automatic Detections Preview:</Text>
                         <ul style={{ fontSize: '14px', color: '#6B7280', marginTop: '8px', paddingLeft: '20px' }}>
                           <li>Running Shoes → Socks, Insoles, Water Bottle</li>
                           <li>Dress Shirts → Ties, Cufflinks, Collar Stays</li>
