@@ -2,7 +2,7 @@
   'use strict';
   
   // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v152';
+  const CART_UPLIFT_VERSION = 'v153';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
   // Safe analytics shim (no-op if not provided by host)
