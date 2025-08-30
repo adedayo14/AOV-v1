@@ -2,7 +2,7 @@
   'use strict';
   
   // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v155';
+  const CART_UPLIFT_VERSION = 'v156';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
   // Safe analytics shim (no-op if not provided by host)
@@ -782,10 +782,13 @@
       const targetIndex = Math.min(maxIndex, currentIndex + 1);
       let targetScroll = targetIndex * this.scrollAmount;
       
-      // If we're near the end, scroll to the actual end to show the last card fully
-      if (targetScroll >= maxScroll - 20) {
+      // If we're approaching the end or at the last calculated index, scroll to the absolute end
+      if (targetIndex >= maxIndex || targetScroll >= maxScroll - 50) {
         targetScroll = maxScroll;
+        console.log('🛒 Scrolling to absolute end:', maxScroll);
       }
+      
+      console.log('🛒 Scroll details:', { currentScroll, maxScroll, targetScroll, currentIndex, targetIndex, maxIndex });
       
       scrollContainer.scrollTo({
         left: targetScroll,

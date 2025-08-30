@@ -588,7 +588,7 @@
 .cartuplift-recommendations-track {
   display: flex;
   gap: 15px;
-  padding: 6px 60px 6px 16px; /* increased right padding to 60px for full last card visibility */
+  padding: 6px 100px 6px 16px; /* increased right padding to 100px to ensure full last card visibility */
   margin-top: 4px; /* Slightly tighter to header */
 }
 
@@ -1026,7 +1026,7 @@
   /* Exact desktop card sizing and spacing */
   .cartuplift-recommendations-track {
     gap: 0; /* card margin controls spacing */
-    padding: 6px 60px 6px 16px; /* increased right padding to 60px for full last card visibility */
+    padding: 6px 100px 6px 16px; /* increased right padding to 100px to ensure full last card visibility */
   }
 
   .cartuplift-recommendation-card {
