@@ -2,7 +2,7 @@
   'use strict';
   
   // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v157';
+  const CART_UPLIFT_VERSION = 'v158';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
   // Safe analytics shim (no-op if not provided by host)
@@ -598,21 +598,23 @@
   generateVariantSelector(product) {
       // If product has variants with multiple meaningful options, generate a proper selector
       if (product.variants && product.variants.length > 1) {
-        // Get the option name (typically Size, Color, etc.)
-    const firstOption = (product.options && product.options.length > 0) ? product.options[0] : null;
-    const optionLabel = typeof firstOption === 'string' ? firstOption : (firstOption && firstOption.name) ? firstOption.name : 'Option';
+        // Find the first available variant to set as selected
+        let firstAvailableIndex = -1;
+        const availableVariants = product.variants.filter((variant, index) => {
+          if (variant.available && firstAvailableIndex === -1) {
+            firstAvailableIndex = index;
+          }
+          return variant.available;
+        });
         
         return `
           <div class="cartuplift-product-variation">
             <select class="cartuplift-size-dropdown" data-product-id="${product.id}">
-        <option value="">Select ${optionLabel}</option>
-              ${product.variants.map(variant => 
-                variant.available ? `
-                  <option value="${variant.id}" data-price-cents="${variant.price_cents}">
-                    ${variant.title}
-                  </option>
-                ` : ''
-              ).join('')}
+              ${availableVariants.map((variant, index) => `
+                <option value="${variant.id}" data-price-cents="${variant.price_cents}" ${index === 0 ? 'selected' : ''}>
+                  ${variant.title}
+                </option>
+              `).join('')}
             </select>
           </div>
         `;
