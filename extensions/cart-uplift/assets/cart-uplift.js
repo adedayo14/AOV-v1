@@ -2,7 +2,7 @@
   'use strict';
   
   // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v160';
+  const CART_UPLIFT_VERSION = 'v161';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
   // Safe analytics shim (no-op if not provided by host)
@@ -1216,17 +1216,28 @@
           this.addToCart(variantId, 1);
         } else if (
           e.target.classList.contains('cartuplift-recommendations-toggle') ||
-          (e.target.closest && e.target.closest('.cartuplift-recommendations-toggle'))
+          e.target.closest('.cartuplift-recommendations-toggle')
         ) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          console.log('🛒 Toggle button clicked!', e.target);
+          
           // Robustly find the toggle button and recommendations section
           const toggleButton = e.target.classList.contains('cartuplift-recommendations-toggle')
             ? e.target
             : e.target.closest('.cartuplift-recommendations-toggle');
+            
+          console.log('🛒 Toggle button found:', toggleButton);
+          
           // Find the recommendations section relative to the toggle button
           let recommendations = toggleButton.closest('.cartuplift-recommendations');
           if (!recommendations) {
             recommendations = container.querySelector('.cartuplift-recommendations');
           }
+          
+          console.log('🛒 Recommendations section found:', recommendations);
+          
           if (recommendations) {
             const isCollapsed = recommendations.classList.contains('collapsed');
             console.log('🛒 Toggle clicked! Before toggle - isCollapsed:', isCollapsed, 'classes:', recommendations.className);
