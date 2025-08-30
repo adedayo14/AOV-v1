@@ -470,13 +470,12 @@
 /* Header bar */
 .cartuplift-recommendations-header {
   display: flex;
-  justify-content: space-between;  /* like your example */
-  align-items: center;             /* vertical centring */
-  width: 100%;                     /* not a hard 511px */
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
   padding: 4px 12px;
   background: var(--cartuplift-recommendations-bg);
-  min-height: 36px;                /* reduced height */
-  /* remove any fixed height/line-height */
+  min-height: 36px;
 }
 
 .cartuplift-recommendations.collapsed .cartuplift-recommendations-header {
