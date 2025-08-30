@@ -472,34 +472,23 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: 100%;
-  padding: 4px 12px;
+  padding: 0 12px;
+  height: 36px;
+  box-sizing: border-box;
   background: var(--cartuplift-recommendations-bg);
-  min-height: 36px;
-}
-
-.cartuplift-recommendations.collapsed .cartuplift-recommendations-header {
-  margin-bottom: 0;
-  padding: 4px 12px;               /* maintain consistent padding */
-  min-height: 36px;                /* maintain reduced height when collapsed */
-  align-items: center;             /* force vertical centering when collapsed */
-  display: flex;                   /* ensure flexbox stays active */
-  justify-content: space-between;  /* maintain space-between in collapsed state */
 }
 
 /* Title */
 .cartuplift-recommendations-title {
   margin: 0;
-  padding: 0;  /* Remove any padding */
-  font-size: 12px;                 /* text-xs equivalent */
-  font-weight: 400;                /* font-regular */
-  letter-spacing: .12em;           /* tracking-wider */
-  text-transform: none;            /* don't force uppercase - show user input as-is */
-  line-height: 1;                  /* Reset line-height */
-  display: flex;                   /* Make it a flex container */
-  align-items: center;             /* Center the text vertically */
-  height: 24px;                    /* Match the toggle button height */
+  padding: 0;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: .12em;
+  text-transform: none;
+  line-height: 36px; /* Match header height for perfect vertical centering */
 }
+
 
 /* Toggle button on the right */
 .cartuplift-recommendations-toggle {
@@ -1566,3 +1555,7 @@
   border-top: 1px solid #e5e5e5;
   flex-shrink: 0;
 }
+
+
+
+
