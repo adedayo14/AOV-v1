@@ -54,6 +54,13 @@ handle = "cart-drawer"
     info = "Main text color in the cart drawer"
     default = "#1A1A1A"
 
+  [[settings.fields]]
+    key = "recommendations_background_color"
+    type = "color"
+    name = "Recommendations background color"
+    info = "Background color for the entire recommendations section"
+    default = "#ecebe3"
+
   # Product Recommendations - Commonly adjusted
   [[settings.fields]]
     type = "header"

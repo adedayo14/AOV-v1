@@ -2,7 +2,7 @@
   'use strict';
   
   // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v140';
+  const CART_UPLIFT_VERSION = 'v141';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
   // Safe analytics shim (no-op if not provided by host)
@@ -306,11 +306,11 @@
             <div class="cartuplift-scrollable-content">
               ${this.settings.enableAddons ? this.getAddonsHTML() : ''}
               ${shouldShowRecommendations ? this.getRecommendationsHTML() : ''}
+              ${this.settings.enableDiscountCode || this.settings.enableNotes ? this.getDiscountHTML() : ''}
             </div>
           </div>
           
           <div class="cartuplift-footer">
-            ${this.settings.enableDiscountCode || this.settings.enableNotes ? this.getDiscountHTML() : ''}
             
             <div class="cartuplift-subtotal">
               <span>Subtotal</span>
@@ -476,7 +476,7 @@
         <div class="cartuplift-recommendations cartuplift-recommendations-${layout}">
           <div class="cartuplift-recommendations-header">
             <h3 class="cartuplift-recommendations-title">${title}</h3>
-            <button class="cartuplift-recommendations-toggle" data-toggle="recommendations" aria-expanded="true" aria-controls="cartuplift-recommendations-content">
+            <button class="cartuplift-recommendations-toggle" data-toggle="recommendations" aria-expanded="true" aria-controls="cartuplift-recommendations-content" aria-label="Toggle recommendations">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
               </svg>
