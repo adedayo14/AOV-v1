@@ -473,7 +473,7 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 8px 16px 8px 12px; /* Match cart close button alignment: 16px right padding */
+  padding: 8px 12px 8px 12px; /* Reduced right padding to move toggle left */
   background: var(--cartuplift-recommendations-bg);
   height: 36px;  /* Use fixed height instead of min-height */
   box-sizing: border-box;
@@ -481,7 +481,7 @@
 
 .cartuplift-recommendations.collapsed .cartuplift-recommendations-header {
   margin-bottom: 0;
-  padding: 8px 16px 8px 12px; /* Match main header padding */
+  padding: 8px 12px 8px 12px; /* Match main header padding */
   height: 36px;  /* Match main header height */
   box-sizing: border-box;
 }
