@@ -2,7 +2,7 @@
   'use strict';
   
   // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v147';
+  const CART_UPLIFT_VERSION = 'v148';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
   // Safe analytics shim (no-op if not provided by host)
@@ -474,14 +474,14 @@
 
       const html = `
         <div class="cartuplift-recommendations cartuplift-recommendations-${layout}">
-          <button class="cartuplift-recommendations-header" data-toggle="recommendations" aria-expanded="true" aria-controls="cartuplift-recommendations-content" aria-label="Toggle recommendations">
+          <div class="cartuplift-recommendations-header">
             <h3 class="cartuplift-recommendations-title">${title}</h3>
-            <span class="cartuplift-recommendations-toggle-icon">
+            <button class="cartuplift-recommendations-toggle" data-toggle="recommendations" aria-expanded="true" aria-controls="cartuplift-recommendations-content" aria-label="Toggle recommendations">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
               </svg>
-            </span>
-          </button>
+            </button>
+          </div>
           <div class="cartuplift-recommendations-content" id="cartuplift-recommendations-content" aria-hidden="false">
             ${this.getRecommendationItems()}
           </div>
