@@ -476,16 +476,6 @@
   height: 36px;
   box-sizing: border-box;
   background: var(--cartuplift-recommendations-bg);
-  width: 100%;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  font: inherit;
-  color: inherit;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  outline: none; /* Remove focus outline */
 }
 
 /* Title */
