@@ -428,7 +428,7 @@
 
 .cartuplift-recommendations {
   background: var(--cartuplift-recommendations-bg);
-  padding: 9px 0 4px 0; /* 5px top padding + existing 4px, keep 4px bottom */
+  padding: 4px 0; /* Reduced from 8px */
   margin: 0;
   border-top: none;
   flex-shrink: 0;
@@ -440,7 +440,7 @@
 }
 
 .cartuplift-recommendations.collapsed {
-  padding: 9px 0 4px 0; /* Match the main padding with 5px top space */
+  padding: 4px 0; /* Match the main padding */
 }
 
 /* When recommendations are inside the scrollable content area,
@@ -472,23 +472,20 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 12px;
-  height: 36px;
-  box-sizing: border-box;
-  background: var(--cartuplift-recommendations-bg);
   width: 100%;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  font: inherit;
-  color: inherit;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  outline: none; /* Remove focus outline */
+  padding: 8px 16px 8px 12px; /* Match cart close button alignment: 16px right padding */
+  background: var(--cartuplift-recommendations-bg);
+  height: 36px;  /* Use fixed height instead of min-height */
+  box-sizing: border-box;
 }
 
-/* Title */
+.cartuplift-recommendations.collapsed .cartuplift-recommendations-header {
+  margin-bottom: 0;
+  padding: 8px 16px 8px 12px; /* Match main header padding */
+  height: 36px;  /* Match main header height */
+  box-sizing: border-box;
+}
+
 .cartuplift-recommendations-title {
   margin: 0;
   padding: 0;
@@ -496,9 +493,10 @@
   font-weight: 400;
   letter-spacing: .12em;
   text-transform: none;
-  line-height: 36px; /* Match header height for perfect vertical centering */
+  line-height: 24px;  /* Match toggle button height for alignment */
+  display: inline-block;  /* Allow natural text flow */
+  vertical-align: middle;  /* Ensure middle alignment */
 }
-
 
 /* Toggle button on the right */
 .cartuplift-recommendations-toggle {
@@ -534,7 +532,7 @@
   position: relative;
   display: block; /* Default visible; allow collapsed state to override */
   background: var(--cartuplift-recommendations-bg);
-  padding: 17px 12px 12px 12px; /* 5px extra top padding (12px + 5px), keep sides and bottom */
+  padding: 12px;
 }
 
 /* Ensure recommendations are visible by default */
@@ -1565,7 +1563,5 @@
   border-top: 1px solid #e5e5e5;
   flex-shrink: 0;
 }
-
-
 
 

@@ -2,36 +2,36 @@
 
 client_id = "06d17c445a3713f419add1e31894bcc3"
 name = "cart-uplift-app"
-application_url = "https://persistent-refine-mtv-speaking.trycloudflare.com"
-embedded = true
 handle = "cart-uplift-app-7"
+application_url = "https://bookstore-congratulations-defects-submission.trycloudflare.com"
+embedded = true
 
 [build]
-include_config_on_deploy = true
 automatically_update_urls_on_dev = true
+include_config_on_deploy = true
 
 [webhooks]
 api_version = "2025-07"
 
   [[webhooks.subscriptions]]
-  topics = [ "app/uninstalled" ]
-  uri = "/webhooks/app/uninstalled"
-
-  [[webhooks.subscriptions]]
   topics = [ "app/scopes_update" ]
   uri = "/webhooks/app/scopes_update"
 
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
+
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products,read_orders,write_orders,read_customers,write_themes,read_themes,write_script_tags,read_script_tags"
+scopes = "read_customers,read_orders,read_script_tags,read_themes,write_orders,write_products,write_script_tags,write_themes"
 
 [auth]
-redirect_urls = ["https://persistent-refine-mtv-speaking.trycloudflare.com/auth/callback", "https://persistent-refine-mtv-speaking.trycloudflare.com/auth/shopify/callback", "https://persistent-refine-mtv-speaking.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://bookstore-congratulations-defects-submission.trycloudflare.com/auth/callback", "https://bookstore-congratulations-defects-submission.trycloudflare.com/auth/shopify/callback", "https://bookstore-congratulations-defects-submission.trycloudflare.com/api/auth/callback"]
+
+[app_proxy]
+url = "https://bookstore-congratulations-defects-submission.trycloudflare.com/apps/proxy"
+subpath = "cart-uplift"
+prefix = "apps"
 
 [pos]
 embedded = false
-
-[app_proxy]
-url = "https://persistent-refine-mtv-speaking.trycloudflare.com/apps/proxy"
-subpath = "cart-uplift"
-prefix = "apps"
