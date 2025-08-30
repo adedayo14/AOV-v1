@@ -428,7 +428,7 @@
 
 .cartuplift-recommendations {
   background: var(--cartuplift-recommendations-bg);
-  padding: 4px 0; /* Reduced from 8px */
+  padding: 9px 0 4px 0; /* 5px top padding + existing 4px, keep 4px bottom */
   margin: 0;
   border-top: none;
   flex-shrink: 0;
@@ -440,7 +440,7 @@
 }
 
 .cartuplift-recommendations.collapsed {
-  padding: 4px 0; /* Match the main padding */
+  padding: 9px 0 4px 0; /* Match the main padding with 5px top space */
 }
 
 /* When recommendations are inside the scrollable content area,
@@ -534,7 +534,7 @@
   position: relative;
   display: block; /* Default visible; allow collapsed state to override */
   background: var(--cartuplift-recommendations-bg);
-  padding: 12px;
+  padding: 17px 12px 12px 12px; /* 5px extra top padding (12px + 5px), keep sides and bottom */
 }
 
 /* Ensure recommendations are visible by default */
