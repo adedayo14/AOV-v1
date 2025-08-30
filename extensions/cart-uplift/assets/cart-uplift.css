@@ -1017,19 +1017,6 @@
   .cartuplift-carousel-dots {
     display: none !important;
   }
-  
-  /* Desktop: Right-aligned navigation controls */
-  .cartuplift-carousel-controls {
-    display: flex !important;
-    justify-content: flex-end !important;
-    align-items: center;
-    width: 100%;
-    gap: 8px;
-    padding: 2px 6px;
-    margin-top: 0px;
-    margin-bottom: 2px;
-    background: var(--cartuplift-recommendations-bg);
-  }
 
   /* Exact desktop card sizing and spacing */
   .cartuplift-recommendations-track {
