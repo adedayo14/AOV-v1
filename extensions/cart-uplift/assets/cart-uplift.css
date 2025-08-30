@@ -128,27 +128,28 @@
 .cartuplift-close {
   background: transparent;
   border: none;
-  padding: 4px;
   cursor: pointer;
-  color: var(--cartuplift-secondary);
-  transition: color 0.2s ease;
-  width: 24px;
-  height: 24px;
+  padding: 6px;
+  color: #000; /* Black, same as product remove buttons */
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 36px; /* Match product remove button size */
+  height: 36px; /* Match product remove button size */
+  border-radius: 50%; /* Match product remove button style */
   flex-shrink: 0;
-  border-radius: 4px;
 }
 
 .cartuplift-close:hover {
-  color: var(--cartuplift-primary);
-  background: #f5f5f5;
+  color: #111;
+  background: #f0f0f0; /* Match product remove button hover */
 }
 
 .cartuplift-close svg {
-  width: 16px;
-  height: 16px;
+  width: 18px; /* Match product remove button icon size */
+  height: 18px; /* Match product remove button icon size */
+  stroke-width: 2.25; /* Match product remove button stroke */
 }
 
 /* ========================================
@@ -473,7 +474,10 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 8px 12px 8px 12px; /* Reduced right padding to move toggle left */
+  padding-left: 12px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-right: 4px; /* Reduced to move toggle closer to edge */
   background: var(--cartuplift-recommendations-bg);
   height: 36px;  /* Use fixed height instead of min-height */
   box-sizing: border-box;
@@ -481,7 +485,10 @@
 
 .cartuplift-recommendations.collapsed .cartuplift-recommendations-header {
   margin-bottom: 0;
-  padding: 8px 12px 8px 12px; /* Match main header padding */
+  padding-left: 12px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-right: 4px; /* Match main header padding */
   height: 36px;  /* Match main header height */
   box-sizing: border-box;
 }
