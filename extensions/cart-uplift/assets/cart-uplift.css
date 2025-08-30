@@ -740,7 +740,7 @@
 }
 
 .cartuplift-size-dropdown {
-  padding: 6px 32px 6px 12px; /* increased right padding for circle arrow */
+  padding: 6px 28px 6px 12px; /* adjusted right padding */
   border: 1px solid #ddd;
   border-radius: 16px;
   background: white;
@@ -757,13 +757,13 @@
   align-items: center;
   height: 28px; /* Visual alignment with Add button */
   
-  /* Create circular background for arrow */
+  /* Create subtle circular background for arrow */
   background-image: 
-    radial-gradient(circle at calc(100% - 16px) center, #f0f0f0 10px, transparent 11px),
+    radial-gradient(circle at calc(100% - 14px) center, #f8f8f8 8px, transparent 9px),
     url("data:image/svg+xml,%3Csvg width='8' height='5' viewBox='0 0 8 5' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L4 4L7 1' stroke='%23666' stroke-width='1.2'/%3E%3C/svg%3E");
   background-repeat: no-repeat, no-repeat;
-  background-position: right 16px center, right 12px center;
-  background-size: 20px 20px, 8px 5px;
+  background-position: right 14px center, right 10px center;
+  background-size: 16px 16px, 8px 5px;
 }
 
 .cartuplift-size-dropdown:focus {
