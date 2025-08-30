@@ -2,7 +2,7 @@
   'use strict';
   
   // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v154';
+  const CART_UPLIFT_VERSION = 'v155';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
   // Safe analytics shim (no-op if not provided by host)
@@ -698,9 +698,9 @@
         const trackStyle = track ? window.getComputedStyle(track) : null;
         const gap = trackStyle ? parseInt(trackStyle.gap || '15', 10) : 15;
         
-        // Desktop cards are 300px + gap
-        this.cardWidth = card?.offsetWidth || 300;
-        this.scrollAmount = this.cardWidth + gap; // card width + gap between cards
+        // Desktop cards are 338px + 8px margin = 346px total width
+        this.cardWidth = card?.offsetWidth || 338;
+        this.scrollAmount = (this.cardWidth + 8); // card width + right margin (gap handled by margin)
       }
       
       console.log('🛒 Scroll setup:', { isMobile, cardWidth: this.cardWidth, scrollAmount: this.scrollAmount });
@@ -780,7 +780,12 @@
       const currentIndex = Math.round(currentScroll / this.scrollAmount);
       const maxIndex = Math.floor(maxScroll / this.scrollAmount);
       const targetIndex = Math.min(maxIndex, currentIndex + 1);
-      const targetScroll = targetIndex * this.scrollAmount;
+      let targetScroll = targetIndex * this.scrollAmount;
+      
+      // If we're near the end, scroll to the actual end to show the last card fully
+      if (targetScroll >= maxScroll - 20) {
+        targetScroll = maxScroll;
+      }
       
       scrollContainer.scrollTo({
         left: targetScroll,

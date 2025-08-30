@@ -497,13 +497,13 @@
   margin: 0;
   padding: 0;
   font-size: 12px;
-  font-weight: 400;
-  letter-spacing: 0.05em;  /* tracking-wider equivalent */
-  text-transform: none;  /* preserve original casing as requested */
-  line-height: 24px;  /* Match toggle button height for alignment */
-  display: inline-block;  /* Allow natural text flow */
-  vertical-align: middle;  /* Ensure middle alignment */
-  box-sizing: border-box;  /* from your reference styling */
+  font-weight: 600;
+  letter-spacing: 0.05em;  
+  text-transform: none;  
+  line-height: 24px;  
+  display: inline-block;  
+  vertical-align: middle;  
+  box-sizing: border-box;  
 }
 
 /* Toggle button on the right */
@@ -588,7 +588,7 @@
 .cartuplift-recommendations-track {
   display: flex;
   gap: 15px;
-  padding: 6px 32px 6px 16px; /* increased right padding to 32px for better last card visibility */
+  padding: 6px 60px 6px 16px; /* increased right padding to 60px for full last card visibility */
   margin-top: 4px; /* Slightly tighter to header */
 }
 
@@ -1026,7 +1026,7 @@
   /* Exact desktop card sizing and spacing */
   .cartuplift-recommendations-track {
     gap: 0; /* card margin controls spacing */
-    padding: 6px 32px 6px 16px; /* increased right padding to 32px for better last card visibility */
+    padding: 6px 60px 6px 16px; /* increased right padding to 60px for full last card visibility */
   }
 
   .cartuplift-recommendation-card {
