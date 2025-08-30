@@ -8,7 +8,6 @@
   --cartuplift-secondary: #666666;
   --cartuplift-border: #e5e5e5;
   --cartuplift-background: #ffffff;
-  --cartuplift-button-color: #4CAF50;
   --cartuplift-teal: #16a085;
   --cartuplift-danger: #ff4444;
   --cartuplift-success: #22c55e;
@@ -52,7 +51,6 @@
 #cartuplift-app-container.active #cartuplift-backdrop {
   opacity: 1;
 }
-
 #cartuplift-cart-popup {
   position: fixed;
   top: 0;
@@ -200,7 +198,16 @@
   padding: 0 16px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-bottom: 20px;
+  padding-bottom: 0; /* no extra gap before recommendations */
+  
+  /* Hide scrollbar */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+  scrollbar-width: none; /* Firefox */
+}
+
+/* Hide scrollbar for WebKit browsers */
+.cartuplift-items::-webkit-scrollbar {
+  display: none;
 }
 
 /* ========================================
@@ -208,7 +215,7 @@
    ======================================== */
 .cartuplift-item {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 16px;
   padding: 12px 0;
   border-bottom: 1px solid #f0f0f0;
@@ -218,6 +225,7 @@
 
 .cartuplift-item:last-child {
   border-bottom: none;
+  padding-bottom: 0; /* remove extra space before recommendations header */
 }
 
 .cartuplift-item.loading {
@@ -228,11 +236,12 @@
 /* Item Image - 106x106 */
 .cartuplift-item-image {
   width: 106px;
-  height: 106px;
+  height: 112px; /* match item/info min-height so remove X aligns with quantity baseline */
   border-radius: 6px;
   overflow: hidden;
   background: #f8f8f8;
   flex-shrink: 0;
+  align-self: flex-start; /* prevent stretching when parent stretches */
 }
 
 .cartuplift-item-image img {
@@ -249,17 +258,18 @@
   gap: 8px;
   min-width: 0;
   width: 375px;
-  height: 112px;
+  min-height: 112px; /* allow stretching with content */
+  height: auto;      /* no fixed height to keep bottoms aligned */
   padding-right: 8px;
   justify-content: space-between;
 }
 
 .cartuplift-item-title {
   margin: 0;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600; /* Slightly bold */
   line-height: 1.3;
-  text-transform: uppercase;
+  text-transform: none !important; /* Preserve original casing */
   letter-spacing: normal;
 }
 
@@ -267,6 +277,7 @@
   color: var(--cartuplift-primary);
   text-decoration: none;
   display: block;
+  text-transform: none !important; /* Preserve original casing */
 }
 
 .cartuplift-item-title a:hover {
@@ -338,12 +349,18 @@
   flex: 1;
 }
 
-/* Price & Remove - Right Side */
+/* Price & Remove - Vertical Stack */
 .cartuplift-item-price-actions {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
   flex-shrink: 0;
+  height: 100%;
+  align-self: stretch; /* Match item height so space-between can align top/bottom with quantity */
+  justify-content: space-between;
+  min-width: 60px;
+  min-height: 112px; /* Match the item min-height to ensure consistent baseline */
 }
 
 .cartuplift-item-price {
@@ -352,32 +369,34 @@
   color: #000;
   letter-spacing: normal;
   white-space: nowrap;
+  /* Top item in column; space-between handles placement */
 }
 
 .cartuplift-item-remove-x {
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 4px;
-  color: #ccc;
+  padding: 6px;
+  color: #000; /* Black, same as price */
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 36px; /* Bigger */
+  height: 36px; /* Bigger */
   border-radius: 50%;
+  /* Bottom item in column; space-between handles placement */
 }
 
 .cartuplift-item-remove-x:hover {
-  color: #ff4444;
-  background: #fff;
+  color: #111;
+  background: #f0f0f0;
 }
 
 .cartuplift-item-remove-x svg {
-  width: 12px;
-  height: 12px;
-  stroke-width: 2;
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.25;
 }
 
 /* ========================================
@@ -407,25 +426,53 @@
 
 .cartuplift-recommendations {
   background: #f5f5f5;
-  padding: 8px 0;
-  margin: 8px 0;
+  padding: 4px 0; /* Reduced from 8px */
+  margin: 0;
   border-top: none;
   flex-shrink: 0;
   transition: all 0.3s ease;
   overflow: visible;
   position: relative;
+  display: block;
+  margin-top: 20px; /* default spacing when outside content wrapper */
 }
 
 .cartuplift-recommendations.collapsed {
-  padding: 8px 0;
+  padding: 4px 0; /* Match the main padding */
+}
+
+/* When recommendations are inside the scrollable content area,
+   remove the extra top gap so the header sits flush */
+.cartuplift-scrollable-content {
+  padding: 0;
+  margin: 0;
+}
+
+.cartuplift-scrollable-content > *:first-child {
+  margin-top: 0; /* guard against theme-level first-child margins */
+}
+
+.cartuplift-scrollable-content .cartuplift-recommendations {
+  margin-top: 0;
+  padding-top: 0;   /* remove space before header */
+  padding-bottom: 0;/* tighten space under content */
 }
 
 .cartuplift-recommendations-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 12px 6px;
-  margin-bottom: 0;
+  padding: 8px 10px;  /* Add vertical padding to center content */
+  margin: 10px;       /* per user spec */
+  width: 511px;       /* per user spec */
+  height: 22px;       /* per user spec */
+  min-height: 22px;   /* per user spec */
+  position: relative;
+}
+
+/* Ensure both title and toggle are perfectly centered vertically */
+.cartuplift-recommendations-header > * {
+  align-self: center;
 }
 
 .cartuplift-recommendations.collapsed .cartuplift-recommendations-header {
@@ -435,31 +482,43 @@
 
 .cartuplift-recommendations-title {
   font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  font-weight: 400;
+  letter-spacing: 0.6px;
   color: #000;
   text-transform: uppercase;
   margin: 0;
+  line-height: 1;           /* Reset line-height */
+  display: flex;
+  align-items: center;       /* Center text vertically */
 }
 
-/* Toggle button - Compact */
+/* Toggle button - Aligned with cart X buttons */
 .cartuplift-recommendations-toggle {
-  width: 24px;
-  height: 24px;
-  border: 1px solid #ddd;
-  background: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex;                 /* per spec */
+  align-items: center;           /* per spec */
+  justify-content: center;       /* per spec */
+  height: 22px;                  /* per spec */
+  width: 22px;                   /* compact pill/circle size */
+  padding: 0;                    /* per spec */
+  margin: 0;                     /* per spec */
+  background: #fff;
+  border: 1px solid #212121;     /* per spec */
+  border-radius: 16777200px;     /* per spec (large pill) */
+  box-sizing: border-box;        /* include border in the 22px size */
+  line-height: 0;                /* eliminate inline baseline gaps */
   cursor: pointer;
-  transition: transform 0.3s ease;
-  color: #333;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+  color: #000;                   /* per spec black */
+  font-size: 12px;               /* per spec */
+  font-weight: 500;              /* per spec */
+  text-transform: uppercase;     /* per spec */
+  flex-shrink: 0;
 }
 
 .cartuplift-recommendations-toggle svg {
-  width: 12px;
+  width: 12px;  /* scale to 22px height button */
   height: 12px;
+  display: block;                 /* remove inline baseline gap */
   transition: transform 0.2s ease;
 }
 
@@ -468,13 +527,14 @@
   background: #f5f5f5;
 }
 
-.cartuplift-recommendations-toggle[aria-expanded="false"] {
+.cartuplift-recommendations-toggle[aria-expanded="false"] svg {
   transform: rotate(180deg);
 }
 
 .cartuplift-recommendations-content {
   overflow: visible;
   position: relative;
+  display: block !important; /* Force visible on desktop */
 }
 
 .cartuplift-recommendations.collapsed .cartuplift-recommendations-content {
@@ -491,19 +551,21 @@
   overflow-x: auto;
   overflow-y: hidden;
   scroll-behavior: smooth;
-  padding: 0 12px 20px 4px;
+  padding: 0; /* remove wrapper padding to sit flush with cart items */
   position: relative;
 }
 
-/* Hide scrollbar completely */
+/* Hide scrollbar completely for recommendations */
 .cartuplift-recommendations-row .cartuplift-recommendations-content::-webkit-scrollbar {
   display: none;
 }
 
-/* For Firefox */
 .cartuplift-recommendations-row .cartuplift-recommendations-content {
-  scrollbar-width: none;
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
 }
+
+/* For Firefox */
 
 /* Track - EXACT match */
 .cartuplift-recommendations-track {
@@ -515,41 +577,41 @@
 
 /* Navigation Controls - FIXED OUTSIDE scroll container */
 .cartuplift-carousel-controls {
-  position: absolute;
-  right: 6px; /* Closer to cards */
-  bottom: 4px; /* sit closer to the section bottom, below cards */
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  z-index: 20; /* Even higher z-index */
+  position: static;           /* placed below the scroll area */
+  display: flex;              /* per spec */
+  width: 52px;                /* per spec */
+  height: 30px;               /* Increase height slightly */
+  gap: 8px;                   /* per spec */
+  justify-content: center;    /* Center horizontally */
+  align-items: center;        /* Center vertically */
+  z-index: 1;
   pointer-events: auto;
-  background: transparent; /* Inherit/transparent background */
-  padding: 0; /* No wrapper padding */
-  border-radius: 0; /* No wrapper shape */
-  /* Ensure it's positioned relative to the row container, not the scrollable content */
-  transform: translateY(0);
-  /* Add margin to push it below the scrollable area */
-  /* removed margin-top to avoid extra space */
+  background: transparent;    /* per spec */
+  border: 0;                  /* per spec */
+  border-radius: 0;           /* per spec */
+  padding: 4px 0;             /* Add vertical padding */
+  margin-top: 8px;            /* per spec */
 }
 
 .cartuplift-carousel-nav {
-  width: 32px;
-  height: 32px;
-  border: 1px solid #ddd;
-  background: transparent; /* transparent button background */
-  border-radius: 50%;
+  width: 22px;                /* smaller per request */
+  height: 22px;               /* smaller per request */
+  background: transparent;
+  border: 1px solid #212121;  /* circle outline */
+  border-radius: 50%;         /* circular */
+  box-sizing: border-box;     /* include border in the 22px size */
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: center;        /* per spec */
+  justify-content: center;    /* per spec */
+  line-height: 0;             /* eliminate inline baseline gaps */
   cursor: pointer;
-  transition: border-color 0.2s ease, opacity 0.2s ease;
-  box-shadow: none; /* remove button shadow */
+  transition: opacity 0.2s ease;
+  box-shadow: none;
   pointer-events: auto;
 }
 
 .cartuplift-carousel-nav:hover {
   background: transparent; /* keep transparent on hover */
-  border-color: #999;
 }
 
 .cartuplift-carousel-nav:disabled {
@@ -558,10 +620,41 @@
 }
 
 .cartuplift-carousel-nav svg {
-  width: 16px;
-  height: 16px;
+  width: 12px;  /* match 22px button */
+  height: 12px;
+  display: block;             /* remove inline baseline gap */
   color: #333;
   stroke-width: 2;
+}
+
+/* Dot Navigation - Hidden on desktop, shown on mobile */
+.cartuplift-carousel-dots {
+  display: none; /* Hidden by default */
+  justify-content: center;
+  gap: 8px;
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.cartuplift-carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ddd;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cartuplift-carousel-dot:hover {
+  background: #999;
+}
+
+.cartuplift-carousel-dot.active {
+  background: #333;
+  transform: scale(1.2);
 }
 
 /* Product Cards - Updated for 80x80 images */
@@ -569,7 +662,7 @@
   flex: 0 0 300px;
   background: white;
   border-radius: 8px;
-  padding: 12px;
+  padding: 8px; /* default; overridden on desktop */
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
   display: flex;
   flex-direction: row;
@@ -581,7 +674,7 @@
 .cartuplift-card-content {
   display: flex;
   flex-direction: row;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
   align-items: flex-start;
   height: 100%;
@@ -611,9 +704,9 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 6px; /* Increased from 4px for better spacing */
+  gap: 4px; /* tighter spacing */
   min-width: 0;
-  padding-top: 2px; /* Small padding to align with image */
+  padding-top: 0; /* remove extra top padding */
   height: 100%; /* Allow pushing variation to the bottom */
 }
 
@@ -808,26 +901,221 @@
 
 /* Mobile Adjustments */
 @media (max-width: 768px) {
+  /* Hide desktop arrow navigation on mobile */
   .cartuplift-carousel-nav {
+    display: none !important;
+  }
+  
+  /* Mobile: Full width cards with swipe */
+  .cartuplift-recommendations-row .cartuplift-recommendations-content {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -ms-overflow-style: none;
+    padding: 0;
+  }
+  
+  .cartuplift-recommendations-row .cartuplift-recommendations-content::-webkit-scrollbar {
     display: none;
   }
   
+  .cartuplift-recommendations-track {
+    display: flex;
+    gap: 16px;
+    padding: 0 16px 40px 16px; /* Slightly less bottom padding to reduce whitespace */
+  }
+  
+  /* Ensure each card spans the container width minus track side padding */
   .cartuplift-recommendation-card {
-    flex: 0 0 300px;
+    flex: 0 0 calc(100% - 32px);
+    max-width: calc(100% - 32px);
+    scroll-snap-align: start;
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   }
   
   .cartuplift-product-image {
+    width: 80px;
     height: 80px;
+  }
+  
+  /* Show dot navigation on mobile */
+  .cartuplift-recommendations-row .cartuplift-carousel-dots {
+    display: flex !important;
+    justify-content: center;
+    gap: 8px;
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 6px 10px;
+    border-radius: 16px;
+  }
+  
+  .cartuplift-carousel-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #666;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  
+  .cartuplift-carousel-dot.active {
+    background: #333;
+    transform: scale(1.3);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  
+  /* Fix recommendation container positioning */
+  .cartuplift-recommendations-row {
+    position: relative;
+    overflow: visible; /* Allow dots to show outside */
+  }
+  
+  .cartuplift-recommendations-row .cartuplift-recommendations-content {
+    position: relative;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -ms-overflow-style: none;
+    padding: 0;
+  }
+
+  /* Cancel outer section padding on mobile so cards can truly fill width */
+  .cartuplift-recommendations {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+/* Desktop-specific styles to ensure recommendations show */
+@media (min-width: 769px) {
+  .cartuplift-recommendations {
+    display: block !important;
+  }
+  
+  .cartuplift-recommendations-content {
+    display: block !important;
+  }
+  
+  .cartuplift-carousel-nav {
+    display: flex !important;
+  }
+  
+  .cartuplift-carousel-dots {
+    display: none !important;
+  }
+  
+  /* Desktop: exact dimensions and offset for controls */
+  .cartuplift-carousel-controls {
+    position: static;
+    display: flex !important;
+  width: 52px;             /* 22 + 8 + 22 */
+  height: 30px;            /* Increase height slightly */
+  gap: 8px;                /* per spec */
+  justify-content: center; /* Center horizontally */
+  align-items: center;     /* Center vertically */
+  padding: 4px 0;          /* Add vertical padding */
+  margin-top: 8px;         /* per spec */
+    margin-left: 459px;      /* per spec */
+    background: transparent; /* per spec */
+    border: 0;               /* per spec */
+    border-radius: 0;        /* per spec */
+  }
+
+  /* Exact desktop card sizing and spacing */
+  .cartuplift-recommendations-track {
+    gap: 0; /* card margin controls spacing */
+  }
+
+  .cartuplift-recommendation-card {
+    box-sizing: border-box;         /* per spec */
+    flex: 0 0 338px;                /* per spec */
+    width: 338px;                   /* per spec */
+    height: 128px;                  /* per spec */
+    padding: 16px 10px;             /* per spec */
+    margin: 0 8px 0 0;              /* per spec */
+    border: 1px solid #e0e0e0;      /* per spec (color chosen to match theme) */
   }
 }
 
 /* ========================================
    Footer Section - COMPACT DESIGN
    ======================================== */
+
+/* Inline Discount Code Section */
+.cartuplift-discount-section {
+  padding: 8px 0 4px 0; /* Reduced bottom padding */
+  border-top: none !important;  /* Remove the border */
+}
+
+.cartuplift-discount-input-wrapper {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.cartuplift-discount-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  transition: border-color 0.2s ease;
+}
+
+.cartuplift-discount-input:focus {
+  outline: none;
+  border-color: #333;
+}
+
+.cartuplift-discount-apply {
+  padding: 10px 16px;
+  background: #333;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+}
+
+.cartuplift-discount-apply:hover:not(:disabled) {
+  background: #555;
+}
+
+.cartuplift-discount-apply:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.cartuplift-discount-message {
+  font-size: 13px;
+  margin-top: 4px;
+  min-height: 16px;
+}
+
+.cartuplift-discount-message .success {
+  color: #22c55e;
+  font-weight: 500;
+}
+
+.cartuplift-discount-message .error {
+  color: #ef4444;
+  font-weight: 500;
+}
+
 .cartuplift-footer {
   padding: 12px 16px;
   background: #ffffff;
-  border-top: 1px solid #e5e5e5;
+  border-top: none;  /* Removed to avoid duplicate separators */
   flex-shrink: 0;
 }
 
@@ -924,6 +1212,10 @@
 
 .cartuplift-paypal-btn img {
   height: 12px;
+  width: auto; /* preserve aspect ratio to avoid stretching */
+  max-width: 60px; /* prevent excessive width */
+  object-fit: contain;
+  display: block; /* ensure proper rendering */
 }
 
 .cartuplift-shoppay-btn {
@@ -1168,9 +1460,7 @@
     min-height: 88px;
   }
   
-  .cartuplift-recommendation-card {
-    flex: 0 0 100px;
-  }
+  /* Card width is defined earlier as calc(100vw - 48px) for mobile; no override here */
   
   .cartuplift-express-checkout {
     flex-direction: column;
@@ -1225,11 +1515,10 @@
 
 /* 2. Fix recommendations positioning - now inside scrollable area */
 .cartuplift-recommendations {
-  background: #f6f6f6; /* Greyish background so white cards are clearer */
-  padding: 16px 20px;
-  border-top: 1px solid #e5e5e5;
-  margin-top: 0; /* Remove margin since it's now positioned naturally */
-  /* Remove flex-shrink since it's now in scrollable area */
+  background: #f6f6f6;
+  padding: 0;           /* no outer padding; header handles its own padding */
+  border-top: none;     /* Removed border */
+  margin-top: 0;        /* no extra gap above section */
 }
 
 /* 3. Align and resize the plus button */
@@ -1265,23 +1554,8 @@
   transition: all 0.2s ease;
 }
 
-/* 6. Remove the border above subtotal */
-.cartuplift-subtotal {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-  padding: 6px 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #000;
-  border-top: none; /* Remove this border */
-}
+/* Overrides consolidated earlier */
 
-/* 7. Add top border to footer for separation */
-.cartuplift-footer {
-  padding: 8px 20px; /* Compact footer padding */
-  background: #ffffff;
-  border-top: 1px solid #e5e5e5;
-  flex-shrink: 0;
-}
+/* Force rebuild Fri Aug 29 23:15:39 BST 2025 */
+
+/* Rebuild: compact recs padding Sat Aug 30 13:13:19 BST 2025 */

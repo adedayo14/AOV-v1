@@ -5,75 +5,18 @@
   const CART_UPLIFT_VERSION = 'v140';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
-  // Analytics tracking helper
-  const CartAnalytics = {
-    sessionId: null,
-    shop: (typeof window !== 'undefined' && (window.CartUpliftShop || window.location?.hostname)) || '',
-    
-    init() {
-      // Generate session ID for tracking
-      this.sessionId = this.generateSessionId();
-      
-      // Track page load as potential cart opportunity
-      this.trackEvent('page_view');
-    },
-    
-    generateSessionId() {
-      return 'cart_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
-    },
-    
-    trackEvent(eventType, data = {}) {
-      try {
-        const eventData = {
-          eventType,
-          sessionId: this.sessionId,
-          timestamp: new Date().toISOString(),
-          shop: this.shop,
-          ...data
-        };
-        
-        // Send to tracking endpoint
-        fetch('/apps/cart-uplift/api/cart-tracking', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            eventType: eventData.eventType,
-            sessionId: eventData.sessionId,
-            shop: eventData.shop || '',
-            productId: eventData.productId || '',
-            productTitle: eventData.productTitle || '',
-            revenue: eventData.revenue || ''
-          })
-        }).then(response => {
-          if (response.ok) {
-            console.log('📊 Cart event tracked:', eventData.eventType);
-          }
-        }).catch(error => {
-          console.warn('Cart tracking failed:', error);
-        });
-        
-        // Also send to GA4 if available
-        if (typeof window !== 'undefined' && typeof window.gtag !== 'undefined') {
-          window.gtag('event', eventType, {
-            custom_parameter_1: eventData.sessionId,
-            custom_parameter_2: eventData.productId
-          });
-        }
-      } catch (error) {
-        console.warn('Cart analytics error:', error);
-      }
-    }
-  };
-  
-  // Initialize analytics tracking
-  CartAnalytics.init();
+  // Safe analytics shim (no-op if not provided by host)
+  const CartAnalytics = (window.CartAnalytics && typeof window.CartAnalytics.trackEvent === 'function')
+    ? window.CartAnalytics
+    : { trackEvent: () => {} };
 
+  // Main drawer controller
   class CartUpliftDrawer {
     constructor(settings) {
-      this.settings = settings || window.CartUpliftSettings || {};
-      // Normalize recommendation layout values (admin uses horizontal/vertical, theme uses row/column)
+      // Merge defaults with provided settings and any globals
+      this.settings = Object.assign({}, window.CartUpliftSettings || {}, settings || {});
+      
+      // Normalize layout setting if present
       if (this.settings && this.settings.recommendationLayout) {
         const map = { horizontal: 'row', vertical: 'column', grid: 'row' };
         this.settings.recommendationLayout = map[this.settings.recommendationLayout] || this.settings.recommendationLayout;
@@ -97,12 +40,12 @@
       this._recommendationsLoaded = false;
       this.recommendations = [];
       this._allRecommendations = []; // Master list to allow re-show after removal from cart
-
+  
       // Immediately intercept cart notifications if app is enabled
       if (this.settings.enableApp) {
         this.installEarlyInterceptors();
       }
-
+  
       // CRITICAL FIX: Listen for settings updates BEFORE initialization
       this._settingsUpdateHandler = async (event) => {
         console.log('🛒 Settings update received:', event);
@@ -346,8 +289,10 @@
         ((!this._recommendationsLoaded) || (this.recommendations && this.recommendations.length > 0));
       
       console.log('🛒 shouldShowRecommendations:', shouldShowRecommendations, 
+        'enableRecommendations:', this.settings.enableRecommendations,
         'loaded:', this._recommendationsLoaded, 
-        'count:', this.recommendations?.length || 0);
+        'count:', this.recommendations?.length || 0,
+        'window width:', window.innerWidth);
       
       return `
         <div class="cartuplift-drawer${shouldShowRecommendations ? ' has-recommendations' : ''}">
@@ -360,10 +305,9 @@
             
             <div class="cartuplift-scrollable-content">
               ${this.settings.enableAddons ? this.getAddonsHTML() : ''}
+              ${shouldShowRecommendations ? this.getRecommendationsHTML() : ''}
             </div>
           </div>
-          
-          ${shouldShowRecommendations ? this.getRecommendationsHTML() : ''}
           
           <div class="cartuplift-footer">
             ${this.settings.enableDiscountCode || this.settings.enableNotes ? this.getDiscountHTML() : ''}
@@ -459,74 +403,7 @@
       `;
     }
 
-    getVariantOptionsHTML(item) {
-      // First check if we have properly structured options
-      if (item.options_with_values && item.options_with_values.length > 0) {
-        return item.options_with_values
-          .filter(option => option.value && option.value !== 'Default Title')
-          .map(option => `<div class="cartuplift-item-variant">${option.name}: ${option.value}</div>`)
-          .join('');
-      }
-      
-      // If we have variant_title like "Black / 10"
-      if (item.variant_title && item.variant_title !== 'Default Title') {
-        // Split by forward slash with optional spaces
-        const options = item.variant_title.split(/\s*\/\s*/);
-        
-        // If we have multiple parts, try to identify what they are
-        if (options.length > 1) {
-          return options.map((option, index) => {
-            // Try to intelligently label the options
-            let label = '';
-            
-            // Check if it's a color (common color names or contains common color words)
-            const colorPattern = /black|white|red|blue|green|yellow|grey|gray|brown|navy|pink|purple|orange|beige|cream/i;
-            // Check if it's a size (contains numbers or size indicators)
-            const sizePattern = /^\d+(\.\d+)?$|^(XS|S|M|L|XL|XXL|XXXL|\d+)$/i;
-            
-            if (colorPattern.test(option)) {
-              label = 'Color';
-            } else if (sizePattern.test(option)) {
-              label = 'Size';
-            } else if (index === 0) {
-              label = 'Option 1';
-            } else {
-              label = 'Option 2';
-            }
-            
-            return `<div class="cartuplift-item-variant">${label}: ${option}</div>`;
-          }).join('');
-        }
-        
-        // Single variant option
-        return `<div class="cartuplift-item-variant">${item.variant_title}</div>`;
-      }
-      
-      // Check if item has individual properties for color/size
-      let variants = [];
-      
-      // Some Shopify themes provide these separately
-      if (item.variant_options) {
-        item.variant_options.forEach((option, index) => {
-          if (option && option !== 'Default Title') {
-            // Try to determine the label based on position or content
-            let label = item.options && item.options[index] ? item.options[index] : `Option ${index + 1}`;
-            variants.push(`<div class="cartuplift-item-variant">${label}: ${option}</div>`);
-          }
-        });
-      }
-      
-      // Alternative: check for properties directly on the item
-      if (item.properties && typeof item.properties === 'object') {
-        Object.entries(item.properties).forEach(([key, value]) => {
-          if (value && key !== '__proto__') {
-            variants.push(`<div class="cartuplift-item-variant">${key}: ${value}</div>`);
-          }
-        });
-      }
-      
-      return variants.join('') || '';
-    }
+    
 
   getCartItemsHTML() {
       if (!this.cart || !this.cart.items || this.cart.items.length === 0) {
@@ -545,7 +422,7 @@
           </div>
           <div class="cartuplift-item-info">
             <h4 class="cartuplift-item-title">
-              <a href="${item.url}">${item.product_title}</a>
+              <a href="${item.url}" style="text-transform: none;">${item.product_title}</a>
             </h4>
             ${this.getVariantOptionsHTML(item)}
             <div class="cartuplift-item-quantity-wrapper">
@@ -588,24 +465,31 @@
               <path d="M6 12l4-4-4-4"/>
             </svg>
           </button>
+          <div class="cartuplift-carousel-dots">
+            ${this.recommendations.map((_, index) => `
+              <div class="cartuplift-carousel-dot${index === 0 ? ' active' : ''}" data-index="${index}"></div>
+            `).join('')}
+          </div>
         </div>`;
 
-      return `
+      const html = `
         <div class="cartuplift-recommendations cartuplift-recommendations-${layout}">
           <div class="cartuplift-recommendations-header">
             <h3 class="cartuplift-recommendations-title">${title}</h3>
             <button class="cartuplift-recommendations-toggle" data-toggle="recommendations" aria-expanded="true" aria-controls="cartuplift-recommendations-content">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
               </svg>
             </button>
           </div>
-          <div class="cartuplift-recommendations-content" id="cartuplift-recommendations-content">
+          <div class="cartuplift-recommendations-content" id="cartuplift-recommendations-content" aria-hidden="false">
             ${this.getRecommendationItems()}
           </div>
           ${layout === 'row' ? controlsHTML : ''}
         </div>
       `;
+      console.log('🛒 Recommendations HTML rendered (should start EXPANDED):', html.includes('collapsed'));
+      return html;
     }
 
     /** Update recommendations title & layout after settings injected later (e.g. upsell embed loads after main) */
@@ -643,6 +527,7 @@
           setTimeout(() => {
             this.setupScrollControls(contentEl);
             this.updateCarouselButtons(contentEl);
+            this.updateDots(contentEl);
           }, 100);
         }
       }
@@ -684,7 +569,7 @@
                     ${this.generateVariantSelector(product)}
                   </div>
                   <div class="cartuplift-product-actions">
-                    <div class="cartuplift-recommendation-price">${this.formatMoney(product.price)}</div>
+                    <div class="cartuplift-recommendation-price">${this.formatMoney(product.priceCents || 0)}</div>
                     <button class="cartuplift-add-recommendation" data-product-id="${product.id}" data-variant-id="${product.variant_id}">
                       Add+
                     </button>
@@ -700,7 +585,7 @@
             <img src="${product.image}" alt="${product.title}" loading="lazy">
             <div class="cartuplift-recommendation-info">
               <h4><a href="${product.url}" class="cartuplift-product-link">${product.title}</a></h4>
-              <div class="cartuplift-recommendation-price">${this.formatMoney(product.price)}</div>
+              <div class="cartuplift-recommendation-price">${this.formatMoney(product.priceCents || 0)}</div>
             </div>
             <button class="cartuplift-add-recommendation-circle" data-variant-id="${product.variant_id}">
               +
@@ -723,7 +608,7 @@
         <option value="">Select ${optionLabel}</option>
               ${product.variants.map(variant => 
                 variant.available ? `
-                  <option value="${variant.id}" data-price="${variant.price}">
+                  <option value="${variant.id}" data-price-cents="${variant.price_cents}">
                     ${variant.title}
                   </option>
                 ` : ''
@@ -769,7 +654,12 @@
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M6 12l4-4-4-4"/>
                   </svg>
-                </button>`;
+                </button>
+                <div class="cartuplift-carousel-dots">
+                  ${this.recommendations.map((_, index) => `
+                    <div class="cartuplift-carousel-dot${index === 0 ? ' active' : ''}" data-index="${index}"></div>
+                  `).join('')}
+                </div>`;
               section.appendChild(controls);
             }
             setTimeout(() => {
@@ -779,6 +669,7 @@
                 this.updateCarouselButtons(scrollContainer);
                 scrollContainer.addEventListener('scroll', () => {
                   this.updateCarouselButtons(scrollContainer);
+                  this.updateDots(scrollContainer);
                 });
               }
             }, 100);
@@ -788,10 +679,31 @@
     }
 
     setupScrollControls(scrollContainer) {
-      // Calculate scroll amounts based on card width (340px + 15px gap = 355px)
-      this.cardWidth = 340;
-      this.gap = 15;
-      this.scrollAmount = this.cardWidth + this.gap;
+      // Check if we're on mobile
+      const isMobile = window.innerWidth <= 768;
+      
+      if (isMobile) {
+        // Mobile: Use full card width for scrolling (calc(100% - 32px) from CSS)
+        const track = scrollContainer.querySelector('.cartuplift-recommendations-track');
+        const trackStyle = track ? window.getComputedStyle(track) : null;
+        const gap = trackStyle ? parseInt(trackStyle.gap || '16', 10) : 16;
+        
+        // On mobile, each card is calc(100% - 32px) + gap
+        this.cardWidth = scrollContainer.clientWidth - 32; // subtract track padding
+        this.scrollAmount = this.cardWidth + gap; // card width + gap between cards
+      } else {
+        // Desktop: Calculate based on actual card width + gap
+        const card = scrollContainer.querySelector('.cartuplift-recommendation-card');
+        const track = scrollContainer.querySelector('.cartuplift-recommendations-track');
+        const trackStyle = track ? window.getComputedStyle(track) : null;
+        const gap = trackStyle ? parseInt(trackStyle.gap || '15', 10) : 15;
+        
+        // Desktop cards are 300px + gap
+        this.cardWidth = card?.offsetWidth || 300;
+        this.scrollAmount = this.cardWidth + gap; // card width + gap between cards
+      }
+      
+      console.log('🛒 Scroll setup:', { isMobile, cardWidth: this.cardWidth, scrollAmount: this.scrollAmount });
       
       // Bind navigation events
       const prevBtn = document.querySelector('.cartuplift-carousel-nav.prev');
@@ -801,12 +713,59 @@
         prevBtn.addEventListener('click', () => this.scrollPrev(scrollContainer));
         nextBtn.addEventListener('click', () => this.scrollNext(scrollContainer));
       }
+      
+      // Bind dot navigation
+      const dots = document.querySelectorAll('.cartuplift-carousel-dot');
+      dots.forEach((dot, index) => {
+        dot.addEventListener('click', () => this.scrollToIndex(scrollContainer, index));
+      });
+      
+      // Add touch support for mobile
+      if (isMobile) {
+        this.setupTouchEvents(scrollContainer);
+      }
+    }
+    
+    setupTouchEvents(scrollContainer) {
+      let startX = 0;
+      let scrollLeft = 0;
+      let isDown = false;
+      
+      scrollContainer.addEventListener('touchstart', (e) => {
+        isDown = true;
+        startX = e.touches[0].pageX - scrollContainer.offsetLeft;
+        scrollLeft = scrollContainer.scrollLeft;
+      });
+      
+      scrollContainer.addEventListener('touchend', () => {
+        isDown = false;
+      });
+      
+      scrollContainer.addEventListener('touchmove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.touches[0].pageX - scrollContainer.offsetLeft;
+        const walk = (x - startX) * 2;
+        scrollContainer.scrollLeft = scrollLeft - walk;
+      });
+    }
+    
+  scrollToIndex(scrollContainer, index) {
+      if (!scrollContainer) return;
+      const targetScroll = index * this.scrollAmount;
+      
+      scrollContainer.scrollTo({
+        left: targetScroll,
+        behavior: 'smooth'
+      });
     }
 
     scrollPrev(scrollContainer) {
       if (!scrollContainer) return;
       const currentScroll = scrollContainer.scrollLeft;
-      const targetScroll = Math.max(0, currentScroll - this.scrollAmount);
+      const currentIndex = Math.round(currentScroll / this.scrollAmount);
+      const targetIndex = Math.max(0, currentIndex - 1);
+      const targetScroll = targetIndex * this.scrollAmount;
       
       scrollContainer.scrollTo({
         left: targetScroll,
@@ -818,7 +777,10 @@
       if (!scrollContainer) return;
       const currentScroll = scrollContainer.scrollLeft;
       const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
-      const targetScroll = Math.min(maxScroll, currentScroll + this.scrollAmount);
+      const currentIndex = Math.round(currentScroll / this.scrollAmount);
+      const maxIndex = Math.floor(maxScroll / this.scrollAmount);
+      const targetIndex = Math.min(maxIndex, currentIndex + 1);
+      const targetScroll = targetIndex * this.scrollAmount;
       
       scrollContainer.scrollTo({
         left: targetScroll,
@@ -865,14 +827,28 @@
         nextBtn.style.opacity = '1';
       }
     }
+    
+    updateDots(scrollContainer) {
+      if (!scrollContainer) return;
+      
+      const dots = document.querySelectorAll('.cartuplift-carousel-dot');
+      if (dots.length === 0) return;
+      
+      const scrollLeft = scrollContainer.scrollLeft;
+  const currentIndex = Math.round(scrollLeft / this.scrollAmount);
+      
+      dots.forEach((dot, index) => {
+        dot.classList.toggle('active', index === currentIndex);
+      });
+    }
 
     handleVariantChange(select) {
       const card = select.closest('.cartuplift-recommendation-card');
       if (!card) return;
       
       const variantId = select.value;
-      const selectedOption = select.options[select.selectedIndex];
-      const price = selectedOption.dataset.price;
+  const selectedOption = select.options[select.selectedIndex];
+  const priceCents = selectedOption.dataset.priceCents;
       
       // Update add button with selected variant
       const addBtn = card.querySelector('.cartuplift-add-recommendation');
@@ -881,10 +857,10 @@
       }
       
       // Update price display if available
-      if (price) {
+    if (priceCents) {
         const priceElement = card.querySelector('.cartuplift-recommendation-price');
         if (priceElement) {
-          priceElement.textContent = this.formatMoney(parseInt(price));
+      priceElement.textContent = this.formatMoney(parseInt(priceCents));
         }
       }
     }
@@ -935,16 +911,30 @@
     }
 
     getDiscountHTML() {
-      return `
-        <div class="cartuplift-gift-options">
-          <button class="cartuplift-gift-bar" onclick="window.cartUpliftDrawer.openGiftModal()">
-            <span>✨ Add Gift Note, Voucher Code & More</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M9 18l6-6-6-6"/>
-            </svg>
-          </button>
-        </div>
-      `;
+      if (this.settings.enableDiscountCode && !this.settings.enableNotes) {
+        // Simple discount code input inline
+        return `
+          <div class="cartuplift-discount-section">
+            <div class="cartuplift-discount-input-wrapper">
+              <input type="text" id="cartuplift-discount-input" class="cartuplift-discount-input" placeholder="Enter discount code">
+              <button type="button" class="cartuplift-discount-apply" onclick="window.cartUpliftDrawer.applyInlineDiscount()">Apply</button>
+            </div>
+            <div id="cartuplift-discount-message" class="cartuplift-discount-message"></div>
+          </div>
+        `;
+      } else {
+        // Original modal approach for when notes are also enabled
+        return `
+          <div class="cartuplift-gift-options">
+            <button class="cartuplift-gift-bar" onclick="window.cartUpliftDrawer.openGiftModal()">
+              <span>✨ Add Gift Note, Voucher Code & More</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            </button>
+          </div>
+        `;
+      }
     }
 
     getNotesHTML() {
@@ -1029,6 +1019,55 @@
         
         this.closeGiftModal();
         this.showToast('Gift options saved!', 'success');
+      }
+    }
+
+    async applyInlineDiscount() {
+      const input = document.getElementById('cartuplift-discount-input');
+      const messageEl = document.getElementById('cartuplift-discount-message');
+      const button = document.querySelector('.cartuplift-discount-apply');
+      
+      if (!input || !input.value.trim()) {
+        if (messageEl) messageEl.innerHTML = '<span class="error">Please enter a discount code</span>';
+        return;
+      }
+      
+      const discountCode = input.value.trim();
+      
+      // Disable button and show loading
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Applying...';
+      }
+      
+      try {
+        // Use Shopify's cart/discounts.js endpoint
+        const response = await fetch('/cart/discounts/' + encodeURIComponent(discountCode), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (response.ok) {
+          await this.fetchCart();
+          this.updateDrawerContent();
+          if (messageEl) messageEl.innerHTML = '<span class="success">✓ Discount applied successfully!</span>';
+          if (input) input.value = '';
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          const errorMessage = errorData.description || 'Invalid discount code';
+          if (messageEl) messageEl.innerHTML = `<span class="error">✗ ${errorMessage}</span>`;
+        }
+      } catch (error) {
+        console.error('Error applying discount:', error);
+        if (messageEl) messageEl.innerHTML = '<span class="error">✗ Error applying discount code</span>';
+      } finally {
+        // Re-enable button
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'Apply';
+        }
       }
     }
 
@@ -1196,7 +1235,9 @@
           }
           if (recommendations) {
             const isCollapsed = recommendations.classList.contains('collapsed');
+            console.log('🛒 Toggle clicked! Before toggle - isCollapsed:', isCollapsed, 'classes:', recommendations.className);
             recommendations.classList.toggle('collapsed');
+            console.log('🛒 After toggle - nowCollapsed:', recommendations.classList.contains('collapsed'), 'classes:', recommendations.className);
             // Update content aria-hidden
             const content = recommendations.querySelector('#cartuplift-recommendations-content');
             if (content) {
@@ -1207,11 +1248,11 @@
             const arrow = toggleButton.querySelector('svg path');
             if (arrow) {
               if (isCollapsed) {
-                // Expanding - arrow points down (your original SVG)
-                arrow.setAttribute('d', 'm19.5 8.25-7.5 7.5-7.5-7.5');
-              } else {
-                // Collapsing - arrow points up (your collapse SVG)
+                // Was collapsed, now expanding - arrow points up
                 arrow.setAttribute('d', 'm4.5 15.75 7.5-7.5 7.5 7.5');
+              } else {
+                // Was expanded, now collapsing - arrow points down
+                arrow.setAttribute('d', 'm19.5 8.25-7.5 7.5-7.5-7.5');
               }
             }
             // Sync aria state
@@ -1236,8 +1277,27 @@
               this.scrollNext(scrollContainer);
             }
             
-            // Update button states after scroll
-            setTimeout(() => this.updateCarouselButtons(scrollContainer), 100);
+            // Update button states and dots after scroll
+            setTimeout(() => {
+              this.updateCarouselButtons(scrollContainer);
+              this.updateDots(scrollContainer);
+            }, 100);
+          }
+        } else if (e.target.classList.contains('cartuplift-carousel-dot')) {
+          // Handle dot navigation
+          const dot = e.target;
+          const index = parseInt(dot.dataset.index);
+          const scrollContainer = container.querySelector('.cartuplift-recommendations-content');
+          
+          if (scrollContainer && !isNaN(index)) {
+            this.setupScrollControls(scrollContainer);
+            this.scrollToIndex(scrollContainer, index);
+            
+            // Update dots immediately for instant feedback
+            const dots = document.querySelectorAll('.cartuplift-carousel-dot');
+            dots.forEach((d, i) => {
+              d.classList.toggle('active', i === index);
+            });
           }
         }
       });
@@ -1481,12 +1541,20 @@
         this._allRecommendations = products.map(product => ({
           id: product.id,
           title: product.title,
-          price: product.variants && product.variants[0] ? product.variants[0].price : 0,
+          // Shopify /products.json returns price as a decimal string in major units (e.g., "14.00" for £14)
+          // We need to convert to cents for consistent formatting
+          priceCents: (product.variants && product.variants[0] && product.variants[0].price)
+            ? Math.round(parseFloat(product.variants[0].price) * 100)
+            : 0,
           image: product.images && product.images[0] ? product.images[0].src || product.images[0] : 
                  product.featured_image || 'https://via.placeholder.com/150x150?text=No+Image',
           variant_id: product.variants && product.variants[0] ? product.variants[0].id : null,
           url: product.handle ? `/products/${product.handle}` : (product.url || '#'),
-          variants: product.variants || [],
+          // Normalize variants with price in cents for UI handling
+          variants: (product.variants || []).map(v => ({
+            ...v,
+            price_cents: v.price ? Math.round(parseFloat(v.price) * 100) : 0
+          })),
           options: product.options || []
         })).filter(item => item.variant_id); // Only include products with valid variants
         
@@ -1515,9 +1583,21 @@
       const popup = document.querySelector('#cartuplift-cart-popup');
       if (!popup) return;
       
+      // Preserve scroll position
+      const contentWrapper = popup.querySelector('.cartuplift-content-wrapper');
+      const currentScrollTop = contentWrapper ? contentWrapper.scrollTop : 0;
+      
       console.log('🛒 Updating drawer content, cart:', this.cart);
       popup.innerHTML = this.getDrawerHTML();
       this.attachDrawerEvents();
+      
+      // Restore scroll position
+      const newContentWrapper = popup.querySelector('.cartuplift-content-wrapper');
+      if (newContentWrapper && currentScrollTop > 0) {
+        requestAnimationFrame(() => {
+          newContentWrapper.scrollTop = currentScrollTop;
+        });
+      }
       
       // Rebuild recommendations each render so removed cart items come back
       if (this._allRecommendations.length) {
@@ -1678,7 +1758,9 @@
     }
 
     formatMoney(cents) {
-      const amount = (cents / 100).toFixed(2);
+      // Ensure we have a valid number, default to 0 if not
+      const validCents = (typeof cents === 'number' && !isNaN(cents)) ? cents : 0;
+      const amount = (validCents / 100).toFixed(2);
       
       if (window.CartUpliftMoneyFormat) {
         try {
@@ -2030,6 +2112,53 @@
       });
       
       console.log('🛒 Notification blocker installed');
+    }
+
+    // Helper: build clean variant/options markup skipping default noise
+    getVariantOptionsHTML(item) {
+      // Prefer structured options_with_values when available
+      if (item.variant_title && item.options_with_values && Array.isArray(item.options_with_values)) {
+        const parts = item.options_with_values
+          .filter(opt => opt && typeof opt.name === 'string' && typeof opt.value === 'string')
+          .filter(opt => opt.name.trim().toLowerCase() !== 'title')
+          .filter(opt => opt.value.trim().toLowerCase() !== 'default title')
+          .map(opt => `<div class="cartuplift-item-variant">${opt.name}: ${opt.value}</div>`);
+        return parts.join('');
+      }
+
+      // Fallback: variant_options + options arrays
+      let variants = [];
+      if (Array.isArray(item.variant_options) && Array.isArray(item.options)) {
+        item.variant_options.forEach((optValue, index) => {
+          const optName = (item.options[index] || `Option ${index + 1}`);
+          if (!optValue) return;
+          const nameLower = String(optName).trim().toLowerCase();
+          const valueLower = String(optValue).trim().toLowerCase();
+          if (nameLower === 'title' || valueLower === 'default title') return; // skip noise
+          variants.push(`<div class="cartuplift-item-variant">${optName}: ${optValue}</div>`);
+        });
+      }
+
+      // Properties (if any)
+      if (item.properties && typeof item.properties === 'object') {
+        Object.entries(item.properties).forEach(([key, value]) => {
+          if (!value || key === '__proto__') return;
+          variants.push(`<div class="cartuplift-item-variant">${key}: ${value}</div>`);
+        });
+      }
+
+      if (variants.length) return variants.join('');
+
+      // Last resort: show variant_title only if meaningful and not duplicating product title
+      if (item.variant_title) {
+        const vt = String(item.variant_title).trim();
+        const vtLower = vt.toLowerCase();
+        const ptLower = String(item.product_title || '').trim().toLowerCase();
+        if (vtLower && vtLower !== 'default title' && vtLower !== 'title' && vtLower !== ptLower) {
+          return `<div class="cartuplift-item-variant">${vt}</div>`;
+        }
+      }
+      return '';
     }
   }
 
@@ -2515,15 +2644,21 @@
     }
 
     formatProduct(product) {
+      const basePrice = product.variants?.[0]?.price || product.price || 0;
+      
       return {
         id: product.id,
         title: product.title,
-        price: product.variants?.[0]?.price || product.price || 0,
+        // Convert price to cents for consistent formatting
+        priceCents: basePrice ? Math.round(parseFloat(basePrice) * 100) : 0,
         image: product.featured_image || product.image || product.images?.[0]?.src || 
                 product.media?.[0]?.preview_image?.src || 'https://via.placeholder.com/150',
         variant_id: product.variants?.[0]?.id || product.id,
         url: product.url || `/products/${product.handle}`,
-        variants: product.variants || [],
+        variants: (product.variants || []).map(v => ({
+          ...v,
+          price_cents: v.price ? Math.round(parseFloat(v.price) * 100) : 0
+        })),
         options: product.options || []
       };
     }
@@ -2555,4 +2690,9 @@
     window.cartUpliftDrawer = new CartUpliftDrawer(window.CartUpliftSettings);
   }
 
-})();
+})();// Force rebuild Fri Aug 29 23:15:47 BST 2025
+// Force rebuild Sat Aug 30 08:52:09 BST 2025
+// Force rebuild Sat Aug 30 10:57:43 BST 2025
+// Force rebuild Sat Aug 30 12:39:18 BST 2025
+// Force rebuild Sat Aug 30 12:55:08 BST 2025
+// Debug toggle behavior Sat Aug 30 12:58:15 BST 2025
