@@ -2,7 +2,7 @@
   'use strict';
   
   // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v153';
+  const CART_UPLIFT_VERSION = 'v154';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
   // Safe analytics shim (no-op if not provided by host)
@@ -1220,7 +1220,7 @@
           });
           
           this.addToCart(variantId, 1);
-  } else if (
+        } else if (
           e.target.classList.contains('cartuplift-recommendations-toggle') ||
           (e.target.closest && e.target.closest('.cartuplift-recommendations-toggle'))
         ) {
