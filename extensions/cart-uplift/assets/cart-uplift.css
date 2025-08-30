@@ -488,8 +488,8 @@
   padding-left: 12px;
   padding-top: 8px;
   padding-bottom: 8px;
-  padding-right: 4px; /* Match main header padding */
-  height: 36px;  /* Match main header height */
+  padding-right: 20px; 
+  height: 36px;  
   box-sizing: border-box;
 }
 
