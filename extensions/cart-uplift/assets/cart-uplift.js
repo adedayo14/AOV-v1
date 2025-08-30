@@ -2,7 +2,7 @@
   'use strict';
   
   // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v156';
+  const CART_UPLIFT_VERSION = 'v157';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
   // Safe analytics shim (no-op if not provided by host)
@@ -683,27 +683,15 @@
       const isMobile = window.innerWidth <= 768;
       
       if (isMobile) {
-        // Mobile: Use full card width for scrolling (calc(100% - 32px) from CSS)
-        const track = scrollContainer.querySelector('.cartuplift-recommendations-track');
-        const trackStyle = track ? window.getComputedStyle(track) : null;
-        const gap = trackStyle ? parseInt(trackStyle.gap || '16', 10) : 16;
-        
-        // On mobile, each card is calc(100% - 32px) + gap
-        this.cardWidth = scrollContainer.clientWidth - 32; // subtract track padding
-        this.scrollAmount = this.cardWidth + gap; // card width + gap between cards
+        // Mobile: scroll by full container width for full card visibility
+        this.scrollAmount = scrollContainer.clientWidth;
       } else {
-        // Desktop: Calculate based on actual card width + gap
-        const card = scrollContainer.querySelector('.cartuplift-recommendation-card');
-        const track = scrollContainer.querySelector('.cartuplift-recommendations-track');
-        const trackStyle = track ? window.getComputedStyle(track) : null;
-        const gap = trackStyle ? parseInt(trackStyle.gap || '15', 10) : 15;
-        
-        // Desktop cards are 338px + 8px margin = 346px total width
-        this.cardWidth = card?.offsetWidth || 338;
-        this.scrollAmount = (this.cardWidth + 8); // card width + right margin (gap handled by margin)
+        // Desktop: scroll by card width + margin for precise navigation
+        // Card is 338px + 8px margin = 346px total
+        this.scrollAmount = 346;
       }
       
-      console.log('🛒 Scroll setup:', { isMobile, cardWidth: this.cardWidth, scrollAmount: this.scrollAmount });
+      console.log('🛒 Scroll setup:', { isMobile, scrollAmount: this.scrollAmount });
       
       // Bind navigation events
       const prevBtn = document.querySelector('.cartuplift-carousel-nav.prev');
@@ -763,9 +751,9 @@
     scrollPrev(scrollContainer) {
       if (!scrollContainer) return;
       const currentScroll = scrollContainer.scrollLeft;
-      const currentIndex = Math.round(currentScroll / this.scrollAmount);
-      const targetIndex = Math.max(0, currentIndex - 1);
-      const targetScroll = targetIndex * this.scrollAmount;
+      const targetScroll = Math.max(0, currentScroll - this.scrollAmount);
+      
+      console.log('🛒 Scroll prev:', { currentScroll, targetScroll, scrollAmount: this.scrollAmount });
       
       scrollContainer.scrollTo({
         left: targetScroll,
@@ -777,18 +765,14 @@
       if (!scrollContainer) return;
       const currentScroll = scrollContainer.scrollLeft;
       const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
-      const currentIndex = Math.round(currentScroll / this.scrollAmount);
-      const maxIndex = Math.floor(maxScroll / this.scrollAmount);
-      const targetIndex = Math.min(maxIndex, currentIndex + 1);
-      let targetScroll = targetIndex * this.scrollAmount;
+      let targetScroll = currentScroll + this.scrollAmount;
       
-      // If we're approaching the end or at the last calculated index, scroll to the absolute end
-      if (targetIndex >= maxIndex || targetScroll >= maxScroll - 50) {
+      // If we would overshoot, scroll to the end
+      if (targetScroll >= maxScroll) {
         targetScroll = maxScroll;
-        console.log('🛒 Scrolling to absolute end:', maxScroll);
       }
       
-      console.log('🛒 Scroll details:', { currentScroll, maxScroll, targetScroll, currentIndex, targetIndex, maxIndex });
+      console.log('🛒 Scroll next:', { currentScroll, targetScroll, maxScroll, scrollAmount: this.scrollAmount });
       
       scrollContainer.scrollTo({
         left: targetScroll,

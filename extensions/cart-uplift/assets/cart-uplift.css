@@ -588,7 +588,7 @@
 .cartuplift-recommendations-track {
   display: flex;
   gap: 15px;
-  padding: 6px 100px 6px 16px; /* increased right padding to 100px to ensure full last card visibility */
+  padding: 6px 100px 6px 32px; /* increased left padding to 32px for space before first card */
   margin-top: 4px; /* Slightly tighter to header */
 }
 
@@ -1026,7 +1026,7 @@
   /* Exact desktop card sizing and spacing */
   .cartuplift-recommendations-track {
     gap: 0; /* card margin controls spacing */
-    padding: 6px 100px 6px 16px; /* increased right padding to 100px to ensure full last card visibility */
+    padding: 6px 100px 6px 32px; /* increased left padding to 32px for space before first card */
   }
 
   .cartuplift-recommendation-card {
@@ -1037,6 +1037,7 @@
     padding: 16px 10px;             /* per spec */
     margin: 0 8px 0 0;              /* per spec */
     border: 1px solid #e0e0e0;      /* per spec (color chosen to match theme) */
+    scroll-snap-align: start;       /* Enable proper snap scrolling */
   }
 }
 
