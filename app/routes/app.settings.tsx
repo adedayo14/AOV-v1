@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
@@ -7,14 +7,11 @@ import {
   Card,
   FormLayout,
   TextField,
-  Checkbox,
   Select,
+  BlockStack,
   Text,
   Banner,
-  BlockStack,
-  Button,
-  InlineStack,
-  Divider,
+  Checkbox,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import { getSettings, saveSettings } from "../models/settings.server";
@@ -65,8 +62,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function SettingsPage() {
   const { settings } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
-  
   const [formSettings, setFormSettings] = useState(settings);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  // Scroll event handler to update preview position
+  useEffect(() => {
+    const handleScroll = () => {
+      if (previewRef.current) {
+        const scrollTop = window.scrollY;
+        // Keep preview in viewport when scrolling
+        if (scrollTop > 100) {
+          previewRef.current.style.position = 'fixed';
+          previewRef.current.style.top = '20px';
+        } else {
+          previewRef.current.style.position = 'sticky';
+          previewRef.current.style.top = '100px';
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleSubmit = () => {
     const formData = new FormData();
@@ -94,9 +111,8 @@ export default function SettingsPage() {
   ];
 
   const recommendationLayoutOptions = [
-    { label: "Horizontal Row (Card Style)", value: "horizontal" },
-    { label: "Vertical Stack", value: "vertical" },
-    { label: "Grid Layout", value: "grid" },
+    { label: "Horizontal Cards", value: "row" },
+    { label: "Vertical List", value: "column" },
   ];
 
   const complementDetectionModeOptions = [
@@ -105,1234 +121,1146 @@ export default function SettingsPage() {
     { label: "🔄 Hybrid (Auto + Overrides)", value: "hybrid" },
   ];
 
+  // Calculate free shipping progress
+  const threshold = (formSettings.freeShippingThreshold || 100) * 100;
+  const currentTotal = 47400; // £474.00 in pence
+  const remaining = Math.max(0, threshold - currentTotal);
+  const progress = Math.min((currentTotal / threshold) * 100, 100);
+
   return (
     <Page
-      title="UpCart Settings & Live Preview"
+      title="UpCart Settings"
       primaryAction={{
         content: "Save Settings",
         onAction: handleSubmit,
         loading: fetcher.state === "submitting",
       }}
+      fullWidth
     >
-      {fetcher.state === "idle" && fetcher.data && (fetcher.data as any)?.success && (
-        <Banner tone="success">
-          Settings saved successfully!
-        </Banner>
-      )}
-      
-      {/* Hero Section - Professional Introduction */}
-      <BlockStack gap="500">
-        <Card>
-          <BlockStack gap="400">
-            <Text variant="headingXl" as="h1">🛒 UpCart Settings & Configuration</Text>
-            <Text variant="bodyLg" as="p">
-              Configure your cart drawer experience with live preview. Changes update in real-time.
-            </Text>
-            <InlineStack gap="600">
-              <BlockStack gap="200">
-                <Text variant="bodyMd" as="p">
-                  ✓ Real-time preview updates
-                </Text>
-                <Text variant="bodyMd" as="p">
-                  ✓ Professional design system
-                </Text>
-                <Text variant="bodyMd" as="p">
-                  ✓ Advanced customization
-                </Text>
-              </BlockStack>
-              <BlockStack gap="200">
-                <Text variant="bodyMd" as="p">
-                  ✓ Smart recommendation engine
-                </Text>
-                <Text variant="bodyMd" as="p">
-                  ✓ Mobile-responsive design
-                </Text>
-                <Text variant="bodyMd" as="p">
-                  ✓ Analytics & insights
-                </Text>
-              </BlockStack>
-            </InlineStack>
-            <InlineStack gap="300">
-              <Button 
-                variant="secondary" 
-                size="large"
-                onClick={() => window.open(window.location.origin, '_blank')}
-              >
-                🏪 View Storefront
-              </Button>
-              <Button 
-                variant="secondary"
-                size="large"
-                url="/app/dashboard"
-              >
-                📊 Analytics Dashboard
-              </Button>
-            </InlineStack>
-          </BlockStack>
-        </Card>
-
-        {/* Main Configuration Grid */}
-        <div className="settings-grid-container">
-          {/* Settings Column - Left Side */}
-          <div className="settings-column">
-            <BlockStack gap="500">
-              
-              {/* Core App Settings */}
-              <Card>
-                <BlockStack gap="400">
-                  <Text variant="headingLg" as="h2">⚙️ Core Settings</Text>
-                  <FormLayout>
-                    <Checkbox
-                      label="Enable UpCart"
-                      checked={formSettings.enableApp}
-                      onChange={(value) => updateSetting("enableApp", value)}
-                      helpText="Master toggle for the entire cart functionality"
-                    />
-                    
-                    <Checkbox
-                      label="Enable Sticky Cart Button"
-                      checked={formSettings.enableStickyCart}
-                      onChange={(value) => updateSetting("enableStickyCart", value)}
-                      helpText="Show floating cart button on all pages"
-                    />
-                    
-                    <Checkbox
-                      label="Show only on cart page"
-                      checked={formSettings.showOnlyOnCartPage}
-                      onChange={(value) => updateSetting("showOnlyOnCartPage", value)}
-                      helpText="If enabled, the cart drawer will only appear on the cart page"
-                    />
-                  </FormLayout>
-                </BlockStack>
-              </Card>
-
-              {/* Free Shipping Settings */}
-              <Card>
-                <BlockStack gap="400">
-                  <Text variant="headingLg" as="h2">🚚 Free Shipping Configuration</Text>
-                  <FormLayout>
-                    <Checkbox
-                      label="Enable Free Shipping Bar"
-                      checked={formSettings.enableFreeShipping}
-                      onChange={(value) => updateSetting("enableFreeShipping", value)}
-                      helpText="Show progress bar and messages for free shipping threshold"
-                    />
-                    
-                    <TextField
-                      label="Free Shipping Threshold ($)"
-                      type="number"
-                      value={String(formSettings.freeShippingThreshold)}
-                      onChange={(value) => updateSetting("freeShippingThreshold", parseInt(value) || 100)}
-                      helpText="Minimum order amount for free shipping"
-                      disabled={!formSettings.enableFreeShipping}
-                      autoComplete="off"
-                    />
-                    
-                    <TextField
-                      label="Shipping Message"
-                      value={formSettings.freeShippingText}
-                      onChange={(value) => updateSetting("freeShippingText", value)}
-                      helpText="Use {amount} as placeholder for remaining amount"
-                      multiline={2}
-                      disabled={!formSettings.enableFreeShipping}
-                      autoComplete="off"
-                    />
-                    
-                    <TextField
-                      label="Free Shipping Success Message"
-                      value={formSettings.freeShippingAchievedText}
-                      onChange={(value) => updateSetting("freeShippingAchievedText", value)}
-                      multiline={2}
-                      disabled={!formSettings.enableFreeShipping}
-                      autoComplete="off"
-                    />
-                  </FormLayout>
-                </BlockStack>
-              </Card>
-
-              {/* Cart Position & Appearance */}
-              <Card>
-                <BlockStack gap="400">
-                  <Text variant="headingLg" as="h2">🎨 Design & Appearance</Text>
-                  <FormLayout>
-                    <Select
-                      label="Cart Position"
-                      options={cartPositionOptions}
-                      value={formSettings.cartPosition}
-                      onChange={(value) => updateSetting("cartPosition", value)}
-                    />
-                    
-                    <Select
-                      label="Cart Icon Style"
-                      options={cartIconOptions}
-                      value={formSettings.cartIcon}
-                      onChange={(value) => updateSetting("cartIcon", value)}
-                    />
-                    
-                    <Divider />
-                    
-                    <BlockStack gap="300">
-                      <Text variant="headingMd" as="h3">Color Customization</Text>
-                      <InlineStack gap="400">
-                        <TextField
-                          label="Background Color"
-                          value={formSettings.backgroundColor}
-                          onChange={(value) => updateSetting("backgroundColor", value)}
-                          helpText="Cart drawer background (hex)"
-                          autoComplete="off"
-                        />
-                        
-                        <TextField
-                          label="Text Color"
-                          value={formSettings.textColor}
-                          onChange={(value) => updateSetting("textColor", value)}
-                          helpText="Main text color (hex)"
-                          autoComplete="off"
-                        />
-                      </InlineStack>
-                      
-                      <TextField
-                        label="Button & Accent Color"
-                        value={formSettings.buttonColor}
-                        onChange={(value) => updateSetting("buttonColor", value)}
-                        helpText="Primary button and accent color (hex format)"
-                        autoComplete="off"
-                      />
-                    </BlockStack>
-                  </FormLayout>
-                </BlockStack>
-              </Card>
-
-              {/* Product Recommendations */}
-              <Card>
-                <BlockStack gap="400">
-                  <Text variant="headingLg" as="h2">🎯 Smart Recommendations</Text>
-                  <FormLayout>
-                    <Checkbox
-                      label="Enable Product Recommendations"
-                      checked={formSettings.enableRecommendations}
-                      onChange={(value) => updateSetting("enableRecommendations", value)}
-                      helpText="Show AI-powered recommended products in cart drawer"
-                    />
-                    
-                    <InlineStack gap="400">
-                      <Select
-                        label="Recommendation Layout"
-                        options={recommendationLayoutOptions}
-                        value={formSettings.recommendationLayout}
-                        onChange={(value) => updateSetting("recommendationLayout", value)}
-                        disabled={!formSettings.enableRecommendations}
-                      />
-                      
-                      <TextField
-                        label="Max Recommendations"
-                        type="number"
-                        value={String(formSettings.maxRecommendations)}
-                        onChange={(value) => updateSetting("maxRecommendations", parseInt(value) || 6)}
-                        helpText="Maximum products to show (2-8)"
-                        disabled={!formSettings.enableRecommendations}
-                        autoComplete="off"
-                      />
-                    </InlineStack>
-                    
-                    <TextField
-                      label="Recommendations Title"
-                      value={formSettings.recommendationsTitle}
-                      onChange={(value) => updateSetting("recommendationsTitle", value)}
-                      helpText="Title shown above recommendations"
-                      disabled={!formSettings.enableRecommendations}
-                      autoComplete="off"
-                    />
-                    
-                    <Select
-                      label="✨ Smart Complement Detection Mode"
-                      options={complementDetectionModeOptions}
-                      value={(formSettings as any).complementDetectionMode || 'automatic'}
-                      onChange={(value) => updateSetting("complementDetectionMode", value)}
-                      helpText="How UpCart identifies complementary products for recommendations"
-                      disabled={!formSettings.enableRecommendations}
-                    />
-                  </FormLayout>
-                </BlockStack>
-              </Card>
-
-              {/* Manual Complement Rules */}
-              {formSettings.enableRecommendations && (formSettings as any).complementDetectionMode !== 'automatic' && (
-                <Card>
-                  <BlockStack gap="400">
-                    <Text variant="headingLg" as="h2">⚙️ Manual Complement Rules</Text>
-                    <Text variant="bodyMd" as="p" tone="subdued">
-                      Override AI detection with custom rules. Define which products should recommend specific complements.
-                    </Text>
-                    
-                    <FormLayout>
-                      <BlockStack gap="300">
-                        <div className="cartuplift-detection-preview">
-                          <Text variant="headingMd" as="h3">✨ Automatic Detections Preview:</Text>
-                          <ul style={{ fontSize: '14px', color: '#6B7280', marginTop: '8px', paddingLeft: '20px' }}>
-                            <li>Running Shoes → Socks, Insoles, Water Bottle</li>
-                            <li>Dress Shirts → Ties, Cufflinks, Collar Stays</li>
-                            <li>Laptops → Cases, Mouse, Keyboard</li>
-                            <li>Coffee Makers → Coffee Beans, Filters, Mugs</li>
-                            <li>Yoga Mats → Yoga Blocks, Straps, Water Bottles</li>
-                          </ul>
-                        </div>
-                        
-                        <TextField
-                          label="Manual Override Rules (JSON Format)"
-                          value={(formSettings as any).manualComplementRules || '{}'}
-                          onChange={(value) => updateSetting("manualComplementRules", value)}
-                          multiline={6}
-                          helpText='Example: {"winter boots": ["wool socks", "boot spray"], "limited edition sneakers": ["display case", "sneaker cleaner"]}'
-                          autoComplete="off"
-                        />
-                      </BlockStack>
-                    </FormLayout>
-                  </BlockStack>
-                </Card>
-              )}
-
-              {/* Additional Features */}
-              <Card>
-                <BlockStack gap="400">
-                  <Text variant="headingLg" as="h2">🚀 Advanced Features</Text>
-                  <FormLayout>
-                    <InlineStack gap="600">
-                      <BlockStack gap="300">
-                        <Checkbox
-                          label="Enable Discount Code Field"
-                          checked={formSettings.enableDiscountCode}
-                          onChange={(value) => updateSetting("enableDiscountCode", value)}
-                          helpText="Allow customers to enter discount codes"
-                        />
-                        
-                        <Checkbox
-                          label="Enable Order Notes"
-                          checked={formSettings.enableNotes}
-                          onChange={(value) => updateSetting("enableNotes", value)}
-                          helpText="Allow customers to add order notes"
-                        />
-                      </BlockStack>
-                      
-                      <BlockStack gap="300">
-                        <Checkbox
-                          label="Enable Express Checkout"
-                          checked={formSettings.enableExpressCheckout}
-                          onChange={(value) => updateSetting("enableExpressCheckout", value)}
-                          helpText="Show express checkout buttons (Apple Pay, Shop Pay)"
-                        />
-                        
-                        <Checkbox
-                          label="Enable Analytics"
-                          checked={formSettings.enableAnalytics}
-                          onChange={(value) => updateSetting("enableAnalytics", value)}
-                          helpText="Track cart interactions and performance"
-                        />
-                      </BlockStack>
-                    </InlineStack>
-                  </FormLayout>
-                </BlockStack>
-              </Card>
-
-              {/* Quick Actions */}
-              <Card>
-                <BlockStack gap="400">
-                  <Text variant="headingLg" as="h2">⚡ Quick Test Actions</Text>
-                  <Text variant="bodyMd" as="p" tone="subdued">
-                    Test your cart drawer functionality with these quick actions:
-                  </Text>
-                  <InlineStack gap="300">
-                    <Button 
-                      variant="secondary"
-                      size="large"
-                      onClick={() => window.open(window.location.origin, '_blank')}
-                    >
-                      🏪 Open Storefront
-                    </Button>
-                    <Button 
-                      variant="secondary"
-                      size="large"
-                      onClick={() => {
-                        if (typeof window !== 'undefined' && window.cartUpliftDrawer) {
-                          window.cartUpliftDrawer.openDrawer();
-                        } else {
-                          alert('Visit your storefront to test the cart drawer');
-                        }
-                      }}
-                    >
-                      🛒 Test Cart Open
-                    </Button>
-                    <Button 
-                      variant="secondary"
-                      size="large"
-                      url="/app/dashboard"
-                    >
-                      📊 View Analytics
-                    </Button>
-                  </InlineStack>
-                  <Text variant="bodyMd" as="p" tone="success">
-                    ✅ Make sure the app embed is enabled in your theme editor first.
-                  </Text>
-                </BlockStack>
-              </Card>
-            </BlockStack>
-          </div>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          /* Fixed Layout Styles */
+          .upcart-settings-layout {
+            display: grid !important;
+            grid-template-columns: 1fr 540px !important;
+            gap: 32px;
+            width: 100%;
+            position: relative;
+            padding: 0 20px;
+            min-height: 100vh;
+          }
           
-          {/* Live Preview Column - Right Side */}
-          <div className="settings-column">
-            <BlockStack gap="500">
-              {/* Live Cart Preview - Enhanced */}
-              <Card>
-                <BlockStack gap="400">
-                  <Text variant="headingLg" as="h2">🛒 Live Cart Preview</Text>
-                  <Text variant="bodyMd" as="p" tone="subdued">
-                    Real-time preview that updates as you change settings. This is exactly how your cart will appear to customers.
-                  </Text>
-                
-                {/* Inject Cart Uplift CSS + Layout Styles */}
-                <style dangerouslySetInnerHTML={{
-                  __html: `
-                    /* Grid Layout Styles for Settings Page */
-                    .settings-grid-container {
-                      display: grid;
-                      grid-template-columns: 1fr 1fr;
-                      gap: 32px;
-                      min-height: 80vh;
-                      width: 100%;
-                      max-width: 1600px;
-                      margin: 0 auto;
-                    }
-                    
-                    @media (max-width: 1200px) {
-                      .settings-grid-container {
-                        grid-template-columns: 1fr;
-                        gap: 24px;
-                      }
-                    }
-                    
-                    .settings-column {
-                      min-width: 0;
-                    }
-                    
-                    .preview-link-button {
-                      background: none;
-                      border: none;
-                      padding: 0;
-                      font-size: inherit;
-                      font-weight: inherit;
-                      color: inherit;
-                      text-decoration: underline;
-                      cursor: pointer;
-                    }
-                    
-                    .close-icon {
-                      width: 24px;
-                      height: 24px;
-                    }
-                    
-                    /* Cart Uplift Preview Styles - Exact match to cart-uplift.css */
-                    .cartuplift-preview-container {
-                      --cartuplift-primary: #1a1a1a;
-                      --cartuplift-secondary: #666666;
-                      --cartuplift-border: #e5e5e5;
-                      --cartuplift-background: #ffffff;
-                      --cartuplift-button-color: ${formSettings.buttonColor || '#4CAF50'};
-                      --cartuplift-teal: #16a085;
-                      --cartuplift-danger: #ff4444;
-                      --cartuplift-success: #22c55e;
-                      --cartuplift-drawer-width: 520px;
-                      --cartuplift-border-radius: 6px;
-                      --cartuplift-recommendations-bg: #f6fafd;
-                      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-                      -webkit-font-smoothing: antialiased;
-                      -moz-osx-font-smoothing: grayscale;
-                    }
-
-                    /* Enhanced Preview Container */
-                    .cartuplift-preview-wrapper {
-                      width: 100%;
-                      max-width: 650px;
-                      margin: 0 auto;
-                      overflow: visible;
-                      padding: 24px;
-                      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-                      border-radius: 20px;
-                      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
-                      border: 1px solid rgba(148, 163, 184, 0.1);
-                    }
-
-                    .cartuplift-preview-drawer {
-                      width: 100%;
-                      max-width: 600px;
-                      height: 750px;
-                      background: var(--cartuplift-background);
-                      border: 1px solid var(--cartuplift-border);
-                      border-radius: 16px;
-                      box-shadow: 0 6px 25px rgba(0, 0, 0, 0.12);
-                      display: flex;
-                      flex-direction: column;
-                      overflow: hidden;
-                      position: relative;
-                      margin: 0 auto;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-header {
-                      padding: 20px;
-                      background: var(--cartuplift-background);
-                      flex-shrink: 0;
-                      display: flex;
-                      align-items: center;
-                      justify-content: space-between;
-                      gap: 20px;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-cart-title {
-                      margin: 0;
-                      font-size: 15px;
-                      font-weight: 600;
-                      color: var(--cartuplift-primary);
-                      text-transform: uppercase;
-                      letter-spacing: 1.5px;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-close {
-                      background: transparent;
-                      border: none;
-                      width: 32px;
-                      height: 32px;
-                      border-radius: 50%;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      cursor: pointer;
-                      color: var(--cartuplift-secondary);
-                      transition: all 0.2s ease;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-close:hover {
-                      background: #f5f5f5;
-                      color: var(--cartuplift-primary);
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-shipping-info {
-                      margin-top: 12px;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-shipping-message {
-                      margin: 0;
-                      font-size: 14px;
-                      color: #333;
-                      text-align: center;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-shipping-bar {
-                      padding: 0 20px 16px;
-                      flex-shrink: 0;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-shipping-progress {
-                      width: 100%;
-                      height: 8px;
-                      background: #f0f0f0;
-                      border-radius: 4px;
-                      overflow: hidden;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-shipping-progress-fill {
-                      height: 100%;
-                      background: var(--cartuplift-button-color);
-                      border-radius: 4px;
-                      transition: width 0.5s ease;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-content-wrapper {
-                      flex: 1;
-                      display: flex;
-                      flex-direction: column;
-                      overflow: hidden;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-items {
-                      padding: 0 20px;
-                      overflow-y: auto;
-                      flex: 1;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-item {
-                      display: grid;
-                      grid-template-columns: 80px 1fr 60px;
-                      gap: 16px;
-                      padding: 20px 0;
-                      border-bottom: 1px solid var(--cartuplift-border);
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-item:last-child {
-                      border-bottom: none;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-item-image {
-                      width: 80px;
-                      height: 88px;
-                      border-radius: var(--cartuplift-border-radius);
-                      overflow: hidden;
-                      background: #f8f8f8;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-item-image img {
-                      width: 100%;
-                      height: 100%;
-                      object-fit: cover;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-item-info {
-                      display: flex;
-                      flex-direction: column;
-                      gap: 6px;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-item-title {
-                      margin: 0;
-                      font-size: 15px;
-                      font-weight: 600;
-                      color: var(--cartuplift-primary);
-                      line-height: 1.4;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-item-title a {
-                      color: inherit;
-                      text-decoration: none;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-item-variant {
-                      font-size: 14px;
-                      color: var(--cartuplift-secondary);
-                      margin: 0;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-quantity {
-                      display: inline-flex;
-                      align-items: center;
-                      border: 1px solid #d1d5db;
-                      border-radius: 24px;
-                      height: 36px;
-                      margin-top: 8px;
-                      width: fit-content;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-qty-minus,
-                    .cartuplift-preview-drawer .cartuplift-qty-plus {
-                      background: transparent;
-                      border: none;
-                      width: 36px;
-                      height: 34px;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      font-size: 18px;
-                      color: #333;
-                      cursor: pointer;
-                      transition: all 0.2s ease;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-qty-display {
-                      padding: 0 16px;
-                      font-size: 15px;
-                      font-weight: 500;
-                      color: var(--cartuplift-primary);
-                      min-width: 20px;
-                      text-align: center;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-item-price-actions {
-                      display: flex;
-                      flex-direction: column;
-                      align-items: flex-end;
-                      justify-content: space-between;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-item-price {
-                      font-weight: 500;
-                      font-size: 16px;
-                      color: var(--cartuplift-primary);
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-item-remove-x {
-                      background: transparent;
-                      border: none;
-                      width: 28px;
-                      height: 28px;
-                      border-radius: 50%;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      color: var(--cartuplift-secondary);
-                      cursor: pointer;
-                      transition: all 0.2s ease;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-item-remove-x:hover {
-                      background: #f5f5f5;
-                      color: var(--cartuplift-danger);
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-recommendations {
-                      background: var(--cartuplift-recommendations-bg);
-                      border-top: 1px solid var(--cartuplift-border);
-                      flex-shrink: 0;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-recommendations-header {
-                      padding: 16px 20px 12px;
-                      display: flex;
-                      align-items: center;
-                      justify-content: space-between;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-recommendations-title {
-                      margin: 0;
-                      font-size: 14px;
-                      font-weight: 600;
-                      letter-spacing: 1.5px;
-                      color: var(--cartuplift-primary);
-                      text-transform: uppercase;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-recommendations-toggle {
-                      background: transparent;
-                      border: none;
-                      width: 24px;
-                      height: 24px;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      cursor: pointer;
-                      color: var(--cartuplift-secondary);
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-recommendations-content {
-                      padding: 0 20px 16px;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-recommendations-row .cartuplift-recommendations-content {
-                      overflow-x: auto;
-                      padding-bottom: 8px;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-recommendations-track {
-                      display: flex;
-                      gap: 15px;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-recommendation-card {
-                      min-width: 160px;
-                      max-width: 160px;
-                      background: white;
-                      border: 1px solid var(--cartuplift-border);
-                      border-radius: var(--cartuplift-border-radius);
-                      overflow: hidden;
-                      flex-shrink: 0;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-recommendation-item {
-                      display: flex;
-                      align-items: center;
-                      gap: 12px;
-                      padding: 12px 0;
-                      border-bottom: 1px solid #e8e8e8;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-recommendation-item:last-child {
-                      border-bottom: none;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-recommendation-item img {
-                      width: 60px;
-                      height: 60px;
-                      border-radius: 4px;
-                      object-fit: cover;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-product-image {
-                      height: 120px;
-                      overflow: hidden;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-product-image img {
-                      width: 100%;
-                      height: 100%;
-                      object-fit: cover;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-card-content {
-                      padding: 12px;
-                      display: flex;
-                      flex-direction: column;
-                      gap: 8px;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-product-info h4 {
-                      margin: 0;
-                      font-size: 13px;
-                      font-weight: 500;
-                      line-height: 1.3;
-                      color: var(--cartuplift-primary);
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-product-actions {
-                      margin-top: 8px;
-                      display: flex;
-                      align-items: center;
-                      justify-content: space-between;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-recommendation-price {
-                      font-weight: 600;
-                      font-size: 14px;
-                      color: var(--cartuplift-primary);
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-add-recommendation {
-                      background: var(--cartuplift-button-color);
-                      color: white;
-                      border: none;
-                      padding: 6px 12px;
-                      border-radius: 4px;
-                      font-size: 12px;
-                      font-weight: 600;
-                      cursor: pointer;
-                      transition: all 0.2s ease;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-add-recommendation-circle {
-                      width: 28px;
-                      height: 28px;
-                      border: 2px solid var(--cartuplift-button-color);
-                      background: transparent;
-                      color: var(--cartuplift-button-color);
-                      border-radius: 50%;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      font-size: 16px;
-                      font-weight: 600;
-                      cursor: pointer;
-                      transition: all 0.2s ease;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-add-recommendation-circle:hover {
-                      background: var(--cartuplift-button-color);
-                      color: white;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-footer {
-                      padding: 16px 20px;
-                      background: var(--cartuplift-background);
-                      border-top: 1px solid var(--cartuplift-border);
-                      flex-shrink: 0;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-discount {
-                      display: flex;
-                      gap: 8px;
-                      margin-bottom: 12px;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-discount-input {
-                      flex: 1;
-                      padding: 10px 12px;
-                      border: 1px solid var(--cartuplift-border);
-                      border-radius: var(--cartuplift-border-radius);
-                      font-size: 14px;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-discount-apply {
-                      padding: 10px 20px;
-                      background: var(--cartuplift-button-color);
-                      color: white;
-                      border: none;
-                      border-radius: var(--cartuplift-border-radius);
-                      font-size: 12px;
-                      font-weight: 600;
-                      text-transform: uppercase;
-                      cursor: pointer;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-notes-input {
-                      width: 100%;
-                      padding: 10px 12px;
-                      border: 1px solid var(--cartuplift-border);
-                      border-radius: var(--cartuplift-border-radius);
-                      font-size: 14px;
-                      min-height: 60px;
-                      resize: vertical;
-                      margin-bottom: 12px;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-subtotal {
-                      display: flex;
-                      justify-content: space-between;
-                      margin-bottom: 16px;
-                      font-size: 18px;
-                      font-weight: 600;
-                      color: var(--cartuplift-primary);
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-checkout-btn {
-                      width: 100%;
-                      padding: 16px;
-                      background: var(--cartuplift-primary);
-                      color: white;
-                      border: none;
-                      border-radius: var(--cartuplift-border-radius);
-                      font-size: 14px;
-                      font-weight: 600;
-                      text-transform: uppercase;
-                      letter-spacing: 1px;
-                      cursor: pointer;
-                      margin-bottom: 12px;
-                      transition: all 0.2s ease;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-checkout-btn:hover {
-                      background: #000;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-express-checkout {
-                      display: flex;
-                      gap: 8px;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-paypal-btn,
-                    .cartuplift-preview-drawer .cartuplift-shoppay-btn {
-                      flex: 1;
-                      padding: 12px;
-                      border: 1px solid var(--cartuplift-border);
-                      border-radius: var(--cartuplift-border-radius);
-                      background: white;
-                      cursor: pointer;
-                      font-size: 12px;
-                      font-weight: 600;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-shoppay-btn {
-                      background: #5a31f4;
-                      color: white;
-                      border-color: #5a31f4;
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-empty {
-                      text-align: center;
-                      padding: 40px 20px;
-                      color: var(--cartuplift-secondary);
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-empty h4 {
-                      margin: 0 0 8px 0;
-                      font-size: 16px;
-                      color: var(--cartuplift-primary);
-                    }
-
-                    .cartuplift-preview-drawer .cartuplift-empty p {
-                      margin: 0;
-                      font-size: 14px;
-                    }
-                  `
-                }} />
-                
-                {/* Cart Drawer Preview - Enhanced Container */}
-                <div className="cartuplift-preview-wrapper">
-                  <div className="cartuplift-preview-drawer">
-                    {/* Header - Exact match to getHeaderHTML() */}
-                    <div className="cartuplift-header">
-                      <h2 className="cartuplift-cart-title">Cart (3)</h2>
-                      {formSettings.enableFreeShipping && (
-                        <div className="cartuplift-shipping-info">
-                          <p className="cartuplift-shipping-message">
-                            {(() => {
-                              const threshold = (formSettings.freeShippingThreshold || 100) * 100; // Convert to cents
-                              const currentTotal = 10498; // Sample total: $104.98
-                              const remaining = Math.max(0, threshold - currentTotal);
-                              if (remaining > 0) {
-                                return (formSettings.freeShippingText || "Spend {amount} more for free shipping!")
-                                  .replace(/{amount}/g, `$${(remaining / 100).toFixed(2)}`);
-                              } else {
-                                return formSettings.freeShippingAchievedText || "🎉 Free shipping unlocked!";
-                              }
-                            })()}
-                          </p>
-                        </div>
-                      )}
-                      <button className="cartuplift-close" aria-label="Close cart">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="close-icon">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-
-                    {/* Free Shipping Progress Bar - Exact match */}
-                    {formSettings.enableFreeShipping && (
-                      <div className="cartuplift-shipping-bar">
-                        <div className="cartuplift-shipping-progress">
-                          <div 
-                            className="cartuplift-shipping-progress-fill" 
-                            style={{ 
-                              width: `${(() => {
-                                const threshold = (formSettings.freeShippingThreshold || 100) * 100;
-                                const currentTotal = 10498;
-                                return Math.min((currentTotal / threshold) * 100, 100);
-                              })()}%`
-                            }}
-                          ></div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Content Wrapper - Exact match to cart structure */}
-                    <div className="cartuplift-content-wrapper">
-                      <div className="cartuplift-items">
-                        {/* Sample Cart Items - Exact match to getCartItemsHTML() */}
-                        <div className="cartuplift-item" data-variant-id="123456" data-line="1">
-                          <div className="cartuplift-item-image">
-                            <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&h=100&fit=crop&crop=center" alt="Premium Wireless Headphones" loading="lazy" />
-                          </div>
-                          <div className="cartuplift-item-info">
-                            <h4 className="cartuplift-item-title">
-                              <button className="preview-link-button">Premium Wireless Headphones</button>
-                            </h4>
-                            <div className="cartuplift-item-variant">Color: Matte Black</div>
-                            <div className="cartuplift-item-variant">Size: One Size</div>
-                            <div className="cartuplift-item-quantity-wrapper">
-                              <div className="cartuplift-quantity">
-                                <button className="cartuplift-qty-minus" data-line="1">−</button>
-                                <span className="cartuplift-qty-display">2</span>
-                                <button className="cartuplift-qty-plus" data-line="1">+</button>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="cartuplift-item-price-actions">
-                            <div className="cartuplift-item-price">$79.99</div>
-                            <button className="cartuplift-item-remove-x" data-line="1" aria-label="Remove item">
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="cartuplift-item" data-variant-id="123457" data-line="2">
-                          <div className="cartuplift-item-image">
-                            <img src="https://images.unsplash.com/photo-1556656793-08538906a9f8?w=100&h=100&fit=crop&crop=center" alt="Protective Phone Case" loading="lazy" />
-                          </div>
-                          <div className="cartuplift-item-info">
-                            <h4 className="cartuplift-item-title">
-                              <button className="preview-link-button">Protective Phone Case</button>
-                            </h4>
-                            <div className="cartuplift-item-variant">Color: Clear</div>
-                            <div className="cartuplift-item-variant">Size: iPhone 15 Pro</div>
-                            <div className="cartuplift-item-quantity-wrapper">
-                              <div className="cartuplift-quantity">
-                                <button className="cartuplift-qty-minus" data-line="2">−</button>
-                                <span className="cartuplift-qty-display">1</span>
-                                <button className="cartuplift-qty-plus" data-line="2">+</button>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="cartuplift-item-price-actions">
-                            <div className="cartuplift-item-price">$24.99</div>
-                            <button className="cartuplift-item-remove-x" data-line="2" aria-label="Remove item">
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Recommendations Section - Exact match to getRecommendationsHTML() */}
-                    {formSettings.enableRecommendations && (
-                      <div className={`cartuplift-recommendations cartuplift-recommendations-${formSettings.recommendationLayout || 'column'}`}>
-                        <div className="cartuplift-recommendations-header">
-                          <h3 className="cartuplift-recommendations-title">
-                            {formSettings.recommendationsTitle || 'You might also like'}
-                          </h3>
-                          <button className="cartuplift-recommendations-toggle" data-toggle="recommendations" aria-expanded="true" aria-label="Toggle recommendations">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                            </svg>
-                          </button>
-                        </div>
-                        <div className="cartuplift-recommendations-content">
-                          {formSettings.recommendationLayout === 'row' ? (
-                            /* Horizontal Layout */
-                            <div className="cartuplift-recommendations-track">
-                              <div className="cartuplift-recommendation-card">
-                                <div className="cartuplift-card-content">
-                                  <div className="cartuplift-product-image">
-                                    <img src="https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=150&h=120&fit=crop&crop=center" alt="Bluetooth Speaker" loading="lazy" />
-                                  </div>
-                                  <div className="cartuplift-product-info">
-                                    <h4><button className="preview-link-button cartuplift-product-link">Bluetooth Speaker</button></h4>
-                                  </div>
-                                  <div className="cartuplift-product-actions">
-                                    <div className="cartuplift-recommendation-price">$39.99</div>
-                                    <button className="cartuplift-add-recommendation" data-product-id="789" data-variant-id="789123">
-                                      Add+
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="cartuplift-recommendation-card">
-                                <div className="cartuplift-card-content">
-                                  <div className="cartuplift-product-image">
-                                    <img src="https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=150&h=120&fit=crop&crop=center" alt="Wireless Charger" loading="lazy" />
-                                  </div>
-                                  <div className="cartuplift-product-info">
-                                    <h4><button className="preview-link-button cartuplift-product-link">Wireless Charger</button></h4>
-                                  </div>
-                                  <div className="cartuplift-product-actions">
-                                    <div className="cartuplift-recommendation-price">$29.99</div>
-                                    <button className="cartuplift-add-recommendation" data-product-id="790" data-variant-id="790123">
-                                      Add+
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            /* Vertical Layout */
-                            <>
-                              <div className="cartuplift-recommendation-item">
-                                <img src="https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=60&h=60&fit=crop&crop=center" alt="Bluetooth Speaker" loading="lazy" />
-                                <div className="cartuplift-recommendation-info">
-                                  <h4><button className="preview-link-button cartuplift-product-link">Bluetooth Speaker</button></h4>
-                                  <div className="cartuplift-recommendation-price">$39.99</div>
-                                </div>
-                                <button className="cartuplift-add-recommendation-circle" data-variant-id="789123">
-                                  +
-                                </button>
-                              </div>
-                              <div className="cartuplift-recommendation-item">
-                                <img src="https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=60&h=60&fit=crop&crop=center" alt="Wireless Charger" loading="lazy" />
-                                <div className="cartuplift-recommendation-info">
-                                  <h4><button className="preview-link-button cartuplift-product-link">Wireless Charger</button></h4>
-                                  <div className="cartuplift-recommendation-price">$29.99</div>
-                                </div>
-                                <button className="cartuplift-add-recommendation-circle" data-variant-id="790123">
-                                  +
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Footer - Exact match to cart footer */}
-                    <div className="cartuplift-footer">
-                      {formSettings.enableDiscountCode && (
-                        <div className="cartuplift-discount">
-                          <input type="text" className="cartuplift-discount-input" placeholder="Discount code" disabled />
-                          <button className="cartuplift-discount-apply">Apply</button>
-                        </div>
-                      )}
-                      
-                      {formSettings.enableNotes && (
-                        <div className="cartuplift-notes">
-                          <textarea className="cartuplift-notes-input" placeholder="Order notes..." rows={3} disabled></textarea>
-                        </div>
-                      )}
-                      
-                      <div className="cartuplift-subtotal">
-                        <span>Subtotal</span>
-                        <span className="cartuplift-subtotal-amount">$104.98</span>
-                      </div>
-                      
-                      <button className="cartuplift-checkout-btn">
-                        CHECKOUT
-                      </button>
-                      
-                      {formSettings.enableExpressCheckout && (
-                        <div className="cartuplift-express-checkout">
-                          <button className="cartuplift-paypal-btn">
-                            PayPal
-                          </button>
-                          <button className="cartuplift-shoppay-btn">
-                            Shop Pay
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <Text variant="bodyMd" as="p" tone="subdued">
-                  💡 This live preview updates instantly as you change settings above. It shows exactly how your cart will appear to customers on your storefront.
-                </Text>
-              </BlockStack>
-            </Card>
-            
-            {/* Setup Guide */}
+          @media (max-width: 1000px) {
+            .upcart-settings-layout {
+              grid-template-columns: 1fr !important;
+              padding: 0 16px;
+            }
+            .upcart-preview-column {
+              display: none !important;
+            }
+          }
+          
+          @media (min-width: 1600px) {
+            .upcart-settings-layout {
+              grid-template-columns: 1fr 600px !important;
+              gap: 40px;
+              padding: 0 40px;
+            }
+          }
+          
+          .upcart-settings-column {
+            min-width: 0;
+            width: 100%;
+          }
+          
+          .upcart-preview-column {
+            position: sticky !important;
+            top: 0px;
+            height: 100vh;
+            max-height: 100vh;
+            display: block !important;
+          }
+          
+          .upcart-preview-container {
+            width: 520px;
+            height: 100vh;
+            background: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-radius: 0;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #e1e3e5;
+            overflow: hidden;
+          }
+
+          /* Cart Styles - Compact for preview */
+          .upcart-preview-header {
+            padding: 8px 12px;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            min-height: 32px;
+            flex-shrink: 0;
+            border-bottom: 1px solid #e1e3e5;
+          }
+
+          .upcart-cart-title {
+            margin: 0;
+            font-size: 11px;
+            font-weight: 600;
+            color: #000;
+            letter-spacing: 0.5px;
+          }
+
+          .upcart-shipping-info {
+            text-align: center;
+            margin: 8px 0;
+          }
+
+          .upcart-shipping-message {
+            margin: 0 0 4px 0;
+            font-size: 10px;
+            color: #666;
+            font-weight: 500;
+          }
+
+          .upcart-shipping-progress {
+            width: 100%;
+            height: 3px;
+            background: #f0f0f0;
+            border-radius: 2px;
+            overflow: hidden;
+          }
+
+          .upcart-shipping-progress-fill {
+            height: 100%;
+            background: #28a745;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+          }
+
+          .upcart-content-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 8px;
+            overflow-y: auto;
+          }
+
+          .upcart-items {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+          }
+
+          .upcart-item {
+            display: flex;
+            gap: 8px;
+            padding: 6px;
+            border-radius: 4px;
+            background: #fafafa;
+          }
+
+          .upcart-item-image {
+            width: 50px;
+            height: 50px;
+            flex-shrink: 0;
+          }
+
+          .upcart-item-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 3px;
+          }
+
+          .upcart-item-info {
+            flex: 1;
+            min-width: 0;
+          }
+
+          .upcart-item-title {
+            margin: 0 0 2px 0;
+            font-size: 10px;
+            font-weight: 600;
+            color: #333;
+            line-height: 1.2;
+          }
+
+          .upcart-item-variant {
+            font-size: 9px;
+            color: #666;
+            margin: 0;
+            line-height: 1.1;
+          }
+
+          .upcart-quantity {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 4px;
+          }
+
+          .upcart-qty-btn {
+            width: 18px;
+            height: 18px;
+            border: 1px solid #ccc;
+            background: white;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            cursor: pointer;
+          }
+
+          .upcart-qty-display {
+            min-width: 20px;
+            text-align: center;
+            font-size: 10px;
+            font-weight: 500;
+          }
+
+          .upcart-item-price-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+          }
+
+          .upcart-item-price {
+            font-size: 10px;
+            font-weight: 600;
+            color: #333;
+          }
+
+          .upcart-item-remove {
+            width: 16px;
+            height: 16px;
+            border: none;
+            background: #f5f5f5;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #666;
+          }
+
+          .upcart-recommendations {
+            border-top: 1px solid #eee;
+            padding-top: 6px;
+          }
+
+          .upcart-recommendations-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+          }
+
+          .upcart-recommendations-title {
+            margin: 0;
+            font-size: 9px;
+            font-weight: 600;
+            color: #333;
+            letter-spacing: 0.3px;
+          }
+
+          .upcart-recommendations-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px;
+            color: #666;
+          }
+
+          .upcart-recommendations-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+          }
+
+          .upcart-recommendation-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px;
+            background: #f9f9f9;
+            border-radius: 3px;
+          }
+
+          .upcart-recommendation-item img {
+            width: 30px;
+            height: 30px;
+            object-fit: cover;
+            border-radius: 2px;
+          }
+
+          .upcart-recommendation-info {
+            flex: 1;
+            min-width: 0;
+          }
+
+          .upcart-recommendation-info h4 {
+            margin: 0 0 1px 0;
+            font-size: 9px;
+            font-weight: 500;
+            color: #333;
+            line-height: 1.1;
+          }
+
+          .upcart-recommendation-price {
+            font-size: 8px;
+            color: #666;
+            margin: 0;
+          }
+
+          .upcart-add-btn {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #007c41;
+            background: white;
+            color: #007c41;
+            border-radius: 2px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .upcart-discount-section {
+            border-top: 1px solid #eee;
+            padding-top: 6px;
+          }
+
+          .upcart-discount-wrapper {
+            display: flex;
+            gap: 4px;
+          }
+
+          .upcart-discount-input {
+            flex: 1;
+            padding: 4px 6px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 9px;
+          }
+
+          .upcart-discount-apply {
+            padding: 4px 8px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 9px;
+            cursor: pointer;
+          }
+
+          .upcart-footer {
+            border-top: 1px solid #eee;
+            padding: 8px;
+            background: #fafafa;
+          }
+
+          .upcart-subtotal {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 11px;
+            font-weight: 600;
+          }
+
+          .upcart-checkout-btn {
+            width: 100%;
+            padding: 8px 12px;
+            background: #1a1a1a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            cursor: pointer;
+          }
+
+          .upcart-express-checkout {
+            display: flex;
+            gap: 4px;
+          }
+
+          .upcart-paypal-btn,
+          .upcart-shoppay-btn {
+            flex: 1;
+            padding: 4px 6px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            background: white;
+            font-size: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+            text-transform: uppercase;
+            flex-shrink: 0;
+          }
+
+          .upcart-shipping-info {
+            flex: 1;
+            text-align: center;
+            overflow: hidden;
+          }
+
+          .upcart-shipping-message {
+            margin: 0;
+            color: #666;
+            font-size: 12px;
+            font-weight: 400;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+
+          .upcart-close {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 6px;
+            color: #000;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            flex-shrink: 0;
+          }
+
+          .upcart-close:hover {
+            color: #111;
+            background: #f0f0f0;
+          }
+
+          .upcart-shipping-bar {
+            padding: 0 16px 8px;
+            background: #ffffff;
+            flex-shrink: 0;
+          }
+
+          .upcart-shipping-progress {
+            width: 100%;
+            height: 6px;
+            background: #f0f0f0;
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+          }
+
+          .upcart-shipping-progress-fill {
+            height: 100%;
+            background: ${formSettings.buttonColor || '#4CAF50'};
+            border-radius: 3px;
+            transition: width 0.5s ease, background 0.3s ease;
+            min-width: 2px;
+          }
+
+          .upcart-content-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+          }
+
+          .upcart-items {
+            flex: 1;
+            background: #ffffff;
+            padding: 0 16px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+
+          .upcart-items::-webkit-scrollbar {
+            display: none;
+          }
+
+          .upcart-item {
+            display: flex;
+            align-items: stretch;
+            gap: 16px;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+            position: relative;
+            min-height: 112px;
+          }
+
+          .upcart-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+          }
+
+          .upcart-item-image {
+            width: 106px;
+            height: 112px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #f8f8f8;
+            flex-shrink: 0;
+          }
+
+          .upcart-item-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+          }
+
+          .upcart-item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 0;
+            flex: 1;
+            padding-right: 8px;
+            justify-content: space-between;
+          }
+
+          .upcart-item-title {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.3;
+            color: #1a1a1a;
+          }
+
+          .upcart-item-variant {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.2;
+            margin: 0;
+          }
+
+          .upcart-quantity {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            background: #ffffff;
+            height: 32px;
+            min-width: 100px;
+            overflow: hidden;
+            justify-content: space-around;
+          }
+
+          .upcart-qty-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            font-size: 14px;
+            color: #333;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+          }
+
+          .upcart-qty-btn:hover {
+            background: #f5f5f5;
+          }
+
+          .upcart-qty-display {
+            padding: 0 10px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #000;
+            text-align: center;
+          }
+
+          .upcart-item-price-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: space-between;
+            flex-shrink: 0;
+            min-width: 60px;
+            min-height: 112px;
+          }
+
+          .upcart-item-price {
+            font-weight: 600;
+            font-size: 13px;
+            color: #000;
+            white-space: nowrap;
+          }
+
+          .upcart-item-remove {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 6px;
+            color: #000;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+          }
+
+          .upcart-item-remove:hover {
+            color: #111;
+            background: #f0f0f0;
+          }
+
+          /* Recommendations Section */
+          .upcart-recommendations {
+            background: #ecebe3;
+            padding: 4px 0;
+            margin-top: 8px;
+            flex-shrink: 0;
+          }
+
+          .upcart-recommendations-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px 0px 16px;
+            height: 36px;
+          }
+
+          .upcart-recommendations-title {
+            margin: 0;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            color: #1a1a1a;
+          }
+
+          .upcart-recommendations-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border: 1px solid #111;
+            border-radius: 50%;
+            background: transparent;
+            cursor: pointer;
+          }
+
+          .upcart-recommendations-content {
+            padding: 12px 16px;
+          }
+
+          .upcart-recommendation-item {
+            display: grid;
+            grid-template-columns: 56px 1fr 24px;
+            gap: 12px;
+            padding: 12px;
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            align-items: center;
+            background: white;
+          }
+
+          .upcart-recommendation-item img {
+            width: 56px;
+            height: 56px;
+            object-fit: cover;
+            border-radius: 6px;
+          }
+
+          .upcart-recommendation-info h4 {
+            font-size: 14px;
+            font-weight: 500;
+            color: #000;
+            margin: 0 0 4px 0;
+          }
+
+          .upcart-recommendation-price {
+            font-size: 14px;
+            font-weight: 500;
+            color: #000;
+          }
+
+          .upcart-add-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid #1a1a1a;
+            background: #ffffff;
+            color: #1a1a1a;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+          }
+
+          .upcart-add-btn:hover {
+            background: #1a1a1a;
+            color: white;
+          }
+
+          /* Discount Section */
+          .upcart-discount-section {
+            padding: 8px 16px 4px 16px;
+            border-top: 1px solid #e5e5e5;
+          }
+
+          .upcart-discount-wrapper {
+            display: flex;
+            gap: 8px;
+          }
+
+          .upcart-discount-input {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+          }
+
+          .upcart-discount-apply {
+            padding: 10px 16px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+          }
+
+          /* Footer */
+          .upcart-footer {
+            padding: 12px 16px;
+            background: #ffffff;
+            border-top: 1px solid #e5e5e5;
+            flex-shrink: 0;
+          }
+
+          .upcart-subtotal {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 8px 0;
+            font-size: 15px;
+            font-weight: 600;
+            color: #000;
+          }
+
+          .upcart-checkout-btn {
+            width: 100%;
+            padding: 12px 16px;
+            background: #1a1a1a;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            cursor: pointer;
+          }
+
+          .upcart-express-checkout {
+            display: flex;
+            gap: 8px;
+          }
+
+          .upcart-paypal-btn,
+          .upcart-shoppay-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            font-size: 12px;
+          }
+
+          .upcart-shoppay-btn {
+            background: #5a31f4;
+            color: white;
+            border-color: #5a31f4;
+            font-weight: 600;
+          }
+        `
+      }} />
+
+      {fetcher.state === "idle" && fetcher.data && (fetcher.data as any)?.success && (
+        <Banner tone="success">Settings saved successfully!</Banner>
+      )}
+
+      <div className="upcart-settings-layout">
+        {/* Settings Column - Left Side */}
+        <div className="upcart-settings-column">
+          <BlockStack gap="500">
+            {/* Core Settings */}
             <Card>
               <BlockStack gap="400">
-                <Text variant="headingLg" as="h2">🚀 Setup Guide</Text>
-                <BlockStack gap="300">
-                  <Text variant="headingMd" as="h3">Required Steps:</Text>
-                  <BlockStack gap="200">
-                    <Text variant="bodyMd" as="p">
-                      <strong>1.</strong> Go to your theme editor
-                    </Text>
-                    <Text variant="bodyMd" as="p">
-                      <strong>2.</strong> Click "App embeds" in the sidebar
-                    </Text>
-                    <Text variant="bodyMd" as="p">
-                      <strong>3.</strong> Enable "UpCart Cart Drawer"
-                    </Text>
-                    <Text variant="bodyMd" as="p">
-                      <strong>4.</strong> Save your theme
-                    </Text>
-                  </BlockStack>
-                  <Text variant="bodyMd" as="p" tone="success">
-                    ✅ App embed must be enabled for the cart to appear
-                  </Text>
-                </BlockStack>
+                <Text variant="headingLg" as="h2">⚙️ Core Settings</Text>
+                <FormLayout>
+                  <Checkbox
+                    label="Enable UpCart"
+                    checked={formSettings.enableApp}
+                    onChange={(value) => updateSetting("enableApp", value)}
+                    helpText="Master toggle for the entire cart functionality"
+                  />
+                  
+                  <Checkbox
+                    label="Enable Sticky Cart Button"
+                    checked={formSettings.enableStickyCart}
+                    onChange={(value) => updateSetting("enableStickyCart", value)}
+                    helpText="Show floating cart button on all pages"
+                  />
+                  
+                  <Checkbox
+                    label="Show only on cart page"
+                    checked={formSettings.showOnlyOnCartPage}
+                    onChange={(value) => updateSetting("showOnlyOnCartPage", value)}
+                    helpText="Limit cart drawer to cart page only"
+                  />
+                </FormLayout>
               </BlockStack>
             </Card>
 
-            {/* Performance Insights */}
+            {/* Free Shipping Settings */}
             <Card>
-              <BlockStack gap="300">
-                <Text variant="headingLg" as="h2">📈 Performance Insights</Text>
-                <InlineStack gap="400">
-                  <BlockStack gap="200">
-                    <Text variant="bodyMd" as="p">
-                      📊 <strong>Cart Performance:</strong>
-                    </Text>
-                    <Text variant="bodyMd" as="p" tone="subdued">
-                      • 32% avg. conversion increase
-                    </Text>
-                    <Text variant="bodyMd" as="p" tone="subdued">
-                      • 28% higher average order value
-                    </Text>
-                  </BlockStack>
-                  <BlockStack gap="200">
-                    <Text variant="bodyMd" as="p">
-                      🎯 <strong>Recommendations:</strong>
-                    </Text>
-                    <Text variant="bodyMd" as="p" tone="subdued">
-                      • 15% upsell success rate
-                    </Text>
-                    <Text variant="bodyMd" as="p" tone="subdued">
-                      • AI-powered product matching
-                    </Text>
-                  </BlockStack>
-                </InlineStack>
+              <BlockStack gap="400">
+                <Text variant="headingLg" as="h2">🚚 Free Shipping</Text>
+                <FormLayout>
+                  <Checkbox
+                    label="Enable Free Shipping Bar"
+                    checked={formSettings.enableFreeShipping}
+                    onChange={(value) => updateSetting("enableFreeShipping", value)}
+                  />
+                  
+                  <TextField
+                    label="Free Shipping Threshold (£)"
+                    type="number"
+                    value={String(formSettings.freeShippingThreshold)}
+                    onChange={(value) => updateSetting("freeShippingThreshold", parseInt(value) || 100)}
+                    disabled={!formSettings.enableFreeShipping}
+                    autoComplete="off"
+                  />
+                  
+                  <TextField
+                    label="Shipping Message"
+                    value={formSettings.freeShippingText}
+                    onChange={(value) => updateSetting("freeShippingText", value)}
+                    helpText="Use {amount} as placeholder"
+                    disabled={!formSettings.enableFreeShipping}
+                    autoComplete="off"
+                  />
+                  
+                  <TextField
+                    label="Success Message"
+                    value={formSettings.freeShippingAchievedText}
+                    onChange={(value) => updateSetting("freeShippingAchievedText", value)}
+                    disabled={!formSettings.enableFreeShipping}
+                    autoComplete="off"
+                  />
+                </FormLayout>
+              </BlockStack>
+            </Card>
+
+            {/* Appearance Settings */}
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingLg" as="h2">🎨 Appearance</Text>
+                <FormLayout>
+                  <Select
+                    label="Cart Position"
+                    options={cartPositionOptions}
+                    value={formSettings.cartPosition}
+                    onChange={(value) => updateSetting("cartPosition", value)}
+                  />
+                  
+                  <Select
+                    label="Cart Icon Style"
+                    options={cartIconOptions}
+                    value={formSettings.cartIcon}
+                    onChange={(value) => updateSetting("cartIcon", value)}
+                  />
+                  
+                  <TextField
+                    label="Button Color"
+                    value={formSettings.buttonColor}
+                    onChange={(value) => updateSetting("buttonColor", value)}
+                    helpText="Hex color for buttons"
+                    autoComplete="off"
+                  />
+                </FormLayout>
+              </BlockStack>
+            </Card>
+
+            {/* Recommendations Settings */}
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingLg" as="h2">🎯 Smart Recommendations</Text>
+                <FormLayout>
+                  <Checkbox
+                    label="Enable Product Recommendations"
+                    checked={formSettings.enableRecommendations}
+                    onChange={(value) => updateSetting("enableRecommendations", value)}
+                  />
+                  
+                  <Select
+                    label="Layout"
+                    options={recommendationLayoutOptions}
+                    value={formSettings.recommendationLayout}
+                    onChange={(value) => updateSetting("recommendationLayout", value)}
+                    disabled={!formSettings.enableRecommendations}
+                  />
+                  
+                  <TextField
+                    label="Max Recommendations"
+                    type="number"
+                    value={String(formSettings.maxRecommendations)}
+                    onChange={(value) => updateSetting("maxRecommendations", parseInt(value) || 4)}
+                    disabled={!formSettings.enableRecommendations}
+                    autoComplete="off"
+                  />
+                  
+                  <TextField
+                    label="Section Title"
+                    value={formSettings.recommendationsTitle}
+                    onChange={(value) => updateSetting("recommendationsTitle", value)}
+                    disabled={!formSettings.enableRecommendations}
+                    autoComplete="off"
+                  />
+                  
+                  <Select
+                    label="Detection Mode"
+                    options={complementDetectionModeOptions}
+                    value="automatic"
+                    onChange={(value) => updateSetting("complementDetectionMode", value)}
+                    disabled={!formSettings.enableRecommendations}
+                  />
+                </FormLayout>
+              </BlockStack>
+            </Card>
+
+            {/* Additional Features */}
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingLg" as="h2">🚀 Advanced Features</Text>
+                <FormLayout>
+                  <Checkbox
+                    label="Enable Discount Code Field"
+                    checked={formSettings.enableDiscountCode}
+                    onChange={(value) => updateSetting("enableDiscountCode", value)}
+                  />
+                  
+                  <Checkbox
+                    label="Enable Order Notes"
+                    checked={formSettings.enableNotes}
+                    onChange={(value) => updateSetting("enableNotes", value)}
+                  />
+                  
+                  <Checkbox
+                    label="Enable Express Checkout"
+                    checked={formSettings.enableExpressCheckout}
+                    onChange={(value) => updateSetting("enableExpressCheckout", value)}
+                  />
+                  
+                  <Checkbox
+                    label="Enable Analytics"
+                    checked={formSettings.enableAnalytics}
+                    onChange={(value) => updateSetting("enableAnalytics", value)}
+                  />
+                </FormLayout>
               </BlockStack>
             </Card>
           </BlockStack>
         </div>
+
+        {/* Live Preview - Right Side (Fixed) */}
+        <div className="upcart-preview-column" ref={previewRef}>
+          <div className="upcart-preview-container">
+            {/* Header */}
+            <div className="upcart-preview-header">
+                  <h2 className="upcart-cart-title">CART (5)</h2>
+                  {formSettings.enableFreeShipping && (
+                    <div className="upcart-shipping-info">
+                      <p className="upcart-shipping-message">
+                        {remaining > 0 
+                          ? (formSettings.freeShippingText || "Spend {amount} more for free shipping!")
+                              .replace(/{amount}/g, `£${(remaining / 100).toFixed(2)}`)
+                          : formSettings.freeShippingAchievedText || "🎉 Congratulations! You've unlocked free shipping!"
+                        }
+                      </p>
+                    </div>
+                  )}
+                  <button className="upcart-close" aria-label="Close cart">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" style={{ width: '24px', height: '24px' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Free Shipping Progress Bar */}
+                {formSettings.enableFreeShipping && (
+                  <div className="upcart-shipping-bar">
+                    <div className="upcart-shipping-progress">
+                      <div className="upcart-shipping-progress-fill" style={{ width: `${progress}%` }}></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Content */}
+                <div className="upcart-content-wrapper">
+                  <div className="upcart-items">
+                    {/* Product 1 */}
+                    <div className="upcart-item">
+                      <div className="upcart-item-image">
+                        <img src="https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=200&h=200&fit=crop" alt="Anytime No Show Sock" />
+                      </div>
+                      <div className="upcart-item-info">
+                        <h4 className="upcart-item-title">Anytime No Show Sock</h4>
+                        <div className="upcart-item-variant">Color: White</div>
+                        <div className="upcart-item-variant">Accessory size: L</div>
+                        <div className="upcart-quantity">
+                          <button className="upcart-qty-btn">−</button>
+                          <span className="upcart-qty-display">1</span>
+                          <button className="upcart-qty-btn">+</button>
+                        </div>
+                      </div>
+                      <div className="upcart-item-price-actions">
+                        <div className="upcart-item-price">£14.00</div>
+                        <button className="upcart-item-remove" title="Remove item">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.25" stroke="currentColor" style={{ width: '18px', height: '18px' }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Product 2 */}
+                    <div className="upcart-item">
+                      <div className="upcart-item-image">
+                        <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&h=200&fit=crop" alt="Men's Strider" />
+                      </div>
+                      <div className="upcart-item-info">
+                        <h4 className="upcart-item-title">Men's Strider</h4>
+                        <div className="upcart-item-variant">Color: White</div>
+                        <div className="upcart-item-variant">Shoe size: 10</div>
+                        <div className="upcart-quantity">
+                          <button className="upcart-qty-btn">−</button>
+                          <span className="upcart-qty-display">4</span>
+                          <button className="upcart-qty-btn">+</button>
+                        </div>
+                      </div>
+                      <div className="upcart-item-price-actions">
+                        <div className="upcart-item-price">£115.00</div>
+                        <button className="upcart-item-remove" title="Remove item">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.25" stroke="currentColor" style={{ width: '18px', height: '18px' }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Recommendations Section */}
+                  {formSettings.enableRecommendations && (
+                    <div className="upcart-recommendations">
+                      <div className="upcart-recommendations-header">
+                        <h3 className="upcart-recommendations-title">
+                          {formSettings.recommendationsTitle || 'RECOMMENDED FOR YOU'}
+                        </h3>
+                        <button className="upcart-recommendations-toggle" title="Toggle recommendations">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" style={{ width: '10px', height: '10px' }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="upcart-recommendations-content">
+                        {formSettings.recommendationLayout === 'column' ? (
+                          <>
+                            <div className="upcart-recommendation-item">
+                              <img src="https://images.unsplash.com/photo-1521093470119-a3acdc43374a?w=100&h=100&fit=crop" alt="Snowboard" />
+                              <div className="upcart-recommendation-info">
+                                <h4>The Multi-managed Snowboard</h4>
+                                <div className="upcart-recommendation-price">£629.95</div>
+                              </div>
+                              <button className="upcart-add-btn">+</button>
+                            </div>
+                            <div className="upcart-recommendation-item">
+                              <img src="https://images.unsplash.com/photo-1518611012118-696072aa579a?w=100&h=100&fit=crop" alt="Snowboard" />
+                              <div className="upcart-recommendation-info">
+                                <h4>The Collection Snowboard</h4>
+                                <div className="upcart-recommendation-price">£549.95</div>
+                              </div>
+                              <button className="upcart-add-btn">+</button>
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ display: 'flex', gap: '12px', overflowX: 'auto' }}>
+                            {/* Horizontal card layout would go here */}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Discount Section */}
+                  {formSettings.enableDiscountCode && (
+                    <div className="upcart-discount-section">
+                      <div className="upcart-discount-wrapper">
+                        <input 
+                          type="text" 
+                          className="upcart-discount-input" 
+                          placeholder="Enter discount code"
+                        />
+                        <button className="upcart-discount-apply">Apply</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="upcart-footer">
+                  <div className="upcart-subtotal">
+                    <span>Subtotal</span>
+                    <span>£474.00</span>
+                  </div>
+                  
+                  <button className="upcart-checkout-btn">CHECKOUT</button>
+                  
+                  {formSettings.enableExpressCheckout && (
+                    <div className="upcart-express-checkout">
+                      <button className="upcart-paypal-btn">
+                        <img src="https://www.paypalobjects.com/webstatic/en_US/i/buttons/PP_logo_h_100x26.png" alt="PayPal" style={{ height: '12px' }} />
+                      </button>
+                      <button className="upcart-shoppay-btn">Shop Pay</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+        </div>
       </div>
-    </BlockStack>
     </Page>
   );
 }
