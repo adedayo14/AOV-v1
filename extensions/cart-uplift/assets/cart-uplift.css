@@ -491,11 +491,15 @@
 /* Title */
 .cartuplift-recommendations-title {
   margin: 0;
+  padding: 0;  /* Remove any padding */
   font-size: 12px;                 /* text-xs equivalent */
   font-weight: 400;                /* font-regular */
   letter-spacing: .12em;           /* tracking-wider */
   text-transform: none;            /* don't force uppercase - show user input as-is */
-  line-height: 1;                  /* prevents visual lift */
+  line-height: 1;                  /* Reset line-height */
+  display: flex;                   /* Make it a flex container */
+  align-items: center;             /* Center the text vertically */
+  height: 24px;                    /* Match the toggle button height */
 }
 
 /* Toggle button on the right */
@@ -559,6 +563,7 @@
   overflow-x: auto;
   overflow-y: hidden;
   scroll-behavior: smooth;
+  scroll-snap-type: x mandatory; /* Enable snap scrolling */
   padding: 0; /* remove wrapper padding to sit flush with cart items */
   position: relative;
 }
@@ -579,7 +584,7 @@
 .cartuplift-recommendations-track {
   display: flex;
   gap: 15px;
-  padding-bottom: 6px; /* Less bottom padding */
+  padding: 6px 32px 6px 16px; /* increased right padding to 32px for better last card visibility */
   margin-top: 4px; /* Slightly tighter to header */
 }
 
@@ -590,12 +595,10 @@
   align-items: center;
   width: 100%;
   gap: 8px;
+  padding: 6px 12px;  /* Match header padding */
   background: var(--cartuplift-recommendations-bg);
-  padding: 8px 12px;
-  padding: 2px 6px;
-  margin-top: 0px;
-  margin-bottom: 2px;
-  background: var(--cartuplift-recommendations-bg);
+  height: 36px;  /* Fixed height to match header */
+  box-sizing: border-box;
 }
 
 .cartuplift-carousel-nav {
@@ -670,6 +673,7 @@
   align-items: flex-start;
   gap: 12px;
   min-height: 104px;
+  scroll-snap-align: start; /* Enable snap-to-card behavior */
 }
 
 .cartuplift-card-content {
@@ -1031,7 +1035,7 @@
   /* Exact desktop card sizing and spacing */
   .cartuplift-recommendations-track {
     gap: 0; /* card margin controls spacing */
-    padding-left: 12px; /* add left padding for first card */
+    padding: 6px 32px 6px 16px; /* increased right padding to 32px for better last card visibility */
   }
 
   .cartuplift-recommendation-card {
