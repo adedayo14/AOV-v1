@@ -407,17 +407,17 @@
       return `
         <div class="cartuplift-header">
           <h2 class="cartuplift-cart-title">Cart (${itemCount})</h2>
-          ${this.settings.enableFreeShipping ? `
-            <div class="cartuplift-shipping-info">
-              <p class="cartuplift-shipping-message">${freeShippingText}</p>
-            </div>
-          ` : ''}
           <button class="cartuplift-close" aria-label="Close cart">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 24px; height: 24px;">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
+        ${this.settings.enableFreeShipping ? `
+          <div class="cartuplift-shipping-info-mobile">
+            <p class="cartuplift-shipping-message">${freeShippingText}</p>
+          </div>
+        ` : ''}
         ${this.settings.enableFreeShipping ? (() => {
           console.log('🛒 Progress Bar Debug:', {
             progress: progress,

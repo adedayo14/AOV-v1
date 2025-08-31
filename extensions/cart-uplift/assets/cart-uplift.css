@@ -127,6 +127,8 @@ body.cartuplift-no-scroll {
   flex: 1;
   text-align: center;
   overflow: hidden;
+  /* Hide in header by default; will show below header on mobile */
+  display: none;
 }
 
 .cartuplift-shipping-message {
@@ -137,6 +139,15 @@ body.cartuplift-no-scroll {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Shipping info shown below header on mobile */
+.cartuplift-shipping-info-mobile {
+  display: none;
+  padding: 8px 16px;
+  background: var(--cartuplift-background);
+  border-bottom: 1px solid #f0f0f0;
+  text-align: center;
 }
 
 .cartuplift-close {
@@ -313,6 +324,8 @@ body.cartuplift-no-scroll {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Consistent height whether variants exist or not */
+  min-height: 14px;
 }
 
 /* Quantity Selector - 32px height, 100px min-width */
@@ -404,6 +417,8 @@ body.cartuplift-no-scroll {
   height: 36px; /* Bigger */
   border-radius: 50%;
   /* Bottom item in column; space-between handles placement */
+  /* Align with quantity controls baseline */
+  align-self: center;
 }
 
 .cartuplift-item-remove-x:hover {
@@ -491,10 +506,10 @@ body.cartuplift-no-scroll {
   width: 100%;
   padding-left: 16px;
   padding-top: 10px;
-  padding-bottom: 0px;
+  padding-bottom: 10px; /* Add bottom padding for more space between header and cards */
   padding-right: 16px; /* Reduced to move toggle closer to edge */
   background: var(--cartuplift-recommendations-bg);
-  height: 36px;  /* Use fixed height instead of min-height */
+  height: 46px;  /* Increased from 36px to account for bottom padding */
   box-sizing: border-box;
   position: relative;
   z-index: 3; /* Ensure header/toggle are clickable above scroll content on mobile */
@@ -952,7 +967,7 @@ body.cartuplift-no-scroll {
   .cartuplift-recommendations-track {
     display: flex;
     gap: 16px;
-    padding: 0 16px 16px 16px; /* Reduce bottom padding to remove wasted space */
+    padding: 0 16px 8px 16px; /* Reduce bottom padding further to minimize space before discount */
   }
   
   /* Ensure each card spans the container width minus track side padding */
@@ -995,15 +1010,17 @@ body.cartuplift-no-scroll {
     cursor: pointer;
     transition: all 0.3s ease;
     box-shadow: none;
+    /* Add outline for better visibility */
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.2);
   }
-  
+
   .cartuplift-carousel-dot.active {
     background: #333;
     transform: scale(1.1);
-    box-shadow: none;
-  }
-  
-  /* Fix recommendation container positioning */
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
+    border-color: #fff;
+  }  /* Fix recommendation container positioning */
   .cartuplift-recommendations-row {
     position: relative;
     overflow: visible; /* Allow dots to show outside */
@@ -1881,8 +1898,23 @@ body.cartuplift-no-scroll {
   /* Reduce whitespace before the action/discount section on mobile */
   .cartuplift-scrollable-content .cartuplift-discount-section,
   .cartuplift-action-section {
-    margin-top: 4px !important;
-    padding-top: 4px !important;
+    margin-top: 0px !important;
+    padding-top: 0px !important;
+  }
+
+  /* Show shipping info below header instead of in header */
+  .cartuplift-shipping-info {
+    display: none !important;
+  }
+  
+  .cartuplift-shipping-info-mobile {
+    display: block !important;
+  }
+  
+  .cartuplift-shipping-message {
+    font-size: 11px;
+    white-space: normal;
+    line-height: 1.2;
   }
   
   .cartuplift-item {
