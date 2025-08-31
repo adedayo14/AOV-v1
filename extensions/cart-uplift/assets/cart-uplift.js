@@ -1154,6 +1154,32 @@
           })
         });
         
+        // Check if the API endpoint exists and is working
+        if (!validationResponse.ok && validationResponse.status === 404) {
+          // API endpoint not found, use Shopify's built-in validation
+          const shopifyResponse = await fetch('/cart/discounts/' + encodeURIComponent(discountCode), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
+          
+          if (shopifyResponse.ok) {
+            await this.fetchCart();
+            this.updateDrawerContent();
+            if (messageEl) messageEl.innerHTML = `<span class="success">✓ Discount code "${discountCode}" applied successfully!</span>`;
+            if (input) input.value = '';
+            this.showToast('Discount code applied!', 'success');
+            this.openCustomModal();
+          } else {
+            const errorData = await shopifyResponse.json().catch(() => ({}));
+            const errorMessage = errorData.description || 'Invalid discount code';
+            if (messageEl) messageEl.innerHTML = `<span class="error">✗ ${errorMessage}</span>`;
+            this.showToast('Invalid discount code', 'error');
+          }
+          return;
+        }
+        
         const validationData = await validationResponse.json();
         
     if (validationData.success) {
@@ -1201,41 +1227,9 @@
       } catch (error) {
         console.error('Error validating discount:', error);
         
-        // Fallback: Save discount code anyway and let checkout handle validation
-        try {
-          const cartData = await fetch('/cart.js').then(r => r.json());
-          
-          const updateData = {
-            attributes: {
-              ...cartData.attributes,
-              'discount_code': discountCode
-            }
-          };
-          
-          const updateResponse = await fetch('/cart/update.js', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(updateData)
-          });
-          
-          if (updateResponse.ok) {
-            await this.fetchCart();
-            this.updateDrawerContent();
-            if (messageEl) messageEl.innerHTML = `<span class="success">✓ Discount code "${discountCode}" saved! Will be validated at checkout.</span>`;
-            if (input) input.value = '';
-            this.showToast('Discount code saved!', 'success');
-            this.openCustomModal();
-          } else {
-            throw new Error('Failed to save discount code');
-          }
-          
-        } catch (fallbackError) {
-          console.error('Fallback also failed:', fallbackError);
-          if (messageEl) messageEl.innerHTML = '<span class="error">Unable to save discount code. Please enter it at checkout.</span>';
-          this.showToast('Enter code at checkout', 'error');
-        }
+        // Show proper error message - no fallback saving of unvalidated codes
+        if (messageEl) messageEl.innerHTML = '<span class="error">Unable to validate discount code. Please check the code and try again.</span>';
+        this.showToast('Discount validation failed', 'error');
       } finally {
         // Reset button
         if (button) {
