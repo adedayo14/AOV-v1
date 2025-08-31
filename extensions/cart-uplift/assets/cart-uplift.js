@@ -1154,8 +1154,8 @@
           })
         });
         
-        // Check if the API endpoint exists and is working
-        if (!validationResponse.ok && validationResponse.status === 404) {
+  // If our app validation isn't available or lacks permission, fall back to Shopify's built-in validation
+  if (!validationResponse.ok && (validationResponse.status === 404 || validationResponse.status === 401 || validationResponse.status === 403 || validationResponse.status >= 500)) {
           // API endpoint not found, use Shopify's built-in validation
           const shopifyResponse = await fetch('/cart/discounts/' + encodeURIComponent(discountCode), {
             method: 'POST',
@@ -1180,7 +1180,28 @@
           return;
         }
         
-        const validationData = await validationResponse.json();
+        const validationData = await validationResponse.json().catch(() => ({}));
+
+        // If server replied but couldn't validate (e.g., permission error), try Shopify fallback before failing
+        if (!validationResponse.ok && validationData && validationData.error) {
+          try {
+            const shopifyResponse = await fetch('/cart/discounts/' + encodeURIComponent(discountCode), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            if (shopifyResponse.ok) {
+              await this.fetchCart();
+              this.updateDrawerContent();
+              if (messageEl) messageEl.innerHTML = `<span class="success">✓ Discount code "${discountCode}" applied successfully!</span>`;
+              if (input) input.value = '';
+              this.showToast('Discount code applied!', 'success');
+              this.openCustomModal();
+              return;
+            }
+          } catch (e) {
+            // ignore and proceed to error handling
+          }
+        }
         
     if (validationData.success) {
           // Discount is valid, save it as cart attribute for checkout
@@ -1218,7 +1239,7 @@
             throw new Error('Failed to save discount to cart');
           }
           
-        } else {
+  } else {
           // Discount validation failed
           if (messageEl) messageEl.innerHTML = `<span class="error">${validationData.error || 'Invalid discount code'}</span>`;
           this.showToast('Invalid discount code', 'error');
