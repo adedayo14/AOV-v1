@@ -253,7 +253,7 @@ export default function SettingsPage() {
 
   return (
     <Page
-      title="UpCart Settings"
+      title="Cart Uplift Settings"
       primaryAction={{
         content: "Save Settings",
         onAction: handleSubmit,
@@ -393,7 +393,7 @@ export default function SettingsPage() {
                 <BlockStack gap="400">
                   <Text variant="headingLg" as="h2">🛒 Cart Drawer Control</Text>
                   <Checkbox
-                    label="Enable UpCart Drawer"
+                    label="Enable Cart Uplift Drawer"
                     checked={formSettings.enableApp}
                     onChange={(checked) => updateSetting("enableApp", checked)}
                     helpText="Turn on/off the cart drawer functionality"
