@@ -68,7 +68,7 @@ export async function action({ request }: ActionFunctionArgs) {
         const { session } = await authenticate.public.appProxy(request);
         shopDomain = session?.shop;
       } catch (e) {
-        console.warn('App proxy auth failed (continuing with best-effort validation):', e);
+        console.warn('App proxy auth failed:', e);
       }
 
       const contentType = request.headers.get('content-type') || '';
@@ -89,73 +89,70 @@ export async function action({ request }: ActionFunctionArgs) {
         });
       }
 
-      // Try to look up this discount in Admin to retrieve a human summary and infer value
-      let summary = `Discount code ${discountCode} will be applied at checkout`;
-      let status = 'ACCEPTED';
-      // Kind/value for client-side estimate
-      let kind: 'percent' | 'amount' | 'unknown' = 'unknown';
-      let percent: number | undefined;
-      let amountCents: number | undefined;
-
-      try {
-        if (shopDomain) {
-          const { admin } = await unauthenticated.admin(shopDomain);
-          const discountQuery = `#graphql
-            query getDiscountByCode($query: String!) {
-              discountCodes(first: 1, query: $query) {
-                edges { node { 
-                  code
-                  status
-                  summary
-                } }
-              }
-            }
-          `;
-          const resp = await admin.graphql(discountQuery, { variables: { query: `code:${discountCode}` } });
-          const data = await resp.json();
-          const node = data?.data?.discountCodes?.edges?.[0]?.node;
-          if (node) {
-            summary = node.summary || summary;
-            status = node.status || status;
-          }
-        }
-      } catch (e) {
-        console.warn('Admin lookup for discount failed, using default summary:', e);
+      // If we can't determine the shop, fail closed (do not accept unknown codes)
+      if (!shopDomain) {
+        return json({ success: false, error: 'Unable to validate discount code' }, {
+          status: 401,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+        });
       }
 
-      // Heuristic parse from summary for a quick estimate
-      // Examples: "Save 10%", "Get 15% off", "$5 off", "Save £10"
       try {
-        const text = String(summary);
-        const percentMatch = text.match(/(\d+[.,]?\d*)\s*%/);
-        const amountMatch = text.match(/([$£€])\s*(\d+[.,]?\d*)/);
-        if (percentMatch) {
-          kind = 'percent';
-          percent = parseFloat(percentMatch[1].replace(',', '.'));
-        } else if (amountMatch) {
-          kind = 'amount';
-          const major = parseFloat(amountMatch[2].replace(',', '.'));
-          amountCents = Math.round(major * 100);
-        }
-      } catch {}
+        const { admin } = await unauthenticated.admin(shopDomain);
+        // Use supported Admin GraphQL API to validate code existence
+        const query = `#graphql
+          query ValidateDiscountCode($code: String!) {
+            codeDiscountNodeByCode(code: $code) {
+              id
+              codeDiscount { __typename }
+            }
+          }
+        `;
+        const resp = await admin.graphql(query, { variables: { code: discountCode } });
+        const data = await resp.json();
+        const node = data?.data?.codeDiscountNodeByCode;
 
-      return json({
-        success: true,
-        discount: {
-          code: discountCode,
-          summary,
-          status,
-          kind,
-          percent,
-          amountCents,
+        if (!node) {
+          return json({ success: false, error: 'Invalid discount code' }, {
+            status: 404,
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type",
+            },
+          });
         }
-      }, {
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
-        },
-      });
+
+        // If found, consider it valid
+        return json({
+          success: true,
+          discount: {
+            code: discountCode,
+            summary: `Discount code ${discountCode} will be applied at checkout`,
+            status: 'VALID',
+          }
+        }, {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+        });
+      } catch (e) {
+        console.error('Error validating discount via Admin API:', e);
+        return json({ success: false, error: 'Unable to validate discount code' }, {
+          status: 500,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+        });
+      }
     }
 
     if (path.includes('/api/cart-tracking')) {
