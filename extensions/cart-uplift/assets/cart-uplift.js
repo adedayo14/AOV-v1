@@ -472,8 +472,8 @@
           <div class="cartuplift-item-price-actions">
             <div class="cartuplift-item-price">${this.formatMoney(item.final_price)}</div>
             <button class="cartuplift-item-remove-x" data-line="${index + 1}" aria-label="Remove item">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M9 6V4h6v2m-9 0 1 14h10l1-14H6z"/>
               </svg>
             </button>
           </div>

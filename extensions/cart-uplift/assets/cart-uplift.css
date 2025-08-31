@@ -385,11 +385,10 @@ body.cartuplift-no-scroll {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 12px;
   flex-shrink: 0;
   height: 100%;
-  align-self: stretch; /* Match item height so space-between can align top/bottom with quantity */
-  justify-content: space-between;
+  align-self: stretch; /* Match item height */
+  justify-content: space-between; /* Ensure price top, remove bottom */
   min-width: 60px;
   min-height: 112px; /* Match the item min-height to ensure consistent baseline */
 }
@@ -400,7 +399,6 @@ body.cartuplift-no-scroll {
   color: #000;
   letter-spacing: normal;
   white-space: nowrap;
-  /* Top item in column; space-between handles placement */
 }
 
 .cartuplift-item-remove-x {
@@ -413,12 +411,11 @@ body.cartuplift-no-scroll {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px; /* Bigger */
-  height: 36px; /* Bigger */
+  width: 32px; /* Match quantity control height for perfect alignment */
+  height: 32px; /* Match quantity control height for perfect alignment */
   border-radius: 50%;
-  /* Bottom item in column; space-between handles placement */
-  /* Align with quantity controls bottom */
-  align-self: flex-end;
+  /* Position to align with quantity controls - no margin */
+  margin-bottom: 0;
 }
 
 .cartuplift-item-remove-x:hover {
@@ -429,7 +426,7 @@ body.cartuplift-no-scroll {
 .cartuplift-item-remove-x svg {
   width: 18px;
   height: 18px;
-  stroke-width: 2.25;
+  stroke-width: 1.5; /* Thinner outline */
 }
 
 /* ========================================
@@ -1873,7 +1870,8 @@ body.cartuplift-no-scroll {
   }
   
   .cartuplift-item {
-    grid-template-columns: 70px 1fr 36px;
+    /* Keep flexbox layout but adjust sizes for mobile */
+    gap: 12px;
     padding: 14px 0;
   }
   
@@ -1882,8 +1880,15 @@ body.cartuplift-no-scroll {
     height: 88px;  /* Maintain aspect ratio */
   }
   
+  .cartuplift-item-info {
+    /* Remove fixed width, let it flex naturally */
+    min-height: 88px; /* Match image height */
+  }
+  
   .cartuplift-item-price-actions {
-    min-height: 88px;
+    min-height: 88px; /* Match image height */
+  /* Ensure consistent mobile alignment */
+  justify-content: space-between;
   }
   
   /* Card width is defined earlier as calc(100vw - 48px) for mobile; no override here */
@@ -1930,7 +1935,7 @@ body.cartuplift-no-scroll {
   }
   
   .cartuplift-item {
-    grid-template-columns: 60px 1fr 32px;
+    /* Keep flexbox layout for mobile, just adjust sizing */
     gap: 10px;
   }
   
@@ -1939,8 +1944,14 @@ body.cartuplift-no-scroll {
     height: 75px;  /* Maintain aspect ratio */
   }
   
+  .cartuplift-item-info {
+    min-height: 75px; /* Match mobile image height */
+  }
+  
   .cartuplift-item-price-actions {
-    min-height: 75px;
+    min-height: 75px; /* Match mobile image height */
+  /* Ensure consistent mobile alignment */
+  justify-content: space-between;
   }
   
   .cartuplift-item-title {
