@@ -862,6 +862,19 @@ body.cartuplift-no-scroll {
   overflow-y: auto;
   overflow-x: hidden;
   padding-top: 12px;
+  /* Enable touch scrolling on mobile */
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+/* Hide scrollbar for vertical recommendations */
+.cartuplift-recommendations-column .cartuplift-recommendations-content::-webkit-scrollbar {
+  display: none;
+}
+
+.cartuplift-recommendations-column .cartuplift-recommendations-content {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
 }
 
 .cartuplift-recommendations-column .cartuplift-recommendation-item {
@@ -874,13 +887,17 @@ body.cartuplift-no-scroll {
   margin-bottom: 12px;
   align-items: center;
   transition: all 0.2s ease;
+  /* White background like horizontal cards */
+  background: white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
 
 .cartuplift-recommendations-column .cartuplift-recommendation-item:hover {
   border-color: #ddd;
-  background: #fafafa;
+  /* Keep white background on hover, just enhance shadow */
+  background: white;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .cartuplift-recommendation-item img {
