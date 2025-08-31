@@ -33,7 +33,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   
   // Convert string values to appropriate types
   const processedSettings = {
-    ...settings,
     enableApp: settings.enableApp === 'true',
     enableStickyCart: settings.enableStickyCart === 'true',
     showOnlyOnCartPage: settings.showOnlyOnCartPage === 'true',
@@ -46,8 +45,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     enableExpressCheckout: settings.enableExpressCheckout === 'true',
     enableAnalytics: settings.enableAnalytics === 'true',
     maxRecommendations: Number(settings.maxRecommendations) || 6,
-    complementDetectionMode: settings.complementDetectionMode || 'automatic',
-    manualComplementRules: settings.manualComplementRules || '{}',
+    cartPosition: String(settings.cartPosition) || 'bottom-right',
+    cartIcon: String(settings.cartIcon) || 'cart',
+    freeShippingText: String(settings.freeShippingText) || "You're {amount} away from free shipping!",
+    freeShippingAchievedText: String(settings.freeShippingAchievedText) || "🎉 Congratulations! You've unlocked free shipping!",
+    recommendationsTitle: String(settings.recommendationsTitle) || "You might also like",
+    actionText: String(settings.actionText) || "Add discount code",
+    backgroundColor: String(settings.backgroundColor) || "#ffffff",
+    textColor: String(settings.textColor) || "#1A1A1A",
+    buttonColor: String(settings.buttonColor) || "#000000",
+    recommendationLayout: String(settings.recommendationLayout) || "horizontal",
   };
   
   try {
@@ -1078,6 +1085,17 @@ export default function SettingsPage() {
                     checked={formSettings.enableNotes}
                     onChange={(value) => updateSetting("enableNotes", value)}
                   />
+
+                  {(formSettings.enableDiscountCode || formSettings.enableNotes) && (
+                    <TextField
+                      label="Action Button Text"
+                      value={formSettings.actionText || ""}
+                      onChange={(value) => updateSetting("actionText", value)}
+                      placeholder="Add discount codes and notes"
+                      helpText="Text shown on the button that opens the discount/notes modal"
+                      autoComplete="off"
+                    />
+                  )}
                   
                   <Checkbox
                     label="Enable Express Checkout"

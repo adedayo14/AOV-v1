@@ -1362,6 +1362,363 @@
   filter: brightness(0.9);
 }
 
+/* Action Button Styles */
+.cartuplift-action-section {
+  margin: 0;
+}
+
+/* Ensure no extra spacing when inside scrollable content */
+.cartuplift-scrollable-content > .cartuplift-action-section {
+  margin: 0;
+}
+
+.cartuplift-action-button {
+  width: 100%;
+  padding: 14px 20px;
+  background: var(--cartuplift-button-color, #007cba);
+  color: white;
+  border: none;
+  border-radius: 0;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.cartuplift-action-button:hover {
+  filter: brightness(0.9);
+}
+
+/* Custom Modal Styles */
+.cartuplift-custom-modal {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--cartuplift-drawer-width);
+  max-width: 90vw;
+  background: var(--cartuplift-background);
+  z-index: 1000000;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(100%);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+}
+
+.cartuplift-custom-modal.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+}
+
+.cartuplift-modal-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cartuplift-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e5e5;
+  background: var(--cartuplift-button-color, #007cba);
+  color: white;
+  flex-shrink: 0;
+}
+
+.cartuplift-modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+}
+
+.cartuplift-modal-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 18px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.cartuplift-modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.cartuplift-modal-body {
+  padding: 20px;
+  flex: 1;
+  overflow-y: auto;
+  background: var(--cartuplift-background);
+}
+
+.cartuplift-modal-section {
+  margin-bottom: 20px;
+}
+
+.cartuplift-modal-section:last-child {
+  margin-bottom: 0;
+}
+
+.cartuplift-modal-label {
+  display: block;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.cartuplift-modal-input-group {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.cartuplift-modal-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #e1e5e9;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.cartuplift-modal-input:focus {
+  outline: none;
+  border-color: var(--cartuplift-button-color, #007cba);
+  box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.1);
+}
+
+.cartuplift-modal-textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e1e5e9;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  background: white;
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.cartuplift-modal-textarea:focus {
+  outline: none;
+  border-color: var(--cartuplift-button-color, #007cba);
+  box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.1);
+}
+
+.cartuplift-modal-apply-btn {
+  padding: 12px 20px;
+  background: var(--cartuplift-button-color, #007cba);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.cartuplift-modal-apply-btn:hover {
+  filter: brightness(0.9);
+}
+
+.cartuplift-modal-apply-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cartuplift-modal-char-count {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #666;
+  text-align: right;
+}
+
+.cartuplift-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #e5e5e5;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  background: #f8f9fa;
+  border-radius: 0 0 12px 12px;
+}
+
+.cartuplift-modal-btn {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.cartuplift-modal-btn.secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.cartuplift-modal-btn.secondary:hover {
+  background: #e5e7eb;
+}
+
+.cartuplift-modal-btn.primary {
+  background: var(--cartuplift-button-color, #007cba);
+  color: white;
+}
+
+.cartuplift-modal-btn.primary:hover {
+  filter: brightness(0.9);
+}
+
+.cartuplift-modal-message {
+  margin-top: 8px;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.cartuplift-modal-message span.success {
+  color: #065f46;
+  background: #d1fae5;
+  display: block;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #a7f3d0;
+}
+
+.cartuplift-modal-message span.error {
+  color: #991b1b;
+  background: #fee2e2;
+  display: block;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #fecaca;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .cartuplift-modal-content {
+    width: 95%;
+    max-height: 85vh;
+    margin: 20px 0;
+  }
+  
+  .cartuplift-modal-header {
+    padding: 16px 20px;
+  }
+  
+  .cartuplift-modal-title {
+    font-size: 16px;
+  }
+  
+  .cartuplift-modal-body {
+    padding: 20px;
+  }
+  
+  .cartuplift-modal-footer {
+    padding: 16px 20px;
+    flex-direction: column-reverse;
+  }
+  
+  .cartuplift-modal-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .cartuplift-modal-input-group {
+    flex-direction: column;
+  }
+  
+  .cartuplift-modal-apply-btn {
+    align-self: stretch;
+  }
+}
+
+/* Toast Notification Styles */
+.cartuplift-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 999999;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.3s ease;
+  max-width: 300px;
+  overflow: hidden;
+}
+
+.cartuplift-toast.active {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.cartuplift-toast-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.cartuplift-toast-icon {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.cartuplift-toast-success .cartuplift-toast-icon {
+  color: #10b981;
+}
+
+.cartuplift-toast-error .cartuplift-toast-icon {
+  color: #ef4444;
+}
+
+.cartuplift-toast-message {
+  font-size: 14px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.cartuplift-toast-success {
+  border-left: 4px solid #10b981;
+}
+
+.cartuplift-toast-error {
+  border-left: 4px solid #ef4444;
+}
+
+@media (max-width: 768px) {
+  .cartuplift-toast {
+    right: 16px;
+    left: 16px;
+    max-width: none;
+  }
+}
+
 
 /* ========================================
    Sticky Cart Button

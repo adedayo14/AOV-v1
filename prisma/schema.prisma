@@ -58,6 +58,7 @@ model Settings {
   freeShippingText        String   @default("You're {amount} away from free shipping!")
   freeShippingAchievedText String  @default("🎉 Congratulations! You've unlocked free shipping!")
   recommendationsTitle    String   @default("You might also like")
+  actionText              String   @default("Add discount code")
   
   // Appearance
   backgroundColor         String   @default("#ffffff")

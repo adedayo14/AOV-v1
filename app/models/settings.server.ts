@@ -24,6 +24,7 @@ export interface SettingsData {
   freeShippingText: string;
   freeShippingAchievedText: string;
   recommendationsTitle: string;
+  actionText: string;
   
   // Appearance
   backgroundColor: string;
@@ -63,6 +64,7 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       freeShippingText: settings.freeShippingText,
       freeShippingAchievedText: settings.freeShippingAchievedText,
       recommendationsTitle: settings.recommendationsTitle,
+      actionText: settings.actionText || "Add discount code",
       backgroundColor: settings.backgroundColor,
       textColor: settings.textColor,
       buttonColor: settings.buttonColor,
@@ -77,13 +79,28 @@ export async function getSettings(shop: string): Promise<SettingsData> {
 
 export async function saveSettings(shop: string, settingsData: Partial<SettingsData>): Promise<SettingsData> {
   try {
+    // Filter to only include valid SettingsData fields
+    const validFields: (keyof SettingsData)[] = [
+      'enableApp', 'enableStickyCart', 'showOnlyOnCartPage', 'enableFreeShipping', 'freeShippingThreshold',
+      'enableRecommendations', 'enableAddons', 'enableDiscountCode', 'enableNotes', 'enableExpressCheckout', 'enableAnalytics',
+      'cartPosition', 'cartIcon', 'freeShippingText', 'freeShippingAchievedText', 'recommendationsTitle', 'actionText',
+      'backgroundColor', 'textColor', 'buttonColor', 'recommendationLayout', 'maxRecommendations'
+    ];
+    
+    const filteredData: Partial<SettingsData> = {};
+    for (const field of validFields) {
+      if (field in settingsData && settingsData[field] !== undefined) {
+        (filteredData as any)[field] = settingsData[field];
+      }
+    }
+    
     const settings = await db.settings.upsert({
       where: { shop },
       create: {
         shop,
-        ...settingsData,
+        ...filteredData,
       },
-      update: settingsData,
+      update: filteredData,
     });
 
     return {
@@ -103,6 +120,7 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       freeShippingText: settings.freeShippingText,
       freeShippingAchievedText: settings.freeShippingAchievedText,
       recommendationsTitle: settings.recommendationsTitle,
+      actionText: settings.actionText || "Add discount code",
       backgroundColor: settings.backgroundColor,
       textColor: settings.textColor,
       buttonColor: settings.buttonColor,
@@ -140,6 +158,7 @@ function getDefaultSettings(): SettingsData {
     freeShippingText: "You're {amount} away from free shipping!",
     freeShippingAchievedText: "🎉 Congratulations! You've unlocked free shipping!",
     recommendationsTitle: "You might also like",
+    actionText: "Add discount code",
     
     // Appearance
     backgroundColor: "#ffffff",
