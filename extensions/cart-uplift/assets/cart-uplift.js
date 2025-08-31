@@ -1420,12 +1420,7 @@
     getExpressCheckoutHTML() {
       return `
         <div class="cartuplift-express-checkout">
-          <button class="cartuplift-paypal-btn">
-            <img src="https://www.paypalobjects.com/webstatic/en_US/i/buttons/PP_logo_h_100x26.png" alt="PayPal">
-          </button>
-          <button class="cartuplift-shoppay-btn">
-            Shop Pay
-          </button>
+          <div class="cartuplift-express-slot"></div>
         </div>
       `;
     }
@@ -2313,6 +2308,45 @@
           }, true); // Capture phase to intercept early
         });
       });
+
+      // After mount, try to hydrate express checkout with Shopify-rendered buttons
+      setTimeout(() => this.mountExpressButtons(), 0);
+    }
+
+    mountExpressButtons() {
+      try {
+        const slot = document.querySelector('.cartuplift-express-slot');
+        if (!slot) return;
+        const probe = document.getElementById('cartuplift-payment-probe');
+        if (!probe) return;
+        // Find Shopify-generated dynamic buttons
+        const dynamicWrap = probe.querySelector('.additional-checkout-buttons');
+        if (!dynamicWrap) return;
+
+        // If Shopify has injected child buttons, clone and insert into slot
+        if (dynamicWrap.children.length) {
+          // Clear previous
+          slot.innerHTML = '';
+          // Clone node to keep the original hidden in DOM
+          const clone = dynamicWrap.cloneNode(true);
+          // Make interactive
+          clone.style.position = 'static';
+          clone.style.opacity = '1';
+          clone.style.pointerEvents = 'auto';
+          clone.style.transform = 'none';
+          clone.style.height = 'auto';
+          // Insert
+          slot.appendChild(clone);
+
+          // Hook click passthrough if needed: delegate clicks to original hidden buttons
+          slot.addEventListener('click', (ev) => {
+            const originalButton = probe.querySelector('.additional-checkout-buttons button, .shopify-payment-button');
+            if (originalButton) originalButton.click();
+          }, { once: true });
+        }
+      } catch (e) {
+        console.warn('Failed to mount express buttons:', e);
+      }
     }
 
     // Enhanced method to hide theme notifications with multiple strategies

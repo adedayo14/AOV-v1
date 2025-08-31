@@ -126,6 +126,14 @@
     });
   </script>
 
+  {%- comment -%}
+    Hidden probe to let Shopify render official dynamic checkout buttons (PayPal, Shop Pay).
+    We'll relocate these into the cart drawer when it opens so clicks use Shopify's checkout flow.
+  {%- endcomment -%}
+  <div id="cartuplift-payment-probe" style="position:absolute;left:-9999px;top:-9999px;opacity:0;pointer-events:none;">
+    <div class="additional-checkout-buttons" data-shopify="payment-button"></div>
+  </div>
+
 {% schema %}
 {
   "name": "Free Shipping Bar",
