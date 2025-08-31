@@ -18,7 +18,7 @@ handle = "cart-drawer"
     key = "auto_open_cart"
     type = "checkbox"
     name = "Auto-open cart when item added"
-    info = "Automatically show cart drawer when customers add items"
+    info = "Automatically show cart uplift when customers add items"
     default = true
 
   [[settings.fields]]
@@ -51,7 +51,7 @@ handle = "cart-drawer"
     key = "text_color"
     type = "color"
     name = "Text color"
-    info = "Main text color in the cart drawer"
+    info = "Main text color in the cart uplift"
     default = "#1A1A1A"
 
   [[settings.fields]]

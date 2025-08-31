@@ -42,14 +42,14 @@ npm run dev
 2. Navigate to Online Store > Themes
 3. Click "Customize" on your active theme
 4. In the theme editor, look for "App embeds" in the left sidebar
-5. Find "UpCart Cart Drawer" and toggle it ON
+5. Find "Cart Uplift Cart Drawer" and toggle it ON
 6. Configure any theme-level settings
 7. Save your theme
 
 ### 5. Configure App Settings
 
 1. In your Shopify admin, go to Apps
-2. Open the UpCart app
+2. Open the Cart Uplift app
 3. Navigate to the "Cart Drawer" tab
 4. Configure your settings:
    - Enable/disable features
@@ -64,7 +64,7 @@ npm run dev
 ├── app/                          # Remix app (admin interface)
 │   ├── routes/
 │   │   ├── app._index.tsx       # Main dashboard
-│   │   ├── app.cart-drawer.tsx  # Settings page
+│   │   ├── app.settings.tsx      # Settings page
 │   │   └── api.upsells.tsx      # Upsells API endpoint
 ├── extensions/
 │   └── cart-uplift/             # Theme app extension
@@ -166,7 +166,7 @@ Returns product recommendations for the cart drawer.
 
 1. **Frontend (Theme Extension)**: Add to `cart-uplift.js` and `cart-uplift.css`
 2. **Backend (Admin)**: Add routes in `app/routes/`
-3. **Settings**: Update settings interface in `app.cart-drawer.tsx`
+3. **Settings**: Update settings interface in `app.settings.tsx`
 4. **Theme Settings**: Update schema in `app-embed.liquid`
 
 ### Testing

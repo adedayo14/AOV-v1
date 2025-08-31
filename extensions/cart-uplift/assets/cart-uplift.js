@@ -102,7 +102,7 @@
       // Fetch initial cart data FIRST
       await this.fetchCart();
       
-      // Create cart drawer AFTER cart is fetched
+      // Create cart uplift AFTER cart is fetched
       this.createDrawer();
       
       // Update drawer content with actual cart data
@@ -114,7 +114,7 @@
       }
       
       // Set up cart replacement
-      this.setupCartInterception();
+      this.setupCartUpliftInterception();
       
       // Install cart monitoring
       this.installAddToCartMonitoring();
@@ -2110,7 +2110,7 @@
       }, 300);
     }
 
-    setupCartInterception() {
+    setupCartUpliftInterception() {
       // Intercept cart icon clicks
       document.addEventListener('click', (e) => {
         const cartTriggers = [
@@ -2450,7 +2450,7 @@
         notificationSelectors.forEach(selector => {
           const elements = document.querySelectorAll(selector);
           elements.forEach(el => {
-            // Don't hide our own cart drawer
+            // Don't hide our own cart uplift
             if (!el.id || !el.id.includes('cartuplift')) {
               el.style.setProperty('display', 'none', 'important');
               el.style.setProperty('visibility', 'hidden', 'important');
@@ -2499,11 +2499,11 @@
       setTimeout(hideNotifications, 500);
       
       // Also prevent theme's cart drawer from opening
-      this.preventThemeCartDrawer();
+      this.preventThemeCartUplift();
     }
 
     // Method to prevent theme's cart drawer from interfering
-    preventThemeCartDrawer() {
+    preventThemeCartUplift() {
       // Override common theme cart drawer functions if they exist
       if (window.theme && window.theme.cart) {
         if (window.theme.cart.open) {
@@ -2646,8 +2646,8 @@
 
   // 🤖 Smart Recommendation Engine - AI-Powered Cross-Sells & Upsells
   class SmartRecommendationEngine {
-    constructor(cartDrawer) {
-      this.cartDrawer = cartDrawer;
+    constructor(cartUplift) {
+      this.cartUplift = cartUplift;
       this.purchasePatterns = null;
       this.productCache = new Map();
       this.complementRules = new Map();
@@ -2751,7 +2751,7 @@
 
     loadManualRules() {
       // Load manual override rules from settings
-      const manualRulesJson = this.cartDrawer.settings.manualComplementRules || '{}';
+      const manualRulesJson = this.cartUplift.settings.manualComplementRules || '{}';
       
       try {
         const manualRules = JSON.parse(manualRulesJson);
@@ -2774,8 +2774,8 @@
     // Main entry point - replaces existing loadRecommendations
     async getRecommendations() {
       try {
-        const cart = this.cartDrawer.cart;
-        const mode = this.cartDrawer.settings.complementDetectionMode || 'automatic';
+        const cart = this.cartUplift.cart;
+        const mode = this.cartUplift.settings.complementDetectionMode || 'automatic';
         
         console.log('🤖 Smart recommendations mode:', mode);
         
@@ -2992,7 +2992,7 @@
 
     deduplicateAndScore(recommendations) {
       // Remove cart items and deduplicate
-      const cartProductIds = (this.cartDrawer.cart?.items || []).map(i => i.product_id);
+      const cartProductIds = (this.cartUplift.cart?.items || []).map(i => i.product_id);
       const seen = new Set();
       
       const unique = recommendations.filter(rec => {
@@ -3006,7 +3006,7 @@
       // Sort by score (highest first)
       unique.sort((a, b) => (b.score || 0) - (a.score || 0));
       
-      const maxRecs = this.cartDrawer.settings.maxRecommendations || 4;
+      const maxRecs = this.cartUplift.settings.maxRecommendations || 4;
       const final = unique.slice(0, maxRecs);
       
       console.log('🤖 Final smart recommendations:', final.map(r => `${r.title} (${r.reason}, ${r.score?.toFixed(2)})`));
@@ -3111,8 +3111,8 @@
 
     async getShopifyRecommendations() {
       try {
-        if (this.cartDrawer.cart?.items?.length > 0) {
-          const productId = this.cartDrawer.cart.items[0].product_id;
+        if (this.cartUplift.cart?.items?.length > 0) {
+          const productId = this.cartUplift.cart.items[0].product_id;
           const response = await fetch(`/recommendations/products.json?product_id=${productId}&limit=4`);
           if (response.ok) {
             const data = await response.json();

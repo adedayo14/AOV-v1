@@ -136,7 +136,7 @@ export default function SettingsPage() {
 
   return (
     <Page
-      title="UpCart Settings"
+      title="Cart Uplift Settings"
       primaryAction={{
         content: "Save Settings",
         onAction: handleSubmit,
@@ -147,7 +147,7 @@ export default function SettingsPage() {
       <style dangerouslySetInnerHTML={{
         __html: `
           /* Fixed Layout Styles */
-          .upcart-settings-layout {
+          .cartuplift-settings-layout {
             display: grid !important;
             grid-template-columns: 1fr 540px !important;
             gap: 32px;
@@ -158,29 +158,29 @@ export default function SettingsPage() {
           }
           
           @media (max-width: 1000px) {
-            .upcart-settings-layout {
+            .cartuplift-settings-layout {
               grid-template-columns: 1fr !important;
               padding: 0 16px;
             }
-            .upcart-preview-column {
+            .cartuplift-preview-column {
               display: none !important;
             }
           }
           
           @media (min-width: 1600px) {
-            .upcart-settings-layout {
+            .cartuplift-settings-layout {
               grid-template-columns: 1fr 600px !important;
               gap: 40px;
               padding: 0 40px;
             }
           }
           
-          .upcart-settings-column {
+          .cartuplift-settings-column {
             min-width: 0;
             width: 100%;
           }
           
-          .upcart-preview-column {
+          .cartuplift-preview-column {
             position: sticky !important;
             top: 0px;
             height: 100vh;
@@ -188,7 +188,7 @@ export default function SettingsPage() {
             display: block !important;
           }
           
-          .upcart-preview-container {
+          .cartuplift-preview-container {
             width: 520px;
             height: 100vh;
             background: #ffffff;
@@ -201,7 +201,7 @@ export default function SettingsPage() {
           }
 
           /* Cart Styles - Compact for preview */
-          .upcart-preview-header {
+          .cartuplift-preview-header {
             padding: 8px 12px;
             background: #ffffff;
             display: flex;
@@ -213,7 +213,7 @@ export default function SettingsPage() {
             border-bottom: 1px solid #e1e3e5;
           }
 
-          .upcart-cart-title {
+          .cartuplift-cart-title {
             margin: 0;
             font-size: 11px;
             font-weight: 600;
@@ -221,19 +221,19 @@ export default function SettingsPage() {
             letter-spacing: 0.5px;
           }
 
-          .upcart-shipping-info {
+          .cartuplift-shipping-info {
             text-align: center;
             margin: 8px 0;
           }
 
-          .upcart-shipping-message {
+          .cartuplift-shipping-message {
             margin: 0 0 4px 0;
             font-size: 10px;
             color: #666;
             font-weight: 500;
           }
 
-          .upcart-shipping-progress {
+          .cartuplift-shipping-progress {
             width: 100%;
             height: 3px;
             background: #f0f0f0;
@@ -241,14 +241,14 @@ export default function SettingsPage() {
             overflow: hidden;
           }
 
-          .upcart-shipping-progress-fill {
+          .cartuplift-shipping-progress-fill {
             height: 100%;
             background: #28a745;
             border-radius: 2px;
             transition: width 0.3s ease;
           }
 
-          .upcart-content-wrapper {
+          .cartuplift-content-wrapper {
             flex: 1;
             display: flex;
             flex-direction: column;
@@ -257,13 +257,13 @@ export default function SettingsPage() {
             overflow-y: auto;
           }
 
-          .upcart-items {
+          .cartuplift-items {
             display: flex;
             flex-direction: column;
             gap: 6px;
           }
 
-          .upcart-item {
+          .cartuplift-item {
             display: flex;
             gap: 8px;
             padding: 6px;
@@ -271,25 +271,25 @@ export default function SettingsPage() {
             background: #fafafa;
           }
 
-          .upcart-item-image {
+          .cartuplift-item-image {
             width: 50px;
             height: 50px;
             flex-shrink: 0;
           }
 
-          .upcart-item-image img {
+          .cartuplift-item-image img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             border-radius: 3px;
           }
 
-          .upcart-item-info {
+          .cartuplift-item-info {
             flex: 1;
             min-width: 0;
           }
 
-          .upcart-item-title {
+          .cartuplift-item-title {
             margin: 0 0 2px 0;
             font-size: 10px;
             font-weight: 600;
@@ -297,21 +297,21 @@ export default function SettingsPage() {
             line-height: 1.2;
           }
 
-          .upcart-item-variant {
+          .cartuplift-item-variant {
             font-size: 9px;
             color: #666;
             margin: 0;
             line-height: 1.1;
           }
 
-          .upcart-quantity {
+          .cartuplift-quantity {
             display: flex;
             align-items: center;
             gap: 4px;
             margin-top: 4px;
           }
 
-          .upcart-qty-btn {
+          .cartuplift-qty-btn {
             width: 18px;
             height: 18px;
             border: 1px solid #ccc;
@@ -324,27 +324,27 @@ export default function SettingsPage() {
             cursor: pointer;
           }
 
-          .upcart-qty-display {
+          .cartuplift-qty-display {
             min-width: 20px;
             text-align: center;
             font-size: 10px;
             font-weight: 500;
           }
 
-          .upcart-item-price-actions {
+          .cartuplift-item-price-actions {
             display: flex;
             flex-direction: column;
             align-items: flex-end;
             gap: 4px;
           }
 
-          .upcart-item-price {
+          .cartuplift-item-price {
             font-size: 10px;
             font-weight: 600;
             color: #333;
           }
 
-          .upcart-item-remove {
+          .cartuplift-item-remove {
             width: 16px;
             height: 16px;
             border: none;
@@ -357,19 +357,19 @@ export default function SettingsPage() {
             color: #666;
           }
 
-          .upcart-recommendations {
+          .cartuplift-recommendations {
             border-top: 1px solid #eee;
             padding-top: 6px;
           }
 
-          .upcart-recommendations-header {
+          .cartuplift-recommendations-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             margin-bottom: 6px;
           }
 
-          .upcart-recommendations-title {
+          .cartuplift-recommendations-title {
             margin: 0;
             font-size: 9px;
             font-weight: 600;
@@ -377,7 +377,7 @@ export default function SettingsPage() {
             letter-spacing: 0.3px;
           }
 
-          .upcart-recommendations-toggle {
+          .cartuplift-recommendations-toggle {
             background: none;
             border: none;
             cursor: pointer;
@@ -385,13 +385,13 @@ export default function SettingsPage() {
             color: #666;
           }
 
-          .upcart-recommendations-content {
+          .cartuplift-recommendations-content {
             display: flex;
             flex-direction: column;
             gap: 4px;
           }
 
-          .upcart-recommendation-item {
+          .cartuplift-recommendation-item {
             display: flex;
             align-items: center;
             gap: 6px;
@@ -400,19 +400,19 @@ export default function SettingsPage() {
             border-radius: 3px;
           }
 
-          .upcart-recommendation-item img {
+          .cartuplift-recommendation-item img {
             width: 30px;
             height: 30px;
             object-fit: cover;
             border-radius: 2px;
           }
 
-          .upcart-recommendation-info {
+          .cartuplift-recommendation-info {
             flex: 1;
             min-width: 0;
           }
 
-          .upcart-recommendation-info h4 {
+          .cartuplift-recommendation-info h4 {
             margin: 0 0 1px 0;
             font-size: 9px;
             font-weight: 500;
@@ -420,13 +420,13 @@ export default function SettingsPage() {
             line-height: 1.1;
           }
 
-          .upcart-recommendation-price {
+          .cartuplift-recommendation-price {
             font-size: 8px;
             color: #666;
             margin: 0;
           }
 
-          .upcart-add-btn {
+          .cartuplift-add-btn {
             width: 20px;
             height: 20px;
             border: 1px solid #007c41;
@@ -440,17 +440,17 @@ export default function SettingsPage() {
             justify-content: center;
           }
 
-          .upcart-discount-section {
+          .cartuplift-discount-section {
             border-top: 1px solid #eee;
             padding-top: 6px;
           }
 
-          .upcart-discount-wrapper {
+          .cartuplift-discount-wrapper {
             display: flex;
             gap: 4px;
           }
 
-          .upcart-discount-input {
+          .cartuplift-discount-input {
             flex: 1;
             padding: 4px 6px;
             border: 1px solid #ddd;
@@ -458,7 +458,7 @@ export default function SettingsPage() {
             font-size: 9px;
           }
 
-          .upcart-discount-apply {
+          .cartuplift-discount-apply {
             padding: 4px 8px;
             background: #f0f0f0;
             border: 1px solid #ddd;
@@ -467,13 +467,13 @@ export default function SettingsPage() {
             cursor: pointer;
           }
 
-          .upcart-footer {
+          .cartuplift-footer {
             border-top: 1px solid #eee;
             padding: 8px;
             background: #fafafa;
           }
 
-          .upcart-subtotal {
+          .cartuplift-subtotal {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -482,7 +482,7 @@ export default function SettingsPage() {
             font-weight: 600;
           }
 
-          .upcart-checkout-btn {
+          .cartuplift-checkout-btn {
             width: 100%;
             padding: 8px 12px;
             background: #1a1a1a;
@@ -497,13 +497,13 @@ export default function SettingsPage() {
             cursor: pointer;
           }
 
-          .upcart-express-checkout {
+          .cartuplift-express-checkout {
             display: flex;
             gap: 4px;
           }
 
-          .upcart-paypal-btn,
-          .upcart-shoppay-btn {
+          .cartuplift-paypal-btn,
+          .cartuplift-shoppay-btn {
             flex: 1;
             padding: 4px 6px;
             border: 1px solid #ddd;
@@ -519,13 +519,13 @@ export default function SettingsPage() {
             flex-shrink: 0;
           }
 
-          .upcart-shipping-info {
+          .cartuplift-shipping-info {
             flex: 1;
             text-align: center;
             overflow: hidden;
           }
 
-          .upcart-shipping-message {
+          .cartuplift-shipping-message {
             margin: 0;
             color: #666;
             font-size: 12px;
@@ -535,7 +535,7 @@ export default function SettingsPage() {
             text-overflow: ellipsis;
           }
 
-          .upcart-close {
+          .cartuplift-close {
             background: transparent;
             border: none;
             cursor: pointer;
@@ -551,18 +551,18 @@ export default function SettingsPage() {
             flex-shrink: 0;
           }
 
-          .upcart-close:hover {
+          .cartuplift-close:hover {
             color: #111;
             background: #f0f0f0;
           }
 
-          .upcart-shipping-bar {
+          .cartuplift-shipping-bar {
             padding: 0 16px 8px;
             background: #ffffff;
             flex-shrink: 0;
           }
 
-          .upcart-shipping-progress {
+          .cartuplift-shipping-progress {
             width: 100%;
             height: 6px;
             background: #f0f0f0;
@@ -571,7 +571,7 @@ export default function SettingsPage() {
             position: relative;
           }
 
-          .upcart-shipping-progress-fill {
+          .cartuplift-shipping-progress-fill {
             height: 100%;
             background: ${formSettings.buttonColor || '#4CAF50'};
             border-radius: 3px;
@@ -579,7 +579,7 @@ export default function SettingsPage() {
             min-width: 2px;
           }
 
-          .upcart-content-wrapper {
+          .cartuplift-content-wrapper {
             flex: 1;
             display: flex;
             flex-direction: column;
@@ -587,7 +587,7 @@ export default function SettingsPage() {
             min-height: 0;
           }
 
-          .upcart-items {
+          .cartuplift-items {
             flex: 1;
             background: #ffffff;
             padding: 0 16px;
@@ -597,11 +597,11 @@ export default function SettingsPage() {
             scrollbar-width: none;
           }
 
-          .upcart-items::-webkit-scrollbar {
+          .cartuplift-items::-webkit-scrollbar {
             display: none;
           }
 
-          .upcart-item {
+          .cartuplift-item {
             display: flex;
             align-items: stretch;
             gap: 16px;
@@ -611,12 +611,12 @@ export default function SettingsPage() {
             min-height: 112px;
           }
 
-          .upcart-item:last-child {
+          .cartuplift-item:last-child {
             border-bottom: none;
             padding-bottom: 0;
           }
 
-          .upcart-item-image {
+          .cartuplift-item-image {
             width: 106px;
             height: 112px;
             border-radius: 6px;
@@ -625,14 +625,14 @@ export default function SettingsPage() {
             flex-shrink: 0;
           }
 
-          .upcart-item-image img {
+          .cartuplift-item-image img {
             width: 100%;
             height: 100%;
             object-fit: contain;
             display: block;
           }
 
-          .upcart-item-info {
+          .cartuplift-item-info {
             display: flex;
             flex-direction: column;
             gap: 8px;
@@ -642,7 +642,7 @@ export default function SettingsPage() {
             justify-content: space-between;
           }
 
-          .upcart-item-title {
+          .cartuplift-item-title {
             margin: 0;
             font-size: 13px;
             font-weight: 600;
@@ -650,14 +650,14 @@ export default function SettingsPage() {
             color: #1a1a1a;
           }
 
-          .upcart-item-variant {
+          .cartuplift-item-variant {
             font-size: 12px;
             color: #666;
             line-height: 1.2;
             margin: 0;
           }
 
-          .upcart-quantity {
+          .cartuplift-quantity {
             display: inline-flex;
             align-items: center;
             border: 1px solid #e0e0e0;
@@ -669,7 +669,7 @@ export default function SettingsPage() {
             justify-content: space-around;
           }
 
-          .upcart-qty-btn {
+          .cartuplift-qty-btn {
             background: transparent;
             border: none;
             cursor: pointer;
@@ -683,11 +683,11 @@ export default function SettingsPage() {
             min-width: 28px;
           }
 
-          .upcart-qty-btn:hover {
+          .cartuplift-qty-btn:hover {
             background: #f5f5f5;
           }
 
-          .upcart-qty-display {
+          .cartuplift-qty-display {
             padding: 0 10px;
             font-size: 12px;
             font-weight: 500;
@@ -695,7 +695,7 @@ export default function SettingsPage() {
             text-align: center;
           }
 
-          .upcart-item-price-actions {
+          .cartuplift-item-price-actions {
             display: flex;
             flex-direction: column;
             align-items: flex-end;
@@ -705,14 +705,14 @@ export default function SettingsPage() {
             min-height: 112px;
           }
 
-          .upcart-item-price {
+          .cartuplift-item-price {
             font-weight: 600;
             font-size: 13px;
             color: #000;
             white-space: nowrap;
           }
 
-          .upcart-item-remove {
+          .cartuplift-item-remove {
             background: transparent;
             border: none;
             cursor: pointer;
@@ -727,20 +727,20 @@ export default function SettingsPage() {
             border-radius: 50%;
           }
 
-          .upcart-item-remove:hover {
+          .cartuplift-item-remove:hover {
             color: #111;
             background: #f0f0f0;
           }
 
           /* Recommendations Section */
-          .upcart-recommendations {
+          .cartuplift-recommendations {
             background: #ecebe3;
             padding: 4px 0;
             margin-top: 8px;
             flex-shrink: 0;
           }
 
-          .upcart-recommendations-header {
+          .cartuplift-recommendations-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -748,7 +748,7 @@ export default function SettingsPage() {
             height: 36px;
           }
 
-          .upcart-recommendations-title {
+          .cartuplift-recommendations-title {
             margin: 0;
             font-size: 12px;
             font-weight: 600;
@@ -756,7 +756,7 @@ export default function SettingsPage() {
             color: #1a1a1a;
           }
 
-          .upcart-recommendations-toggle {
+          .cartuplift-recommendations-toggle {
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -768,11 +768,11 @@ export default function SettingsPage() {
             cursor: pointer;
           }
 
-          .upcart-recommendations-content {
+          .cartuplift-recommendations-content {
             padding: 12px 16px;
           }
 
-          .upcart-recommendation-item {
+          .cartuplift-recommendation-item {
             display: grid;
             grid-template-columns: 56px 1fr 24px;
             gap: 12px;
@@ -784,27 +784,27 @@ export default function SettingsPage() {
             background: white;
           }
 
-          .upcart-recommendation-item img {
+          .cartuplift-recommendation-item img {
             width: 56px;
             height: 56px;
             object-fit: cover;
             border-radius: 6px;
           }
 
-          .upcart-recommendation-info h4 {
+          .cartuplift-recommendation-info h4 {
             font-size: 14px;
             font-weight: 500;
             color: #000;
             margin: 0 0 4px 0;
           }
 
-          .upcart-recommendation-price {
+          .cartuplift-recommendation-price {
             font-size: 14px;
             font-weight: 500;
             color: #000;
           }
 
-          .upcart-add-btn {
+          .cartuplift-add-btn {
             width: 24px;
             height: 24px;
             border-radius: 50%;
@@ -818,23 +818,23 @@ export default function SettingsPage() {
             font-size: 14px;
           }
 
-          .upcart-add-btn:hover {
+          .cartuplift-add-btn:hover {
             background: #1a1a1a;
             color: white;
           }
 
           /* Discount Section */
-          .upcart-discount-section {
+          .cartuplift-discount-section {
             padding: 8px 16px 4px 16px;
             border-top: 1px solid #e5e5e5;
           }
 
-          .upcart-discount-wrapper {
+          .cartuplift-discount-wrapper {
             display: flex;
             gap: 8px;
           }
 
-          .upcart-discount-input {
+          .cartuplift-discount-input {
             flex: 1;
             padding: 10px 12px;
             border: 1px solid #ddd;
@@ -842,7 +842,7 @@ export default function SettingsPage() {
             font-size: 14px;
           }
 
-          .upcart-discount-apply {
+          .cartuplift-discount-apply {
             padding: 10px 16px;
             background: #333;
             color: white;
@@ -854,14 +854,14 @@ export default function SettingsPage() {
           }
 
           /* Footer */
-          .upcart-footer {
+          .cartuplift-footer {
             padding: 12px 16px;
             background: #ffffff;
             border-top: 1px solid #e5e5e5;
             flex-shrink: 0;
           }
 
-          .upcart-subtotal {
+          .cartuplift-subtotal {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -872,7 +872,7 @@ export default function SettingsPage() {
             color: #000;
           }
 
-          .upcart-checkout-btn {
+          .cartuplift-checkout-btn {
             width: 100%;
             padding: 12px 16px;
             background: #1a1a1a;
@@ -887,13 +887,13 @@ export default function SettingsPage() {
             cursor: pointer;
           }
 
-          .upcart-express-checkout {
+          .cartuplift-express-checkout {
             display: flex;
             gap: 8px;
           }
 
-          .upcart-paypal-btn,
-          .upcart-shoppay-btn {
+          .cartuplift-paypal-btn,
+          .cartuplift-shoppay-btn {
             flex: 1;
             padding: 8px;
             border: 1px solid #ddd;
@@ -906,7 +906,7 @@ export default function SettingsPage() {
             font-size: 12px;
           }
 
-          .upcart-shoppay-btn {
+          .cartuplift-shoppay-btn {
             background: #5a31f4;
             color: white;
             border-color: #5a31f4;
@@ -919,9 +919,9 @@ export default function SettingsPage() {
         <Banner tone="success">Settings saved successfully!</Banner>
       )}
 
-      <div className="upcart-settings-layout">
+      <div className="cartuplift-settings-layout">
         {/* Settings Column - Left Side */}
-        <div className="upcart-settings-column">
+        <div className="cartuplift-settings-column">
           <BlockStack gap="500">
             {/* Core Settings */}
             <Card>
@@ -929,7 +929,7 @@ export default function SettingsPage() {
                 <Text variant="headingLg" as="h2">⚙️ Core Settings</Text>
                 <FormLayout>
                   <Checkbox
-                    label="Enable UpCart"
+                    label="Enable Cart Uplift"
                     checked={formSettings.enableApp}
                     onChange={(value) => updateSetting("enableApp", value)}
                     helpText="Master toggle for the entire cart functionality"
@@ -946,7 +946,7 @@ export default function SettingsPage() {
                     label="Show only on cart page"
                     checked={formSettings.showOnlyOnCartPage}
                     onChange={(value) => updateSetting("showOnlyOnCartPage", value)}
-                    helpText="Limit cart drawer to cart page only"
+                    helpText="Limit cart uplift to cart page only"
                   />
                 </FormLayout>
               </BlockStack>
@@ -1115,14 +1115,14 @@ export default function SettingsPage() {
         </div>
 
         {/* Live Preview - Right Side (Fixed) */}
-        <div className="upcart-preview-column" ref={previewRef}>
-          <div className="upcart-preview-container">
+        <div className="cartuplift-preview-column" ref={previewRef}>
+          <div className="cartuplift-preview-container">
             {/* Header */}
-            <div className="upcart-preview-header">
-                  <h2 className="upcart-cart-title">CART (5)</h2>
+            <div className="cartuplift-preview-header">
+                  <h2 className="cartuplift-cart-title">CART (5)</h2>
                   {formSettings.enableFreeShipping && (
-                    <div className="upcart-shipping-info">
-                      <p className="upcart-shipping-message">
+                    <div className="cartuplift-shipping-info">
+                      <p className="cartuplift-shipping-message">
                         {remaining > 0 
                           ? (formSettings.freeShippingText || "Spend {amount} more for free shipping!")
                               .replace(/{amount}/g, `£${(remaining / 100).toFixed(2)}`)
@@ -1131,7 +1131,7 @@ export default function SettingsPage() {
                       </p>
                     </div>
                   )}
-                  <button className="upcart-close" aria-label="Close cart">
+                  <button className="cartuplift-close" aria-label="Close cart">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" style={{ width: '24px', height: '24px' }}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                     </svg>
@@ -1140,34 +1140,34 @@ export default function SettingsPage() {
 
                 {/* Free Shipping Progress Bar */}
                 {formSettings.enableFreeShipping && (
-                  <div className="upcart-shipping-bar">
-                    <div className="upcart-shipping-progress">
-                      <div className="upcart-shipping-progress-fill" style={{ width: `${progress}%` }}></div>
+                  <div className="cartuplift-shipping-bar">
+                    <div className="cartuplift-shipping-progress">
+                      <div className="cartuplift-shipping-progress-fill" style={{ width: `${progress}%` }}></div>
                     </div>
                   </div>
                 )}
 
                 {/* Content */}
-                <div className="upcart-content-wrapper">
-                  <div className="upcart-items">
+                <div className="cartuplift-content-wrapper">
+                  <div className="cartuplift-items">
                     {/* Product 1 */}
-                    <div className="upcart-item">
-                      <div className="upcart-item-image">
+                    <div className="cartuplift-item">
+                      <div className="cartuplift-item-image">
                         <img src="https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=200&h=200&fit=crop" alt="Anytime No Show Sock" />
                       </div>
-                      <div className="upcart-item-info">
-                        <h4 className="upcart-item-title">Anytime No Show Sock</h4>
-                        <div className="upcart-item-variant">Color: White</div>
-                        <div className="upcart-item-variant">Accessory size: L</div>
-                        <div className="upcart-quantity">
-                          <button className="upcart-qty-btn">−</button>
-                          <span className="upcart-qty-display">1</span>
-                          <button className="upcart-qty-btn">+</button>
+                      <div className="cartuplift-item-info">
+                        <h4 className="cartuplift-item-title">Anytime No Show Sock</h4>
+                        <div className="cartuplift-item-variant">Color: White</div>
+                        <div className="cartuplift-item-variant">Accessory size: L</div>
+                        <div className="cartuplift-quantity">
+                          <button className="cartuplift-qty-btn">−</button>
+                          <span className="cartuplift-qty-display">1</span>
+                          <button className="cartuplift-qty-btn">+</button>
                         </div>
                       </div>
-                      <div className="upcart-item-price-actions">
-                        <div className="upcart-item-price">£14.00</div>
-                        <button className="upcart-item-remove" title="Remove item">
+                      <div className="cartuplift-item-price-actions">
+                        <div className="cartuplift-item-price">£14.00</div>
+                        <button className="cartuplift-item-remove" title="Remove item">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.25" stroke="currentColor" style={{ width: '18px', height: '18px' }}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                           </svg>
@@ -1176,23 +1176,23 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Product 2 */}
-                    <div className="upcart-item">
-                      <div className="upcart-item-image">
+                    <div className="cartuplift-item">
+                      <div className="cartuplift-item-image">
                         <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&h=200&fit=crop" alt="Men's Strider" />
                       </div>
-                      <div className="upcart-item-info">
-                        <h4 className="upcart-item-title">Men's Strider</h4>
-                        <div className="upcart-item-variant">Color: White</div>
-                        <div className="upcart-item-variant">Shoe size: 10</div>
-                        <div className="upcart-quantity">
-                          <button className="upcart-qty-btn">−</button>
-                          <span className="upcart-qty-display">4</span>
-                          <button className="upcart-qty-btn">+</button>
+                      <div className="cartuplift-item-info">
+                        <h4 className="cartuplift-item-title">Men's Strider</h4>
+                        <div className="cartuplift-item-variant">Color: White</div>
+                        <div className="cartuplift-item-variant">Shoe size: 10</div>
+                        <div className="cartuplift-quantity">
+                          <button className="cartuplift-qty-btn">−</button>
+                          <span className="cartuplift-qty-display">4</span>
+                          <button className="cartuplift-qty-btn">+</button>
                         </div>
                       </div>
-                      <div className="upcart-item-price-actions">
-                        <div className="upcart-item-price">£115.00</div>
-                        <button className="upcart-item-remove" title="Remove item">
+                      <div className="cartuplift-item-price-actions">
+                        <div className="cartuplift-item-price">£115.00</div>
+                        <button className="cartuplift-item-remove" title="Remove item">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.25" stroke="currentColor" style={{ width: '18px', height: '18px' }}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                           </svg>
@@ -1203,35 +1203,35 @@ export default function SettingsPage() {
 
                   {/* Recommendations Section */}
                   {formSettings.enableRecommendations && (
-                    <div className="upcart-recommendations">
-                      <div className="upcart-recommendations-header">
-                        <h3 className="upcart-recommendations-title">
+                    <div className="cartuplift-recommendations">
+                      <div className="cartuplift-recommendations-header">
+                        <h3 className="cartuplift-recommendations-title">
                           {formSettings.recommendationsTitle || 'RECOMMENDED FOR YOU'}
                         </h3>
-                        <button className="upcart-recommendations-toggle" title="Toggle recommendations">
+                        <button className="cartuplift-recommendations-toggle" title="Toggle recommendations">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" style={{ width: '10px', height: '10px' }}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
                           </svg>
                         </button>
                       </div>
-                      <div className="upcart-recommendations-content">
+                      <div className="cartuplift-recommendations-content">
                         {formSettings.recommendationLayout === 'column' ? (
                           <>
-                            <div className="upcart-recommendation-item">
+                            <div className="cartuplift-recommendation-item">
                               <img src="https://images.unsplash.com/photo-1521093470119-a3acdc43374a?w=100&h=100&fit=crop" alt="Snowboard" />
-                              <div className="upcart-recommendation-info">
+                              <div className="cartuplift-recommendation-info">
                                 <h4>The Multi-managed Snowboard</h4>
-                                <div className="upcart-recommendation-price">£629.95</div>
+                                <div className="cartuplift-recommendation-price">£629.95</div>
                               </div>
-                              <button className="upcart-add-btn">+</button>
+                              <button className="cartuplift-add-btn">+</button>
                             </div>
-                            <div className="upcart-recommendation-item">
+                            <div className="cartuplift-recommendation-item">
                               <img src="https://images.unsplash.com/photo-1518611012118-696072aa579a?w=100&h=100&fit=crop" alt="Snowboard" />
-                              <div className="upcart-recommendation-info">
+                              <div className="cartuplift-recommendation-info">
                                 <h4>The Collection Snowboard</h4>
-                                <div className="upcart-recommendation-price">£549.95</div>
+                                <div className="cartuplift-recommendation-price">£549.95</div>
                               </div>
-                              <button className="upcart-add-btn">+</button>
+                              <button className="cartuplift-add-btn">+</button>
                             </div>
                           </>
                         ) : (
@@ -1245,34 +1245,34 @@ export default function SettingsPage() {
 
                   {/* Discount Section */}
                   {formSettings.enableDiscountCode && (
-                    <div className="upcart-discount-section">
-                      <div className="upcart-discount-wrapper">
+                    <div className="cartuplift-discount-section">
+                      <div className="cartuplift-discount-wrapper">
                         <input 
                           type="text" 
-                          className="upcart-discount-input" 
+                          className="cartuplift-discount-input" 
                           placeholder="Enter discount code"
                         />
-                        <button className="upcart-discount-apply">Apply</button>
+                        <button className="cartuplift-discount-apply">Apply</button>
                       </div>
                     </div>
                   )}
                 </div>
 
                 {/* Footer */}
-                <div className="upcart-footer">
-                  <div className="upcart-subtotal">
+                <div className="cartuplift-footer">
+                  <div className="cartuplift-subtotal">
                     <span>Subtotal</span>
                     <span>£474.00</span>
                   </div>
                   
-                  <button className="upcart-checkout-btn">CHECKOUT</button>
+                  <button className="cartuplift-checkout-btn">CHECKOUT</button>
                   
                   {formSettings.enableExpressCheckout && (
-                    <div className="upcart-express-checkout">
-                      <button className="upcart-paypal-btn">
+                    <div className="cartuplift-express-checkout">
+                      <button className="cartuplift-paypal-btn">
                         <img src="https://www.paypalobjects.com/webstatic/en_US/i/buttons/PP_logo_h_100x26.png" alt="PayPal" style={{ height: '12px' }} />
                       </button>
-                      <button className="upcart-shoppay-btn">Shop Pay</button>
+                      <button className="cartuplift-shoppay-btn">Shop Pay</button>
                     </div>
                   )}
                 </div>

@@ -78,14 +78,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function Index() {
   return (
     <Page>
-      <TitleBar title="UpCart - Cart Drawer App" />
+      <TitleBar title="Cart Uplift - Cart Drawer App" />
       <BlockStack gap="500">
         {/* Hero Section */}
         <Card>
           <BlockStack gap="500">
             <BlockStack gap="300">
               <Text as="h1" variant="headingXl">
-                Welcome to UpCart Cart Drawer 🛒
+                Welcome to Cart Uplift Cart Drawer 🛒
               </Text>
               <Text variant="bodyLg" as="p">
                 Transform your store's cart experience with our powerful cart drawer that includes:
@@ -138,7 +138,7 @@ export default function Index() {
                       <strong>2.</strong> Click on "App embeds" in the left sidebar
                     </Text>
                     <Text variant="bodyMd" as="p">
-                      <strong>3.</strong> Find "UpCart Cart Drawer" and toggle it on
+                      <strong>3.</strong> Find "Cart Uplift Cart Drawer" and toggle it on
                     </Text>
                     <Text variant="bodyMd" as="p">
                       <strong>4.</strong> Configure your settings in the Settings tab

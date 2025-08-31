@@ -1,5 +1,5 @@
 {
-  "name": "test-cart-app",
+  "name": "cart-uplift-app",
   "private": true,
   "scripts": {
     "build": "remix vite:build",
