@@ -127,8 +127,8 @@ body.cartuplift-no-scroll {
   flex: 1;
   text-align: center;
   overflow: hidden;
-  /* Hide in header by default; will show below header on mobile */
-  display: none;
+  /* Show in header on desktop */
+  display: block;
 }
 
 .cartuplift-shipping-message {
@@ -144,7 +144,7 @@ body.cartuplift-no-scroll {
 /* Shipping info shown below header on mobile */
 .cartuplift-shipping-info-mobile {
   display: none;
-  padding: 8px 16px;
+  padding: 0 16px 8px;
   background: var(--cartuplift-background);
   border-bottom: 1px solid #f0f0f0;
   text-align: center;
@@ -417,8 +417,8 @@ body.cartuplift-no-scroll {
   height: 36px; /* Bigger */
   border-radius: 50%;
   /* Bottom item in column; space-between handles placement */
-  /* Align with quantity controls baseline */
-  align-self: center;
+  /* Align with quantity controls bottom */
+  align-self: flex-end;
 }
 
 .cartuplift-item-remove-x:hover {
@@ -1003,23 +1003,23 @@ body.cartuplift-no-scroll {
   }
   
   .cartuplift-carousel-dot {
-    width: 10px;
-    height: 10px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     background: #bbb;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: none;
-    /* Add outline for better visibility */
-    border: 2px solid #fff;
-    box-shadow: 0 0 0 1px rgba(0,0,0,0.2);
+    /* Enhanced visibility with stronger contrast */
+    border: 3px solid #000;
+    box-shadow: 0 0 0 1px #fff, 0 2px 8px rgba(0,0,0,0.5);
+    background: #fff;
   }
 
   .cartuplift-carousel-dot.active {
-    background: #333;
-    transform: scale(1.1);
-    box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
-    border-color: #fff;
+    background: #000;
+    transform: scale(1.3);
+    box-shadow: 0 0 0 1px #fff, 0 2px 12px rgba(0,0,0,0.7);
+    border-color: #000;
   }  /* Fix recommendation container positioning */
   .cartuplift-recommendations-row {
     position: relative;
@@ -1070,13 +1070,16 @@ body.cartuplift-no-scroll {
   }
   
   .cartuplift-carousel-dots {
-    display: none !important;
+    display: flex !important;
+    justify-content: center;
+    margin-top: 8px;
+    gap: 8px;
   }
 
   /* Exact desktop card sizing and spacing */
   .cartuplift-recommendations-track {
     gap: 0; /* card margin controls spacing */
-    padding: 6px 100px 6px 32px; /* increased left padding to 32px for space before first card */
+    padding: 6px 100px 16px 32px; /* increased bottom padding to 16px for dots space */
   }
 
   .cartuplift-recommendation-card {
@@ -1877,15 +1880,6 @@ body.cartuplift-no-scroll {
   .cartuplift-header {
     padding: 16px;
   }
-  /* Show shipping commentary on mobile */
-  .cartuplift-shipping-info {
-    display: block;
-  }
-  .cartuplift-shipping-message {
-    font-size: 11px;
-    white-space: normal;
-    line-height: 1.2;
-  }
   
   .cartuplift-shipping-bar,
   .cartuplift-footer,
@@ -1902,7 +1896,7 @@ body.cartuplift-no-scroll {
     padding-top: 0px !important;
   }
 
-  /* Show shipping info below header instead of in header */
+  /* Hide shipping info in header on mobile, show below header instead */
   .cartuplift-shipping-info {
     display: none !important;
   }
