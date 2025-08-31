@@ -2,7 +2,7 @@
   'use strict';
   
   // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v163';
+  const CART_UPLIFT_VERSION = 'v165';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
   // Safe analytics shim (no-op if not provided by host)
@@ -304,9 +304,9 @@
 
     getDrawerHTML() {
       const itemCount = this.cart?.item_count || 0;
-  const totalPrice = this.cart?.total_price || 0;
-  const { estimatedDiscountCents, hasDiscount, discountLabel } = this.computeEstimatedDiscount(totalPrice);
-  const estimatedSubtotal = Math.max(0, totalPrice - estimatedDiscountCents);
+  const itemsSubtotal = this.cart?.items_subtotal_price || this.cart?.total_price || 0;
+  const { estimatedDiscountCents, hasDiscount, discountLabel } = this.computeEstimatedDiscount(itemsSubtotal);
+  const estimatedSubtotal = Math.max(0, itemsSubtotal - estimatedDiscountCents);
       
       // Check if we should show recommendations - only show if:
       // 1. Recommendations are enabled
@@ -345,7 +345,7 @@
             ` : ''}
             <div class="cartuplift-subtotal">
               <span>${hasDiscount ? 'Subtotal (after discount)' : 'Subtotal'}</span>
-              <span class="cartuplift-subtotal-amount">${this.formatMoney(hasDiscount ? estimatedSubtotal : totalPrice)}</span>
+              <span class="cartuplift-subtotal-amount">${this.formatMoney(hasDiscount ? estimatedSubtotal : itemsSubtotal)}</span>
             </div>
             
             <button class="cartuplift-checkout-btn" onclick="window.cartUpliftDrawer.proceedToCheckout()">
@@ -360,7 +360,7 @@
 
     getHeaderHTML(itemCount) {
       let threshold = this.settings.freeShippingThreshold || 100;
-      const currentTotal = this.cart ? this.cart.total_price : 0;
+  const currentTotal = this.cart ? (this.cart.items_subtotal_price ?? this.cart.total_price) : 0;
 
       // Shopify prices are always in the smallest currency unit (pence for GBP, cents for USD)
       // So if threshold is 100, it means £100 = 10000 pence
@@ -503,7 +503,10 @@
           </button>
           <div class="cartuplift-carousel-dots">
             ${this.recommendations.map((_, index) => `
-              <div class="cartuplift-carousel-dot${index === 0 ? ' active' : ''}" data-index="${index}"></div>
+              <button type="button" class="cartuplift-carousel-dot${index === 0 ? ' active' : ''}"
+                data-index="${index}"
+                aria-label="Go to slide ${index + 1}"
+                aria-current="${index === 0 ? 'true' : 'false'}"></button>
             `).join('')}
           </div>
         </div>`;
@@ -698,7 +701,10 @@
                 </button>
                 <div class="cartuplift-carousel-dots">
                   ${this.recommendations.map((_, index) => `
-                    <div class="cartuplift-carousel-dot${index === 0 ? ' active' : ''}" data-index="${index}"></div>
+                    <button type="button" class="cartuplift-carousel-dot${index === 0 ? ' active' : ''}"
+                      data-index="${index}"
+                      aria-label="Go to slide ${index + 1}"
+                      aria-current="${index === 0 ? 'true' : 'false'}"></button>
                   `).join('')}
                 </div>`;
               section.appendChild(controls);
@@ -747,6 +753,12 @@
       const dots = document.querySelectorAll('.cartuplift-carousel-dot');
       dots.forEach((dot, index) => {
         dot.addEventListener('click', () => this.scrollToIndex(scrollContainer, index));
+        dot.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            this.scrollToIndex(scrollContainer, index);
+          }
+        });
       });
       
       // Add touch support for mobile
@@ -871,7 +883,9 @@
   const currentIndex = Math.round(scrollLeft / this.scrollAmount);
       
       dots.forEach((dot, index) => {
-        dot.classList.toggle('active', index === currentIndex);
+        const isActive = index === currentIndex;
+        dot.classList.toggle('active', isActive);
+        dot.setAttribute('aria-current', isActive ? 'true' : 'false');
       });
     }
 
@@ -1203,9 +1217,15 @@
           }
         }
         
-    if (validationData.success) {
+  if (validationData.success) {
           // Discount is valid, save it as cart attribute for checkout
           const cartData = await fetch('/cart.js').then(r => r.json());
+      // Normalize numeric fields (percent/amount) in case API returns strings
+      const kind = validationData.discount.kind || '';
+      const rawPercent = validationData.discount.percent;
+      const rawAmountCents = validationData.discount.amountCents;
+      const percentNum = typeof rawPercent === 'number' ? rawPercent : (typeof rawPercent === 'string' ? parseFloat(rawPercent) : undefined);
+      const amountCentsNum = typeof rawAmountCents === 'number' ? rawAmountCents : (typeof rawAmountCents === 'string' ? Math.round(parseFloat(rawAmountCents)) : undefined);
           
           const updateData = {
             attributes: {
@@ -1213,11 +1233,18 @@
               'discount_code': discountCode,
       'discount_summary': validationData.discount.summary || `Discount: ${discountCode}`,
       // Store metadata for estimating savings in-cart
-      'discount_kind': validationData.discount.kind || '',
-      'discount_percent': typeof validationData.discount.percent === 'number' ? String(validationData.discount.percent) : '',
-      'discount_amount_cents': typeof validationData.discount.amountCents === 'number' ? String(validationData.discount.amountCents) : ''
+    'discount_kind': kind,
+    'discount_percent': typeof percentNum === 'number' && !isNaN(percentNum) ? String(percentNum) : '',
+    'discount_amount_cents': typeof amountCentsNum === 'number' && !isNaN(amountCentsNum) ? String(amountCentsNum) : ''
             }
           };
+
+      // Optimistically update local state so subtotal reflects immediately
+      this._lastDiscountCode = discountCode;
+      this._lastDiscountKind = kind || undefined;
+      this._lastDiscountPercent = typeof percentNum === 'number' && !isNaN(percentNum) ? percentNum : undefined;
+      this._lastDiscountAmountCents = typeof amountCentsNum === 'number' && !isNaN(amountCentsNum) ? amountCentsNum : undefined;
+      this.updateDrawerContent();
           
           const updateResponse = await fetch('/cart/update.js', {
             method: 'POST',
@@ -1281,6 +1308,11 @@
           this.updateDrawerContent();
           this.showToast('Discount removed', 'success');
           // Reopen modal with input enabled
+          // Clear local discount cache
+          this._lastDiscountCode = undefined;
+          this._lastDiscountKind = undefined;
+          this._lastDiscountPercent = undefined;
+          this._lastDiscountAmountCents = undefined;
           this.openCustomModal();
         } else {
           this.showToast('Could not remove discount', 'error');
@@ -1979,14 +2011,18 @@
         const attrs = this.cart?.attributes || {};
         const code = attrs['discount_code'] || this._lastDiscountCode;
         const kind = this._lastDiscountKind || attrs['discount_kind'];
-        const percent = this._lastDiscountPercent || (attrs['discount_percent'] ? Number(attrs['discount_percent']) : undefined);
+        let percent = this._lastDiscountPercent || (attrs['discount_percent'] ? Number(attrs['discount_percent']) : undefined);
         const amountCents = this._lastDiscountAmountCents || (attrs['discount_amount_cents'] ? Number(attrs['discount_amount_cents']) : undefined);
 
         if (!code) return { estimatedDiscountCents: 0, hasDiscount: false, discountLabel: '' };
 
         let est = 0;
         if (kind === 'percent' && typeof percent === 'number' && percent > 0) {
-          est = Math.round((percent / 100) * totalCents);
+          // Normalize percent if stored as 0.5 for 50%
+          const p = percent > 0 && percent <= 1 ? percent * 100 : percent;
+          // Cap at 100
+          const safeP = Math.min(p, 100);
+          est = Math.round((safeP / 100) * totalCents);
         } else if (kind === 'amount' && typeof amountCents === 'number' && amountCents > 0) {
           est = Math.min(amountCents, totalCents);
         }
@@ -2002,9 +2038,9 @@
     }
 
     getDisplayedTotalCents() {
-      const total = this.cart?.total_price || 0;
-      const { estimatedDiscountCents } = this.computeEstimatedDiscount(total);
-      return Math.max(0, total - estimatedDiscountCents);
+      const base = this.cart?.items_subtotal_price ?? this.cart?.total_price ?? 0;
+      const { estimatedDiscountCents } = this.computeEstimatedDiscount(base);
+      return Math.max(0, base - estimatedDiscountCents);
     }
 
     openDrawer() {

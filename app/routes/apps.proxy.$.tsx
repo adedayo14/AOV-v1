@@ -103,12 +103,30 @@ export async function action({ request }: ActionFunctionArgs) {
 
       try {
         const { admin } = await unauthenticated.admin(shopDomain);
-        // Use supported Admin GraphQL API to validate code existence
+        // Use Admin GraphQL API to validate code existence and extract basic value (percent or fixed amount)
         const query = `#graphql
           query ValidateDiscountCode($code: String!) {
             codeDiscountNodeByCode(code: $code) {
               id
-              codeDiscount { __typename }
+              codeDiscount {
+                __typename
+                ... on DiscountCodeBasic {
+                  title
+                  customerGets {
+                    value {
+                      __typename
+                      ... on DiscountPercentage { percentage }
+                      ... on DiscountAmount { amount { amount currencyCode } }
+                    }
+                  }
+                }
+                ... on DiscountCodeBxgy {
+                  title
+                }
+                ... on DiscountCodeFreeShipping {
+                  title
+                }
+              }
             }
           }
         `;
@@ -127,13 +145,36 @@ export async function action({ request }: ActionFunctionArgs) {
           });
         }
 
-        // If found, consider it valid
+        // Default values
+        let kind: 'percent' | 'amount' | undefined;
+        let percent: number | undefined;
+        let amountCents: number | undefined;
+
+        const cd = node.codeDiscount;
+    if (cd?.__typename === 'DiscountCodeBasic') {
+          const value = cd?.customerGets?.value;
+          if (value?.__typename === 'DiscountPercentage' && typeof value.percentage === 'number') {
+            kind = 'percent';
+            // Shopify typically returns the percent value directly (e.g., 10 for 10%, 0.5 for 0.5%).
+            // We'll pass it through unchanged; client divides by 100.
+            percent = value.percentage;
+          } else if (value?.__typename === 'DiscountAmount' && value.amount?.amount) {
+            kind = 'amount';
+            // Convert MoneyV2 amount to minor units (cents)
+            const amt = parseFloat(value.amount.amount);
+            if (!isNaN(amt)) amountCents = Math.round(amt * 100);
+          }
+        }
+
         return json({
           success: true,
           discount: {
             code: discountCode,
             summary: `Discount code ${discountCode} will be applied at checkout`,
             status: 'VALID',
+            kind,
+            percent,
+            amountCents,
           }
         }, {
           headers: {

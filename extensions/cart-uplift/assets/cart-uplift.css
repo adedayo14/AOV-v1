@@ -1007,37 +1007,41 @@ body.cartuplift-no-scroll {
   .cartuplift-recommendations-row .cartuplift-carousel-dots {
     display: flex !important;
     justify-content: center;
-    gap: 6px;
+    gap: 4px;
     position: absolute;
-    bottom: 6px;
+  bottom: 12px; /* moved up slightly from 6px */
     left: 50%;
     transform: translateX(-50%);
     z-index: 20;
-    /* Make dots subtle; no pill background */
     background: transparent;
     padding: 0;
     border-radius: 0;
   }
   
   .cartuplift-carousel-dot {
-    width: 14px;
-    height: 14px;
+  width: 6px;  /* smaller dots */
+  height: 6px; /* smaller dots */
     border-radius: 50%;
-    background: #bbb;
+  background: transparent; /* outline-only by default */
     cursor: pointer;
-    transition: all 0.3s ease;
-    /* Enhanced visibility with stronger contrast */
-    border: 3px solid #000;
-    box-shadow: 0 0 0 1px #fff, 0 2px 8px rgba(0,0,0,0.5);
-    background: #fff;
+  transition: background 0.2s ease, transform 0.2s ease;
+    border: 2px solid #000; /* black outline */
+  box-shadow: none;
+  padding: 0;               /* reset button padding */
+  line-height: 1;           /* avoid vertical stretching */
+  -webkit-appearance: none; /* reset iOS default button */
+  appearance: none;
+  display: inline-block;    /* predictable sizing */
+  box-sizing: content-box;  /* keep width/height as the circle size */
+  aspect-ratio: 1 / 1;      /* enforce perfect circle */
   }
 
   .cartuplift-carousel-dot.active {
-    background: #000;
-    transform: scale(1.3);
-    box-shadow: 0 0 0 1px #fff, 0 2px 12px rgba(0,0,0,0.7);
+    background: #000; /* filled when active */
+    transform: none;
     border-color: #000;
-  }  /* Fix recommendation container positioning */
+  }
+  /* Fix recommendation container positioning */
   .cartuplift-recommendations-row {
     position: relative;
     overflow: visible; /* Allow dots to show outside */
@@ -1087,10 +1091,7 @@ body.cartuplift-no-scroll {
   }
   
   .cartuplift-carousel-dots {
-    display: flex !important;
-    justify-content: center;
-    margin-top: 8px;
-    gap: 8px;
+    display: none !important; /* Hide dots on desktop; use arrows */
   }
 
   /* Exact desktop card sizing and spacing */

@@ -3,7 +3,7 @@
 client_id = "06d17c445a3713f419add1e31894bcc3"
 name = "cart-uplift-app"
 handle = "cart-uplift-app-7"
-application_url = "https://wheat-therefore-mask-child.trycloudflare.com"
+application_url = "https://dont-salt-determined-wins.trycloudflare.com"
 embedded = true
 
 [build]
@@ -23,13 +23,14 @@ api_version = "2025-07"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_customers,read_orders,read_script_tags,read_themes,write_orders,write_products,write_script_tags,write_themes"
+# Added read_discounts so we can validate codes via Admin API.
+scopes = "read_customers,read_orders,read_script_tags,read_themes,write_orders,write_products,write_script_tags,write_themes,read_discounts"
 
 [auth]
-redirect_urls = ["https://wheat-therefore-mask-child.trycloudflare.com/auth/callback", "https://wheat-therefore-mask-child.trycloudflare.com/auth/shopify/callback", "https://wheat-therefore-mask-child.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://dont-salt-determined-wins.trycloudflare.com/auth/callback", "https://dont-salt-determined-wins.trycloudflare.com/auth/shopify/callback", "https://dont-salt-determined-wins.trycloudflare.com/api/auth/callback"]
 
 [app_proxy]
-url = "https://wheat-therefore-mask-child.trycloudflare.com/apps/proxy"
+url = "https://dont-salt-determined-wins.trycloudflare.com/apps/proxy"
 subpath = "cart-uplift"
 prefix = "apps"
 
