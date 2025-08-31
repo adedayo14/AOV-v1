@@ -504,7 +504,7 @@
         </div>`;
 
       const html = `
-        <div class="cartuplift-recommendations cartuplift-recommendations-${layout}">
+        <div class="cartuplift-recommendations cartuplift-recommendations-${layout}${layout === 'row' ? ' cartuplift-recommendations-row' : ''}">
           <div class="cartuplift-recommendations-header">
             <h3 class="cartuplift-recommendations-title">${title}</h3>
             <button class="cartuplift-recommendations-toggle" data-toggle="recommendations" aria-expanded="true" aria-controls="cartuplift-recommendations-content" aria-label="Toggle recommendations">
@@ -536,11 +536,11 @@
         return;
       }
       
-      // Update layout class
+  // Update layout class
       const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'row' };
       const layoutRaw = this.settings.recommendationLayout || 'column';
       const layout = layoutMap[layoutRaw] || layoutRaw;
-      section.className = `cartuplift-recommendations cartuplift-recommendations-${layout}`;
+  section.className = `cartuplift-recommendations cartuplift-recommendations-${layout}${layout === 'row' ? ' cartuplift-recommendations-row' : ''}`;
       
       // Update title
       const titleEl = section.querySelector('.cartuplift-recommendations-title');
@@ -670,6 +670,9 @@
           // Remove old layout classes and add new one
           recommendationsSection.classList.remove('cartuplift-recommendations-row', 'cartuplift-recommendations-column');
           recommendationsSection.classList.add(`cartuplift-recommendations-${layout}`);
+          if (layout === 'row') {
+            recommendationsSection.classList.add('cartuplift-recommendations-row');
+          }
           
           // Ensure controls exist and setup navigation if horizontal layout
           if (layout === 'row') {
@@ -1636,6 +1639,18 @@
           this.handleVariantChange(select);
         }
       });
+
+      // Mobile: ensure recommendations toggle responds on touch devices
+      container.addEventListener('touchend', (e) => {
+        const toggle = e.target.classList?.contains('cartuplift-recommendations-toggle')
+          ? e.target
+          : (e.target.closest && e.target.closest('.cartuplift-recommendations-toggle'));
+        if (toggle) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggle.click();
+        }
+      }, { passive: false });
     }
 
     async fetchCart() {
@@ -2006,6 +2021,9 @@
       
       // Add active class for animation
       container.classList.add('active');
+  // Prevent background/page scroll while drawer is open
+  document.documentElement.classList.add('cartuplift-no-scroll');
+  document.body.classList.add('cartuplift-no-scroll');
       
       // Update flags after animation
       setTimeout(() => {
@@ -2035,6 +2053,9 @@
         container.style.display = 'none';
         this._isAnimating = false;
         this.isOpen = false;
+  // Restore background scroll
+  document.documentElement.classList.remove('cartuplift-no-scroll');
+  document.body.classList.remove('cartuplift-no-scroll');
       }, 300);
     }
 
