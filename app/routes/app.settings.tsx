@@ -363,8 +363,8 @@ export default function SettingsPage() {
             border: 1px solid #e0e0e0;
             border-radius: 20px;
             background: white;
-            height: 28px;
-            min-width: 80px;
+            height: 32px;
+            min-width: 100px;
             overflow: hidden;
             justify-content: space-around;
           }
@@ -964,8 +964,8 @@ export default function SettingsPage() {
             border: 1px solid #e0e0e0;
             border-radius: 20px;
             background: #ffffff;
-            height: 28px;
-            min-width: 80px;
+            height: 32px;
+            min-width: 100px;
             overflow: hidden;
             justify-content: space-around;
           }
@@ -1520,8 +1520,8 @@ export default function SettingsPage() {
             border: 1px solid #e0e0e0;
             border-radius: 20px;
             background: ${formSettings.backgroundColor || '#ffffff'};
-            height: 28px;
-            min-width: 80px;
+            height: 32px;
+            min-width: 100px;
             overflow: hidden;
             justify-content: space-around;
           }

@@ -30,8 +30,10 @@
       this.settings.enableAddons = Boolean(this.settings.enableAddons);
       this.settings.enableNotes = Boolean(this.settings.enableNotes);
       this.settings.enableDiscountCode = Boolean(this.settings.enableDiscountCode);
-      this.settings.enableExpressCheckout = Boolean(this.settings.enableExpressCheckout);
+      this.settings.enableExpressCheckout = this.settings.enableExpressCheckout !== false; // DEFAULT TO TRUE
       this.settings.autoOpenCart = this.settings.autoOpenCart !== false;
+      
+      console.log('🔧 CartUplift: Express checkout setting:', this.settings.enableExpressCheckout);
       
       this.cart = null;
       this.isOpen = false;
@@ -371,7 +373,10 @@
               CHECKOUT
             </button>
             
-            ${this.settings.enableExpressCheckout ? this.getExpressCheckoutHTML() : ''}
+            ${(() => {
+              console.log('🔧 CartUplift: Rendering footer, enableExpressCheckout:', this.settings.enableExpressCheckout);
+              return this.settings.enableExpressCheckout ? this.getExpressCheckoutHTML() : '';
+            })()}
           </div>
         </div>
       `;
@@ -2484,20 +2489,41 @@
 
       // After mount, try to hydrate express checkout with Shopify-rendered buttons
       setTimeout(() => this.mountExpressButtons(), 0);
+      // Retry after a delay in case Shopify buttons load later
+      setTimeout(() => this.mountExpressButtons(), 1000);
+      setTimeout(() => this.mountExpressButtons(), 3000);
     }
 
     mountExpressButtons() {
       try {
+        console.log('🔧 CartUplift: Attempting to mount express checkout buttons...');
+        
         const slot = document.querySelector('.cartuplift-express-slot');
-        if (!slot) return;
+        if (!slot) {
+          console.warn('🔧 CartUplift: Express slot not found');
+          return;
+        }
+        
         const probe = document.getElementById('cartuplift-payment-probe');
-        if (!probe) return;
+        if (!probe) {
+          console.warn('🔧 CartUplift: Payment probe not found');
+          return;
+        }
+        
         // Find Shopify-generated dynamic buttons
         const dynamicWrap = probe.querySelector('.additional-checkout-buttons');
-        if (!dynamicWrap) return;
+        if (!dynamicWrap) {
+          console.warn('🔧 CartUplift: Additional checkout buttons wrapper not found');
+          return;
+        }
 
+        console.log('🔧 CartUplift: Found dynamic buttons wrapper, checking for children...');
+        console.log('🔧 CartUplift: Children count:', dynamicWrap.children.length);
+        
         // If Shopify has injected child buttons, clone and insert into slot
         if (dynamicWrap.children.length) {
+          console.log('✅ CartUplift: Found dynamic payment buttons, mounting...');
+          
           // Clear previous
           slot.innerHTML = '';
           // Clone node to keep the original hidden in DOM
@@ -2511,11 +2537,18 @@
           // Insert
           slot.appendChild(clone);
 
+          console.log('✅ CartUplift: Express checkout buttons mounted successfully');
+
           // Hook click passthrough if needed: delegate clicks to original hidden buttons
           slot.addEventListener('click', (ev) => {
             const originalButton = probe.querySelector('.additional-checkout-buttons button, .shopify-payment-button');
             if (originalButton) originalButton.click();
           }, { once: true });
+        } else {
+          console.warn('⚠️ CartUplift: No payment buttons found in Shopify wrapper. This could mean:');
+          console.warn('  1. PayPal/Shop Pay not enabled in Shopify payments');
+          console.warn('  2. Buttons not yet rendered by Shopify');
+          console.warn('  3. Theme conflicts preventing button rendering');
         }
       } catch (e) {
         console.warn('Failed to mount express buttons:', e);
