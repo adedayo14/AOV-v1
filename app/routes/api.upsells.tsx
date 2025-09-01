@@ -18,30 +18,47 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // 3. Fetch relevant products from Shopify
   // 4. Apply business logic for recommendations
 
-  // For demo purposes, let's fetch some products from the shop
+  // Use real sales data to determine top-performing upsells
+  // 1. Query actual order line items to find best-selling products
+  // 2. Calculate which products are frequently bought together
+  // 3. Prioritize by revenue and conversion performance
+
   try {
-    const response = await admin.graphql(`
+    // Fetch actual sales data from orders
+    const salesDataResponse = await admin.graphql(`
       #graphql
-      query getProducts($first: Int!) {
-        products(first: $first) {
+      query getTopPerformingProducts($first: Int!) {
+        orders(first: 250, sortKey: CREATED_AT, reverse: true) {
           edges {
             node {
               id
-              title
-              handle
-              images(first: 1) {
-                edges {
-                  node {
-                    url
-                    altText
-                  }
+              createdAt
+              totalPriceSet {
+                shopMoney {
+                  amount
                 }
               }
-              variants(first: 1) {
+              lineItems(first: 10) {
                 edges {
                   node {
-                    id
-                    price
+                    quantity
+                    product {
+                      id
+                      title
+                      handle
+                      images(first: 1) {
+                        edges {
+                          node {
+                            url
+                            altText
+                          }
+                        }
+                      }
+                    }
+                    variant {
+                      id
+                      price
+                    }
                   }
                 }
               }
@@ -51,28 +68,85 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     `, {
       variables: {
-        first: 4
+        first: 250
       }
     });
 
-    const responseJson = await response.json();
-    const products = responseJson.data?.products?.edges || [];
+    const salesData = await salesDataResponse.json();
+    const orders = salesData.data?.orders?.edges || [];
 
-    // Transform the products into the format expected by the frontend
-    const upsells = products.map((product: any) => {
-      const productNode = product.node;
-      const firstImage = productNode.images.edges[0]?.node;
-      const firstVariant = productNode.variants.edges[0]?.node;
+    // Calculate product performance metrics
+    const productMetrics: Record<string, {
+      id: string;
+      title: string;
+      handle: string;
+      image: string;
+      price: number;
+      variantId: string;
+      totalRevenue: number;
+      totalQuantity: number;
+      orderCount: number;
+      avgOrderValue: number;
+    }> = {};
+
+    // Analyze real sales data
+    orders.forEach((order: any) => {
+      const orderNode = order.node;
       
-      return {
-        id: productNode.id.replace('gid://shopify/Product/', ''),
-        title: productNode.title,
-        price: firstVariant ? parseFloat(firstVariant.price) * 100 : 0, // Convert to cents
-        image: firstImage?.url || 'https://via.placeholder.com/150',
-        variant_id: firstVariant?.id.replace('gid://shopify/ProductVariant/', '') || '',
-        handle: productNode.handle
-      };
+      orderNode.lineItems.edges.forEach((lineItem: any) => {
+        const item = lineItem.node;
+        const product = item.product;
+        const variant = item.variant;
+        
+        if (!product || !variant) return;
+        
+        const productId = product.id.replace('gid://shopify/Product/', '');
+        const revenue = parseFloat(variant.price) * item.quantity;
+        
+        if (!productMetrics[productId]) {
+          productMetrics[productId] = {
+            id: productId,
+            title: product.title,
+            handle: product.handle,
+            image: product.images.edges[0]?.node?.url || 'https://via.placeholder.com/150',
+            price: parseFloat(variant.price) * 100, // Convert to cents
+            variantId: variant.id.replace('gid://shopify/ProductVariant/', ''),
+            totalRevenue: 0,
+            totalQuantity: 0,
+            orderCount: 0,
+            avgOrderValue: 0
+          };
+        }
+        
+        productMetrics[productId].totalRevenue += revenue;
+        productMetrics[productId].totalQuantity += item.quantity;
+        productMetrics[productId].orderCount += 1;
+        productMetrics[productId].avgOrderValue = productMetrics[productId].totalRevenue / productMetrics[productId].orderCount;
+      });
     });
+
+    // Sort by performance (revenue * frequency)
+    const topPerformers = Object.values(productMetrics)
+      .filter(product => product.totalRevenue > 0)
+      .sort((a, b) => (b.totalRevenue * b.orderCount) - (a.totalRevenue * a.orderCount))
+      .slice(0, 6); // Get top 6 performers
+
+    // Transform for frontend
+    const upsells = topPerformers.map(product => ({
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      image: product.image,
+      variant_id: product.variantId,
+      handle: product.handle,
+      // Include performance metrics for better recommendations
+      performance: {
+        revenue: product.totalRevenue,
+        quantity: product.totalQuantity,
+        orders: product.orderCount,
+        avgOrderValue: product.avgOrderValue
+      }
+    }));
 
     return json(upsells);
   } catch (error) {

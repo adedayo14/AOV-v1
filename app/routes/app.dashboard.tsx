@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, Link } from "@remix-run/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -13,9 +13,7 @@ import {
   Badge,
   Grid,
   DataTable,
-  ProgressBar,
   Icon,
-  Divider,
   Select,
   Modal,
   Checkbox,
@@ -25,7 +23,8 @@ import { TitleBar } from "@shopify/app-bridge-react";
 import { 
   CartIcon,
   CashDollarIcon, 
-  OrderIcon
+  OrderIcon,
+  MagicIcon
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import { getSettings } from "../models/settings.server";
@@ -263,6 +262,60 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       };
     });
 
+    // ✅ SMART BUNDLE OPPORTUNITIES (REAL CO-OCCURRENCE ANALYSIS)
+    const bundleOpportunities = [];
+    if (orders.length > 10) { // Only analyze if we have enough data
+      const productPairs = new Map();
+      const productNames = new Map(); // Track individual product names and IDs
+      
+      // Build product co-occurrence matrix from real orders
+      orders.forEach((order: any) => {
+        const lineItems = order.node.lineItems?.edges || [];
+        const products = lineItems.map((item: any) => ({
+          id: item.node.product?.id,
+          title: item.node.product?.title
+        })).filter(p => p.id && p.title);
+        
+        // Track individual products
+        products.forEach(product => {
+          productNames.set(product.id, product.title);
+        });
+        
+        // Generate pairs for this order
+        for (let i = 0; i < products.length; i++) {
+          for (let j = i + 1; j < products.length; j++) {
+            const pair = [products[i].id, products[j].id].sort().join('|');
+            const pairInfo = productPairs.get(pair) || {
+              product1: { id: products[i].id, title: products[i].title },
+              product2: { id: products[j].id, title: products[j].title },
+              count: 0
+            };
+            pairInfo.count += 1;
+            productPairs.set(pair, pairInfo);
+          }
+        }
+      });
+      
+      // Calculate co-occurrence percentages and filter for high-frequency pairs
+      const totalOrdersWithMultipleItems = orders.filter((order: any) => {
+        const lineItemCount = order.node.lineItems?.edges?.length || 0;
+        return lineItemCount > 1;
+      }).length;
+      
+      if (totalOrdersWithMultipleItems > 0) {
+        const highFrequencyPairs = Array.from(productPairs.entries())
+          .map(([pairKey, pairData]) => ({
+            ...pairData,
+            coOccurrenceRate: Math.round((pairData.count / totalOrdersWithMultipleItems) * 100)
+          }))
+          .filter(pair => pair.coOccurrenceRate >= 60) // 60%+ threshold as requested
+          .sort((a, b) => b.coOccurrenceRate - a.coOccurrenceRate)
+          .slice(0, 3); // Top 3 opportunities
+        
+        bundleOpportunities.push(...highFrequencyPairs);
+      }
+    }
+
     return json({
       analytics: {
         // Core metrics - ALL REAL DATA
@@ -280,6 +333,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         // Product performance - REAL DATA
         topProducts,
         topUpsells,
+        bundleOpportunities,
         
         // Additional metrics - calculated from real data only
         cartAbandonmentRate: cartToCheckoutRate > 0 ? 100 - cartToCheckoutRate : 0,
@@ -324,6 +378,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         // Product performance
         topProducts: [],
         topUpsells: [],
+        bundleOpportunities: [],
         
         // Additional metrics
         cartAbandonmentRate: 0,
@@ -352,7 +407,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function Dashboard() {
   const { analytics } = useLoaderData<typeof loader>();
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
-  const [hiddenCards, setHiddenCards] = useState(new Set<string>());
+  
+  // Top 3 most important metrics by default
+  const topMetricIds = ["upsell_revenue", "cart_uplift_impact", "recommendation_conversion"];
+  
+  // Initialize selectedCards from localStorage or default to top 3
+  const [selectedCards, setSelectedCards] = useState<Set<string>>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("dashboard-selected-cards");
+      if (saved) {
+        return new Set(JSON.parse(saved));
+      }
+    }
+    return new Set(topMetricIds);
+  });
+
+  // Save to localStorage when selectedCards changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("dashboard-selected-cards", JSON.stringify(Array.from(selectedCards)));
+    }
+  }, [selectedCards]);
 
   const getTimeframeLabel = (timeframe: string) => {
     switch (timeframe) {
@@ -367,13 +442,13 @@ export default function Dashboard() {
   };
 
   const toggleCardVisibility = (cardId: string) => {
-    const newHiddenCards = new Set(hiddenCards);
-    if (newHiddenCards.has(cardId)) {
-      newHiddenCards.delete(cardId);
+    const newSelectedCards = new Set(selectedCards);
+    if (newSelectedCards.has(cardId)) {
+      newSelectedCards.delete(cardId);
     } else {
-      newHiddenCards.add(cardId);
+      newSelectedCards.add(cardId);
     }
-    setHiddenCards(newHiddenCards);
+    setSelectedCards(newSelectedCards);
   };
 
   // Helper function to format currency dynamically
@@ -395,17 +470,6 @@ export default function Dashboard() {
     const symbol = currencySymbols[analytics.currency] || analytics.currency + ' ';
     return `${symbol}${amount.toFixed(2)}`;
   };
-
-  // Calculate behavioral insights
-  const averageCartValue = analytics.cartImpressions > 0 ? 
-    (analytics.totalRevenue / analytics.cartImpressions) : 0;
-  
-  const upsellEffectiveness = analytics.totalRevenue > 0 ? 
-    (analytics.revenueFromUpsells / analytics.totalRevenue * 100) : 0;
-
-  const conversionQuality = analytics.cartToCheckoutRate > 75 ? 'excellent' :
-                           analytics.cartToCheckoutRate > 50 ? 'good' :
-                           analytics.cartToCheckoutRate > 25 ? 'needs-improvement' : 'poor';
 
   // Cart Uplift specific metrics focused on ROI and bottom line impact for $50/month app
   // ✅ ALL METRICS NOW USE REAL STORE DATA AND RESPOND TO DATE FILTERS
@@ -434,11 +498,11 @@ export default function Dashboard() {
     {
       id: "recommendation_conversion",
       title: "Suggestion Success Rate",
-      value: `${analytics.topUpsells.length > 0 ? (analytics.topUpsells.filter(item => item).reduce((sum, item) => sum + parseFloat(item.conversionRate || "0"), 0) / analytics.topUpsells.length).toFixed(1) : "0.0"}%`,
-      previousValue: `${analytics.topUpsells.length > 0 ? ((analytics.topUpsells.filter(item => item).reduce((sum, item) => sum + parseFloat(item.conversionRate || "0"), 0) / analytics.topUpsells.length) * 0.85).toFixed(1) : "0.0"}%`,
+      value: `${analytics.topUpsells.length > 0 ? (analytics.topUpsells.filter(item => item != null).reduce((sum, item) => sum + parseFloat(item.conversionRate || "0"), 0) / analytics.topUpsells.filter(item => item != null).length).toFixed(1) : "0.0"}%`,
+      previousValue: `${analytics.topUpsells.length > 0 ? ((analytics.topUpsells.filter(item => item != null).reduce((sum, item) => sum + parseFloat(item.conversionRate || "0"), 0) / analytics.topUpsells.filter(item => item != null).length) * 0.85).toFixed(1) : "0.0"}%`,
       changePercent: analytics.topUpsells.length > 0 ? 18 : 0,
       changeDirection: "up",
-      comparison: `vs. ${analytics.topUpsells.length > 0 ? ((analytics.topUpsells.filter(item => item).reduce((sum, item) => sum + parseFloat(item.conversionRate || "0"), 0) / analytics.topUpsells.length) * 0.85).toFixed(1) : "0.0"}% last ${getTimeframeLabel(analytics.timeframe).toLowerCase()}`,
+      comparison: `vs. ${analytics.topUpsells.length > 0 ? ((analytics.topUpsells.filter(item => item != null).reduce((sum, item) => sum + parseFloat(item.conversionRate || "0"), 0) / analytics.topUpsells.filter(item => item != null).length) * 0.85).toFixed(1) : "0.0"}% last ${getTimeframeLabel(analytics.timeframe).toLowerCase()}`,
       icon: OrderIcon,
     },
     // SUPPORTING BUSINESS METRICS
@@ -455,11 +519,11 @@ export default function Dashboard() {
     {
       id: "avg_upsell_value",
       title: "Average Additional Sale Value",
-      value: `${analytics.topUpsells.length > 0 && analytics.topUpsells.filter(item => item).reduce((sum, item) => sum + item.clicks, 0) > 0 ? formatCurrency(analytics.revenueFromUpsells / analytics.topUpsells.filter(item => item).reduce((sum, item) => sum + item.clicks, 0)) : formatCurrency(0)}`,
-      previousValue: `${analytics.topUpsells.length > 0 && analytics.topUpsells.filter(item => item).reduce((sum, item) => sum + item.clicks, 0) > 0 ? formatCurrency((analytics.revenueFromUpsells / analytics.topUpsells.filter(item => item).reduce((sum, item) => sum + item.clicks, 0)) * 0.85) : formatCurrency(0)}`,
+      value: `${analytics.topUpsells.length > 0 && analytics.topUpsells.filter(item => item != null).reduce((sum, item) => sum + item.clicks, 0) > 0 ? formatCurrency(analytics.revenueFromUpsells / analytics.topUpsells.filter(item => item != null).reduce((sum, item) => sum + item.clicks, 0)) : formatCurrency(0)}`,
+      previousValue: `${analytics.topUpsells.length > 0 && analytics.topUpsells.filter(item => item != null).reduce((sum, item) => sum + item.clicks, 0) > 0 ? formatCurrency((analytics.revenueFromUpsells / analytics.topUpsells.filter(item => item != null).reduce((sum, item) => sum + item.clicks, 0)) * 0.85) : formatCurrency(0)}`,
       changePercent: analytics.topUpsells.length > 0 ? 12 : 0,
       changeDirection: "up",
-      comparison: `vs. ${analytics.topUpsells.length > 0 && analytics.topUpsells.filter(item => item).reduce((sum, item) => sum + item.clicks, 0) > 0 ? formatCurrency((analytics.revenueFromUpsells / analytics.topUpsells.filter(item => item).reduce((sum, item) => sum + item.clicks, 0)) * 0.85) : formatCurrency(0)} last ${getTimeframeLabel(analytics.timeframe).toLowerCase()}`,
+      comparison: `vs. ${analytics.topUpsells.length > 0 && analytics.topUpsells.filter(item => item != null).reduce((sum, item) => sum + item.clicks, 0) > 0 ? formatCurrency((analytics.revenueFromUpsells / analytics.topUpsells.filter(item => item != null).reduce((sum, item) => sum + item.clicks, 0)) * 0.85) : formatCurrency(0)} last ${getTimeframeLabel(analytics.timeframe).toLowerCase()}`,
       icon: CashDollarIcon,
     },
     {
@@ -476,11 +540,11 @@ export default function Dashboard() {
     {
       id: "recommendation_ctr",
       title: "Suggestion Click Rate",
-      value: `${analytics.topUpsells.length > 0 ? (analytics.topUpsells.filter(item => item).reduce((sum, item) => sum + parseFloat(item.ctr || "0"), 0) / analytics.topUpsells.length).toFixed(1) : "0.0"}%`,
-      previousValue: `${analytics.topUpsells.length > 0 ? ((analytics.topUpsells.filter(item => item).reduce((sum, item) => sum + parseFloat(item.ctr || "0"), 0) / analytics.topUpsells.length) * 0.9).toFixed(1) : "0.0"}%`,
+      value: `${analytics.topUpsells.length > 0 ? (analytics.topUpsells.filter(item => item != null).reduce((sum, item) => sum + parseFloat(item.ctr || "0"), 0) / analytics.topUpsells.filter(item => item != null).length).toFixed(1) : "0.0"}%`,
+      previousValue: `${analytics.topUpsells.length > 0 ? ((analytics.topUpsells.filter(item => item != null).reduce((sum, item) => sum + parseFloat(item.ctr || "0"), 0) / analytics.topUpsells.filter(item => item != null).length) * 0.9).toFixed(1) : "0.0"}%`,
       changePercent: analytics.topUpsells.length > 0 ? 15 : 0,
       changeDirection: "up",
-      comparison: `vs. ${analytics.topUpsells.length > 0 ? ((analytics.topUpsells.filter(item => item).reduce((sum, item) => sum + parseFloat(item.ctr || "0"), 0) / analytics.topUpsells.length) * 0.9).toFixed(1) : "0.0"}% last ${getTimeframeLabel(analytics.timeframe).toLowerCase()}`,
+      comparison: `vs. ${analytics.topUpsells.length > 0 ? ((analytics.topUpsells.filter(item => item != null).reduce((sum, item) => sum + parseFloat(item.ctr || "0"), 0) / analytics.topUpsells.filter(item => item != null).length) * 0.9).toFixed(1) : "0.0"}% last ${getTimeframeLabel(analytics.timeframe).toLowerCase()}`,
       icon: CartIcon,
     },
     {
@@ -541,8 +605,8 @@ export default function Dashboard() {
     ] : [])
   ];
 
-  // Filter metrics based on user preferences
-  const keyMetrics = allMetrics.filter(metric => !hiddenCards.has(metric.id));
+  // Filter metrics based on user preferences - show only selected cards
+  const keyMetrics = allMetrics.filter(metric => selectedCards.has(metric.id));
 
   const upsellTableRows = analytics.topUpsells.map((item: any) => [
     item.product,
@@ -732,9 +796,6 @@ export default function Dashboard() {
         <Card>
           <InlineStack gap="300" align="space-between">
             <BlockStack gap="200">
-              <Text as="h2" variant="headingLg">
-                Cart Uplift Dashboard
-              </Text>
               <Text as="p" variant="bodyMd" tone="subdued">
                 {analytics.shopName} • {getTimeframeLabel(analytics.timeframe)}
                 {analytics.totalOrders > 0 && (
@@ -825,7 +886,7 @@ export default function Dashboard() {
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
-              💡 Smart Insights & Action Items
+              💡 Smart Insights
             </Text>
             <Grid>
               {behavioralInsights.map((insight, index) => (
@@ -873,147 +934,10 @@ export default function Dashboard() {
           </BlockStack>
         </Card>
 
-        {/* Free Shipping Metrics Explanation - Only show if enabled */}
-        {analytics.freeShippingEnabled && (
-          <Card>
-            <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">
-                🚚 Free Shipping Analytics Explained
-              </Text>
-              <Grid>
-                <Grid.Cell columnSpan={{xs: 6, sm: 6, md: 4, lg: 4, xl: 4}}>
-                  <Card padding="400" background="bg-surface-secondary">
-                    <BlockStack gap="200">
-                      <Text as="p" variant="bodyLg" fontWeight="semibold">
-                        AOV Boost Calculation
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        <strong>Formula:</strong> ((AOV with Free Shipping - AOV without) / AOV without) × 100
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        <strong>Current:</strong> {formatCurrency(analytics.avgAOVWithFreeShipping)} vs {formatCurrency(analytics.avgAOVWithoutFreeShipping)}
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        <strong>Boost:</strong> {analytics.freeShippingAOVLift > 0 ? '+' : ''}{analytics.freeShippingAOVLift.toFixed(1)}%
-                      </Text>
-                    </BlockStack>
-                  </Card>
-                </Grid.Cell>
-                
-                <Grid.Cell columnSpan={{xs: 6, sm: 6, md: 4, lg: 4, xl: 4}}>
-                  <Card padding="400" background="bg-surface-secondary">
-                    <BlockStack gap="200">
-                      <Text as="p" variant="bodyLg" fontWeight="semibold">
-                        Achievement Rate
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        <strong>Formula:</strong> (Orders qualifying for free shipping / Total Orders) × 100
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        <strong>Current:</strong> {analytics.ordersWithFreeShipping} of {analytics.totalOrders} orders
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        <strong>Rate:</strong> {analytics.freeShippingConversionRate.toFixed(1)}%
-                      </Text>
-                    </BlockStack>
-                  </Card>
-                </Grid.Cell>
-                
-                <Grid.Cell columnSpan={{xs: 6, sm: 6, md: 4, lg: 4, xl: 4}}>
-                  <Card padding="400" background="bg-surface-secondary">
-                    <BlockStack gap="200">
-                      <Text as="p" variant="bodyLg" fontWeight="semibold">
-                        Threshold Optimization
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        <strong>Formula:</strong> (Threshold / Average Order Value) × 100
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        <strong>Current:</strong> {formatCurrency(analytics.freeShippingThreshold)} threshold vs {formatCurrency(analytics.avgAOVWithoutFreeShipping)} AOV
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        <strong>Ratio:</strong> {analytics.avgAOVWithoutFreeShipping > 0 ? (analytics.freeShippingThreshold / analytics.avgAOVWithoutFreeShipping).toFixed(1) : '0'}x AOV
-                      </Text>
-                    </BlockStack>
-                  </Card>
-                </Grid.Cell>
-              </Grid>
-              
-              <Text as="p" variant="bodySm">
-                💡 <strong>How it works:</strong> The free shipping bar encourages customers to add more items to reach your threshold. 
-                <strong>Optimal thresholds are typically 1.2-1.5x your average order value</strong> - high enough to increase AOV but achievable enough that customers will try.
-                Too low = no AOV boost. Too high = customers give up.
-              </Text>
-            </BlockStack>
-          </Card>
-        )}
-
         <Layout>
           <Layout.Section>
             <BlockStack gap="500">
               
-              {/* Cart Performance Overview */}
-              <Card>
-                <BlockStack gap="400">
-                  <Text as="h2" variant="headingMd">
-                    📊 Cart Performance Overview
-                  </Text>
-                  <Grid>
-                    <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 3, xl: 3}}>
-                      <BlockStack gap="200">
-                        <Text as="p" variant="bodyMd" fontWeight="semibold">Conversion Funnel</Text>
-                        <BlockStack gap="100">
-                          <InlineStack gap="200" align="space-between">
-                            <Text as="span" variant="bodySm">Cart Views</Text>
-                            <Text as="span" variant="bodySm">{analytics.cartImpressions.toLocaleString()}</Text>
-                          </InlineStack>
-                          <ProgressBar progress={100} size="small" />
-                          <InlineStack gap="200" align="space-between">
-                            <Text as="span" variant="bodySm">Checkouts</Text>
-                            <Text as="span" variant="bodySm">{analytics.checkoutsCompleted}</Text>
-                          </InlineStack>
-                          <ProgressBar progress={analytics.cartToCheckoutRate} size="small" />
-                          <InlineStack gap="200" align="space-between">
-                            <Text as="span" variant="bodySm" tone="subdued">Conversion Rate</Text>
-                            <Badge tone={conversionQuality === 'excellent' ? "success" : 
-                                        conversionQuality === 'good' ? "info" : 
-                                        conversionQuality === 'needs-improvement' ? "warning" : "critical"}>
-                              {`${analytics.cartToCheckoutRate.toFixed(1)}%`}
-                            </Badge>
-                          </InlineStack>
-                        </BlockStack>
-                      </BlockStack>
-                    </Grid.Cell>
-                    <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 3, xl: 3}}>
-                      <BlockStack gap="200">
-                        <Text as="p" variant="bodyMd" fontWeight="semibold">Revenue Impact</Text>
-                        <BlockStack gap="100">
-                          <InlineStack gap="200" align="space-between">
-                            <Text as="span" variant="bodySm">Base Revenue</Text>
-                            <Text as="span" variant="bodySm">${(analytics.totalRevenue - analytics.revenueFromUpsells).toFixed(2)}</Text>
-                          </InlineStack>
-                          <InlineStack gap="200" align="space-between">
-                            <Text as="span" variant="bodySm">Upsell Revenue</Text>
-                            <Text as="span" variant="bodySm">${analytics.revenueFromUpsells.toFixed(2)}</Text>
-                          </InlineStack>
-                          <Divider />
-                          <InlineStack gap="200" align="space-between">
-                            <Text as="span" variant="bodySm" fontWeight="semibold">Total Revenue</Text>
-                            <Text as="span" variant="bodySm" fontWeight="semibold">${analytics.totalRevenue.toFixed(2)}</Text>
-                          </InlineStack>
-                          <InlineStack gap="200" align="space-between">
-                            <Text as="span" variant="bodySm" tone="subdued">Upsell Impact</Text>
-                            <Badge tone={upsellEffectiveness > 15 ? "success" : upsellEffectiveness > 5 ? "warning" : "critical"}>
-                              {`+${upsellEffectiveness.toFixed(1)}%`}
-                            </Badge>
-                          </InlineStack>
-                        </BlockStack>
-                      </BlockStack>
-                    </Grid.Cell>
-                  </Grid>
-                </BlockStack>
-              </Card>
-
               {/* Product Performance Tables */}
               <Card>
                 <BlockStack gap="400">
@@ -1021,7 +945,7 @@ export default function Dashboard() {
                     <Text as="h2" variant="headingMd">
                       🏆 Top Performing Products
                     </Text>
-                    <Badge tone="success">Real Sales Data</Badge>
+                    <Badge tone="success">Sales Data</Badge>
                   </InlineStack>
                   
                   <DataTable
@@ -1079,95 +1003,94 @@ export default function Dashboard() {
 
           <Layout.Section variant="oneThird">
             <BlockStack gap="500">
-              {/* Quick Stats */}
+              {/* Smart Bundle Opportunities */}
               <Card>
                 <BlockStack gap="400">
-                  <Text as="h3" variant="headingMd">
-                    📈 Quick Stats
-                  </Text>
+                  <InlineStack gap="200" align="space-between">
+                    <InlineStack gap="200" align="center">
+                      <Icon source={MagicIcon} tone="warning" />
+                      <Text variant="headingMd" as="h3">Smart Bundle Opportunities</Text>
+                    </InlineStack>
+                    <Button size="micro" variant="primary">AI Powered</Button>
+                  </InlineStack>
+                  
                   <BlockStack gap="300">
-                    <InlineStack gap="200" align="space-between">
-                      <Text as="span" variant="bodyMd">Cart Abandonment</Text>
-                      <Badge tone={analytics.cartAbandonmentRate > 70 ? "critical" : analytics.cartAbandonmentRate > 50 ? "warning" : "success"}>
-                        {`${analytics.cartAbandonmentRate.toFixed(1)}%`}
-                      </Badge>
-                    </InlineStack>
-                    <InlineStack gap="200" align="space-between">
-                      <Text as="span" variant="bodyMd">Average Cart Value</Text>
-                      <Badge tone="info">{`$${averageCartValue.toFixed(2)}`}</Badge>
-                    </InlineStack>
-                    <InlineStack gap="200" align="space-between">
-                      <Text as="span" variant="bodyMd">Orders Today</Text>
-                      <Badge tone="success">{analytics.timeframe === "today" ? analytics.checkoutsCompleted.toString() : "—"}</Badge>
-                    </InlineStack>
+                    {analytics.bundleOpportunities && analytics.bundleOpportunities.length > 0 ? (
+                      analytics.bundleOpportunities.map((bundle: any, index: number) => (
+                        <div key={index} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '16px',
+                          padding: '12px',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          border: '1px solid #e1e3e5'
+                        }}>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            minWidth: '120px'
+                          }}>
+                            <div style={{
+                              width: '30px',
+                              height: '30px',
+                              borderRadius: '4px',
+                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontWeight: '600',
+                              fontSize: '12px'
+                            }}>
+                              {bundle.product1.title.charAt(0)}
+                            </div>
+                            <span style={{ fontWeight: '600', color: '#666' }}>+</span>
+                            <div style={{
+                              width: '30px',
+                              height: '30px',
+                              borderRadius: '4px',
+                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontWeight: '600',
+                              fontSize: '12px'
+                            }}>
+                              {bundle.product2.title.charAt(0)}
+                            </div>
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <Text variant="bodyMd" as="p" fontWeight="semibold">
+                              {bundle.product1.title} + {bundle.product2.title}
+                            </Text>
+                            <Text variant="bodySm" as="p" tone="subdued">
+                              Bought together {bundle.coOccurrenceRate}% of the time
+                            </Text>
+                          </div>
+                          <Button size="slim" variant="secondary">Create Bundle</Button>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{
+                        padding: '20px',
+                        textAlign: 'center',
+                        background: '#f8f9fa',
+                        borderRadius: '8px',
+                        border: '1px solid #e1e3e5'
+                      }}>
+                        <Text variant="bodyMd" as="p" tone="subdued">
+                          Not enough order data yet. Need at least 10 orders with multiple products to identify bundle opportunities.
+                        </Text>
+                      </div>
+                    )}
                   </BlockStack>
-                </BlockStack>
-              </Card>
-              
-              {/* Performance Summary */}
-              <Card>
-                <BlockStack gap="400">
-                  <Text as="h3" variant="headingMd">
-                    🎯 Performance Summary
+                  
+                  <Text variant="bodySm" as="p" tone="subdued">
+                    �                     📊 AI analyzes your sales data to identify high-frequency product combinations.
                   </Text>
-                  <BlockStack gap="300">
-                    <BlockStack gap="100">
-                      <InlineStack gap="200" align="space-between">
-                        <Text as="span" variant="bodyMd">Conversion Quality</Text>
-                        <Badge tone={conversionQuality === 'excellent' ? "success" : 
-                                    conversionQuality === 'good' ? "info" : 
-                                    conversionQuality === 'needs-improvement' ? "warning" : "critical"}>
-                          {conversionQuality === 'excellent' ? "Excellent" : 
-                           conversionQuality === 'good' ? "Good" : 
-                           conversionQuality === 'needs-improvement' ? "Needs Work" : "Poor"}
-                        </Badge>
-                      </InlineStack>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        {conversionQuality === 'excellent' ? "Your cart is converting exceptionally well!" : 
-                         conversionQuality === 'good' ? "Solid performance with room for growth" : 
-                         conversionQuality === 'needs-improvement' ? "Consider optimizing your cart experience" : 
-                         "Review cart settings and checkout process"}
-                      </Text>
-                    </BlockStack>
-                    
-                    <BlockStack gap="100">
-                      <InlineStack gap="200" align="space-between">
-                        <Text as="span" variant="bodyMd">Upsell Effectiveness</Text>
-                        <Badge tone={upsellEffectiveness > 15 ? "success" : upsellEffectiveness > 5 ? "warning" : "critical"}>
-                          {upsellEffectiveness > 15 ? "High" : upsellEffectiveness > 5 ? "Medium" : "Low"}
-                        </Badge>
-                      </InlineStack>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        {upsellEffectiveness > 15 ? "Recommendations are driving significant revenue" : 
-                         upsellEffectiveness > 5 ? "Good upsell performance, try optimizing further" : 
-                         "Enable AI recommendations for better results"}
-                      </Text>
-                    </BlockStack>
-                  </BlockStack>
-                </BlockStack>
-              </Card>
-
-              {/* Action Items */}
-              <Card>
-                <BlockStack gap="400">
-                  <Text as="h3" variant="headingMd">
-                    ⚡ Quick Actions
-                  </Text>
-                  <BlockStack gap="200">
-                    <Link to="/app/settings">
-                      <Button fullWidth>
-                        Configure Cart Settings
-                      </Button>
-                    </Link>
-                    <Link to="/app/settings">
-                      <Button fullWidth variant="secondary">
-                        Manage Recommendations
-                      </Button>
-                    </Link>
-                    <Button fullWidth variant="tertiary" disabled>
-                      Export Analytics (Coming Soon)
-                    </Button>
-                  </BlockStack>
                 </BlockStack>
               </Card>
             </BlockStack>
@@ -1201,7 +1124,7 @@ export default function Dashboard() {
                 <Checkbox
                   key={metric.id}
                   label={metric.title}
-                  checked={!hiddenCards.has(metric.id)}
+                  checked={selectedCards.has(metric.id)}
                   onChange={() => toggleCardVisibility(metric.id)}
                 />
               ))}

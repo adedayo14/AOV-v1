@@ -159,12 +159,14 @@ export default function SettingsPage() {
   const recommendationLayoutOptions = [
     { label: "Horizontal Cards", value: "row" },
     { label: "Vertical List", value: "column" },
+    { label: "🔥 Full Width Showcase", value: "fullwidth" },
+    { label: "📊 Grid Layout (2x2)", value: "grid" },
   ];
 
   const complementDetectionModeOptions = [
-    { label: "✨ Automatic (AI-Powered)", value: "automatic" },
+    { label: "✨ Sales Data Analysis", value: "automatic" },
     { label: "⚙️ Manual Rules Only", value: "manual" },
-    { label: "🔄 Hybrid (Auto + Overrides)", value: "hybrid" },
+    { label: "🔄 Hybrid (Sales + Manual)", value: "hybrid" },
   ];
 
   // Calculate free shipping progress
@@ -175,7 +177,6 @@ export default function SettingsPage() {
 
   return (
     <Page
-      title="Cart Uplift Settings"
       primaryAction={{
         content: "Save Settings",
         onAction: handleSubmit,
@@ -1776,6 +1777,124 @@ export default function SettingsPage() {
             font-size: 14px;
             font-weight: normal;
           }
+          
+          /* Full Width Showcase Layout */
+          .cartuplift-fullwidth-showcase {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            border: 1px solid #e0e0e0;
+          }
+          
+          .cartuplift-fullwidth-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+          }
+          
+          .cartuplift-fullwidth-item img {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
+          }
+          
+          .cartuplift-fullwidth-info {
+            flex: 1;
+          }
+          
+          .cartuplift-fullwidth-info h4 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+            color: #000;
+          }
+          
+          .cartuplift-fullwidth-info p {
+            font-size: 14px;
+            color: #666;
+            margin: 0 0 12px 0;
+          }
+          
+          .cartuplift-fullwidth-price {
+            font-size: 24px;
+            font-weight: 700;
+            color: #000;
+            margin-bottom: 16px;
+          }
+          
+          .cartuplift-fullwidth-add {
+            padding: 12px 24px;
+            background: ${resolveColor(formSettings.buttonColor, '#000000')};
+            color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')};
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          
+          /* Grid Layout (2x2) */
+          .cartuplift-grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+          }
+          
+          .cartuplift-grid-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+          }
+          
+          .cartuplift-grid-item img {
+            width: 100%;
+            max-width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 6px;
+            margin-bottom: 8px;
+          }
+          
+          .cartuplift-grid-item h5 {
+            font-size: 12px;
+            font-weight: 500;
+            margin: 0 0 4px 0;
+            color: #000;
+            line-height: 1.3;
+          }
+          
+          .cartuplift-grid-item span {
+            font-size: 13px;
+            font-weight: 600;
+            color: #000;
+            display: block;
+            margin-bottom: 8px;
+          }
+          
+          .cartuplift-grid-item button {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid ${resolveColor(formSettings.buttonColor, '#000000')};
+            background: white;
+            color: ${resolveColor(formSettings.buttonColor, '#000000')};
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            margin: 0 auto;
+          }
+          
+          .cartuplift-grid-item button:hover {
+            background: ${resolveColor(formSettings.buttonColor, '#000000')};
+            color: white;
+          }
         `
       }} />
 
@@ -1789,10 +1908,17 @@ export default function SettingsPage() {
         {/* Settings Column - Left Side */}
         <div className="cartuplift-settings-column">
           <BlockStack gap="500">
+            {/* Header */}
+            <Card padding="300">
+              <Text as="p" variant="bodyMd" tone="subdued" fontWeight="bold">
+                Settings • Configure your cart optimization features
+              </Text>
+            </Card>
+            
             {/* Quick Setup - Most Important First */}
             <Card>
               <BlockStack gap="400">
-                <Text variant="headingLg" as="h2">🚀 Quick Setup</Text>
+                <Text variant="headingMd" as="h2">🚀 Quick Setup</Text>
                 <FormLayout>
                   <Checkbox
                     label="Auto-open cart when item added"
@@ -1821,7 +1947,7 @@ export default function SettingsPage() {
             {/* Free Shipping Incentive */}
             <Card>
               <BlockStack gap="400">
-                <Text variant="headingLg" as="h2">🚚 Free Shipping Incentive</Text>
+                <Text variant="headingMd" as="h2">🚚 Free Shipping Incentive</Text>
                 <FormLayout>
                   <Checkbox
                     label="Enable free shipping progress bar"
@@ -1901,7 +2027,7 @@ export default function SettingsPage() {
             {/* Appearance & Positioning */}
             <Card>
               <BlockStack gap="400">
-                <Text variant="headingLg" as="h2">🎨 Appearance & Style</Text>
+                <Text variant="headingMd" as="h2">🎨 Appearance & Style</Text>
                 <FormLayout>
                   <Select
                     label="Cart Icon Style"
@@ -1977,7 +2103,7 @@ export default function SettingsPage() {
             {formSettings.enableRecommendations && (
               <Card>
                 <BlockStack gap="400">
-                  <Text variant="headingLg" as="h2">🎯 Smart Recommendations</Text>
+                  <Text variant="headingMd" as="h2">🎯 Smart Recommendations</Text>
                   <FormLayout>
                     <Select
                       label="Layout Style"
@@ -2059,7 +2185,7 @@ export default function SettingsPage() {
             {/* Additional Features */}
             <Card>
               <BlockStack gap="400">
-                <Text variant="headingLg" as="h2">⚡ Additional Features</Text>
+                <Text variant="headingMd" as="h2">⚡ Additional Features</Text>
                 <FormLayout>
                   <Checkbox
                     label="Enable Discount Code Field"
@@ -2103,7 +2229,7 @@ export default function SettingsPage() {
             {/* Checkout Options */}
             <Card>
               <BlockStack gap="400">
-                <Text variant="headingLg" as="h2">💳 Checkout Options</Text>
+                <Text variant="headingMd" as="h2">💳 Checkout Options</Text>
                 <FormLayout>
                   <TextField
                     label="Checkout Button Text"
@@ -2126,7 +2252,7 @@ export default function SettingsPage() {
           </BlockStack>
         </div>
 
-        {/* Live Preview - Right Side (Fixed) */}
+        {/* Preview Column - Right Side */}
         <div className="cartuplift-preview-column" ref={previewRef}>
           <div className="cartuplift-preview-container">
             {/* Header */}
@@ -2247,6 +2373,45 @@ export default function SettingsPage() {
                               <button className="cartuplift-add-btn">+</button>
                             </div>
                           </>
+                        ) : formSettings.recommendationLayout === 'fullwidth' ? (
+                          <div className="cartuplift-fullwidth-showcase">
+                            <div className="cartuplift-fullwidth-item">
+                              <img src="https://images.unsplash.com/photo-1521093470119-a3acdc43374a?w=150&h=150&fit=crop" alt="Snowboard" />
+                              <div className="cartuplift-fullwidth-info">
+                                <h4>🔥 Top Seller: The Multi-managed Snowboard</h4>
+                                <p>Best performance in your category</p>
+                                <div className="cartuplift-fullwidth-price">£629.95</div>
+                                <button className="cartuplift-fullwidth-add">{formSettings.addButtonText || 'Add to Cart'}</button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : formSettings.recommendationLayout === 'grid' ? (
+                          <div className="cartuplift-grid-layout">
+                            <div className="cartuplift-grid-item">
+                              <img src="https://images.unsplash.com/photo-1521093470119-a3acdc43374a?w=120&h=120&fit=crop" alt="Snowboard" />
+                              <h5>Multi-managed Snowboard</h5>
+                              <span>£629.95</span>
+                              <button>+</button>
+                            </div>
+                            <div className="cartuplift-grid-item">
+                              <img src="https://images.unsplash.com/photo-1518611012118-696072aa579a?w=120&h=120&fit=crop" alt="Collection" />
+                              <h5>Collection Snowboard</h5>
+                              <span>£549.95</span>
+                              <button>+</button>
+                            </div>
+                            <div className="cartuplift-grid-item">
+                              <img src="https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=120&h=120&fit=crop" alt="Jacket" />
+                              <h5>Winter Jacket</h5>
+                              <span>£329.95</span>
+                              <button>+</button>
+                            </div>
+                            <div className="cartuplift-grid-item">
+                              <img src="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=120&h=120&fit=crop" alt="Gloves" />
+                              <h5>Winter Gloves</h5>
+                              <span>£89.95</span>
+                              <button>+</button>
+                            </div>
+                          </div>
                         ) : (
                           <div className="cartuplift-recommendations-row">
                             <div className="cartuplift-recommendations-track">
