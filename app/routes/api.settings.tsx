@@ -1,5 +1,5 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { getSettings, saveSettings } from "../models/settings.server";
+import { getSettings, saveSettings, getDefaultSettings } from "../models/settings.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
@@ -30,7 +30,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
   } catch (error) {
     console.error("Settings API error:", error);
-    return json({ error: "Failed to load settings" }, { status: 500 });
+    // Fail open: serve defaults so preview and storefront keep working
+    const defaults = getDefaultSettings();
+    const layoutMap: Record<string, string> = { horizontal: 'row', vertical: 'column', grid: 'row' };
+    const normalized = {
+      ...defaults,
+      recommendationLayout: layoutMap[defaults.recommendationLayout] || defaults.recommendationLayout,
+    };
+    return json(normalized, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      },
+    });
   }
 }
 

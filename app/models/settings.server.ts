@@ -165,7 +165,7 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
   }
 }
 
-function getDefaultSettings(): SettingsData {
+export function getDefaultSettings(): SettingsData {
   return {
     // Core Features
     enableApp: true,
