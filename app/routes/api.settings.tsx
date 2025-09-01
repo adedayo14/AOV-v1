@@ -11,10 +11,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     
     console.log('🔧 Loading settings for shop:', shop);
     
-    const settings = await getSettings(shop);
+  const settings = await getSettings(shop);
     // Normalize layout for theme (row/column expected in CSS/JS)
     const layoutMap: Record<string, string> = { horizontal: 'row', vertical: 'column', grid: 'row' };
     const normalized = {
+      source: 'db',
       ...settings,
       recommendationLayout: layoutMap[settings.recommendationLayout] || settings.recommendationLayout,
     };
@@ -34,6 +35,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const defaults = getDefaultSettings();
     const layoutMap: Record<string, string> = { horizontal: 'row', vertical: 'column', grid: 'row' };
     const normalized = {
+      source: 'defaults',
       ...defaults,
       recommendationLayout: layoutMap[defaults.recommendationLayout] || defaults.recommendationLayout,
     };

@@ -18,6 +18,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       // Normalize layout to theme values
       const layoutMap: Record<string, string> = { horizontal: 'row', vertical: 'column', grid: 'row' };
       const normalized = {
+        source: 'db',
         ...settings,
         recommendationLayout: layoutMap[settings.recommendationLayout] || settings.recommendationLayout,
       };
@@ -35,6 +36,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const defaults = getDefaultSettings();
       const layoutMap: Record<string, string> = { horizontal: 'row', vertical: 'column', grid: 'row' };
       const normalized = {
+        source: 'defaults',
         ...defaults,
         recommendationLayout: layoutMap[defaults.recommendationLayout] || defaults.recommendationLayout,
       };
