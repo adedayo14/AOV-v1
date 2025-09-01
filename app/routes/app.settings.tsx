@@ -157,10 +157,8 @@ export default function SettingsPage() {
   ];
 
   const recommendationLayoutOptions = [
-    { label: "Horizontal Cards", value: "row" },
-    { label: "Vertical List", value: "column" },
-    { label: "🔥 Full Width Showcase", value: "fullwidth" },
-    { label: "📊 Grid Layout (2x2)", value: "grid" },
+    { label: "Horizontal", value: "row" },
+    { label: "Vertical", value: "column" },
   ];
 
   const complementDetectionModeOptions = [
@@ -365,8 +363,8 @@ export default function SettingsPage() {
             border: 1px solid #e0e0e0;
             border-radius: 20px;
             background: white;
-            height: 32px;
-            min-width: 100px;
+            height: 28px;
+            min-width: 80px;
             overflow: hidden;
             justify-content: space-around;
           }
@@ -431,7 +429,6 @@ export default function SettingsPage() {
           }
 
           .cartuplift-recommendations {
-            border-top: 1px solid #eee;
             padding-top: 6px;
           }
 
@@ -514,8 +511,8 @@ export default function SettingsPage() {
           }
 
           .cartuplift-discount-section {
-            border-top: 1px solid #eee;
             padding-top: 6px;
+            width: 100%;
           }
 
           .cartuplift-discount-wrapper {
@@ -967,8 +964,8 @@ export default function SettingsPage() {
             border: 1px solid #e0e0e0;
             border-radius: 20px;
             background: #ffffff;
-            height: 32px;
-            min-width: 100px;
+            height: 28px;
+            min-width: 80px;
             overflow: hidden;
             justify-content: space-around;
           }
@@ -1130,7 +1127,7 @@ export default function SettingsPage() {
           /* Discount Section */
           .cartuplift-discount-section {
             padding: 8px 16px 4px 16px;
-            border-top: 1px solid #e5e5e5;
+            width: 100%;
           }
 
           .cartuplift-discount-wrapper {
@@ -1161,7 +1158,6 @@ export default function SettingsPage() {
           .cartuplift-footer {
             padding: 12px 16px;
             background: #ffffff;
-            border-top: 1px solid #e5e5e5;
             flex-shrink: 0;
           }
 
@@ -1524,8 +1520,8 @@ export default function SettingsPage() {
             border: 1px solid #e0e0e0;
             border-radius: 20px;
             background: ${formSettings.backgroundColor || '#ffffff'};
-            height: 32px;
-            min-width: 100px;
+            height: 28px;
+            min-width: 80px;
             overflow: hidden;
             justify-content: space-around;
           }
@@ -1660,7 +1656,6 @@ export default function SettingsPage() {
           .cartuplift-footer {
             padding: 12px 16px;
             background: ${formSettings.backgroundColor || '#ffffff'};
-            border-top: 1px solid #e5e5e5;
           }
           
           .cartuplift-subtotal {
@@ -1676,8 +1671,8 @@ export default function SettingsPage() {
           
           .cartuplift-discount-section {
             padding: 8px 16px;
-            border-top: 1px solid #e5e5e5;
             background: ${formSettings.backgroundColor || '#ffffff'};
+            width: 100%;
           }
           
           .cartuplift-discount-wrapper {
