@@ -95,6 +95,20 @@ export default function SettingsPage() {
   //   settings.manualRecommendationProducts ? settings.manualRecommendationProducts.split(',').filter(Boolean) : []
   // );
   const previewRef = useRef<HTMLDivElement>(null);
+  
+  // Success banner auto-hide state
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+
+  // Auto-hide success banner after 3 seconds
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data && (fetcher.data as any)?.success) {
+      setShowSuccessBanner(true);
+      const timer = setTimeout(() => {
+        setShowSuccessBanner(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [fetcher.state, fetcher.data]);
 
   // Scroll event handler to update preview position
   useEffect(() => {
@@ -174,18 +188,18 @@ export default function SettingsPage() {
           /* Fixed Layout Styles */
           .cartuplift-settings-layout {
             display: grid !important;
-            grid-template-columns: 1fr 540px !important;
-            gap: 32px;
+            grid-template-columns: 1fr 480px !important;
+            gap: 24px;
             width: 100%;
             position: relative;
-            padding: 0 20px;
+            padding: 0;
             min-height: 100vh;
           }
           
           @media (max-width: 1000px) {
             .cartuplift-settings-layout {
               grid-template-columns: 1fr !important;
-              padding: 0 16px;
+              padding: 0;
             }
             .cartuplift-preview-column {
               position: relative !important;
@@ -202,15 +216,21 @@ export default function SettingsPage() {
           
           @media (min-width: 1600px) {
             .cartuplift-settings-layout {
-              grid-template-columns: 1fr 600px !important;
-              gap: 40px;
-              padding: 0 40px;
+              grid-template-columns: 1fr 520px !important;
+              gap: 32px;
+              padding: 0;
             }
           }
           
           .cartuplift-settings-column {
             min-width: 0;
             width: 100%;
+            padding-right: 24px;
+          }
+          
+          .cartuplift-success-banner {
+            grid-column: 1 / -1;
+            margin-bottom: 20px;
           }
           
           .cartuplift-preview-column {
@@ -1759,11 +1779,13 @@ export default function SettingsPage() {
         `
       }} />
 
-      {fetcher.state === "idle" && fetcher.data && (fetcher.data as any)?.success && (
-        <Banner tone="success">Settings saved successfully!</Banner>
-      )}
-
       <div className="cartuplift-settings-layout">
+        {showSuccessBanner && (
+          <div className="cartuplift-success-banner">
+            <Banner tone="success">Settings saved successfully!</Banner>
+          </div>
+        )}
+        
         {/* Settings Column - Left Side */}
         <div className="cartuplift-settings-column">
           <BlockStack gap="500">
@@ -1815,7 +1837,7 @@ export default function SettingsPage() {
                           label="Progress message"
                           value={formSettings.freeShippingText}
                           onChange={(value) => updateSetting("freeShippingText", value)}
-                          helpText="ℹ️ Use {{ amount }} where you want the remaining balance to appear. It will update automatically."
+                          helpText="ℹ️ Use {{ amount }} or {amount} where you want the remaining balance to appear. It will update automatically."
                           placeholder="You're {{ amount }} away from free shipping!"
                           autoComplete="off"
                         />
