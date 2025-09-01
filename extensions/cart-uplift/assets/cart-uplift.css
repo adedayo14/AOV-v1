@@ -451,7 +451,7 @@ body.cartuplift-no-scroll {
 }
 
 /* ========================================
-   Recommendations Section - Compact
+   Recommendations Section - Compact & STABLE
    ======================================== */
 
 .cartuplift-recommendations {
@@ -465,6 +465,13 @@ body.cartuplift-no-scroll {
   position: relative;
   display: block;
   margin-top: 8px; /* reduced to bring section up and reveal voucher */
+  /* STABILITY: Prevent layout shift and shaking */
+  min-height: 60px; /* Reserve space to prevent jumping */
+  will-change: auto; /* Avoid unnecessary GPU acceleration */
+  transform: translateZ(0); /* Create stacking context for stability */
+  /* Additional stability improvements */
+  contain: layout style; /* CSS containment for better performance */
+  backface-visibility: hidden; /* Prevent flickering */
 }
 
 .cartuplift-recommendations.collapsed {
@@ -572,6 +579,9 @@ body.cartuplift-no-scroll {
   display: block; /* Default visible; allow collapsed state to override */
   background: var(--cartuplift-recommendations-bg);
   padding: 12px;
+  /* Smooth transitions for content changes */
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateZ(0); /* Force hardware acceleration */
 }
 
 /* Ensure recommendations are visible by default */
@@ -621,6 +631,9 @@ body.cartuplift-no-scroll {
   gap: 15px;
   padding: 6px 100px 6px 32px; /* increased left padding to 32px for space before first card */
   margin-top: 4px; /* Slightly tighter to header */
+  /* Smooth momentum scrolling */
+  transform: translateZ(0); /* Force hardware acceleration */
+  will-change: transform; /* Optimize for smooth scrolling */
 }
 
 /* Navigation Controls - Right aligned but vertically centered */
@@ -709,6 +722,11 @@ body.cartuplift-no-scroll {
   gap: 12px;
   min-height: 104px;
   scroll-snap-align: start; /* Enable snap-to-card behavior */
+  /* Additional stability for smooth operation */
+  contain: layout style; /* CSS containment */
+  transform: translateZ(0); /* Force hardware acceleration */
+  backface-visibility: hidden; /* Prevent flickering */
+  will-change: auto; /* Only use when needed */
 }
 
 .cartuplift-card-content {

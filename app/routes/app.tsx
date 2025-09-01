@@ -6,6 +6,7 @@ import { NavMenu } from "@shopify/app-bridge-react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 
 import { authenticate } from "../shopify.server";
+import { SessionStatus } from "../components/SessionStatus";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
@@ -20,6 +21,7 @@ export default function App() {
 
   return (
     <AppProvider isEmbeddedApp apiKey={apiKey}>
+      <SessionStatus />
       <NavMenu>
         <Link to="/app" rel="home">
           Home
@@ -34,7 +36,28 @@ export default function App() {
 
 // Shopify needs Remix to catch some thrown responses, so that their headers are included in the response.
 export function ErrorBoundary() {
-  return boundary.error(useRouteError());
+  const error = useRouteError();
+  
+  // Handle session-related errors more gracefully
+  if (error && typeof error === 'object' && 'status' in error) {
+    const responseError = error as { status: number; statusText?: string };
+    
+    if (responseError.status === 401) {
+      // Auto-refresh after a short delay for session errors
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+      
+      return (
+        <div className="session-expired-container">
+          <h2>Refreshing...</h2>
+          <p>Your session has expired. Refreshing the page now...</p>
+        </div>
+      );
+    }
+  }
+  
+  return boundary.error(error);
 }
 
 export const headers: HeadersFunction = (headersArgs) => {

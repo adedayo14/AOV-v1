@@ -2,7 +2,7 @@
   'use strict';
   
   // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v165';
+  const CART_UPLIFT_VERSION = 'v175';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
   // Safe analytics shim (no-op if not provided by host)
@@ -38,6 +38,9 @@
       this._isAnimating = false;
       this._quantityBusy = false;
       this._recommendationsLoaded = false;
+  this._rebuildInProgress = false; // STABILITY: Prevent rapid rebuilds
+  this._recommendationsLocked = false; // Keep master order stable; still recompute visible list on cart changes
+      this._updateDebounceTimer = null; // STABILITY: Debounce rapid updates
       this.recommendations = [];
       this._allRecommendations = []; // Master list to allow re-show after removal from cart
   
@@ -169,6 +172,17 @@
       window.cartUpliftRefreshSettings = async () => {
         await this.refreshSettingsFromAPI();
       };
+      
+      // Add method to soft refresh recommendations (force cart re-sync)
+      window.cartUpliftSoftRefresh = async () => {
+        console.log('🔄 Soft refresh triggered...');
+        await this.fetchCart();
+        if (this._recommendationsLoaded) {
+          this.rebuildRecommendationsFromMaster();
+        }
+        this.updateDrawerContent();
+        console.log('🔄 Soft refresh complete');
+      };
     }
 
     async refreshSettingsFromAPI() {
@@ -213,6 +227,11 @@
           .cartuplift-add-recommendation-circle:hover {
             background: ${this.settings.buttonColor} !important;
             color: white !important;
+          }
+          
+          /* Force shipping bar color override */
+          .cartuplift-shipping-progress-fill {
+            background: ${this.settings.shippingBarColor || '#121212'} !important;
           }
           
           /* Hide theme notifications when Cart Uplift is enabled */
@@ -391,11 +410,13 @@
       if (this.settings.enableFreeShipping) {
         // If cart is not loaded yet or is empty, show full threshold needed
         if (!this.cart || currentTotal === 0) {
-          freeShippingText = (this.settings.freeShippingText || "Spend {amount} more for free shipping!")
+          freeShippingText = (this.settings.freeShippingText || "Spend {{ amount }} more for free shipping!")
+            .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(thresholdInSmallestUnit))
             .replace(/{amount}/g, this.formatMoney(thresholdInSmallestUnit));
           console.log('🛒 Free Shipping: Empty cart, showing threshold needed');
         } else if (remaining > 0) {
-          freeShippingText = (this.settings.freeShippingText || "Spend {amount} more for free shipping!")
+          freeShippingText = (this.settings.freeShippingText || "Spend {{ amount }} more for free shipping!")
+            .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(remaining))
             .replace(/{amount}/g, this.formatMoney(remaining));
           console.log('🛒 Free Shipping: Showing remaining amount needed:', this.formatMoney(remaining));
         } else {
@@ -572,12 +593,89 @@
       }
     }
 
+    // STABILITY: Debounced update to prevent rapid DOM manipulations
+  debouncedUpdateRecommendations() {
+      if (this._updateDebounceTimer) {
+        clearTimeout(this._updateDebounceTimer);
+      }
+      
+      this._updateDebounceTimer = setTimeout(() => {
+        this.rebuildRecommendationsFromMaster();
+        this._updateDebounceTimer = null;
+      }, 150); // 150ms debounce to allow for smooth user interactions
+    }
+
     rebuildRecommendationsFromMaster() {
       if (!this._allRecommendations.length) return;
+      
+      // STABILITY: Prevent rapid rebuilds that cause shaking
+      if (this._rebuildInProgress) return;
+      this._rebuildInProgress = true;
+      
+      requestAnimationFrame(() => {
+        const cartProductIds = (this.cart?.items || []).map(i => i.product_id);
+        console.log('🔍 DEBUG: Cart product IDs:', cartProductIds, 'types:', cartProductIds.map(id => typeof id));
+        console.log('🔍 DEBUG: Recommendation IDs:', this._allRecommendations.map(p => ({ id: p.id, title: p.title, type: typeof p.id })));
+        
+        // Build visible list by skipping any product in cart and taking next from master, preserving order
+        const desired = Number(this.settings.maxRecommendations);
+        const max = isFinite(desired) && desired > 0 ? desired : 4;
+        const newRecommendations = [];
+        for (const p of this._allRecommendations) {
+          // Check both strict and loose equality for ID comparison
+          const isInCartStrict = cartProductIds.includes(p.id);
+          const isInCartLoose = cartProductIds.some(cartId => cartId == p.id);
+          console.log(`🔍 DEBUG: ${p.title} (id: ${p.id}, type: ${typeof p.id}) - strict match: ${isInCartStrict}, loose match: ${isInCartLoose}`);
+          if (isInCartStrict || isInCartLoose) continue;
+          newRecommendations.push(p);
+          if (newRecommendations.length >= max) break;
+        }
+        
+        // Only update if recommendations actually changed
+        const currentIds = (this.recommendations || []).map(r => r.id).sort();
+        const newIds = newRecommendations.map(r => r.id).sort();
+        
+        if (JSON.stringify(currentIds) !== JSON.stringify(newIds)) {
+          this.recommendations = newRecommendations;
+        }
+        
+        this._rebuildInProgress = false;
+      });
+    }
+
+    rebuildRecommendationsFromMasterSync() {
+      if (!this._allRecommendations.length) return;
+      
+      // STABILITY: Prevent rapid rebuilds that cause shaking
+      if (this._rebuildInProgress) return;
+      
       const cartProductIds = (this.cart?.items || []).map(i => i.product_id);
-      const filtered = this._allRecommendations.filter(r => !cartProductIds.includes(r.id));
-      const max = this.settings.maxRecommendations || 4;
-      this.recommendations = filtered.slice(0, max);
+      console.log('🔍 SYNC DEBUG: Cart product IDs:', cartProductIds, 'types:', cartProductIds.map(id => typeof id));
+      
+      // Build visible list by skipping any product in cart and taking next from master, preserving order
+      const desired = Number(this.settings.maxRecommendations);
+      const max = isFinite(desired) && desired > 0 ? desired : 4;
+      const newRecommendations = [];
+      for (const p of this._allRecommendations) {
+        // Check both strict and loose equality for ID comparison
+        const isInCartStrict = cartProductIds.includes(p.id);
+        const isInCartLoose = cartProductIds.some(cartId => cartId == p.id);
+        console.log(`🔍 SYNC DEBUG: ${p.title} (id: ${p.id}, type: ${typeof p.id}) - strict match: ${isInCartStrict}, loose match: ${isInCartLoose}`);
+        if (isInCartStrict || isInCartLoose) continue;
+        newRecommendations.push(p);
+        if (newRecommendations.length >= max) break;
+      }
+      
+      // Only update if recommendations actually changed
+      const currentIds = (this.recommendations || []).map(r => r.id).sort();
+      const newIds = newRecommendations.map(r => r.id).sort();
+      
+      if (JSON.stringify(currentIds) !== JSON.stringify(newIds)) {
+        this.recommendations = newRecommendations;
+        console.log('🔍 SYNC DEBUG: Updated recommendations to:', newRecommendations.map(r => r.title));
+      } else {
+        console.log('🔍 SYNC DEBUG: No changes needed in recommendations');
+      }
     }
 
   getRecommendationItems() {
@@ -1705,6 +1803,8 @@
         const response = await fetch('/cart.js');
         this.cart = await response.json();
         console.log('🛒 Cart fetched:', this.cart);
+  // Recompute visible recommendations against fixed master list whenever cart changes
+  this.rebuildRecommendationsFromMaster();
       } catch (error) {
         console.error('🛒 Error fetching cart:', error);
         this.cart = { items: [], item_count: 0, total_price: 0 };
@@ -1727,6 +1827,8 @@
 
         if (response.ok) {
           this.cart = await response.json();
+          // Ensure recommendations reflect cart mutations (remove added items, re-add removed ones)
+          this.rebuildRecommendationsFromMaster();
           this.updateDrawerContent();
         }
       } catch (error) {
@@ -1779,10 +1881,11 @@
             }, 300);
           });
           
-          // Do NOT permanently remove; we'll simply re-filter so it disappears while in cart
-          this.rebuildRecommendationsFromMaster();
+          // Re-filter so added item disappears from recommendations
+          this.debouncedUpdateRecommendations();
           
           await this.fetchCart();
+          // Fetch will also recompute recommendations
           this.updateDrawerContent();
           
           // Update recommendations display if drawer is open
@@ -1843,10 +1946,11 @@
         // Get smart recommendations
         const recommendations = await this.recommendationEngine.getRecommendations();
         
-        // Store and display
-        this._allRecommendations = recommendations;
-        this.rebuildRecommendationsFromMaster();
-        this._recommendationsLoaded = true;
+  // Store and display (master order fixed; visible list filtered by cart)
+  this._allRecommendations = recommendations;
+  this._recommendationsLocked = true; // prevent reshuffling master order; still compute visible each time
+  this.rebuildRecommendationsFromMaster();
+  this._recommendationsLoaded = true;
         
         console.log('🛒 Smart recommendations loaded:', recommendations.length, 'products');
         
@@ -1869,17 +1973,20 @@
       try {
         console.log('🛒 Loading fallback recommendations...');
         
-        let apiUrl = '';
-        let products = [];
+  let apiUrl = '';
+  let products = [];
+  // Honor user setting; any positive number
+  const desiredSetting = Number(this.settings.maxRecommendations);
+  const desiredMax = isFinite(desiredSetting) && desiredSetting > 0 ? desiredSetting : 4;
         
         // Get product recommendations based on cart items, or popular products if cart is empty
         if (this.cart && this.cart.items && this.cart.items.length > 0) {
           const productId = this.cart.items[0].product_id;
-          apiUrl = `/recommendations/products.json?product_id=${productId}&limit=4`;
+          apiUrl = `/recommendations/products.json?product_id=${productId}&limit=${desiredMax}`;
           console.log('🛒 Loading recommendations based on cart item:', productId);
         } else {
           // Load popular/featured products when cart is empty
-          apiUrl = `/products.json?limit=4`;
+          apiUrl = `/products.json?limit=${desiredMax}`;
           console.log('🛒 Loading popular products (cart is empty)');
         }
         
@@ -1893,40 +2000,38 @@
           console.log('🛒 API failed, will load fallback products');
         }
         
-        // If we don't have enough products, load more from general products endpoint
-        if (products.length < 4) {
-          console.log('🛒 Loading additional products to reach 4 total...');
+        // Always try to keep a buffer so we can fill visible list after filtering cart items
+        const targetBuffer = Math.max(desiredMax * 3, desiredMax + 8); // Larger buffer for better selection
+        if (products.length < targetBuffer) {
+          console.log(`🛒 Loading additional products to reach buffer size ${targetBuffer}...`);
           try {
-            const fallbackResponse = await fetch('/products.json?limit=8'); // Load more for better filtering
+            const extraLimit = Math.max(targetBuffer * 2, 20); // load more for better filtering
+            const fallbackResponse = await fetch(`/products.json?limit=${extraLimit}`); // Load more for better filtering
             if (fallbackResponse.ok) {
               const fallbackData = await fallbackResponse.json();
               const fallbackProducts = fallbackData.products || [];
               
-              // Filter out products that are already in cart or already in recommendations
-              const cartProductIds = this.cart && this.cart.items ? 
-                this.cart.items.map(item => item.product_id) : [];
-              
+              // Filter out products already in the provisional list; allow items currently in cart to stay in master
               const existingProductIds = products.map(p => p.id);
               
               const filteredProducts = fallbackProducts.filter(product => 
-                !cartProductIds.includes(product.id) && 
                 !existingProductIds.includes(product.id) &&
                 product.variants && product.variants.length > 0 && 
                 product.variants[0].available
               );
               
-              // Add filtered products until we have 4 total
-              const needed = 4 - products.length;
+              // Add filtered products until we reach the buffer target
+              const needed = targetBuffer - products.length;
               products = products.concat(filteredProducts.slice(0, needed));
               
-              console.log('🛒 Added', Math.min(needed, filteredProducts.length), 'fallback products');
+              console.log('🛒 Added', Math.min(needed, filteredProducts.length), 'fallback products (buffering)');
             }
           } catch (fallbackError) {
             console.error('🛒 Error loading fallback products:', fallbackError);
           }
         }
         
-        // Convert to our format
+  // Convert to our format
         this._allRecommendations = products.map(product => ({
           id: product.id,
           title: product.title,
@@ -1947,7 +2052,9 @@
           options: product.options || []
         })).filter(item => item.variant_id); // Only include products with valid variants
         
-        this.rebuildRecommendationsFromMaster();
+  // Build visible list from fixed master, filtered against cart
+  this._recommendationsLocked = true;
+  this.rebuildRecommendationsFromMaster();
         console.log('🛒 Fallback recommendations loaded:', this._allRecommendations.length, 'showing:', this.recommendations.length);
         
         // Update recommendations display if drawer is open
@@ -1988,18 +2095,13 @@
         });
       }
       
-      // Rebuild recommendations each render so removed cart items come back
-      if (this._allRecommendations.length) {
-        this.rebuildRecommendationsFromMaster();
-      }
-      
       // Update sticky cart
       const count = document.querySelector('.cartuplift-sticky-count');
       const total = document.querySelector('.cartuplift-sticky-total');
   if (count) count.textContent = this.cart.item_count;
   if (total) total.textContent = this.formatMoney(this.getDisplayedTotalCents());
       
-      // Refresh recommendations layout if they're already loaded
+      // Only refresh layout if recommendations are loaded (filtering handled elsewhere)
       if (this.settings.enableRecommendations && this._recommendationsLoaded) {
         this.refreshRecommendationLayout();
       }
@@ -2043,7 +2145,7 @@
       return Math.max(0, base - estimatedDiscountCents);
     }
 
-    openDrawer() {
+    async openDrawer() {
       if (this._isAnimating || this.isOpen) return;
       
       // Track cart open event
@@ -2056,12 +2158,23 @@
         return;
       }
 
-      // Update drawer content before showing to ensure latest data
+      // ALWAYS refresh cart and recommendations when opening drawer
+      console.log('🔄 Refreshing cart and recommendations on drawer open...');
+      await this.fetchCart();
+      
+      if (this.settings.enableRecommendations && this._recommendationsLoaded) {
+        this.rebuildRecommendationsFromMasterSync();
+      }
+
+      // Update drawer content with fresh data
       this.updateDrawerContent();
       
       // Load recommendations if not already loaded and enabled
       if (this.settings.enableRecommendations && !this._recommendationsLoaded) {
-        this.loadRecommendations();
+        await this.loadRecommendations();
+        // After loading, rebuild to filter cart items
+        this.rebuildRecommendationsFromMasterSync();
+        this.updateDrawerContent(); // Update again with filtered recommendations
       }
 
       // Show container and add active class
@@ -2134,19 +2247,31 @@
       const origFetch = window.fetch;
       window.fetch = async (...args) => {
         const response = await origFetch(...args);
+        const url = args[0] ? args[0].toString() : '';
+
+        const isCartAdd = url.includes('/cart/add');
+        const isCartChange = url.includes('/cart/change');
+        const isCartUpdate = url.includes('/cart/update');
         
-        if (args[0] && args[0].toString().includes('/cart/add')) {
+        if (isCartAdd) {
           if (response.ok && this.settings.autoOpenCart && this.settings.enableApp) {
-            
             // CRITICAL: Hide theme notifications immediately
             this.hideThemeNotifications();
-            
             setTimeout(async () => {
               await this.fetchCart();
               this.updateDrawerContent();
               this.openDrawer();
             }, 100);
           }
+        } else if (response.ok && (isCartChange || isCartUpdate)) {
+          // Cart changed elsewhere (e.g., theme quantity controls) — refresh and recompute recommendations
+          setTimeout(async () => {
+            await this.fetchCart();
+            if (this.settings.enableRecommendations && this._recommendationsLoaded) {
+              this.rebuildRecommendationsFromMasterSync();
+            }
+            this.updateDrawerContent();
+          }, 50);
         }
         
         return response;
@@ -2175,6 +2300,18 @@
                 self.updateDrawerContent();
                 self.openDrawer();
               }, 100);
+            }
+          });
+        } else if (this._url && (this._url.includes('/cart/change') || this._url.includes('/cart/update'))) {
+          this.addEventListener('load', function() {
+            if (this.status === 200) {
+              setTimeout(async () => {
+                await self.fetchCart();
+                if (self.settings.enableRecommendations && self._recommendationsLoaded) {
+                  self.rebuildRecommendationsFromMasterSync();
+                }
+                self.updateDrawerContent();
+              }, 50);
             }
           });
         }
@@ -2672,10 +2809,11 @@
       // AI-Powered automatic detection rules (87% confidence based on ML training)
       const autoDetectionRules = {
         // Footwear Intelligence
-        'running|athletic|sport|sneaker|trainer': ['performance socks', 'insoles', 'water bottle', 'gym towel', 'fitness tracker'],
+        'running|athletic|sport|sneaker|trainer|strider': ['performance socks', 'insoles', 'water bottle', 'gym towel', 'fitness tracker', 'socks', 'athletic socks'],
         'dress shoe|formal shoe|oxford|loafer': ['dress socks', 'shoe horn', 'leather care', 'belt', 'tie'],
         'winter boot|snow boot|hiking boot': ['wool socks', 'boot spray', 'insoles', 'foot warmers'],
         'sandal|flip.?flop|slides': ['foot cream', 'toe separator', 'beach bag'],
+        'men.?s.*shoe|women.?s.*shoe|shoe.*men|shoe.*women': ['socks', 'insoles', 'shoe care', 'laces', 'foot spray'],
         
         // Apparel Intelligence  
         'dress shirt|formal shirt|button.?up': ['tie', 'cufflinks', 'collar stays', 'undershirt', 'blazer'],
@@ -2991,34 +3129,28 @@
     }
 
     deduplicateAndScore(recommendations) {
-      // Remove cart items and deduplicate
-      const cartProductIds = (this.cartUplift.cart?.items || []).map(i => i.product_id);
+      // Build a rich master list (no cart filtering, no slicing)
       const seen = new Set();
-      
       const unique = recommendations.filter(rec => {
-        if (seen.has(rec.id) || cartProductIds.includes(rec.id)) {
-          return false;
-        }
+        if (seen.has(rec.id)) return false;
         seen.add(rec.id);
         return true;
       });
-      
-      // Sort by score (highest first)
+      // Sort by score (highest first) to get a stable, meaningful base order
       unique.sort((a, b) => (b.score || 0) - (a.score || 0));
-      
-      const maxRecs = this.cartUplift.settings.maxRecommendations || 4;
-      const final = unique.slice(0, maxRecs);
-      
-      console.log('🤖 Final smart recommendations:', final.map(r => `${r.title} (${r.reason}, ${r.score?.toFixed(2)})`));
-      
-      return final;
+      console.log('🤖 Master recommendations (sorted, unsliced):', unique.map(r => `${r.title} (${r.reason}, ${r.score?.toFixed?.(2)})`));
+      return unique;
     }
 
     // Search and data methods
     async searchProductsByKeyword(keyword) {
       try {
+        // Get the user's desired recommendation count to use in searches
+        const desired = Number(this.cartUplift.settings.maxRecommendations);
+        const searchLimit = Math.max(isFinite(desired) && desired > 0 ? desired : 4, 3);
+        
         // Try Shopify's search suggest API first
-        const response = await fetch(`/search/suggest.json?q=${encodeURIComponent(keyword)}&resources[type]=product&limit=3`);
+        const response = await fetch(`/search/suggest.json?q=${encodeURIComponent(keyword)}&resources[type]=product&limit=${searchLimit}`);
         if (response.ok) {
           const data = await response.json();
           const products = data.resources?.results?.products || [];
@@ -3034,7 +3166,7 @@
             p.product_type?.toLowerCase().includes(keyword.toLowerCase()) ||
             p.tags?.some(tag => tag.toLowerCase().includes(keyword.toLowerCase()))
           );
-          return filtered.slice(0, 3).map(p => this.formatProduct(p));
+          return filtered.slice(0, searchLimit).map(p => this.formatProduct(p));
         }
       } catch (error) {
         console.error(`🤖 Search failed for ${keyword}:`, error);
@@ -3044,6 +3176,9 @@
 
     async getProductsInPriceRange(range) {
       try {
+        const desired = Number(this.cartUplift.settings.maxRecommendations);
+        const rangeLimit = Math.max(isFinite(desired) && desired > 0 ? desired : 4, 4);
+        
         const response = await fetch('/products.json?limit=50');
         if (response.ok) {
           const data = await response.json();
@@ -3051,7 +3186,7 @@
             const price = p.variants?.[0]?.price || 0;
             return price >= range.min && price <= range.max;
           });
-          return inRange.slice(0, 4).map(p => this.formatProduct(p));
+          return inRange.slice(0, rangeLimit).map(p => this.formatProduct(p));
         }
       } catch (error) {
         console.error('🤖 Price range search failed:', error);
@@ -3083,11 +3218,14 @@
 
     async getPopularProducts() {
       try {
+        const desired = Number(this.cartUplift.settings.maxRecommendations);
+        const popularLimit = Math.max(isFinite(desired) && desired > 0 ? desired : 4, 4);
+        
         // Try best sellers collections first
         const collections = ['best-sellers', 'featured', 'popular', 'trending', 'new'];
         
         for (const collection of collections) {
-          const response = await fetch(`/collections/${collection}/products.json?limit=4`);
+          const response = await fetch(`/collections/${collection}/products.json?limit=${popularLimit}`);
           if (response.ok) {
             const data = await response.json();
             if (data.products?.length > 0) {
@@ -3098,7 +3236,7 @@
         }
         
         // Final fallback
-        const response = await fetch('/products.json?limit=4');
+        const response = await fetch(`/products.json?limit=${popularLimit}`);
         if (response.ok) {
           const data = await response.json();
           return (data.products || []).map(p => this.formatProduct(p));
@@ -3111,9 +3249,12 @@
 
     async getShopifyRecommendations() {
       try {
+        const desired = Number(this.cartUplift.settings.maxRecommendations);
+        const shopifyLimit = Math.max(isFinite(desired) && desired > 0 ? desired : 4, 4);
+        
         if (this.cartUplift.cart?.items?.length > 0) {
           const productId = this.cartUplift.cart.items[0].product_id;
-          const response = await fetch(`/recommendations/products.json?product_id=${productId}&limit=4`);
+          const response = await fetch(`/recommendations/products.json?product_id=${productId}&limit=${shopifyLimit}`);
           if (response.ok) {
             const data = await response.json();
             return (data.products || []).map(p => this.formatProduct(p));

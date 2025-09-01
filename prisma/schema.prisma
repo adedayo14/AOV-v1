@@ -60,12 +60,18 @@ model Settings {
   freeShippingAchievedText String  @default("🎉 Congratulations! You've unlocked free shipping!")
   recommendationsTitle    String   @default("You might also like")
   actionText              String   @default("Add discount code")
+  addButtonText           String   @default("Add")
+  checkoutButtonText      String   @default("CHECKOUT")
+  applyButtonText         String   @default("Apply")
   
   // Appearance
   backgroundColor         String   @default("#ffffff")
   textColor               String   @default("#1A1A1A")
   buttonColor             String   @default("#000000")
+  buttonTextColor         String   @default("#ffffff")
   recommendationsBackgroundColor String @default("#ecebe3")
+  shippingBarBackgroundColor String @default("#f0f0f0")
+  shippingBarColor        String   @default("#121212")
   
   // Recommendation Settings
   recommendationLayout    String   @default("horizontal")

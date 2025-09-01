@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import {
@@ -13,20 +12,17 @@ import {
   Banner,
   Checkbox,
 } from "@shopify/polaris";
-import { authenticate } from "../shopify.server";
+import { withAuth, withAuthAction } from "../utils/auth.server";
 import { getSettings, saveSettings } from "../models/settings.server";
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const shop = session.shop;
-
+export const loader = withAuth(async ({ auth }) => {
+  const shop = auth.session.shop;
   const settings = await getSettings(shop);
   return json({ settings });
-};
+});
 
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const shop = session.shop;
+export const action = withAuthAction(async ({ request, auth }) => {
+  const shop = auth.session.shop;
   
   const formData = await request.formData();
   const settings = Object.fromEntries(formData);
@@ -48,14 +44,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     maxRecommendations: Number(settings.maxRecommendations) || 6,
     cartPosition: String(settings.cartPosition) || 'bottom-right',
     cartIcon: String(settings.cartIcon) || 'cart',
-    freeShippingText: String(settings.freeShippingText) || "You're {amount} away from free shipping!",
+    freeShippingText: String(settings.freeShippingText) || "You're {{ amount }} away from free shipping!",
     freeShippingAchievedText: String(settings.freeShippingAchievedText) || "🎉 Congratulations! You've unlocked free shipping!",
     recommendationsTitle: String(settings.recommendationsTitle) || "You might also like",
     actionText: String(settings.actionText) || "Add discount code",
+    addButtonText: String(settings.addButtonText) || "Add",
+    checkoutButtonText: String(settings.checkoutButtonText) || "CHECKOUT",
+    applyButtonText: String(settings.applyButtonText) || "Apply",
     backgroundColor: String(settings.backgroundColor) || "#ffffff",
     textColor: String(settings.textColor) || "#1A1A1A",
     buttonColor: String(settings.buttonColor) || "#000000",
+    buttonTextColor: String(settings.buttonTextColor) || "#ffffff",
     recommendationsBackgroundColor: String(settings.recommendationsBackgroundColor) || "#ecebe3",
+    shippingBarBackgroundColor: String(settings.shippingBarBackgroundColor) || "#f0f0f0",
+    shippingBarColor: String(settings.shippingBarColor) || "#4CAF50",
     recommendationLayout: String(settings.recommendationLayout) || "horizontal",
     complementDetectionMode: String(settings.complementDetectionMode) || "automatic",
     manualRecommendationProducts: String(settings.manualRecommendationProducts) || "",
@@ -68,12 +70,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     console.error("Error saving settings:", error);
     return json({ success: false, message: "Failed to save settings" }, { status: 500 });
   }
-};
+});
 
 export default function SettingsPage() {
   const { settings } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const [formSettings, setFormSettings] = useState(settings);
+
+  // Helper function to resolve CSS custom properties with fallbacks for preview
+  const resolveColor = (colorValue: string, fallback: string = '#000000'): string => {
+    // If it's a CSS custom property, extract the fallback value
+    if (colorValue.startsWith('var(')) {
+      const fallbackMatch = colorValue.match(/var\([^,]+,\s*([^)]+)\)/);
+      return fallbackMatch ? fallbackMatch[1].trim() : fallback;
+    }
+    return colorValue || fallback;
+  };
+
   // Manual recommendation product selection state (for future implementation)
   // const [showProductSelector, setShowProductSelector] = useState(false);
   // const [availableProducts, setAvailableProducts] = useState<any[]>([]);
@@ -257,14 +270,14 @@ export default function SettingsPage() {
           .cartuplift-shipping-progress {
             width: 100%;
             height: 3px;
-            background: #f0f0f0;
+            background: ${resolveColor(formSettings.shippingBarBackgroundColor, '#f0f0f0')};
             border-radius: 2px;
             overflow: hidden;
           }
 
           .cartuplift-shipping-progress-fill {
             height: 100%;
-            background: #28a745;
+            background: ${resolveColor(formSettings.shippingBarColor, '#4CAF50')};
             border-radius: 2px;
             transition: width 0.3s ease;
           }
@@ -326,30 +339,48 @@ export default function SettingsPage() {
           }
 
           .cartuplift-quantity {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 4px;
-            margin-top: 4px;
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            background: white;
+            height: 32px;
+            min-width: 100px;
+            overflow: hidden;
+            justify-content: space-around;
           }
 
           .cartuplift-qty-btn {
-            width: 18px;
-            height: 18px;
-            border: 1px solid #ccc;
-            background: white;
-            border-radius: 2px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            font-size: 14px;
+            font-weight: 400;
+            color: #333;
+            height: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 10px;
-            cursor: pointer;
+            transition: background 0.2s ease;
+            min-width: 28px;
+          }
+
+          .cartuplift-qty-btn:hover {
+            background: #f5f5f5;
           }
 
           .cartuplift-qty-display {
-            min-width: 20px;
-            text-align: center;
-            font-size: 10px;
+            padding: 0 10px;
+            font-size: 12px;
             font-weight: 500;
+            color: #000;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            flex: 1;
           }
 
           .cartuplift-item-price-actions {
@@ -488,6 +519,237 @@ export default function SettingsPage() {
             cursor: pointer;
           }
 
+          .cartuplift-notes-wrapper {
+            margin-top: 6px;
+          }
+
+          .cartuplift-notes-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 9px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 40px;
+          }
+
+          .cartuplift-combined-action {
+            margin-top: 8px;
+            text-align: center;
+          }
+
+          .cartuplift-action-button {
+            width: 100%;
+            padding: 8px 12px;
+            background: ${resolveColor(formSettings.buttonColor, '#000000')};
+            color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')};
+            border: none;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          /* Modal Preview Styles */
+          .cartuplift-modal-preview {
+            margin-top: 12px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            font-size: 10px;
+            overflow: hidden;
+          }
+
+          .cartuplift-modal-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: ${resolveColor(formSettings.buttonColor, '#000000')};
+            color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')};
+          }
+
+          .cartuplift-modal-preview-title {
+            font-size: 11px;
+            font-weight: 600;
+            margin: 0;
+          }
+
+          .cartuplift-modal-preview-close {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: inherit;
+            font-size: 14px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .cartuplift-modal-preview-body {
+            padding: 12px;
+            background: white;
+          }
+
+          .cartuplift-modal-preview-section {
+            margin-bottom: 12px;
+          }
+
+          .cartuplift-modal-preview-section:last-child {
+            margin-bottom: 0;
+          }
+
+          .cartuplift-modal-preview-label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+            font-size: 9px;
+          }
+
+          .cartuplift-modal-preview-input-group {
+            display: flex;
+            gap: 6px;
+          }
+
+          .cartuplift-modal-preview-input {
+            flex: 1;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 9px;
+            background: white;
+          }
+
+          .cartuplift-modal-preview-textarea {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 9px;
+            background: white;
+            resize: vertical;
+            font-family: inherit;
+            min-height: 40px;
+          }
+
+          .cartuplift-modal-preview-apply {
+            padding: 6px 10px;
+            background: ${resolveColor(formSettings.buttonColor, '#000000')};
+            color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')};
+            border: none;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+          }
+
+          .cartuplift-modal-preview-footer {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-top: 1px solid #e0e0e0;
+          }
+
+          .cartuplift-modal-preview-btn {
+            padding: 4px 12px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+          }
+
+          .cartuplift-modal-preview-btn.secondary {
+            background: #f3f4f6;
+            color: #374151;
+          }
+
+          .cartuplift-modal-preview-btn.primary {
+            background: ${resolveColor(formSettings.buttonColor, '#000000')};
+            color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')};
+          }
+
+          /* Sticky Cart Preview Styles */
+          .cartuplift-sticky-preview {
+            position: absolute;
+            z-index: 10;
+            transition: all 0.3s ease;
+          }
+
+          .cartuplift-sticky-preview.bottom-right {
+            bottom: 20px;
+            right: 20px;
+          }
+
+          .cartuplift-sticky-preview.bottom-center {
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+          }
+
+          .cartuplift-sticky-preview.bottom-left {
+            bottom: 20px;
+            left: 20px;
+          }
+
+          .cartuplift-sticky-preview.top-right {
+            top: 20px;
+            right: 20px;
+          }
+
+          .cartuplift-sticky-preview.top-left {
+            top: 20px;
+            left: 20px;
+          }
+
+          .cartuplift-sticky-preview .cartuplift-sticky-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: ${resolveColor(formSettings.buttonColor, '#000000')};
+            color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')};
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+          }
+
+          .cartuplift-sticky-icon {
+            width: 14px;
+            height: 14px;
+          }
+
+          .cartuplift-sticky-preview .cartuplift-sticky-count {
+            background: #ff4444;
+            color: white;
+            border-radius: 8px;
+            padding: 1px 4px;
+            font-size: 9px;
+            font-weight: bold;
+            min-width: 14px;
+            text-align: center;
+          }
+
+          .cartuplift-sticky-preview .cartuplift-sticky-total {
+            font-weight: 700;
+            font-size: 11px;
+          }
+
           .cartuplift-footer {
             border-top: 1px solid #eee;
             padding: 8px;
@@ -586,7 +848,7 @@ export default function SettingsPage() {
           .cartuplift-shipping-progress {
             width: 100%;
             height: 6px;
-            background: #f0f0f0;
+            background: ${resolveColor(formSettings.shippingBarBackgroundColor, '#f0f0f0')};
             border-radius: 3px;
             overflow: hidden;
             position: relative;
@@ -594,7 +856,7 @@ export default function SettingsPage() {
 
           .cartuplift-shipping-progress-fill {
             height: 100%;
-            background: ${formSettings.buttonColor || '#4CAF50'};
+            background: ${resolveColor(formSettings.shippingBarColor, '#4CAF50')};
             border-radius: 3px;
             transition: width 0.5s ease, background 0.3s ease;
             min-width: 2px;
@@ -951,6 +1213,67 @@ export default function SettingsPage() {
             background: none;
           }
           
+          .cartuplift-color-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 12px;
+          }
+          
+          .cartuplift-color-input-full {
+            width: 50px;
+            height: 36px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            margin-bottom: 8px;
+          }
+          
+          .cartuplift-shipping-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 24px;
+            align-items: start;
+            margin-top: 12px;
+          }
+          
+          .cartuplift-shipping-row > div {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+          }
+          
+          .cartuplift-shipping-row .cartuplift-threshold-input {
+            margin-top: 8px;
+          }
+          
+          .cartuplift-appearance-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 24px;
+            align-items: start;
+            margin-top: 12px;
+          }
+          
+          .cartuplift-appearance-row > div {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+          }
+          
+          .cartuplift-color-input-full-width {
+            width: 100%;
+            height: 40px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            margin-top: 8px;
+            display: block;
+            box-sizing: border-box;
+          }
+          
           .cartuplift-icon-small { width: 10px; height: 10px; }
           .cartuplift-icon-medium { width: 18px; height: 18px; }
           .cartuplift-icon-large { width: 24px; height: 24px; }
@@ -1092,9 +1415,9 @@ export default function SettingsPage() {
           
           .cartuplift-add-recommendation {
             padding: 4px 10px;
-            background: ${formSettings.buttonColor || '#000'};
-            color: white;
-            border: 1px solid ${formSettings.buttonColor || '#000'};
+            background: ${resolveColor(formSettings.buttonColor, '#000000')};
+            color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')};
+            border: 1px solid ${resolveColor(formSettings.buttonColor, '#000000')};
             border-radius: 12px;
             font-size: 10px;
             font-weight: 600;
@@ -1105,8 +1428,8 @@ export default function SettingsPage() {
           .cartuplift-checkout-btn {
             width: 100%;
             padding: 12px 16px;
-            background: ${formSettings.buttonColor || '#000'};
-            color: white;
+            background: ${resolveColor(formSettings.buttonColor, '#000000')};
+            color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')};
             border: none;
             border-radius: 6px;
             font-size: 13px;
@@ -1119,7 +1442,7 @@ export default function SettingsPage() {
           
           .cartuplift-shipping-progress-fill {
             height: 100%;
-            background: ${formSettings.buttonColor || '#4CAF50'};
+            background: ${resolveColor(formSettings.shippingBarColor, '#4CAF50')};
             border-radius: 3px;
             transition: width 0.5s ease;
             min-width: 2px;
@@ -1293,7 +1616,7 @@ export default function SettingsPage() {
           .cartuplift-shipping-progress {
             width: 100%;
             height: 6px;
-            background: #f0f0f0;
+            background: ${resolveColor(formSettings.shippingBarBackgroundColor, '#f0f0f0')};
             border-radius: 3px;
             overflow: hidden;
           }
@@ -1353,8 +1676,8 @@ export default function SettingsPage() {
           
           .cartuplift-discount-apply {
             padding: 10px 16px;
-            background: ${formSettings.buttonColor || '#333'};
-            color: white;
+            background: ${resolveColor(formSettings.buttonColor, '#000000')};
+            color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')};
             border: none;
             border-radius: 6px;
             font-size: 14px;
@@ -1382,7 +1705,7 @@ export default function SettingsPage() {
           .cartuplift-shipping-progress-fill {
             width: 65%;
             height: 100%;
-            background: linear-gradient(90deg, #4CAF50, #45a049);
+            background: ${resolveColor(formSettings.shippingBarColor, '#4CAF50')};
             border-radius: 3px;
             transition: width 0.3s ease;
           }
@@ -1462,6 +1785,13 @@ export default function SettingsPage() {
                     onChange={(value) => updateSetting("enableRecommendations", value)}
                     helpText="Show related products to increase average order value"
                   />
+                  
+                  <Checkbox
+                    label="Enable Analytics Tracking"
+                    checked={formSettings.enableAnalytics}
+                    onChange={(value) => updateSetting("enableAnalytics", value)}
+                    helpText="Track cart performance and user behavior"
+                  />
                 </FormLayout>
               </BlockStack>
             </Card>
@@ -1472,41 +1802,75 @@ export default function SettingsPage() {
                 <Text variant="headingLg" as="h2">🚚 Free Shipping Incentive</Text>
                 <FormLayout>
                   <Checkbox
-                    label="Enable Free Shipping Progress Bar"
+                    label="Enable free shipping progress bar"
                     checked={formSettings.enableFreeShipping}
                     onChange={(value) => updateSetting("enableFreeShipping", value)}
-                    helpText="Show progress bar to encourage customers to reach free shipping threshold"
+                    helpText="ℹ️ Show a progress bar to motivate customers to reach your free shipping threshold."
                   />
                   
                   {formSettings.enableFreeShipping && (
-                    <>
-                      <TextField
-                        label="Free Shipping Threshold (£)"
-                        type="number"
-                        value={String(formSettings.freeShippingThreshold)}
-                        onChange={(value) => updateSetting("freeShippingThreshold", parseInt(value) || 100)}
-                        helpText="Minimum order amount for free shipping"
-                        autoComplete="off"
-                      />
+                    <BlockStack gap="600">
+                      <BlockStack gap="400">
+                        <TextField
+                          label="Progress message"
+                          value={formSettings.freeShippingText}
+                          onChange={(value) => updateSetting("freeShippingText", value)}
+                          helpText="ℹ️ Use {{ amount }} where you want the remaining balance to appear. It will update automatically."
+                          placeholder="You're {{ amount }} away from free shipping!"
+                          autoComplete="off"
+                        />
+                        
+                        <TextField
+                          label="Success message"
+                          value={formSettings.freeShippingAchievedText}
+                          onChange={(value) => updateSetting("freeShippingAchievedText", value)}
+                          helpText="ℹ️ This message is shown once the free shipping threshold is reached."
+                          placeholder="🎉 Congratulations! You've unlocked free shipping!"
+                          autoComplete="off"
+                        />
+                      </BlockStack>
                       
-                      <TextField
-                        label="Progress Message"
-                        value={formSettings.freeShippingText}
-                        onChange={(value) => updateSetting("freeShippingText", value)}
-                        helpText="Message shown while customer is progressing. Use {amount} for the remaining amount needed (this will be replaced automatically)"
-                        placeholder="You're {amount} away from free shipping!"
-                        autoComplete="off"
-                      />
-                      
-                      <TextField
-                        label="Success Message"
-                        value={formSettings.freeShippingAchievedText}
-                        onChange={(value) => updateSetting("freeShippingAchievedText", value)}
-                        helpText="Message shown when free shipping is achieved"
-                        placeholder="🎉 Congratulations! You've unlocked free shipping!"
-                        autoComplete="off"
-                      />
-                    </>
+                      <div className="cartuplift-shipping-row">
+                        <div>
+                          <Text variant="headingMd" as="h3">Threshold</Text>
+                          <div className="cartuplift-threshold-input">
+                            <TextField
+                              label=""
+                              labelHidden
+                              type="number"
+                              value={String(formSettings.freeShippingThreshold)}
+                              onChange={(value) => updateSetting("freeShippingThreshold", parseInt(value) || 100)}
+                              helpText="ℹ️ Minimum amount for free shipping"
+                              autoComplete="off"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <Text variant="headingMd" as="h3">Background</Text>
+                          <input
+                            type="color"
+                            value={resolveColor(formSettings.shippingBarBackgroundColor, '#f0f0f0')}
+                            onChange={(e) => updateSetting("shippingBarBackgroundColor", e.target.value)}
+                            className="cartuplift-color-input-full-width"
+                            title={resolveColor(formSettings.shippingBarBackgroundColor, '#f0f0f0')}
+                            aria-label={`Shipping bar background color: ${resolveColor(formSettings.shippingBarBackgroundColor, '#f0f0f0')}`}
+                          />
+                        </div>
+                        
+                        <div>
+                          <Text variant="headingMd" as="h3">Bar Color</Text>
+                          <input
+                            type="color"
+                            value={resolveColor(formSettings.shippingBarColor, '#4CAF50')}
+                            onChange={(e) => updateSetting("shippingBarColor", e.target.value)}
+                            className="cartuplift-color-input-full-width"
+                            title={resolveColor(formSettings.shippingBarColor, '#4CAF50')}
+                            aria-label={`Shipping bar color: ${resolveColor(formSettings.shippingBarColor, '#4CAF50')}`}
+                          />
+                        </div>
+                      </div>
+                    </BlockStack>
                   )}
                 </FormLayout>
               </BlockStack>
@@ -1518,6 +1882,58 @@ export default function SettingsPage() {
                 <Text variant="headingLg" as="h2">🎨 Appearance & Style</Text>
                 <FormLayout>
                   <Select
+                    label="Cart Icon Style"
+                    options={cartIconOptions}
+                    value={formSettings.cartIcon}
+                    onChange={(value) => updateSetting("cartIcon", value)}
+                  />
+                  
+                  <div className="cartuplift-appearance-row">
+                    <div>
+                      <Text variant="headingMd" as="h3">Button Color</Text>
+                      <input
+                        type="color"
+                        value={resolveColor(formSettings.buttonColor, '#000000')}
+                        onChange={(e) => updateSetting("buttonColor", e.target.value)}
+                        className="cartuplift-color-input-full-width"
+                        title={resolveColor(formSettings.buttonColor, '#000000')}
+                        aria-label={`Button color: ${resolveColor(formSettings.buttonColor, '#000000')}`}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Text variant="headingMd" as="h3">Button Text</Text>
+                      <input
+                        type="color"
+                        value={resolveColor(formSettings.buttonTextColor, '#ffffff')}
+                        onChange={(e) => updateSetting("buttonTextColor", e.target.value)}
+                        className="cartuplift-color-input-full-width"
+                        title={resolveColor(formSettings.buttonTextColor, '#ffffff')}
+                        aria-label={`Button text color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')}`}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Text variant="headingMd" as="h3">Text Color</Text>
+                      <input
+                        type="color"
+                        value={formSettings.textColor || '#1A1A1A'}
+                        onChange={(e) => updateSetting("textColor", e.target.value)}
+                        className="cartuplift-color-input-full-width"
+                        title={formSettings.textColor || '#1A1A1A'}
+                        aria-label={`Text color: ${formSettings.textColor || '#1A1A1A'}`}
+                      />
+                    </div>
+                  </div>
+                  
+                  <Checkbox
+                    label="Enable Sticky Cart"
+                    checked={formSettings.enableStickyCart}
+                    onChange={(checked) => updateSetting("enableStickyCart", checked)}
+                    helpText="Keep the cart accessible as users browse your store"
+                  />
+
+                  <Select
                     label="Cart Position"
                     options={cartPositionOptions}
                     value={formSettings.cartPosition}
@@ -1525,75 +1941,12 @@ export default function SettingsPage() {
                     helpText="Where the cart button appears on your store"
                   />
                   
-                  <Select
-                    label="Cart Icon Style"
-                    options={cartIconOptions}
-                    value={formSettings.cartIcon}
-                    onChange={(value) => updateSetting("cartIcon", value)}
+                  <Checkbox
+                    label="Show only on cart page"
+                    checked={formSettings.showOnlyOnCartPage}
+                    onChange={(value) => updateSetting("showOnlyOnCartPage", value)}
+                    helpText="Limit cart uplift features to cart page only (disables recommendations and upsells on other pages)"
                   />
-                  
-                  <div>
-                    <Text variant="headingMd" as="h3">Button & Accent Color</Text>
-                    <div className="cartuplift-color-picker-row">
-                      <input
-                        type="color"
-                        value={formSettings.buttonColor || '#000000'}
-                        onChange={(e) => updateSetting("buttonColor", e.target.value)}
-                        className="cartuplift-color-input"
-                        aria-label="Button color picker"
-                      />
-                      <TextField
-                        label=""
-                        labelHidden
-                        value={formSettings.buttonColor || '#000000'}
-                        onChange={(value) => updateSetting("buttonColor", value)}
-                        autoComplete="off"
-                        placeholder="#000000"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Text variant="headingMd" as="h3">Text Color</Text>
-                    <div className="cartuplift-color-picker-row">
-                      <input
-                        type="color"
-                        value={formSettings.textColor || '#1A1A1A'}
-                        onChange={(e) => updateSetting("textColor", e.target.value)}
-                        className="cartuplift-color-input"
-                        aria-label="Text color picker"
-                      />
-                      <TextField
-                        label=""
-                        labelHidden
-                        value={formSettings.textColor || '#1A1A1A'}
-                        onChange={(value) => updateSetting("textColor", value)}
-                        autoComplete="off"
-                        placeholder="#1A1A1A"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Text variant="headingMd" as="h3">Recommendations Background</Text>
-                    <div className="cartuplift-color-picker-row">
-                      <input
-                        type="color"
-                        value={(formSettings as any).recommendationsBackgroundColor || '#ecebe3'}
-                        onChange={(e) => updateSetting("recommendationsBackgroundColor", e.target.value)}
-                        className="cartuplift-color-input"
-                        aria-label="Recommendations background color picker"
-                      />
-                      <TextField
-                        label=""
-                        labelHidden
-                        value={(formSettings as any).recommendationsBackgroundColor || '#ecebe3'}
-                        onChange={(value) => updateSetting("recommendationsBackgroundColor", value)}
-                        autoComplete="off"
-                        placeholder="#ecebe3"
-                      />
-                    </div>
-                  </div>
                 </FormLayout>
               </BlockStack>
             </Card>
@@ -1617,7 +1970,7 @@ export default function SettingsPage() {
                       type="number"
                       value={String(formSettings.maxRecommendations)}
                       onChange={(value) => updateSetting("maxRecommendations", parseInt(value) || 4)}
-                      helpText="Number of products to recommend (2-8)"
+                      helpText="We recommend 2–4 cards to keep it focused. You can choose any number."
                       autoComplete="off"
                     />
                     
@@ -1627,6 +1980,27 @@ export default function SettingsPage() {
                       onChange={(value) => updateSetting("recommendationsTitle", value)}
                       helpText="Header text for the recommendations section"
                       placeholder="You might also like"
+                      autoComplete="off"
+                    />
+                    
+                    <div>
+                      <Text variant="headingMd" as="h3">Background Color</Text>
+                      <input
+                        type="color"
+                        value={(formSettings as any).recommendationsBackgroundColor || '#ecebe3'}
+                        onChange={(e) => updateSetting("recommendationsBackgroundColor", e.target.value)}
+                        className="cartuplift-color-input-full-width"
+                        title={(formSettings as any).recommendationsBackgroundColor || '#ecebe3'}
+                        aria-label={`Recommendations background: ${(formSettings as any).recommendationsBackgroundColor || '#ecebe3'}`}
+                      />
+                    </div>
+                    
+                    <TextField
+                      label="Add Button Text"
+                      value={formSettings.addButtonText || 'Add'}
+                      onChange={(value) => updateSetting("addButtonText", value)}
+                      helpText="Text for recommendation Add buttons"
+                      placeholder="Add"
                       autoComplete="off"
                     />
                     
@@ -1666,25 +2040,22 @@ export default function SettingsPage() {
                 <Text variant="headingLg" as="h2">⚡ Additional Features</Text>
                 <FormLayout>
                   <Checkbox
-                    label="Enable Sticky Cart Button"
-                    checked={formSettings.enableStickyCart}
-                    onChange={(value) => updateSetting("enableStickyCart", value)}
-                    helpText="Show floating cart button on all pages"
-                  />
-                  
-                  <Checkbox
-                    label="Show only on cart page"
-                    checked={formSettings.showOnlyOnCartPage}
-                    onChange={(value) => updateSetting("showOnlyOnCartPage", value)}
-                    helpText="Limit cart uplift functionality to cart page only"
-                  />
-                  
-                  <Checkbox
                     label="Enable Discount Code Field"
                     checked={formSettings.enableDiscountCode}
                     onChange={(value) => updateSetting("enableDiscountCode", value)}
                     helpText="Allow customers to apply discount codes in cart"
                   />
+                  
+                  {formSettings.enableDiscountCode && (
+                    <TextField
+                      label="Apply Button Text"
+                      value={formSettings.applyButtonText || 'Apply'}
+                      onChange={(value) => updateSetting("applyButtonText", value)}
+                      helpText="Text for discount code apply button"
+                      placeholder="Apply"
+                      autoComplete="off"
+                    />
+                  )}
                   
                   <Checkbox
                     label="Enable Order Notes"
@@ -1703,19 +2074,29 @@ export default function SettingsPage() {
                       autoComplete="off"
                     />
                   )}
+                </FormLayout>
+              </BlockStack>
+            </Card>
+
+            {/* Checkout Options */}
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingLg" as="h2">💳 Checkout Options</Text>
+                <FormLayout>
+                  <TextField
+                    label="Checkout Button Text"
+                    value={formSettings.checkoutButtonText || 'CHECKOUT'}
+                    onChange={(value) => updateSetting("checkoutButtonText", value)}
+                    helpText="Text for the main checkout button"
+                    placeholder="CHECKOUT"
+                    autoComplete="off"
+                  />
                   
                   <Checkbox
                     label="Enable Express Checkout Buttons"
                     checked={formSettings.enableExpressCheckout}
                     onChange={(value) => updateSetting("enableExpressCheckout", value)}
                     helpText="Show PayPal, Shop Pay, and other express checkout options"
-                  />
-                  
-                  <Checkbox
-                    label="Enable Analytics Tracking"
-                    checked={formSettings.enableAnalytics}
-                    onChange={(value) => updateSetting("enableAnalytics", value)}
-                    helpText="Track cart performance and user behavior"
                   />
                 </FormLayout>
               </BlockStack>
@@ -1733,8 +2114,9 @@ export default function SettingsPage() {
                     <div className="cartuplift-shipping-info">
                       <p className="cartuplift-shipping-message">
                         {remaining > 0 
-                          ? (formSettings.freeShippingText || "Spend {amount} more for free shipping!")
-                              .replace(/{amount}/g, `£${(remaining / 100).toFixed(2)}`)
+                          ? (formSettings.freeShippingText || "Spend {{ amount }} more for free shipping!")
+                              .replace(/\{\{\s*amount\s*\}\}/g, `${(remaining / 100).toFixed(2)}`)
+                              .replace(/{amount}/g, `${(remaining / 100).toFixed(2)}`)
                           : formSettings.freeShippingAchievedText || "🎉 Congratulations! You've unlocked free shipping!"
                         }
                       </p>
@@ -1862,7 +2244,7 @@ export default function SettingsPage() {
                                   </div>
                                   <div className="cartuplift-product-actions">
                                     <div className="cartuplift-recommendation-price">£629.95</div>
-                                    <button className="cartuplift-add-recommendation">Add</button>
+                                    <button className="cartuplift-add-recommendation">{formSettings.addButtonText || 'Add'}</button>
                                   </div>
                                 </div>
                               </div>
@@ -1883,7 +2265,7 @@ export default function SettingsPage() {
                                   </div>
                                   <div className="cartuplift-product-actions">
                                     <div className="cartuplift-recommendation-price">£549.95</div>
-                                    <button className="cartuplift-add-recommendation">Add</button>
+                                    <button className="cartuplift-add-recommendation">{formSettings.addButtonText || 'Add'}</button>
                                   </div>
                                 </div>
                               </div>
@@ -1904,7 +2286,7 @@ export default function SettingsPage() {
                                   </div>
                                   <div className="cartuplift-product-actions">
                                     <div className="cartuplift-recommendation-price">£299.95</div>
-                                    <button className="cartuplift-add-recommendation">Add</button>
+                                    <button className="cartuplift-add-recommendation">{formSettings.addButtonText || 'Add'}</button>
                                   </div>
                                 </div>
                               </div>
@@ -1927,17 +2309,12 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  {/* Discount Section */}
-                  {formSettings.enableDiscountCode && (
+                  {/* Discount & Notes Section - Simple Button Only */}
+                  {(formSettings.enableDiscountCode || formSettings.enableNotes) && (
                     <div className="cartuplift-discount-section">
-                      <div className="cartuplift-discount-wrapper">
-                        <input 
-                          type="text" 
-                          className="cartuplift-discount-input" 
-                          placeholder="Enter discount code"
-                        />
-                        <button className="cartuplift-discount-apply">Apply</button>
-                      </div>
+                      <button className="cartuplift-action-button">
+                        {formSettings.actionText || 'Add discount codes and notes'}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1949,7 +2326,7 @@ export default function SettingsPage() {
                     <span>£474.00</span>
                   </div>
                   
-                  <button className="cartuplift-checkout-btn">CHECKOUT</button>
+                  <button className="cartuplift-checkout-btn">{formSettings.checkoutButtonText || 'CHECKOUT'}</button>
                   
                   {formSettings.enableExpressCheckout && (
                     <div className="cartuplift-express-checkout">
@@ -1960,6 +2337,17 @@ export default function SettingsPage() {
                     </div>
                   )}
                 </div>
+              </div>
+              
+              {/* Sticky Cart Preview */}
+              <div className={`cartuplift-sticky-preview ${formSettings.cartPosition || 'bottom-right'}`}>
+                <button className="cartuplift-sticky-btn">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-sticky-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                  </svg>
+                  <span className="cartuplift-sticky-count">5</span>
+                  <span className="cartuplift-sticky-total">£474.00</span>
+                </button>
               </div>
         </div>
       </div>

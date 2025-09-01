@@ -26,12 +26,18 @@ export interface SettingsData {
   freeShippingAchievedText: string;
   recommendationsTitle: string;
   actionText: string;
+  addButtonText: string;
+  checkoutButtonText: string;
+  applyButtonText: string;
   
   // Appearance
   backgroundColor: string;
   textColor: string;
   buttonColor: string;
+  buttonTextColor: string;
   recommendationsBackgroundColor: string;
+  shippingBarBackgroundColor: string;
+  shippingBarColor: string;
   
   // Recommendation Settings
   recommendationLayout: string;
@@ -70,10 +76,16 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       freeShippingAchievedText: settings.freeShippingAchievedText,
       recommendationsTitle: settings.recommendationsTitle,
       actionText: settings.actionText || "Add discount code",
+      addButtonText: (settings as any).addButtonText ?? "Add",
+      checkoutButtonText: (settings as any).checkoutButtonText ?? "CHECKOUT",
+      applyButtonText: (settings as any).applyButtonText ?? "Apply",
       backgroundColor: settings.backgroundColor,
       textColor: settings.textColor,
       buttonColor: settings.buttonColor,
+      buttonTextColor: (settings as any).buttonTextColor ?? "#ffffff",
       recommendationsBackgroundColor: (settings as any).recommendationsBackgroundColor ?? "#ecebe3",
+      shippingBarBackgroundColor: (settings as any).shippingBarBackgroundColor ?? "#f0f0f0",
+      shippingBarColor: (settings as any).shippingBarColor ?? "#121212",
       recommendationLayout: settings.recommendationLayout,
       maxRecommendations: settings.maxRecommendations,
       complementDetectionMode: (settings as any).complementDetectionMode ?? "automatic",
@@ -92,7 +104,8 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       'enableApp', 'enableStickyCart', 'showOnlyOnCartPage', 'autoOpenCart', 'enableFreeShipping', 'freeShippingThreshold',
       'enableRecommendations', 'enableAddons', 'enableDiscountCode', 'enableNotes', 'enableExpressCheckout', 'enableAnalytics',
       'cartPosition', 'cartIcon', 'freeShippingText', 'freeShippingAchievedText', 'recommendationsTitle', 'actionText',
-      'backgroundColor', 'textColor', 'buttonColor', 'recommendationsBackgroundColor', 'recommendationLayout', 'maxRecommendations',
+      'addButtonText', 'checkoutButtonText', 'applyButtonText',
+      'backgroundColor', 'textColor', 'buttonColor', 'buttonTextColor', 'recommendationsBackgroundColor', 'shippingBarBackgroundColor', 'shippingBarColor', 'recommendationLayout', 'maxRecommendations',
       'complementDetectionMode', 'manualRecommendationProducts'
     ];
     
@@ -131,10 +144,16 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       freeShippingAchievedText: settings.freeShippingAchievedText,
       recommendationsTitle: settings.recommendationsTitle,
       actionText: settings.actionText || "Add discount code",
+      addButtonText: (settings as any).addButtonText ?? "Add",
+      checkoutButtonText: (settings as any).checkoutButtonText ?? "CHECKOUT",
+      applyButtonText: (settings as any).applyButtonText ?? "Apply",
       backgroundColor: settings.backgroundColor,
       textColor: settings.textColor,
       buttonColor: settings.buttonColor,
+      buttonTextColor: (settings as any).buttonTextColor ?? "#ffffff",
       recommendationsBackgroundColor: (settings as any).recommendationsBackgroundColor ?? "#ecebe3",
+      shippingBarBackgroundColor: (settings as any).shippingBarBackgroundColor ?? "#f0f0f0",
+      shippingBarColor: (settings as any).shippingBarColor ?? "#121212",
       recommendationLayout: settings.recommendationLayout,
       maxRecommendations: settings.maxRecommendations,
       complementDetectionMode: (settings as any).complementDetectionMode ?? "automatic",
@@ -169,20 +188,26 @@ function getDefaultSettings(): SettingsData {
     cartIcon: "cart",
     
     // Messages & Text
-    freeShippingText: "You're {amount} away from free shipping!",
+    freeShippingText: "You're {{ amount }} away from free shipping!",
     freeShippingAchievedText: "🎉 Congratulations! You've unlocked free shipping!",
     recommendationsTitle: "You might also like",
     actionText: "Add discount code",
+    addButtonText: "Add",
+    checkoutButtonText: "CHECKOUT",
+    applyButtonText: "Apply",
     
     // Appearance
     backgroundColor: "#ffffff",
     textColor: "#1A1A1A",
-    buttonColor: "#000000",
+    buttonColor: "var(--button-background, #000000)", // Theme button color with black fallback
+    buttonTextColor: "var(--button-text, #ffffff)", // Theme button text with white fallback
     recommendationsBackgroundColor: "#ecebe3",
+    shippingBarBackgroundColor: "var(--background-secondary, #f0f0f0)", // Theme secondary background with light gray fallback
+    shippingBarColor: "var(--accent, #121212)", // Theme accent with green fallback
     
     // Recommendation Settings
     recommendationLayout: "horizontal",
-    maxRecommendations: 6,
+    maxRecommendations: 3,
     complementDetectionMode: "automatic",
     manualRecommendationProducts: "",
   };
