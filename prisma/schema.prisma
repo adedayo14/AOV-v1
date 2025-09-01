@@ -39,6 +39,7 @@ model Settings {
   enableApp               Boolean  @default(true)
   enableStickyCart        Boolean  @default(true)
   showOnlyOnCartPage      Boolean  @default(false)
+  autoOpenCart            Boolean  @default(true)
   enableFreeShipping      Boolean  @default(true)
   freeShippingThreshold   Float    @default(100)
   
@@ -64,10 +65,13 @@ model Settings {
   backgroundColor         String   @default("#ffffff")
   textColor               String   @default("#1A1A1A")
   buttonColor             String   @default("#000000")
+  recommendationsBackgroundColor String @default("#ecebe3")
   
   // Recommendation Settings
   recommendationLayout    String   @default("horizontal")
   maxRecommendations      Int      @default(6)
+  complementDetectionMode String   @default("automatic")
+  manualRecommendationProducts String @default("")
   
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt

@@ -5,6 +5,7 @@ export interface SettingsData {
   enableApp: boolean;
   enableStickyCart: boolean;
   showOnlyOnCartPage: boolean;
+  autoOpenCart: boolean;
   enableFreeShipping: boolean;
   freeShippingThreshold: number;
   
@@ -30,10 +31,13 @@ export interface SettingsData {
   backgroundColor: string;
   textColor: string;
   buttonColor: string;
+  recommendationsBackgroundColor: string;
   
   // Recommendation Settings
   recommendationLayout: string;
   maxRecommendations: number;
+  complementDetectionMode: string;
+  manualRecommendationProducts: string;
 }
 
 export async function getSettings(shop: string): Promise<SettingsData> {
@@ -51,6 +55,7 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       enableApp: settings.enableApp,
       enableStickyCart: settings.enableStickyCart,
       showOnlyOnCartPage: settings.showOnlyOnCartPage,
+      autoOpenCart: (settings as any).autoOpenCart ?? true,
       enableFreeShipping: settings.enableFreeShipping,
       freeShippingThreshold: settings.freeShippingThreshold,
       enableRecommendations: settings.enableRecommendations,
@@ -68,8 +73,11 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       backgroundColor: settings.backgroundColor,
       textColor: settings.textColor,
       buttonColor: settings.buttonColor,
+      recommendationsBackgroundColor: (settings as any).recommendationsBackgroundColor ?? "#ecebe3",
       recommendationLayout: settings.recommendationLayout,
       maxRecommendations: settings.maxRecommendations,
+      complementDetectionMode: (settings as any).complementDetectionMode ?? "automatic",
+      manualRecommendationProducts: (settings as any).manualRecommendationProducts ?? "",
     };
   } catch (error) {
     console.error("Error fetching settings:", error);
@@ -81,10 +89,11 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
   try {
     // Filter to only include valid SettingsData fields
     const validFields: (keyof SettingsData)[] = [
-      'enableApp', 'enableStickyCart', 'showOnlyOnCartPage', 'enableFreeShipping', 'freeShippingThreshold',
+      'enableApp', 'enableStickyCart', 'showOnlyOnCartPage', 'autoOpenCart', 'enableFreeShipping', 'freeShippingThreshold',
       'enableRecommendations', 'enableAddons', 'enableDiscountCode', 'enableNotes', 'enableExpressCheckout', 'enableAnalytics',
       'cartPosition', 'cartIcon', 'freeShippingText', 'freeShippingAchievedText', 'recommendationsTitle', 'actionText',
-      'backgroundColor', 'textColor', 'buttonColor', 'recommendationLayout', 'maxRecommendations'
+      'backgroundColor', 'textColor', 'buttonColor', 'recommendationsBackgroundColor', 'recommendationLayout', 'maxRecommendations',
+      'complementDetectionMode', 'manualRecommendationProducts'
     ];
     
     const filteredData: Partial<SettingsData> = {};
@@ -107,6 +116,7 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       enableApp: settings.enableApp,
       enableStickyCart: settings.enableStickyCart,
       showOnlyOnCartPage: settings.showOnlyOnCartPage,
+      autoOpenCart: (settings as any).autoOpenCart ?? true,
       enableFreeShipping: settings.enableFreeShipping,
       freeShippingThreshold: settings.freeShippingThreshold,
       enableRecommendations: settings.enableRecommendations,
@@ -124,8 +134,11 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       backgroundColor: settings.backgroundColor,
       textColor: settings.textColor,
       buttonColor: settings.buttonColor,
+      recommendationsBackgroundColor: (settings as any).recommendationsBackgroundColor ?? "#ecebe3",
       recommendationLayout: settings.recommendationLayout,
       maxRecommendations: settings.maxRecommendations,
+      complementDetectionMode: (settings as any).complementDetectionMode ?? "automatic",
+      manualRecommendationProducts: (settings as any).manualRecommendationProducts ?? "",
     };
   } catch (error) {
     console.error("Error saving settings:", error);
@@ -139,6 +152,7 @@ function getDefaultSettings(): SettingsData {
     enableApp: true,
     enableStickyCart: true,
     showOnlyOnCartPage: false,
+    autoOpenCart: true,
     enableFreeShipping: true,
     freeShippingThreshold: 100,
     
@@ -164,9 +178,12 @@ function getDefaultSettings(): SettingsData {
     backgroundColor: "#ffffff",
     textColor: "#1A1A1A",
     buttonColor: "#000000",
+    recommendationsBackgroundColor: "#ecebe3",
     
     // Recommendation Settings
     recommendationLayout: "horizontal",
     maxRecommendations: 6,
+    complementDetectionMode: "automatic",
+    manualRecommendationProducts: "",
   };
 }

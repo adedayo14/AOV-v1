@@ -43,14 +43,14 @@
         enableAnalytics: false
       };
 
-      // Theme embed settings (these override defaults)
-      const themeSettings = {
-        autoOpenCart: {{ block.settings.auto_open_cart | default: true | json }},
-        enableFreeShipping: {{ block.settings.enable_free_shipping | default: true | json }},
-        freeShippingThreshold: {{ block.settings.free_shipping_threshold | default: 100 | json }},
-        buttonColor: {{ block.settings.button_color | default: '#4CAF50' | json }},
-        textColor: {{ block.settings.text_color | default: '#1a1a1a' | json }}
-      };
+      // Simple theme embed toggle
+      const isEnabled = {{ block.settings.enable_cart_uplift | default: true | json }};
+
+      // Only proceed if Cart Uplift is enabled
+      if (!isEnabled) {
+        console.log('🛒 Cart Uplift: Disabled via theme settings');
+        return;
+      }
 
       // Fetch backend settings from your app's API
       let backendSettings = {};
@@ -73,9 +73,9 @@
         .then(data => {
           console.log('🔧 Backend settings received:', data);
           backendSettings = data || {};
-          // Merge all settings: defaults < backendSettings < themeSettings
-          window.CartUpliftSettings = Object.assign({}, defaults, backendSettings, themeSettings);
-          console.log('🛒 Cart Uplift Settings (with backend):', window.CartUpliftSettings);
+          // Merge settings: defaults < backendSettings (no theme override since all config is in backend)
+          window.CartUpliftSettings = Object.assign({}, defaults, backendSettings);
+          console.log('🛒 Cart Uplift Settings:', window.CartUpliftSettings);
           
           // Initialize cart if enabled
           if (window.CartUpliftSettings.enableApp) {
@@ -87,10 +87,10 @@
         })
         .catch(error => {
           console.log('🔧 Backend settings fetch failed:', error);
-          console.log('🛒 Cart Uplift: Using local settings (backend unavailable)');
-          // Fallback to local settings only
-          window.CartUpliftSettings = Object.assign({}, defaults, themeSettings);
-          console.log('🛒 Cart Uplift Settings (local):', window.CartUpliftSettings);
+          console.log('🛒 Cart Uplift: Using default settings (backend unavailable)');
+          // Fallback to defaults only
+          window.CartUpliftSettings = defaults;
+          console.log('🛒 Cart Uplift Settings (fallback):', window.CartUpliftSettings);
           
           // Initialize cart if enabled
           if (window.CartUpliftSettings.enableApp) {
@@ -136,51 +136,15 @@
 
 {% schema %}
 {
-  "name": "Free Shipping Bar",
+  "name": "Cart Uplift",
   "target": "body",
   "settings": [
     {
-      "type": "header",
-      "content": "🛒 Cart Behavior"
-    },
-    {
       "type": "checkbox",
-      "id": "auto_open_cart",
-      "label": "Auto-open cart when item added",
+      "id": "enable_cart_uplift",
+      "label": "Enable Cart Uplift",
       "default": true,
-      "info": "Automatically show cart drawer when customers add items"
-    },
-    {
-      "type": "checkbox",
-      "id": "enable_free_shipping",
-      "label": "Show free shipping progress",
-      "default": true,
-      "info": "Display progress bar and messages for free shipping threshold"
-    },
-    {
-      "type": "number",
-      "id": "free_shipping_threshold",
-      "label": "Free shipping threshold",
-      "default": 150,
-      "info": "Minimum order amount for free shipping (in shop currency)"
-    },
-    {
-      "type": "header",
-      "content": "🎨 Appearance"
-    },
-    {
-      "type": "color",
-      "id": "button_color",
-      "label": "Button & accent color",
-      "default": "#4CAF50",
-      "info": "Primary color for buttons and progress bars"
-    },
-    {
-      "type": "color",
-      "id": "text_color",
-      "label": "Text color",
-      "default": "#1a1a1a",
-      "info": "Main text color in the cart drawer"
+      "info": "Turn on Cart Uplift functionality. Configure detailed settings in your app admin."
     }
   ]
 }

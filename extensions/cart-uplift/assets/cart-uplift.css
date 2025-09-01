@@ -1799,6 +1799,12 @@ body.cartuplift-no-scroll {
   right: 20px;
 }
 
+.cartuplift-sticky.bottom-center {
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
 .cartuplift-sticky.bottom-left {
   bottom: 20px;
   left: 20px;
@@ -1901,7 +1907,7 @@ body.cartuplift-no-scroll {
 
 @media (max-width: 480px) {
   .cartuplift-header {
-    padding: 16px;
+    padding: 0px 16px 0px;
   }
   
   .cartuplift-shipping-bar,
