@@ -29,11 +29,12 @@
       this.settings.enableRecommendations = this.settings.enableRecommendations !== false; // DEFAULT TO TRUE
       this.settings.enableAddons = Boolean(this.settings.enableAddons);
       this.settings.enableNotes = Boolean(this.settings.enableNotes);
-      this.settings.enableDiscountCode = Boolean(this.settings.enableDiscountCode);
+      this.settings.enableDiscountCode = this.settings.enableDiscountCode !== false; // DEFAULT TO TRUE
       this.settings.enableExpressCheckout = this.settings.enableExpressCheckout !== false; // DEFAULT TO TRUE
       this.settings.autoOpenCart = this.settings.autoOpenCart !== false;
       
       console.log('🔧 CartUplift: Express checkout setting:', this.settings.enableExpressCheckout);
+      console.log('🔧 CartUplift: Discount code setting:', this.settings.enableDiscountCode);
       
       this.cart = null;
       this.isOpen = false;
@@ -353,7 +354,10 @@
             <div class="cartuplift-scrollable-content">
               ${this.settings.enableAddons ? this.getAddonsHTML() : ''}
               ${shouldShowRecommendations ? this.getRecommendationsHTML() : ''}
-              ${this.settings.enableDiscountCode || this.settings.enableNotes ? this.getDiscountHTML() : ''}
+              ${(() => {
+                console.log('🔧 CartUplift: Rendering discount section, enableDiscountCode:', this.settings.enableDiscountCode, 'enableNotes:', this.settings.enableNotes);
+                return this.settings.enableDiscountCode || this.settings.enableNotes ? this.getDiscountHTML() : '';
+              })()}
             </div>
           </div>
           
