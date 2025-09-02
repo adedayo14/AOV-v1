@@ -283,6 +283,7 @@ export default function SettingsPage() {
             height: 100vh;
             max-height: 100vh;
             display: block !important;
+            padding-bottom: 24px;
           }
           
           .cartuplift-preview-container {
@@ -371,6 +372,7 @@ export default function SettingsPage() {
             background: ${formSettings.backgroundColor || '#ffffff'};
             min-height: 120px;
             align-items: center;
+            margin-bottom: 8px;
           }
 
           .cartuplift-item-first {
@@ -1409,7 +1411,6 @@ export default function SettingsPage() {
             font-size: 12px;
             font-weight: 600;
             margin: 0;
-            text-transform: uppercase;
             letter-spacing: 0.5px;
             color: ${formSettings.textColor || '#1a1a1a'};
           }
@@ -2068,7 +2069,7 @@ export default function SettingsPage() {
             color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')};
             font-size: 12px;
             font-weight: 700;
-            text-align: left;
+            text-align: center;
             cursor: pointer;
           }
 
@@ -2089,10 +2090,8 @@ export default function SettingsPage() {
 
           /* Keep discount band within container; extend the button to full-bleed like debug bar */
           .cartuplift-discount-section {
-            margin-left: 0 !important;
-            margin-right: 0 !important;
-            padding-left: 0 !important;
-            padding-right: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
 
           .cartuplift-discount-section .cartuplift-rainbow-card-button {
@@ -2550,6 +2549,31 @@ export default function SettingsPage() {
                         <button className="cartuplift-item-remove" title="Remove item">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-icon-medium">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Product 3 */}
+                    <div className="cartuplift-item">
+                      <div className="cartuplift-item-image">
+                        <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-3_large.png" alt="Example Product Title" />
+                      </div>
+                      <div className="cartuplift-item-info">
+                        <h4 className="cartuplift-item-title">Example Product Title</h4>
+                        <div className="cartuplift-item-variant">Color: Red</div>
+                        <div className="cartuplift-item-variant">Size: M</div>
+                        <div className="cartuplift-quantity">
+                          <button className="cartuplift-qty-minus">−</button>
+                          <span className="cartuplift-qty-display">2</span>
+                          <button className="cartuplift-qty-plus">+</button>
+                        </div>
+                      </div>
+                      <div className="cartuplift-item-price-actions">
+                        <div className="cartuplift-item-price">£29.99</div>
+                        <button className="cartuplift-item-remove" title="Remove item">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-icon-medium">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.111 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
