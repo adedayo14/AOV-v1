@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { json } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import {
@@ -103,6 +103,7 @@ export default function SettingsPage() {
   const [productsError, setProductsError] = useState<string | null>(null);
   const [products, setProducts] = useState<any[]>([]);
   const previewRef = useRef<HTMLDivElement>(null);
+  const horizontalTrackRef = useRef<HTMLDivElement>(null);
   
   // Success banner auto-hide state
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
@@ -330,17 +331,19 @@ export default function SettingsPage() {
 
           .cartuplift-shipping-progress {
             width: 100%;
-            height: 3px;
+            height: 6px;
             background: ${resolveColor(formSettings.shippingBarBackgroundColor, '#f0f0f0')};
-            border-radius: 2px;
+            border-radius: 3px;
             overflow: hidden;
+            position: relative;
           }
 
           .cartuplift-shipping-progress-fill {
             height: 100%;
             background: ${resolveColor(formSettings.shippingBarColor, '#4CAF50')};
-            border-radius: 2px;
-            transition: width 0.3s ease;
+            border-radius: 3px;
+            transition: width 0.5s ease, background 0.3s ease;
+            min-width: 2px;
           }
 
           .cartuplift-content-wrapper {
@@ -355,15 +358,23 @@ export default function SettingsPage() {
           .cartuplift-items {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 0;
           }
 
           .cartuplift-item {
             display: flex;
             gap: 8px;
-            padding: 6px;
+            padding: 12px;
             border-radius: 4px;
-            background: #fafafa;
+            background: ${formSettings.backgroundColor || '#ffffff'};
+            min-height: 120px;
+            align-items: center;
+          }
+
+          .cartuplift-item-first {
+            border-bottom: none;
+            margin-bottom: 8px;
+            padding-bottom: 0;
           }
 
           .cartuplift-item-image {
@@ -382,6 +393,10 @@ export default function SettingsPage() {
           .cartuplift-item-info {
             flex: 1;
             min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 4px 0;
           }
 
           .cartuplift-item-title {
@@ -404,44 +419,59 @@ export default function SettingsPage() {
             align-items: center;
             border: 1px solid #e0e0e0;
             border-radius: 20px;
-            background: white;
-            height: 32px;
-            min-width: 100px;
+            background: ${formSettings.backgroundColor || '#ffffff'};
+            height: 36px;
+            width: 100px;
             overflow: hidden;
             justify-content: space-around;
+            flex-shrink: 0;
+            box-sizing: border-box;
+            margin-bottom: 8px;
           }
 
-          .cartuplift-qty-btn {
+          .cartuplift-qty-minus,
+          .cartuplift-qty-plus {
             background: transparent;
             border: none;
             cursor: pointer;
-            padding: 8px;
-            font-size: 14px;
-            font-weight: 400;
+            padding: 0;
+            font-size: 12px;
+            font-weight: 600;
             color: #333;
-            height: 100%;
+            height: 36px !important;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: background 0.2s ease;
-            min-width: 28px;
+            width: 13px !important;
+            max-width: 13px !important;
+            min-width: 13px !important;
+            flex-shrink: 0;
+            box-sizing: border-box;
           }
 
-          .cartuplift-qty-btn:hover {
+          .cartuplift-qty-minus:hover,
+          .cartuplift-qty-plus:hover {
             background: #f5f5f5;
           }
 
           .cartuplift-qty-display {
-            padding: 0 10px;
-            font-size: 12px;
-            font-weight: 500;
+            padding: 0;
+            font-size: 11px;
+            font-weight: 600;
             color: #000;
             text-align: center;
             display: flex;
             align-items: center;
             justify-content: center;
-            height: 100%;
-            flex: 1;
+            height: 36px !important;
+            width: 26px !important;
+            max-width: 26px !important;
+            min-width: 26px !important;
+            max-height: 36px !important;
+            min-height: 36px !important;
+            flex-shrink: 0;
+            box-sizing: border-box;
           }
 
           .cartuplift-item-price-actions {
@@ -449,6 +479,8 @@ export default function SettingsPage() {
             flex-direction: column;
             align-items: flex-end;
             gap: 4px;
+            flex-shrink: 0;
+            padding: 2px 0;
           }
 
           .cartuplift-item-price {
@@ -458,20 +490,22 @@ export default function SettingsPage() {
           }
 
           .cartuplift-item-remove {
-            width: 16px;
-            height: 16px;
+            width: 24px;
+            height: 24px;
             border: none;
             background: #f5f5f5;
-            border-radius: 2px;
+            border-radius: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             color: #666;
+            align-self: flex-end;
           }
 
           .cartuplift-recommendations {
-            padding-top: 6px;
+            padding-top: 0; /* remove gap above section */
+            background: ${formSettings.recommendationsBackgroundColor || '#ecebe3'};
           }
           .cartuplift-selected-products { margin-top: 8px; }
           .cartuplift-selected-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
@@ -503,6 +537,7 @@ export default function SettingsPage() {
             display: flex;
             flex-direction: column;
             gap: 4px;
+            background: ${formSettings.recommendationsBackgroundColor || '#ecebe3'};
           }
 
           .cartuplift-recommendation-item {
@@ -554,47 +589,7 @@ export default function SettingsPage() {
             justify-content: center;
           }
 
-          .cartuplift-discount-section {
-            padding-top: 6px;
-            width: 100%;
-          }
-
-          .cartuplift-discount-wrapper {
-            display: flex;
-            gap: 4px;
-          }
-
-          .cartuplift-discount-input {
-            flex: 1;
-            padding: 4px 6px;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-            font-size: 9px;
-          }
-
-          .cartuplift-discount-apply {
-            padding: 4px 8px;
-            background: #f0f0f0;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-            font-size: 9px;
-            cursor: pointer;
-          }
-
-          .cartuplift-notes-wrapper {
-            margin-top: 6px;
-          }
-
-          .cartuplift-notes-input {
-            width: 100%;
-            padding: 6px 8px;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-            font-size: 9px;
-            font-family: inherit;
-            resize: vertical;
-            min-height: 40px;
-          }
+          
 
           .cartuplift-combined-action {
             margin-top: 8px;
@@ -813,44 +808,69 @@ export default function SettingsPage() {
           }
 
           .cartuplift-footer {
-            border-top: 1px solid #eee;
-            padding: 8px;
-            background: #fafafa;
+            padding: 12px 16px;
+            background: ${formSettings.backgroundColor || '#ffffff'};
+            border-top: 1px solid #e1e3e5;
+            flex-shrink: 0;
           }
 
           .cartuplift-subtotal {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 6px;
-            font-size: 11px;
-            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            color: ${formSettings.textColor || '#333'};
           }
 
           .cartuplift-checkout-btn {
             width: 100%;
-            padding: 8px 12px;
-            background: #1a1a1a;
-            color: white;
+            padding: 14px 16px;
+            background: ${resolveColor(formSettings.buttonColor, '#333')};
+            color: ${resolveColor(formSettings.buttonTextColor, 'white')};
             border: none;
-            border-radius: 4px;
-            font-size: 10px;
+            border-radius: 6px;
+            font-size: 14px;
             font-weight: 600;
-            letter-spacing: 0.3px;
-            text-transform: uppercase;
-            margin-bottom: 6px;
             cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background 0.2s ease;
+            margin-bottom: 12px;
+          }
+
+          .cartuplift-checkout-btn:hover {
+            opacity: 0.9;
           }
 
           .cartuplift-express-checkout {
             display: flex;
-            gap: 4px;
+            gap: 8px;
+            margin-top: 8px;
           }
 
           .cartuplift-paypal-btn,
           .cartuplift-shoppay-btn {
             flex: 1;
-            padding: 4px 6px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: background 0.2s ease;
+          }
+
+          .cartuplift-paypal-btn:hover,
+          .cartuplift-shoppay-btn:hover {
+            background: #f5f5f5;
+          }
+
+          .cartuplift-paypal-logo {
+            height: 16px;
+          }
             border: 1px solid #ddd;
             border-radius: 3px;
             background: white;
@@ -950,10 +970,11 @@ export default function SettingsPage() {
             display: flex;
             align-items: stretch;
             gap: 16px;
-            padding: 12px 0;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 8px 0;
+            border-bottom: none;
             position: relative;
             min-height: 112px;
+            padding-bottom: 12px;
           }
 
           .cartuplift-item:last-child {
@@ -961,9 +982,9 @@ export default function SettingsPage() {
             padding-bottom: 0;
           }
 
-          .cartuplift-item-image {
-            width: 106px;
-            height: 112px;
+            padding: 8px 0 4px 0;
+            border-top: 1px solid #e5e5e5;
+            width: 100%;
             border-radius: 6px;
             overflow: hidden;
             background: #f8f8f8;
@@ -980,19 +1001,8 @@ export default function SettingsPage() {
           .cartuplift-item-info {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            min-width: 0;
-            flex: 1;
-            padding-right: 8px;
-            justify-content: space-between;
-          }
-
-          .cartuplift-item-title {
-            margin: 0;
-            font-size: 13px;
-            font-weight: 600;
-            line-height: 1.3;
-            color: #1a1a1a;
+          /* Ensure parent container exists at 100% width for full-bleed action button */
+          .cartuplift-action-container { width: 100%; }
           }
 
           .cartuplift-item-variant {
@@ -1002,16 +1012,17 @@ export default function SettingsPage() {
             margin: 0;
           }
 
-          .cartuplift-quantity {
-            display: inline-flex;
-            align-items: center;
-            border: 1px solid #e0e0e0;
-            border-radius: 20px;
-            background: #ffffff;
-            height: 32px;
-            min-width: 100px;
+            padding: 8px 0; /* remove side padding so the action button can span edge-to-edge */
+            margin-top: 0; /* sit flush under previous section */
+            width: 100%;
+            margin-left: -16px; /* fullwidth inside padded container */
+            margin-right: -16px;
+            background: ${formSettings.backgroundColor || '#ffffff'};
+            height: 36px;
+            width: 100px;
             overflow: hidden;
             justify-content: space-around;
+            margin-bottom: 8px;
           }
 
           .cartuplift-qty-btn {
@@ -1023,19 +1034,22 @@ export default function SettingsPage() {
             color: #333;
             height: 100%;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 28px;
+          .cartuplift-action-button {
+            display: block;
+            width: 100% !important;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 8px 12px;
+            background: ${resolveColor(formSettings.buttonColor, '#000000')};
+            color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')};
+            border: none;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
-
-          .cartuplift-qty-btn:hover {
-            background: #f5f5f5;
-          }
-
-          .cartuplift-qty-display {
-            padding: 0 10px;
-            font-size: 12px;
-            font-weight: 500;
             color: #000;
             text-align: center;
           }
@@ -1079,23 +1093,26 @@ export default function SettingsPage() {
 
           /* Recommendations Section */
           .cartuplift-recommendations {
-            background: #ecebe3;
-            padding: 4px 0;
-            margin-top: 8px;
+            background: ${formSettings.recommendationsBackgroundColor || '#ecebe3'};
+            padding: 2px 0;
+            margin-top: 0;
             flex-shrink: 0;
+            /* Keep within padded container */
+            margin-left: 0;
+            margin-right: 0;
           }
 
           .cartuplift-recommendations-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 16px 0px 16px;
-            height: 36px;
+            padding: 6px 16px 0 16px;
+            min-height: 26px;
           }
 
           .cartuplift-recommendations-title {
             margin: 0;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             letter-spacing: 0.05em;
             color: #1a1a1a;
@@ -1105,8 +1122,8 @@ export default function SettingsPage() {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             border: 1px solid #111;
             border-radius: 50%;
             background: transparent;
@@ -1114,37 +1131,52 @@ export default function SettingsPage() {
           }
 
           .cartuplift-recommendations-content {
-            padding: 12px 16px;
+            padding: 6px 16px 10px;
+            max-height: 128px; /* show ~2 items + hint of next */
+            overflow-y: auto;
+          }
+
+          /* Disable vertical scrolling inside horizontal recommendations */
+          .cartuplift-recommendations.is-horizontal {
+            margin-top: 0 !important;
+            margin-left: 0;
+            margin-right: 0;
+            padding: 0; /* remove any vertical padding */
+          }
+          .cartuplift-recommendations.is-horizontal .cartuplift-recommendations-content {
+            max-height: none;
+            overflow-y: visible;
+            padding: 0;
           }
 
           .cartuplift-recommendation-item {
             display: grid;
-            grid-template-columns: 56px 1fr 24px;
-            gap: 12px;
-            padding: 12px;
+            grid-template-columns: 48px 1fr 24px;
+            gap: 10px;
+            padding: 8px;
             border: 1px solid #f0f0f0;
             border-radius: 8px;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             align-items: center;
             background: white;
           }
 
           .cartuplift-recommendation-item img {
-            width: 56px;
-            height: 56px;
+            width: 48px;
+            height: 48px;
             object-fit: cover;
             border-radius: 6px;
           }
 
           .cartuplift-recommendation-info h4 {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
             color: #000;
             margin: 0 0 4px 0;
           }
 
           .cartuplift-recommendation-price {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
             color: #000;
           }
@@ -1170,8 +1202,12 @@ export default function SettingsPage() {
 
           /* Discount Section */
           .cartuplift-discount-section {
-            padding: 8px 16px 4px 16px;
+            padding: 8px 16px;
+            margin-top: 0; /* sit flush under previous section */
             width: 100%;
+            margin-left: 0; /* stay within padded container */
+            margin-right: 0;
+            background: ${formSettings.backgroundColor || '#ffffff'};
           }
 
           .cartuplift-discount-wrapper {
@@ -1343,8 +1379,11 @@ export default function SettingsPage() {
           /* Recommendations Styling */
           .cartuplift-recommendations {
             background: ${formSettings.recommendationsBackgroundColor || '#ecebe3'};
-            margin-top: 8px;
-            border-radius: 8px;
+            /* Keep within container; do not overflow horizontally */
+            margin-top: 0;
+            margin-left: 0;
+            margin-right: 0;
+            border-radius: 0;
           }
           .cartuplift-selected-products { margin-top: 8px; }
           .cartuplift-selected-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
@@ -1361,7 +1400,7 @@ export default function SettingsPage() {
             align-items: center;
             padding: 12px 16px;
             background: ${formSettings.recommendationsBackgroundColor || '#ecebe3'};
-            border-radius: 8px 8px 0 0;
+            border-radius: 0;
           }
           
           .cartuplift-recommendations-title {
@@ -1397,11 +1436,18 @@ export default function SettingsPage() {
           
           .cartuplift-recommendations-track {
             display: flex;
-            gap: 12px;
-            overflow-x: auto;
+            gap: 8px;
+            overflow-x: hidden; /* disable manual swipe */
             padding: 8px 0;
             scroll-behavior: smooth;
-            -webkit-overflow-scrolling: touch;
+            touch-action: none; /* disallow vertical and horizontal panning */
+            overscroll-behavior: contain; /* prevent scroll chaining/bounce */
+          }
+
+          .cartuplift-recommendations-row,
+          .cartuplift-horizontal-card {
+            overscroll-behavior: contain;
+            touch-action: none; /* keep this section from moving on drag */
           }
           
           .cartuplift-recommendations-track::-webkit-scrollbar {
@@ -1409,23 +1455,26 @@ export default function SettingsPage() {
           }
           
           .cartuplift-recommendation-card {
-            flex: 0 0 280px;
+            flex: 0 0 232px;
             background: white;
             border-radius: 8px;
-            padding: 12px;
+            padding: 10px;
             box-shadow: 0 1px 4px rgba(0,0,0,0.08);
             border: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
           }
           
           .cartuplift-card-content {
             display: flex;
-            gap: 10px;
-            align-items: flex-start;
+            gap: 8px;
+            align-items: center;
+            height: 64px;
           }
           
           .cartuplift-product-image {
-            width: 60px;
-            height: 60px;
+            width: 64px;
+            height: 64px;
             border-radius: 6px;
             overflow: hidden;
             background: #fafafa;
@@ -1441,30 +1490,37 @@ export default function SettingsPage() {
           .cartuplift-product-info {
             flex: 1;
             min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 64px;
           }
           
           .cartuplift-product-info h4 {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 500;
-            margin: 0 0 6px 0;
-            line-height: 1.3;
+            margin: 0 0 4px 0;
+            line-height: 1.2;
             color: #000;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
           
           .cartuplift-product-variation {
-            margin-top: 4px;
+            margin-top: auto;
           }
           
           .cartuplift-size-dropdown {
-            padding: 4px 16px 4px 8px;
+            padding: 3px 12px 3px 6px;
             border: 1px solid #ddd;
-            border-radius: 12px;
+            border-radius: 10px;
             background: white;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 500;
             appearance: none;
             cursor: pointer;
-            max-width: 80px;
+            max-width: 70px;
           }
           
           .cartuplift-product-actions {
@@ -1472,26 +1528,47 @@ export default function SettingsPage() {
             flex-direction: column;
             align-items: flex-end;
             justify-content: space-between;
-            height: 60px;
+            height: 64px;
             flex-shrink: 0;
+            min-width: 60px;
           }
           
           .cartuplift-recommendation-price {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 600;
             color: #000;
+            margin-bottom: 4px;
+            line-height: 1;
+          }
+
+          /* Horizontal wrapper card to include title and controls */
+          .cartuplift-horizontal-card {
+            background: ${formSettings.recommendationsBackgroundColor || '#ecebe3'};
+            border: 1px solid ${formSettings.recommendationsBackgroundColor || '#ecebe3'};
+            /* Make this section truly full width inside a 16px padded container */
+            margin-left: -16px;
+            margin-right: -16px;
+            border-radius: 0;
+            padding: 0 16px 10px; /* add left/right padding, no top padding */
+          }
+          .cartuplift-horizontal-card .cartuplift-recommendations-header {
+            padding: 6px 0 6px 0; /* nudge header down slightly inside the card */
+            background: transparent;
+            border-radius: 0;
           }
           
           .cartuplift-add-recommendation {
-            padding: 4px 10px;
+            padding: 6px 10px;
             background: ${resolveColor(formSettings.buttonColor, '#000000')};
             color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')};
             border: 1px solid ${resolveColor(formSettings.buttonColor, '#000000')};
-            border-radius: 12px;
-            font-size: 10px;
+            border-radius: 10px;
+            font-size: 9px;
             font-weight: 600;
             cursor: pointer;
             white-space: nowrap;
+            text-transform: none;
+            letter-spacing: 0.3px;
           }
           
           .cartuplift-checkout-btn {
@@ -1504,7 +1581,7 @@ export default function SettingsPage() {
             font-size: 13px;
             font-weight: 600;
             letter-spacing: 0.3px;
-            text-transform: uppercase;
+            text-transform: none;
             margin-bottom: 8px;
             cursor: pointer;
           }
@@ -1542,8 +1619,7 @@ export default function SettingsPage() {
             display: flex;
             align-items: stretch;
             gap: 16px;
-            padding: 12px 0;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 8px 0 100px;
             color: ${formSettings.textColor || '#1a1a1a'};
           }
           
@@ -1572,10 +1648,11 @@ export default function SettingsPage() {
             border: 1px solid #e0e0e0;
             border-radius: 20px;
             background: ${formSettings.backgroundColor || '#ffffff'};
-            height: 32px;
-            min-width: 100px;
+            height: 36px;
+            width: 100px;
             overflow: hidden;
             justify-content: space-around;
+            margin-bottom: 8px;
           }
           
           .cartuplift-qty-btn {
@@ -1722,9 +1799,13 @@ export default function SettingsPage() {
           }
           
           .cartuplift-discount-section {
+            /* In-container band; full-bleed handled by button itself */
             padding: 8px 16px;
             background: ${formSettings.backgroundColor || '#ffffff'};
             width: 100%;
+            margin-top: 0;
+            margin-left: 0;
+            margin-right: 0;
           }
           
           .cartuplift-discount-wrapper {
@@ -1941,6 +2022,83 @@ export default function SettingsPage() {
           .cartuplift-grid-item button:hover {
             background: ${resolveColor(formSettings.buttonColor, '#000000')};
             color: white;
+          }
+
+          /* Container spacing: keep 16px side padding so full-bleed bands can offset with -16px */
+          .cartuplift-content-wrapper {
+            padding: 0 16px !important;
+            gap: 0 !important;
+          }
+
+          /* Ensure these sections span the full drawer width inside 16px padded container */
+          .cartuplift-horizontal-card {
+            margin-left: -16px !important;
+            margin-right: -16px !important;
+            border-radius: 0 !important;
+          }
+
+          /* Keep recommendations in-view with normal horizontal padding */
+          .cartuplift-recommendations {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+          }
+
+          /* Ensure discount band has zero horizontal padding so the card can reach edges */
+          .cartuplift-discount-section { padding-left: 0 !important; padding-right: 0 !important; }
+
+          /* Make the action button truly edge-to-edge */
+          .cartuplift-action-button {
+            border-radius: 0 !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+          }
+
+          /* Full-bleed discount card button using selected button color */
+          .cartuplift-rainbow-card-button {
+            display: block;
+            width: 100% !important;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 12px 16px;
+            background: ${resolveColor(formSettings.buttonColor, '#000000')};
+            border: none;
+            border-radius: 0;
+            color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')};
+            font-size: 12px;
+            font-weight: 700;
+            text-align: left;
+            cursor: pointer;
+          }
+
+          /* Debug: full-width bar to visualize edge-to-edge span */
+          .cartuplift-debug-bar {
+            height: 6px;
+            background: repeating-linear-gradient(90deg,
+              #ff2d55 0 16px,
+              #ffd60a 16px 32px,
+              #34c759 32px 48px,
+              #007aff 48px 64px,
+              #5856d6 64px 80px
+            );
+            margin: 0;
+            margin-left: -16px !important;
+            margin-right: -16px !important;
+          }
+
+          /* Keep discount band within container; extend the button to full-bleed like debug bar */
+          .cartuplift-discount-section {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+          }
+
+          .cartuplift-discount-section .cartuplift-rainbow-card-button {
+            width: calc(100% + 32px) !important;
+            margin-left: -16px !important;
+            margin-right: -16px !important;
+            padding-left: 16px !important;
+            padding-right: 16px !important;
           }
         `
       }} />
@@ -2331,7 +2489,13 @@ export default function SettingsPage() {
                 {formSettings.enableFreeShipping && (
                   <div className="cartuplift-shipping-bar">
                     <div className="cartuplift-shipping-progress">
-                      <div className="cartuplift-shipping-progress-fill" data-progress={progress}></div>
+                      <div 
+                        className="cartuplift-shipping-progress-fill" 
+                        style={{
+                          width: `${progress}%`,
+                          background: resolveColor(formSettings.shippingBarColor, '#4CAF50')
+                        }}
+                      ></div>
                     </div>
                   </div>
                 )}
@@ -2340,25 +2504,25 @@ export default function SettingsPage() {
                 <div className="cartuplift-content-wrapper">
                   <div className="cartuplift-items">
                     {/* Product 1 */}
-                    <div className="cartuplift-item">
+                    <div className="cartuplift-item cartuplift-item-first">
                       <div className="cartuplift-item-image">
-                        <img src="https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=200&h=200&fit=crop" alt="Anytime No Show Sock" />
+                        <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png" alt="Example Product Title" />
                       </div>
                       <div className="cartuplift-item-info">
-                        <h4 className="cartuplift-item-title">Anytime No Show Sock</h4>
-                        <div className="cartuplift-item-variant">Color: White</div>
-                        <div className="cartuplift-item-variant">Accessory size: L</div>
+                        <h4 className="cartuplift-item-title">Example Product Title</h4>
+                        <div className="cartuplift-item-variant">Color: Blue</div>
+                        <div className="cartuplift-item-variant">Size: L</div>
                         <div className="cartuplift-quantity">
-                          <button className="cartuplift-qty-btn">−</button>
+                          <button className="cartuplift-qty-minus">−</button>
                           <span className="cartuplift-qty-display">1</span>
-                          <button className="cartuplift-qty-btn">+</button>
+                          <button className="cartuplift-qty-plus">+</button>
                         </div>
                       </div>
                       <div className="cartuplift-item-price-actions">
-                        <div className="cartuplift-item-price">£14.00</div>
+                        <div className="cartuplift-item-price">£19.99</div>
                         <button className="cartuplift-item-remove" title="Remove item">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.25" stroke="currentColor" className="cartuplift-icon-medium">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-icon-medium">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -2367,23 +2531,23 @@ export default function SettingsPage() {
                     {/* Product 2 */}
                     <div className="cartuplift-item">
                       <div className="cartuplift-item-image">
-                        <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&h=200&fit=crop" alt="Men's Strider" />
+                        <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-2_large.png" alt="Example Product Title" />
                       </div>
                       <div className="cartuplift-item-info">
-                        <h4 className="cartuplift-item-title">Men's Strider</h4>
-                        <div className="cartuplift-item-variant">Color: White</div>
+                        <h4 className="cartuplift-item-title">Example Product Title</h4>
+                        <div className="cartuplift-item-variant">Color: Black</div>
                         <div className="cartuplift-item-variant">Shoe size: 10</div>
                         <div className="cartuplift-quantity">
-                          <button className="cartuplift-qty-btn">−</button>
+                          <button className="cartuplift-qty-minus">−</button>
                           <span className="cartuplift-qty-display">4</span>
-                          <button className="cartuplift-qty-btn">+</button>
+                          <button className="cartuplift-qty-plus">+</button>
                         </div>
                       </div>
                       <div className="cartuplift-item-price-actions">
-                        <div className="cartuplift-item-price">£115.00</div>
+                        <div className="cartuplift-item-price">£89.99</div>
                         <button className="cartuplift-item-remove" title="Remove item">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.25" stroke="currentColor" className="cartuplift-icon-medium">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-icon-medium">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -2392,33 +2556,43 @@ export default function SettingsPage() {
 
                   {/* Recommendations Section */}
                   {formSettings.enableRecommendations && (
-                    <div className="cartuplift-recommendations">
-                      <div className="cartuplift-recommendations-header">
-                        <h3 className="cartuplift-recommendations-title">
-                          {formSettings.recommendationsTitle || 'RECOMMENDED FOR YOU'}
-                        </h3>
-                        <button className="cartuplift-recommendations-toggle" title="Toggle recommendations">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-icon-small">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
-                          </svg>
-                        </button>
-                      </div>
+                    <div className={`cartuplift-recommendations ${formSettings.recommendationLayout === 'row' || formSettings.recommendationLayout === 'horizontal' ? 'is-horizontal' : ''}`}>
+                      {(formSettings.recommendationLayout === 'column' || formSettings.recommendationLayout === 'fullwidth' || formSettings.recommendationLayout === 'grid') && (
+                        <div className="cartuplift-recommendations-header">
+                          <h3 className="cartuplift-recommendations-title">
+                            {formSettings.recommendationsTitle || 'RECOMMENDED FOR YOU'}
+                          </h3>
+                          <button className="cartuplift-recommendations-toggle" title="Toggle recommendations">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-icon-small">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
                       <div className="cartuplift-recommendations-content">
                         {formSettings.recommendationLayout === 'column' ? (
                           <>
                             <div className="cartuplift-recommendation-item">
-                              <img src="https://images.unsplash.com/photo-1521093470119-a3acdc43374a?w=100&h=100&fit=crop" alt="Snowboard" />
+                              <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-3_large.png" alt="Example Product Title" />
                               <div className="cartuplift-recommendation-info">
-                                <h4>The Multi-managed Snowboard</h4>
-                                <div className="cartuplift-recommendation-price">£629.95</div>
+                                <h4>Example Product Title</h4>
+                                <div className="cartuplift-recommendation-price">£49.99</div>
                               </div>
                               <button className="cartuplift-add-btn">+</button>
                             </div>
                             <div className="cartuplift-recommendation-item">
-                              <img src="https://images.unsplash.com/photo-1518611012118-696072aa579a?w=100&h=100&fit=crop" alt="Snowboard" />
+                              <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-4_large.png" alt="Example Product Title" />
                               <div className="cartuplift-recommendation-info">
-                                <h4>The Collection Snowboard</h4>
-                                <div className="cartuplift-recommendation-price">£549.95</div>
+                                <h4>Example Product Title</h4>
+                                <div className="cartuplift-recommendation-price">£79.99</div>
+                              </div>
+                              <button className="cartuplift-add-btn">+</button>
+                            </div>
+                            <div className="cartuplift-recommendation-item">
+                              <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-2_large.png" alt="Example Product Title" />
+                              <div className="cartuplift-recommendation-info">
+                                <h4>Example Product Title</h4>
+                                <div className="cartuplift-recommendation-price">£39.99</div>
                               </div>
                               <button className="cartuplift-add-btn">+</button>
                             </div>
@@ -2426,11 +2600,11 @@ export default function SettingsPage() {
                         ) : formSettings.recommendationLayout === 'fullwidth' ? (
                           <div className="cartuplift-fullwidth-showcase">
                             <div className="cartuplift-fullwidth-item">
-                              <img src="https://images.unsplash.com/photo-1521093470119-a3acdc43374a?w=150&h=150&fit=crop" alt="Snowboard" />
+                              <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-5_large.png" alt="Example Product Title" />
                               <div className="cartuplift-fullwidth-info">
-                                <h4>🔥 Top Seller: The Multi-managed Snowboard</h4>
-                                <p>Best performance in your category</p>
-                                <div className="cartuplift-fullwidth-price">£629.95</div>
+                                <h4>🔥 Top Seller: Example Product Title</h4>
+                                <p>Best quality for your needs</p>
+                                <div className="cartuplift-fullwidth-price">£199.99</div>
                                 <button className="cartuplift-fullwidth-add">{formSettings.addButtonText || 'Add to Cart'}</button>
                               </div>
                             </div>
@@ -2438,40 +2612,51 @@ export default function SettingsPage() {
                         ) : formSettings.recommendationLayout === 'grid' ? (
                           <div className="cartuplift-grid-layout">
                             <div className="cartuplift-grid-item">
-                              <img src="https://images.unsplash.com/photo-1521093470119-a3acdc43374a?w=120&h=120&fit=crop" alt="Snowboard" />
-                              <h5>Multi-managed Snowboard</h5>
-                              <span>£629.95</span>
+                              <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-6_large.png" alt="Example Product Title" />
+                              <h5>Example Product Title</h5>
+                              <span>£89.99</span>
                               <button>+</button>
                             </div>
                             <div className="cartuplift-grid-item">
-                              <img src="https://images.unsplash.com/photo-1518611012118-696072aa579a?w=120&h=120&fit=crop" alt="Collection" />
-                              <h5>Collection Snowboard</h5>
-                              <span>£549.95</span>
+                              <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png" alt="Example Product Title" />
+                              <h5>Example Product Title</h5>
+                              <span>£19.99</span>
                               <button>+</button>
                             </div>
                             <div className="cartuplift-grid-item">
-                              <img src="https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=120&h=120&fit=crop" alt="Jacket" />
-                              <h5>Winter Jacket</h5>
-                              <span>£329.95</span>
+                              <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-2_large.png" alt="Example Product Title" />
+                              <h5>Example Product Title</h5>
+                              <span>£89.99</span>
                               <button>+</button>
                             </div>
                             <div className="cartuplift-grid-item">
-                              <img src="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=120&h=120&fit=crop" alt="Gloves" />
-                              <h5>Winter Gloves</h5>
-                              <span>£89.95</span>
+                              <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-3_large.png" alt="Example Product Title" />
+                              <h5>Example Product Title</h5>
+                              <span>£49.99</span>
                               <button>+</button>
                             </div>
                           </div>
-                        ) : (
-                          <div className="cartuplift-recommendations-row">
-                            <div className="cartuplift-recommendations-track">
+                        ) : (formSettings.recommendationLayout === 'row' || formSettings.recommendationLayout === 'horizontal') ? (
+                          <div className="cartuplift-horizontal-card">
+                            <div className="cartuplift-recommendations-header">
+                              <h3 className="cartuplift-recommendations-title">
+                                {formSettings.recommendationsTitle || 'RECOMMENDED FOR YOU'}
+                              </h3>
+                              <button className="cartuplift-recommendations-toggle" title="Toggle recommendations">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-icon-small">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+                                </svg>
+                              </button>
+                            </div>
+                            <div className="cartuplift-recommendations-row">
+                              <div className="cartuplift-recommendations-track" ref={horizontalTrackRef}>
                               <div className="cartuplift-recommendation-card">
                                 <div className="cartuplift-card-content">
                                   <div className="cartuplift-product-image">
-                                    <img src="https://images.unsplash.com/photo-1521093470119-a3acdc43374a?w=100&h=100&fit=crop" alt="Snowboard" />
+                                    <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-4_large.png" alt="Example Product Title" />
                                   </div>
                                   <div className="cartuplift-product-info">
-                                    <h4>The Multi-managed Snowboard</h4>
+                                    <h4>Example Product Title</h4>
                                     <div className="cartuplift-product-variation">
                                       <select className="cartuplift-size-dropdown" title="Select size">
                                         <option>Size: M</option>
@@ -2480,7 +2665,7 @@ export default function SettingsPage() {
                                     </div>
                                   </div>
                                   <div className="cartuplift-product-actions">
-                                    <div className="cartuplift-recommendation-price">£629.95</div>
+                                    <div className="cartuplift-recommendation-price">£79.99</div>
                                     <button className="cartuplift-add-recommendation">{formSettings.addButtonText || 'Add'}</button>
                                   </div>
                                 </div>
@@ -2489,10 +2674,10 @@ export default function SettingsPage() {
                               <div className="cartuplift-recommendation-card">
                                 <div className="cartuplift-card-content">
                                   <div className="cartuplift-product-image">
-                                    <img src="https://images.unsplash.com/photo-1518611012118-696072aa579a?w=100&h=100&fit=crop" alt="Collection Snowboard" />
+                                    <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-5_large.png" alt="Example Product Title" />
                                   </div>
                                   <div className="cartuplift-product-info">
-                                    <h4>The Collection Snowboard</h4>
+                                    <h4>Example Product Title</h4>
                                     <div className="cartuplift-product-variation">
                                       <select className="cartuplift-size-dropdown" title="Select size">
                                         <option>Size: S</option>
@@ -2501,7 +2686,7 @@ export default function SettingsPage() {
                                     </div>
                                   </div>
                                   <div className="cartuplift-product-actions">
-                                    <div className="cartuplift-recommendation-price">£549.95</div>
+                                    <div className="cartuplift-recommendation-price">£199.99</div>
                                     <button className="cartuplift-add-recommendation">{formSettings.addButtonText || 'Add'}</button>
                                   </div>
                                 </div>
@@ -2510,10 +2695,10 @@ export default function SettingsPage() {
                               <div className="cartuplift-recommendation-card">
                                 <div className="cartuplift-card-content">
                                   <div className="cartuplift-product-image">
-                                    <img src="https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=100&h=100&fit=crop" alt="Winter Jacket" />
+                                    <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-6_large.png" alt="Example Product Title" />
                                   </div>
                                   <div className="cartuplift-product-info">
-                                    <h4>Winter Jacket Pro</h4>
+                                    <h4>Example Product Title</h4>
                                     <div className="cartuplift-product-variation">
                                       <select className="cartuplift-size-dropdown" title="Select size">
                                         <option>Size: L</option>
@@ -2527,21 +2712,22 @@ export default function SettingsPage() {
                                   </div>
                                 </div>
                               </div>
+                              </div>
                             </div>
                             <div className="cartuplift-carousel-controls">
-                              <button className="cartuplift-carousel-nav" title="Previous">
+                              <button className="cartuplift-carousel-nav" title="Previous" onClick={() => horizontalTrackRef.current?.scrollBy({ left: -(232 + 8), behavior: 'smooth' })}>
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
                                 </svg>
                               </button>
-                              <button className="cartuplift-carousel-nav" title="Next">
+                              <button className="cartuplift-carousel-nav" title="Next" onClick={() => horizontalTrackRef.current?.scrollBy({ left: (232 + 8), behavior: 'smooth' })}>
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                                 </svg>
                               </button>
                             </div>
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   )}
@@ -2612,10 +2798,10 @@ export default function SettingsPage() {
                     </Modal>
                   )}
 
-                  {/* Discount & Notes Section - Simple Button Only */}
+                  {/* Discount & Notes Section - Collapsed Button Like Real Cart */}
                   {(formSettings.enableDiscountCode || formSettings.enableNotes) && (
                     <div className="cartuplift-discount-section">
-                      <button className="cartuplift-action-button">
+                      <button className="cartuplift-rainbow-card-button" type="button">
                         {formSettings.actionText || 'Add discount codes and notes'}
                       </button>
                     </div>

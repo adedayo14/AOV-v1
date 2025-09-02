@@ -2,7 +2,7 @@
   'use strict';
   
   // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v175';
+  const CART_UPLIFT_VERSION = 'v176';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
   // Safe analytics shim (no-op if not provided by host)
@@ -423,7 +423,7 @@
             </div>
             
             <button class="cartuplift-checkout-btn" onclick="window.cartUpliftDrawer.proceedToCheckout()">
-              ${this.settings.checkoutButtonText || 'CHECKOUT'}
+              ${this.settings.checkoutButtonText || 'Checkout'}
             </button>
             
             ${(() => {
