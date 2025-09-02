@@ -17,58 +17,46 @@ export async function loader({ request }: LoaderFunctionArgs) {
               title
               handle
               status
-              featuredImage {
-                url
-                altText
-              }
-              priceRangeV2 {
-                minVariantPrice {
-                  amount
-                  currencyCode
-                }
-                maxVariantPrice {
-                  amount
-                  currencyCode
-                }
-              }
+              featuredImage { url altText }
               variants(first: 10) {
                 edges {
                   node {
                     id
                     title
-                    price {
-                      amount
-                      currencyCode
-                    }
+                    price
                     availableForSale
                   }
                 }
               }
             }
           }
-          pageInfo {
-            hasNextPage
-            hasPreviousPage
-          }
+          pageInfo { hasNextPage hasPreviousPage }
         }
       }
     `, {
       variables: {
         first: limit,
-        query: query ? `title:*${query}* OR vendor:*${query}* OR tag:*${query}*` : '',
+        query: query ? "title:*" + query + "* OR vendor:*" + query + "* OR tag:*" + query + "*" : '',
       },
     });
 
     const data = await response.json();
 
-    if (!data || !data.data) {
+    if (!data || !(data as any).data) {
       console.error('Invalid GraphQL response:', data);
-      return json({ error: 'Failed to fetch products' }, { status: 500 });
+      return json({ products: [], error: 'Failed to fetch products' });
     }
 
     // Transform the data to a simpler format
-    const products = data.data.products.edges.map((edge: any) => {
+    const products = (data as any).data.products.edges.map((edge: any) => {
       const product = edge.node;
+      const variants = (product.variants?.edges || []).map((variantEdge: any) => ({
+        id: variantEdge.node.id,
+        title: variantEdge.node.title,
+        price: variantEdge.node.price,
+        availableForSale: variantEdge.node.availableForSale,
+      }));
+      const minVariant = variants.find((v: any) => v.price != null) || variants[0];
       return {
         id: product.id,
         title: product.title,
@@ -76,25 +64,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
         status: product.status,
         image: product.featuredImage?.url || null,
         imageAlt: product.featuredImage?.altText || product.title,
-        minPrice: product.priceRangeV2.minVariantPrice.amount,
-        maxPrice: product.priceRangeV2.maxVariantPrice.amount,
-        currency: product.priceRangeV2.minVariantPrice.currencyCode,
-        variants: product.variants.edges.map((variantEdge: any) => ({
-          id: variantEdge.node.id,
-          title: variantEdge.node.title,
-          price: variantEdge.node.price.amount,
-          availableForSale: variantEdge.node.availableForSale,
-        })),
+        minPrice: minVariant?.price ?? null,
+        variants,
       };
     });
 
-    return json({
-      products,
-      hasNextPage: data.data.products.pageInfo.hasNextPage,
-    });
+  return json({ products, hasNextPage: (data as any).data.products.pageInfo.hasNextPage });
 
   } catch (error) {
     console.error('Error fetching products:', error);
-    return json({ error: 'Failed to fetch products' }, { status: 500 });
+    return json({ products: [], error: 'Failed to fetch products' });
   }
 }

@@ -208,74 +208,123 @@
     }
 
     applyCustomColors() {
-      if (this.settings.buttonColor) {
-        const style = document.getElementById('cartuplift-dynamic-styles') || document.createElement('style');
-        style.id = 'cartuplift-dynamic-styles';
-        style.textContent = `
-          :root {
-            --cartuplift-button-color: ${this.settings.buttonColor} !important;
-          }
-          .cartuplift-shipping-progress-fill {
-            background: ${this.settings.buttonColor} !important;
-          }
-          .cartuplift-checkout-btn,
-          .cartuplift-discount-apply,
-          .cartuplift-add-recommendation {
-            background: ${this.settings.buttonColor} !important;
-          }
-          .cartuplift-add-recommendation-circle {
-            border-color: ${this.settings.buttonColor} !important;
-            color: ${this.settings.buttonColor} !important;
-          }
-          .cartuplift-add-recommendation-circle:hover {
-            background: ${this.settings.buttonColor} !important;
-            color: white !important;
-          }
-          
-          /* Force shipping bar color override */
-          .cartuplift-shipping-progress-fill {
-            background: ${this.settings.shippingBarColor || '#121212'} !important;
-          }
-          
-          /* Hide theme notifications when Cart Uplift is enabled */
-          ${this.settings.enableApp ? `
-          .cart-notification,
-          cart-notification,
-          .cart-notification-wrapper,
-          .cart-notification-product,
-          .cart__notification,
-          #CartNotification,
-          .cart-popup,
-          .ajax-cart-popup,
-          .cart-drawer:not(#cartuplift-cart-popup),
-          #CartDrawer:not(#cartuplift-cart-popup),
-          .cart-popup-wrapper,
-          .ajax-cart__inner,
-          .product__notification,
-          .notification--cart,
-          .product-form__notification,
-          [data-cart-notification],
-          [data-notification],
-          .added-to-cart,
-          .cart-success,
-          .cart-added,
-          .add-to-cart-notification,
-          .modal.cart,
-          .modal-cart,
-          .cart-modal,
-          .notification,
-          .ajax-cart,
-          .shopify-section .cart-notification {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            transform: translateY(-100%) !important;
-            pointer-events: none !important;
-          }` : ''}
-        `;
-        if (!document.getElementById('cartuplift-dynamic-styles')) {
-          document.head.appendChild(style);
+      const style = document.getElementById('cartuplift-dynamic-styles') || document.createElement('style');
+      style.id = 'cartuplift-dynamic-styles';
+      
+      // Build CSS with all available color settings
+      let css = `
+        :root {
+          ${this.settings.buttonColor ? `--cartuplift-button-color: ${this.settings.buttonColor} !important;` : ''}
+          ${this.settings.buttonTextColor ? `--cartuplift-button-text-color: ${this.settings.buttonTextColor} !important;` : ''}
+          ${this.settings.backgroundColor ? `--cartuplift-background: ${this.settings.backgroundColor} !important;` : ''}
+          ${this.settings.textColor ? `--cartuplift-primary: ${this.settings.textColor} !important;` : ''}
+          ${this.settings.recommendationsBackgroundColor ? `--cartuplift-recommendations-bg: ${this.settings.recommendationsBackgroundColor} !important;` : ''}
+          ${this.settings.shippingBarBackgroundColor ? `--cartuplift-shipping-bg: ${this.settings.shippingBarBackgroundColor} !important;` : ''}
+          ${this.settings.shippingBarColor ? `--cartuplift-shipping-fill: ${this.settings.shippingBarColor} !important;` : ''}
         }
+        
+        /* Apply background colors */
+        ${this.settings.backgroundColor ? `
+        .cartuplift-drawer {
+          background: ${this.settings.backgroundColor} !important;
+        }` : ''}
+        
+        /* Apply text colors */
+        ${this.settings.textColor ? `
+        .cartuplift-drawer,
+        .cartuplift-item-title,
+        .cartuplift-price,
+        .cartuplift-total-label,
+        .cartuplift-total-value {
+          color: ${this.settings.textColor} !important;
+        }` : ''}
+        
+        /* Apply recommendations background */
+        ${this.settings.recommendationsBackgroundColor ? `
+        .cartuplift-recommendations,
+        .cartuplift-recommendations-container {
+          background: ${this.settings.recommendationsBackgroundColor} !important;
+        }` : ''}
+        
+        /* Apply button colors */
+        ${this.settings.buttonColor ? `
+        .cartuplift-shipping-progress-fill {
+          background: ${this.settings.buttonColor} !important;
+        }
+        .cartuplift-checkout-btn,
+        .cartuplift-discount-apply,
+        .cartuplift-add-recommendation {
+          background: ${this.settings.buttonColor} !important;
+          ${this.settings.buttonTextColor ? `color: ${this.settings.buttonTextColor} !important;` : ''}
+        }
+        .cartuplift-add-recommendation-circle {
+          border-color: ${this.settings.buttonColor} !important;
+          color: ${this.settings.buttonColor} !important;
+        }
+        .cartuplift-add-recommendation-circle:hover {
+          background: ${this.settings.buttonColor} !important;
+          color: ${this.settings.buttonTextColor || 'white'} !important;
+        }` : ''}
+        
+        /* Apply button text color separately if only text color is set */
+        ${this.settings.buttonTextColor && !this.settings.buttonColor ? `
+        .cartuplift-checkout-btn,
+        .cartuplift-discount-apply,
+        .cartuplift-add-recommendation {
+          color: ${this.settings.buttonTextColor} !important;
+        }` : ''}
+        
+        /* Apply shipping bar colors */
+        ${this.settings.shippingBarColor ? `
+        .cartuplift-shipping-progress-fill {
+          background: ${this.settings.shippingBarColor} !important;
+        }` : ''}
+        
+        ${this.settings.shippingBarBackgroundColor ? `
+        .cartuplift-shipping-progress {
+          background: ${this.settings.shippingBarBackgroundColor} !important;
+        }` : ''}
+          
+        /* Hide theme notifications when Cart Uplift is enabled */
+        ${this.settings.enableApp ? `
+        .cart-notification,
+        cart-notification,
+        .cart-notification-wrapper,
+        .cart-notification-product,
+        .cart__notification,
+        #CartNotification,
+        .cart-popup,
+        .ajax-cart-popup,
+        .cart-drawer:not(#cartuplift-cart-popup),
+        #CartDrawer:not(#cartuplift-cart-popup),
+        .cart-popup-wrapper,
+        .ajax-cart__inner,
+        .product__notification,
+        .notification--cart,
+        .product-form__notification,
+        [data-cart-notification],
+        [data-notification],
+        .added-to-cart,
+        .cart-success,
+        .cart-added,
+        .add-to-cart-notification,
+        .modal.cart,
+        .modal-cart,
+        .cart-modal,
+        .notification,
+        .ajax-cart,
+        .shopify-section .cart-notification {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          transform: translateY(-100%) !important;
+          pointer-events: none !important;
+        }` : ''}
+      `;
+      
+      style.textContent = css;
+      if (!document.getElementById('cartuplift-dynamic-styles')) {
+        document.head.appendChild(style);
       }
     }
 
@@ -374,7 +423,7 @@
             </div>
             
             <button class="cartuplift-checkout-btn" onclick="window.cartUpliftDrawer.proceedToCheckout()">
-              CHECKOUT
+              ${this.settings.checkoutButtonText || 'CHECKOUT'}
             </button>
             
             ${(() => {
@@ -717,7 +766,7 @@
                   <div class="cartuplift-product-actions">
                     <div class="cartuplift-recommendation-price">${this.formatMoney(product.priceCents || 0)}</div>
                     <button class="cartuplift-add-recommendation" data-product-id="${product.id}" data-variant-id="${product.variant_id}">
-                      Add+
+                      ${this.settings.addButtonText || 'Add+'}
                     </button>
                   </div>
                 </div>
@@ -1146,7 +1195,7 @@
                         onclick="window.cartUpliftDrawer.removeDiscountCode()">Remove</button>
               ` : `
                 <button type="button" class="cartuplift-modal-apply-btn" 
-                        onclick="window.cartUpliftDrawer.applyModalDiscount()">Apply</button>
+                        onclick="window.cartUpliftDrawer.applyModalDiscount()">${this.settings.applyButtonText || 'Apply'}</button>
               `}
             </div>
             <div id="modal-discount-message" class="cartuplift-modal-message">${currentCode ? `<span class="success">${currentSummary || `✓ Discount code "${currentCode}" saved! Will be applied at checkout.`}</span>` : ''}</div>
@@ -2989,6 +3038,35 @@
     async getManualRuleRecommendations(cart) {
       const recommendations = [];
       
+      // First, check for simple manual product selection
+      if (this.cartUplift.settings.manualRecommendationProducts) {
+        const manualProductIds = this.cartUplift.settings.manualRecommendationProducts
+          .split(',')
+          .map(id => id.trim())
+          .filter(Boolean);
+        
+        console.log('🛠️ Manual products selected:', manualProductIds);
+        
+        for (const productId of manualProductIds) {
+          try {
+            // Convert variant ID to product ID if needed
+            const cleanId = productId.replace('gid://shopify/ProductVariant/', '').replace('gid://shopify/Product/', '');
+            const product = await this.fetchProductById(cleanId);
+            if (product) {
+              recommendations.push({
+                ...product,
+                score: 0.95,
+                reason: 'manual_selection',
+                complementType: 'manually_selected'
+              });
+            }
+          } catch (error) {
+            console.error('🛠️ Failed to load manual product:', productId, error);
+          }
+        }
+      }
+      
+      // Then check complex manual rules (existing functionality)
       for (const item of cart.items) {
         const productText = `${item.product_title} ${item.product_type || ''}`.toLowerCase();
         

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { json } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import {
@@ -11,6 +11,11 @@ import {
   Text,
   Banner,
   Checkbox,
+  Button,
+  Modal,
+  Spinner,
+  InlineStack,
+  Badge,
 } from "@shopify/polaris";
 import { withAuth, withAuthAction } from "../utils/auth.server";
 import { getSettings, saveSettings } from "../models/settings.server";
@@ -75,6 +80,7 @@ export const action = withAuthAction(async ({ request, auth }) => {
 export default function SettingsPage() {
   const { settings } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
+  const productsFetcher = useFetcher();
   const [formSettings, setFormSettings] = useState(settings);
 
   // Helper function to resolve CSS custom properties with fallbacks for preview
@@ -87,13 +93,15 @@ export default function SettingsPage() {
     return colorValue || fallback;
   };
 
-  // Manual recommendation product selection state (for future implementation)
-  // const [showProductSelector, setShowProductSelector] = useState(false);
-  // const [availableProducts, setAvailableProducts] = useState<any[]>([]);
-  // const [productSearchQuery, setProductSearchQuery] = useState("");
-  // const [selectedProducts, setSelectedProducts] = useState<string[]>(
-  //   settings.manualRecommendationProducts ? settings.manualRecommendationProducts.split(',').filter(Boolean) : []
-  // );
+  // Manual recommendation product selection state
+  const [showProductSelector, setShowProductSelector] = useState(false);
+  const [productSearchQuery, setProductSearchQuery] = useState("");
+  const [selectedProducts, setSelectedProducts] = useState<string[]>(
+    settings.manualRecommendationProducts ? settings.manualRecommendationProducts.split(',').filter(Boolean) : []
+  );
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsError, setProductsError] = useState<string | null>(null);
+  const [products, setProducts] = useState<any[]>([]);
   const previewRef = useRef<HTMLDivElement>(null);
   
   // Success banner auto-hide state
@@ -139,7 +147,7 @@ export default function SettingsPage() {
   };
 
   const updateSetting = (key: string, value: any) => {
-    setFormSettings(prev => ({ ...prev, [key]: value }));
+  setFormSettings((prev: any) => ({ ...prev, [key]: value }));
   };
 
   const cartPositionOptions = [
@@ -162,10 +170,44 @@ export default function SettingsPage() {
   ];
 
   const complementDetectionModeOptions = [
-    { label: "✨ Sales Data Analysis", value: "automatic" },
-    { label: "⚙️ Manual Rules Only", value: "manual" },
-    { label: "🔄 Hybrid (Sales + Manual)", value: "hybrid" },
+    { label: "🤖 AI‑Powered (Recommended)", value: "automatic" },
+    { label: "🛠️ Manual Selection", value: "manual" },
+    { label: "🔀 AI + Manual (Hybrid)", value: "hybrid" },
   ];
+
+  // Fetch products when selector opens or search changes (debounced)
+  useEffect(() => {
+    if (!showProductSelector) return;
+    setProductsError(null);
+    setProductsLoading(true);
+    const timeout = setTimeout(() => {
+      const qs = new URLSearchParams();
+      if (productSearchQuery) qs.set('query', productSearchQuery);
+      qs.set('limit', '25');
+      productsFetcher.load(`/api/products?${qs.toString()}`);
+    }, 250);
+    return () => {
+      clearTimeout(timeout);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showProductSelector, productSearchQuery]);
+
+  useEffect(() => {
+    if (productsFetcher.state === 'loading') {
+      setProductsLoading(true);
+      setProductsError(null);
+    }
+    if (productsFetcher.state === 'idle') {
+      const data: any = productsFetcher.data;
+      if (data?.error) {
+        setProducts([]);
+        setProductsError(typeof data.error === 'string' ? data.error : 'Failed to load products');
+      } else {
+        setProducts(Array.isArray(data?.products) ? data.products : []);
+      }
+      setProductsLoading(false);
+    }
+  }, [productsFetcher.state, productsFetcher.data]);
 
   // Calculate free shipping progress
   const threshold = (formSettings.freeShippingThreshold || 100) * 100;
@@ -431,6 +473,8 @@ export default function SettingsPage() {
           .cartuplift-recommendations {
             padding-top: 6px;
           }
+          .cartuplift-selected-products { margin-top: 8px; }
+          .cartuplift-selected-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 
           .cartuplift-recommendations-header {
             display: flex;
@@ -1302,6 +1346,14 @@ export default function SettingsPage() {
             margin-top: 8px;
             border-radius: 8px;
           }
+          .cartuplift-selected-products { margin-top: 8px; }
+          .cartuplift-selected-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+          .cartuplift-product-selector-list { max-height: 360px; overflow: auto; display: grid; gap: 8px; }
+          .cartuplift-product-row { display: grid; grid-template-columns: auto 40px 1fr; align-items: center; gap: 10px; padding: 8px; border: 1px solid #ececef; border-radius: 6px; background: #fff; }
+          .cartuplift-product-thumb { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; background: #f4f5f6; }
+          .cartuplift-product-meta { display: flex; flex-direction: column; gap: 2px; }
+          .cartuplift-product-title { font-size: 12px; font-weight: 600; color: #1a1a1a; margin: 0; }
+          .cartuplift-product-sub { font-size: 11px; color: #737373; margin: 0; }
           
           .cartuplift-recommendations-header {
             display: flex;
@@ -2148,27 +2200,30 @@ export default function SettingsPage() {
                     />
                     
                     <Select
-                      label="Recommendation Engine"
+                      label="Recommendation Mode (AI vs. Manual)"
                       options={complementDetectionModeOptions}
                       value={formSettings.complementDetectionMode}
                       onChange={(value) => updateSetting("complementDetectionMode", value)}
-                      helpText="How products are selected for recommendations"
+                      helpText="Choose how products are picked. AI analyzes sales patterns; Manual lets you hand-pick."
                     />
                     
-                    {formSettings.complementDetectionMode === 'manual' && (
+                    {(formSettings.complementDetectionMode === 'manual' || formSettings.complementDetectionMode === 'hybrid') && (
                       <div className="cartuplift-manual-rec-section">
-                        <Text variant="bodyMd" as="p" tone="subdued">
-                          🛠️ Manual Product Selection
+                        <Text variant="headingSm" as="h3">
+                          {formSettings.complementDetectionMode === 'hybrid' ? '🔀 Manual Product Selection (for Hybrid)' : '🛠️ Manual Product Selection'}
                         </Text>
                         <div className="cartuplift-manual-rec-info">
-                          <Text variant="bodyMd" as="p">
-                            When manual mode is selected, you can choose specific products to recommend. This feature will show a product selector where you can search and select products from your store.
-                          </Text>
-                          <div className="cartuplift-manual-rec-products">
+                          {formSettings.complementDetectionMode === 'hybrid' && (
                             <Text variant="bodyMd" as="p" tone="subdued">
-                              📝 Coming soon: Product selection interface
+                              Select products to mix with AI recommendations
                             </Text>
-                          </div>
+                          )}
+                          <InlineStack gap="200" align="start">
+                            <Button onClick={() => setShowProductSelector(true)}>Select products</Button>
+                            {selectedProducts.length > 0 && (
+                              <Badge tone="success">{selectedProducts.length} selected</Badge>
+                            )}
+                          </InlineStack>
                         </div>
                       </div>
                     )}
@@ -2489,6 +2544,72 @@ export default function SettingsPage() {
                         )}
                       </div>
                     </div>
+                  )}
+                  {showProductSelector && (
+                    <Modal
+                      open
+                      onClose={() => setShowProductSelector(false)}
+                      title="Select products to recommend"
+                      primaryAction={{
+                        content: 'Save selection',
+                        onAction: () => {
+                          updateSetting('manualRecommendationProducts', selectedProducts.join(','));
+                          setShowProductSelector(false);
+                        },
+                      }}
+                      secondaryActions={[{ content: 'Cancel', onAction: () => setShowProductSelector(false) }]}
+                    >
+                      <Modal.Section>
+                        <BlockStack gap="300">
+                          <TextField
+                            label="Search products"
+                            value={productSearchQuery}
+                            onChange={(v: string) => setProductSearchQuery(v)}
+                            autoComplete="off"
+                            placeholder="Search by title, vendor, or tag"
+                          />
+                          {productsLoading ? (
+                            <InlineStack align="center">
+                              <Spinner accessibilityLabel="Loading products" />
+                            </InlineStack>
+                          ) : (
+                            <div className="cartuplift-product-selector-list">
+                              {productsError && (
+                                <Banner tone="critical">{productsError}</Banner>
+                              )}
+                              {products.length === 0 && (
+                                <Text as="p" tone="subdued">No products found.</Text>
+                              )}
+                              {products.map((p: any) => {
+                                const checked = selectedProducts.includes(p.id);
+                                return (
+                                  <div key={p.id} className="cartuplift-product-row">
+                                    <Checkbox
+                                      label=""
+                                      checked={checked}
+                                      onChange={(val: boolean) => {
+                                        if (val) {
+                                          const next = Array.from(new Set([...selectedProducts, p.id]));
+                                          setSelectedProducts(next);
+                                        } else {
+                                          const next = selectedProducts.filter((id: string) => id !== p.id);
+                                          setSelectedProducts(next);
+                                        }
+                                      }}
+                                    />
+                                    <img className="cartuplift-product-thumb" src={p.image || ''} alt={p.imageAlt || p.title} />
+                                    <div className="cartuplift-product-meta">
+                                      <p className="cartuplift-product-title">{p.title}</p>
+                                      <p className="cartuplift-product-sub">{p.handle}</p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </BlockStack>
+                      </Modal.Section>
+                    </Modal>
                   )}
 
                   {/* Discount & Notes Section - Simple Button Only */}

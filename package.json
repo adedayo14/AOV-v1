@@ -4,6 +4,9 @@
   "scripts": {
     "build": "remix vite:build",
     "dev": "shopify app dev",
+  "clean": "rm -rf node_modules build",
+  "db:reset": "prisma migrate reset --force --skip-seed",
+  "reset": "npm run clean && npm ci && prisma generate && prisma migrate deploy && npm run db:reset && npm run dev",
     "config:link": "shopify app config link",
     "generate": "shopify app generate",
     "deploy": "shopify app deploy",
