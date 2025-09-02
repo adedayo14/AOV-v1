@@ -51,6 +51,15 @@ export const action = withAuthAction(async ({ request, auth }) => {
     maxRecommendations: Number(settings.maxRecommendations) || 6,
     cartPosition: String(settings.cartPosition) || 'bottom-right',
     cartIcon: String(settings.cartIcon) || 'cart',
+    // New sticky cart settings
+    stickyCartShowIcon: settings.stickyCartShowIcon !== 'false',
+    stickyCartShowCount: settings.stickyCartShowCount !== 'false',
+    stickyCartShowTotal: settings.stickyCartShowTotal !== 'false',
+    stickyCartBackgroundColor: String(settings.stickyCartBackgroundColor) || "#000000",
+    stickyCartTextColor: String(settings.stickyCartTextColor) || "#ffffff",
+    stickyCartCountBadgeColor: String(settings.stickyCartCountBadgeColor) || "#ff4444",
+    stickyCartCountBadgeTextColor: String(settings.stickyCartCountBadgeTextColor) || "#ffffff",
+    stickyCartBorderRadius: Number(settings.stickyCartBorderRadius) || 25,
     freeShippingText: String(settings.freeShippingText) || "You're {{ amount }} away from free shipping!",
     freeShippingAchievedText: String(settings.freeShippingAchievedText) || "🎉 Congratulations! You've unlocked free shipping!",
     recommendationsTitle: String(settings.recommendationsTitle) || "You might also like",
@@ -86,13 +95,43 @@ export default function SettingsPage() {
   const [formSettings, setFormSettings] = useState(settings);
 
   // Helper function to resolve CSS custom properties with fallbacks for preview
-  const resolveColor = (colorValue: string, fallback: string = '#000000'): string => {
+  const resolveColor = (colorValue: string | undefined | null, fallback: string = '#000000'): string => {
+    // Handle null/undefined values
+    if (!colorValue) {
+      return fallback;
+    }
+    
     // If it's a CSS custom property, extract the fallback value
     if (colorValue.startsWith('var(')) {
       const fallbackMatch = colorValue.match(/var\([^,]+,\s*([^)]+)\)/);
       return fallbackMatch ? fallbackMatch[1].trim() : fallback;
     }
     return colorValue || fallback;
+  };
+
+  // Helper function to render cart icons based on selected style
+  const renderCartIcon = (iconStyle: string = 'cart') => {
+    switch (iconStyle) {
+      case 'bag':
+        return (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-sticky-icon">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+          </svg>
+        );
+      case 'basket':
+        return (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-sticky-icon">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 7.5h15l-1.5 7.5H6l-1.5-7.5zM4.5 7.5L3 3.75H1.5m3 3.75L6 15h12l1.5-7.5M9 19.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM20.25 19.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z" />
+          </svg>
+        );
+      case 'cart':
+      default:
+        return (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-sticky-icon">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+          </svg>
+        );
+    }
   };
 
   // Manual recommendation product selection state
@@ -109,6 +148,21 @@ export default function SettingsPage() {
   
   // Success banner auto-hide state
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+
+  // Ensure new sticky cart settings have defaults
+  useEffect(() => {
+    setFormSettings(prev => ({
+      ...prev,
+      stickyCartShowIcon: prev.stickyCartShowIcon !== false,
+      stickyCartShowCount: prev.stickyCartShowCount !== false,
+      stickyCartShowTotal: prev.stickyCartShowTotal !== false,
+      stickyCartBackgroundColor: prev.stickyCartBackgroundColor || "#000000",
+      stickyCartTextColor: prev.stickyCartTextColor || "#ffffff",
+      stickyCartCountBadgeColor: prev.stickyCartCountBadgeColor || "#ff4444",
+      stickyCartCountBadgeTextColor: prev.stickyCartCountBadgeTextColor || "#ffffff",
+      stickyCartBorderRadius: prev.stickyCartBorderRadius || 25,
+    }));
+  }, []);
 
   // Auto-hide success banner after 3 seconds
   useEffect(() => {
@@ -159,6 +213,8 @@ export default function SettingsPage() {
     { label: "Bottom Left", value: "bottom-left" },
     { label: "Top Right", value: "top-right" },
     { label: "Top Left", value: "top-left" },
+    { label: "Right Middle", value: "right-middle" },
+    { label: "Left Middle", value: "left-middle" },
   ];
 
   const cartIconOptions = [
@@ -774,15 +830,27 @@ export default function SettingsPage() {
             left: 20px;
           }
 
+          .cartuplift-sticky-preview.right-middle {
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+          }
+
+          .cartuplift-sticky-preview.left-middle {
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+          }
+
           .cartuplift-sticky-preview .cartuplift-sticky-btn {
             display: flex;
             align-items: center;
             gap: 6px;
             padding: 8px 14px;
-            background: ${resolveColor(formSettings.buttonColor, '#000000')};
-            color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')};
+            background: ${resolveColor(formSettings.stickyCartBackgroundColor || formSettings.buttonColor, '#000000')};
+            color: ${resolveColor(formSettings.stickyCartTextColor || formSettings.buttonTextColor, '#ffffff')};
             border: none;
-            border-radius: 25px;
+            border-radius: ${formSettings.stickyCartBorderRadius || 25}px;
             cursor: pointer;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
             font-size: 11px;
@@ -796,8 +864,8 @@ export default function SettingsPage() {
           }
 
           .cartuplift-sticky-preview .cartuplift-sticky-count {
-            background: #ff4444;
-            color: white;
+            background: ${resolveColor(formSettings.stickyCartCountBadgeColor, '#ff4444')};
+            color: ${resolveColor(formSettings.stickyCartCountBadgeTextColor, '#ffffff')};
             border-radius: 8px;
             padding: 1px 4px;
             font-size: 9px;
@@ -2240,6 +2308,7 @@ export default function SettingsPage() {
                     options={cartIconOptions}
                     value={formSettings.cartIcon}
                     onChange={(value) => updateSetting("cartIcon", value)}
+                    helpText="Choose the icon style for your cart"
                   />
                   
                   <div className="cartuplift-appearance-row">
@@ -2281,26 +2350,111 @@ export default function SettingsPage() {
                   </div>
                   
                   <Checkbox
+                    label="Show only on cart page"
+                    checked={formSettings.showOnlyOnCartPage}
+                    onChange={(value) => updateSetting("showOnlyOnCartPage", value)}
+                    helpText="Limit cart uplift features to cart page only (disables recommendations and upsells on other pages)"
+                  />
+                </FormLayout>
+              </BlockStack>
+            </Card>
+
+            {/* Dedicated Sticky Cart Section */}
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingMd" as="h2">🛒 Sticky Cart</Text>
+                <FormLayout>
+                  <Checkbox
                     label="Enable Sticky Cart"
                     checked={formSettings.enableStickyCart}
                     onChange={(checked) => updateSetting("enableStickyCart", checked)}
                     helpText="Keep the cart accessible as users browse your store"
                   />
 
-                  <Select
-                    label="Cart Position"
-                    options={cartPositionOptions}
-                    value={formSettings.cartPosition}
-                    onChange={(value) => updateSetting("cartPosition", value)}
-                    helpText="Where the cart button appears on your store"
-                  />
-                  
-                  <Checkbox
-                    label="Show only on cart page"
-                    checked={formSettings.showOnlyOnCartPage}
-                    onChange={(value) => updateSetting("showOnlyOnCartPage", value)}
-                    helpText="Limit cart uplift features to cart page only (disables recommendations and upsells on other pages)"
-                  />
+                  {formSettings.enableStickyCart && (
+                    <>
+                      <Select
+                        label="Cart Position"
+                        options={cartPositionOptions}
+                        value={formSettings.cartPosition}
+                        onChange={(value) => updateSetting("cartPosition", value)}
+                        helpText="Where the cart button appears on your store"
+                      />
+
+                      <Text variant="headingMd" as="h3">Display Options</Text>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                        <Checkbox
+                          label="Show Cart Icon"
+                          checked={formSettings.stickyCartShowIcon !== false}
+                          onChange={(checked) => updateSetting("stickyCartShowIcon", checked)}
+                        />
+                        <Checkbox
+                          label="Show Item Count"
+                          checked={formSettings.stickyCartShowCount !== false}
+                          onChange={(checked) => updateSetting("stickyCartShowCount", checked)}
+                        />
+                        <Checkbox
+                          label="Show Total Price"
+                          checked={formSettings.stickyCartShowTotal !== false}
+                          onChange={(checked) => updateSetting("stickyCartShowTotal", checked)}
+                        />
+                      </div>
+
+                      <Text variant="headingMd" as="h3">Colors & Styling</Text>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div>
+                          <Text variant="bodyMd" as="p">Background Color</Text>
+                          <input
+                            type="color"
+                            value={resolveColor(formSettings.stickyCartBackgroundColor, '#000000')}
+                            onChange={(e) => updateSetting("stickyCartBackgroundColor", e.target.value)}
+                            style={{ width: '100%', height: '36px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          />
+                        </div>
+                        <div>
+                          <Text variant="bodyMd" as="p">Text Color</Text>
+                          <input
+                            type="color"
+                            value={resolveColor(formSettings.stickyCartTextColor, '#ffffff')}
+                            onChange={(e) => updateSetting("stickyCartTextColor", e.target.value)}
+                            style={{ width: '100%', height: '36px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div>
+                          <Text variant="bodyMd" as="p">Count Badge Color</Text>
+                          <input
+                            type="color"
+                            value={resolveColor(formSettings.stickyCartCountBadgeColor, '#ff4444')}
+                            onChange={(e) => updateSetting("stickyCartCountBadgeColor", e.target.value)}
+                            style={{ width: '100%', height: '36px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          />
+                        </div>
+                        <div>
+                          <Text variant="bodyMd" as="p">Count Badge Text</Text>
+                          <input
+                            type="color"
+                            value={resolveColor(formSettings.stickyCartCountBadgeTextColor, '#ffffff')}
+                            onChange={(e) => updateSetting("stickyCartCountBadgeTextColor", e.target.value)}
+                            style={{ width: '100%', height: '36px', border: '1px solid #ccc', borderRadius: '4px' }}
+                          />
+                        </div>
+                      </div>
+
+                      <TextField
+                        label="Border Radius (px)"
+                        type="number"
+                        value={String(formSettings.stickyCartBorderRadius || 25)}
+                        onChange={(value) => updateSetting("stickyCartBorderRadius", parseInt(value) || 25)}
+                        helpText="Controls how rounded the sticky cart button appears (0 = square, 25 = rounded)"
+                        suffix="px"
+                      />
+                    </>
+                  )}
                 </FormLayout>
               </BlockStack>
             </Card>
@@ -2857,11 +3011,13 @@ export default function SettingsPage() {
               {/* Sticky Cart Preview */}
               <div className={`cartuplift-sticky-preview ${formSettings.cartPosition || 'bottom-right'}`}>
                 <button className="cartuplift-sticky-btn">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-sticky-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-                  </svg>
-                  <span className="cartuplift-sticky-count">5</span>
-                  <span className="cartuplift-sticky-total">£474.00</span>
+                  {formSettings.stickyCartShowIcon !== false && renderCartIcon(formSettings.cartIcon)}
+                  {formSettings.stickyCartShowCount !== false && (
+                    <span className="cartuplift-sticky-count">5</span>
+                  )}
+                  {formSettings.stickyCartShowTotal !== false && (
+                    <span className="cartuplift-sticky-total">£474.00</span>
+                  )}
                 </button>
               </div>
         </div>

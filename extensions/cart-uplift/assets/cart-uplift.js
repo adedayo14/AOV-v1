@@ -337,11 +337,28 @@
       const stickyCart = document.createElement('div');
       stickyCart.id = 'cartuplift-sticky';
       stickyCart.className = `cartuplift-sticky ${this.settings.cartPosition || 'bottom-right'}`;
+      
+      // Build the button content based on settings
+      let buttonContent = '';
+      
+      // Add icon if enabled
+      if (this.settings.stickyCartShowIcon !== false) {
+        buttonContent += this.getCartIcon();
+      }
+      
+      // Add count if enabled
+      if (this.settings.stickyCartShowCount !== false) {
+        buttonContent += `<span class="cartuplift-sticky-count">${this.cart?.item_count || 0}</span>`;
+      }
+      
+      // Add total if enabled
+      if (this.settings.stickyCartShowTotal !== false) {
+        buttonContent += `<span class="cartuplift-sticky-total">${this.formatMoney(this.getDisplayedTotalCents())}</span>`;
+      }
+      
       stickyCart.innerHTML = `
         <button class="cartuplift-sticky-btn" aria-label="Open cart">
-          ${this.getCartIcon()}
-          <span class="cartuplift-sticky-count">${this.cart?.item_count || 0}</span>
-          <span class="cartuplift-sticky-total">${this.formatMoney(this.getDisplayedTotalCents())}</span>
+          ${buttonContent}
         </button>
       `;
       
@@ -2156,8 +2173,12 @@
       // Update sticky cart
       const count = document.querySelector('.cartuplift-sticky-count');
       const total = document.querySelector('.cartuplift-sticky-total');
-  if (count) count.textContent = this.cart.item_count;
-  if (total) total.textContent = this.formatMoney(this.getDisplayedTotalCents());
+      if (count && this.settings.stickyCartShowCount !== false) {
+        count.textContent = this.cart.item_count;
+      }
+      if (total && this.settings.stickyCartShowTotal !== false) {
+        total.textContent = this.formatMoney(this.getDisplayedTotalCents());
+      }
       
       // Only refresh layout if recommendations are loaded (filtering handled elsewhere)
       if (this.settings.enableRecommendations && this._recommendationsLoaded) {
@@ -2379,8 +2400,9 @@
 
     getCartIcon() {
       const icons = {
-        bag: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 7h-3V6a4 4 0 0 0-8 0v1H5a1 1 0 0 0-1 1v11a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8a1 1 0 0 0-1-1zM10 6a2 2 0 0 1 4 0v1h-4V6z"/></svg>',
-        cart: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>'
+        bag: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>',
+        basket: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 7.5h15l-1.5 7.5H6l-1.5-7.5zM4.5 7.5L3 3.75H1.5m3 3.75L6 15h12l1.5-7.5M9 19.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM20.25 19.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z" /></svg>',
+        cart: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" /></svg>'
       };
       return icons[this.settings.cartIcon] || icons.cart;
     }
@@ -2790,8 +2812,7 @@
                   node.textContent.includes('Added to cart') ||
                   node.textContent.includes('Item added')
                 ));
-              
-              // Hide if it's a cart notification and not our drawer
+                            // Hide if it's a cart notification and not our drawer
               if (isCartNotification && !node.id?.includes('cartuplift')) {
                 console.log('🛒 Blocking dynamically added theme notification:', node);
                 node.style.setProperty('display', 'none', 'important');
