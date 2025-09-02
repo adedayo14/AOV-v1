@@ -493,6 +493,7 @@ body.cartuplift-no-scroll {
   margin-top: 0;
   padding-top: 0;   /* remove space before header */
   padding-bottom: 0;/* tighten space under content */
+  padding-left: 10px; /* add left padding for horizontal cards */
 }
 
 /* When discount is moved into the scrollable content, keep compact spacing */
@@ -609,7 +610,7 @@ body.cartuplift-no-scroll {
   overflow-y: hidden;
   scroll-behavior: smooth;
   scroll-snap-type: x mandatory; /* Enable snap scrolling */
-  padding: 0 16px; /* inset like the settings preview */
+  padding: 0 16px; /* restore original padding */
   position: relative;
 }
 
@@ -629,7 +630,7 @@ body.cartuplift-no-scroll {
 .cartuplift-recommendations-track {
   display: flex;
   gap: 15px;
-  padding: 6px 84px 6px 0; /* right space for controls; left relies on container padding */
+  padding: 6px 84px 6px 0; /* restore original padding */
   margin-top: 4px; /* Slightly tighter to header */
   /* Smooth momentum scrolling */
   transform: translateZ(0); /* Force hardware acceleration */
@@ -1113,7 +1114,7 @@ body.cartuplift-no-scroll {
   /* Exact desktop card sizing and spacing */
   .cartuplift-recommendations-track {
     gap: 0; /* card margin controls spacing */
-    padding: 6px 100px 16px 32px; /* increased bottom padding to 16px for dots space */
+    padding: 6px 100px 16px 0; /* restore original padding */
   }
 
   .cartuplift-recommendation-card {

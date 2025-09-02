@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import * as React from "react";
 import { json } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import {
@@ -19,6 +19,8 @@ import {
 } from "@shopify/polaris";
 import { withAuth, withAuthAction } from "../utils/auth.server";
 import { getSettings, saveSettings } from "../models/settings.server";
+
+const { useState, useEffect, useRef } = React;
 
 export const loader = withAuth(async ({ auth }) => {
   const shop = auth.session.shop;
