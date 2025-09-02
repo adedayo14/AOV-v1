@@ -3,7 +3,7 @@
 client_id = "06d17c445a3713f419add1e31894bcc3"
 name = "cart-uplift-app"
 handle = "cart-uplift-app-7"
-application_url = "https://deemed-think-foreign-struck.trycloudflare.com"
+application_url = "https://referring-associated-tires-minimum.trycloudflare.com"
 embedded = true
 
 [build]
@@ -26,10 +26,10 @@ api_version = "2025-07"
 scopes = "read_customers,read_discounts,read_orders,read_script_tags,read_themes,write_orders,write_products,write_script_tags,write_themes"
 
 [auth]
-redirect_urls = ["https://deemed-think-foreign-struck.trycloudflare.com/auth/callback", "https://deemed-think-foreign-struck.trycloudflare.com/auth/shopify/callback", "https://deemed-think-foreign-struck.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://referring-associated-tires-minimum.trycloudflare.com/auth/callback", "https://referring-associated-tires-minimum.trycloudflare.com/auth/shopify/callback", "https://referring-associated-tires-minimum.trycloudflare.com/api/auth/callback"]
 
 [app_proxy]
-url = "https://deemed-think-foreign-struck.trycloudflare.com/apps/proxy"
+url = "https://referring-associated-tires-minimum.trycloudflare.com/apps/proxy"
 subpath = "cart-uplift"
 prefix = "apps"
 
