@@ -3,7 +3,7 @@
 client_id = "06d17c445a3713f419add1e31894bcc3"
 name = "cart-uplift-app"
 handle = "cart-uplift-app-7"
-application_url = "https://outline-killer-fitting-breeding.trycloudflare.com"
+application_url = "https://section-runner-dare-brunette.trycloudflare.com"
 embedded = true
 
 [build]
@@ -26,10 +26,10 @@ api_version = "2025-07"
 scopes = "read_customers,read_discounts,read_orders,read_script_tags,read_themes,write_orders,write_products,write_script_tags,write_themes"
 
 [auth]
-redirect_urls = ["https://outline-killer-fitting-breeding.trycloudflare.com/auth/callback", "https://outline-killer-fitting-breeding.trycloudflare.com/auth/shopify/callback", "https://outline-killer-fitting-breeding.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://section-runner-dare-brunette.trycloudflare.com/auth/callback", "https://section-runner-dare-brunette.trycloudflare.com/auth/shopify/callback", "https://section-runner-dare-brunette.trycloudflare.com/api/auth/callback"]
 
 [app_proxy]
-url = "https://outline-killer-fitting-breeding.trycloudflare.com/apps/proxy"
+url = "https://section-runner-dare-brunette.trycloudflare.com/apps/proxy"
 subpath = "cart-uplift"
 prefix = "apps"
 

@@ -109,6 +109,7 @@ export const action = withAuthAction(async ({ request, auth }) => {
     giftProgressStyle: String(settings.giftProgressStyle) || "single-next",
     giftThresholds: String(settings.giftThresholds) || "[]",
     giftNoticeText: String(settings.giftNoticeText) || "Free gift added: {{product}} (worth {{amount}})",
+    giftPriceText: String(settings.giftPriceText) || "FREE",
   };
   
   try {
@@ -310,6 +311,7 @@ export default function SettingsPage() {
       giftProgressStyle: prev.giftProgressStyle || 'single-next',
       giftThresholds: prev.giftThresholds || '[]',
       giftNoticeText: prev.giftNoticeText || 'Free gift added: {{product}} (worth {{amount}})',
+      giftPriceText: prev.giftPriceText || 'FREE',
     }));
   }, []);
 
@@ -3263,6 +3265,22 @@ export default function SettingsPage() {
                                 <strong>Fallback (if left blank):</strong> "Free gift included"
                               </Text>
                             </BlockStack>
+
+                            {/* Gift Price Text Customization */}
+                            <BlockStack gap="200">
+                              <Text variant="headingSm" as="h3">Gift Price Display</Text>
+                              <TextField
+                                label="Gift Price Text"
+                                value={formSettings.giftPriceText || 'FREE'}
+                                onChange={(value) => updateSetting("giftPriceText", value)}
+                                helpText="Text shown instead of price for gift items"
+                                placeholder="FREE"
+                                autoComplete="off"
+                              />
+                              <Text variant="bodySm" color="subdued">
+                                <strong>Default:</strong> "FREE" | <strong>Fallback (if left blank):</strong> "Gift"
+                              </Text>
+                            </BlockStack>
                           </BlockStack>
                         </BlockStack>
                       )}
@@ -3347,16 +3365,28 @@ export default function SettingsPage() {
 
                   {formSettings.enableStickyCart && (
                     <>
-                      <Select
-                        label="Cart Position"
-                        options={cartPositionOptions}
-                        value={formSettings.cartPosition}
-                        onChange={(value) => updateSetting("cartPosition", value)}
-                        helpText="Where the cart button appears on your store"
-                      />
+                      <InlineStack gap="400">
+                        <Select
+                          label="Cart Position"
+                          options={cartPositionOptions}
+                          value={formSettings.cartPosition}
+                          onChange={(value) => updateSetting("cartPosition", value)}
+                          helpText="Where the cart button appears on your store"
+                        />
+                        <TextField
+                          label="Border Radius (px)"
+                          type="number"
+                          value={String(formSettings.stickyCartBorderRadius || 25)}
+                          onChange={(value) => updateSetting("stickyCartBorderRadius", parseInt(value) || 25)}
+                          helpText="Controls how rounded the sticky cart button appears (0 = square, 25 = rounded)"
+                          suffix="px"
+                          autoComplete="off"
+                        />
+                      </InlineStack>
 
-                      <BlockStack gap="300">
-                        <Text variant="headingSm" as="h3">Display Options</Text>
+                      <div style={{ marginTop: '24px' }}>
+                        <BlockStack gap="300">
+                          <Text variant="headingSm" as="h3">Display Options</Text>
                         <InlineStack gap="400">
                           <Checkbox
                             label="Show Cart Icon"
@@ -3375,69 +3405,59 @@ export default function SettingsPage() {
                           />
                         </InlineStack>
                       </BlockStack>
+                      </div>
 
-                      <BlockStack gap="300">
-                        <Text variant="headingSm" as="h3">Colors & Styling</Text>
-                        <InlineStack gap="400">
-                          <div className="cartuplift-color-field">
-                            <Text variant="bodyMd" as="p">Background Color</Text>
-                            <input
-                              type="color"
-                              value={resolveColor(formSettings.stickyCartBackgroundColor, '#000000')}
-                              onChange={(e) => updateSetting("stickyCartBackgroundColor", e.target.value)}
-                              className="cartuplift-color-input"
-                              title="Sticky cart background color"
-                              aria-label="Choose sticky cart background color"
-                            />
-                          </div>
-                          <div className="cartuplift-color-field">
-                            <Text variant="bodyMd" as="p">Text Color</Text>
-                            <input
-                              type="color"
-                              value={resolveColor(formSettings.stickyCartTextColor, '#ffffff')}
-                              onChange={(e) => updateSetting("stickyCartTextColor", e.target.value)}
-                              className="cartuplift-color-input"
-                              title="Sticky cart text color"
-                              aria-label="Choose sticky cart text color"
-                            />
-                          </div>
-                        </InlineStack>
-                        
-                        <InlineStack gap="400">
-                          <div className="cartuplift-color-field">
-                            <Text variant="bodyMd" as="p">Count Badge Color</Text>
-                            <input
-                              type="color"
-                              value={resolveColor(formSettings.stickyCartCountBadgeColor, '#ff4444')}
-                              onChange={(e) => updateSetting("stickyCartCountBadgeColor", e.target.value)}
-                              className="cartuplift-color-input"
-                              title="Count badge color"
-                              aria-label="Choose count badge color"
-                            />
-                          </div>
-                          <div className="cartuplift-color-field">
-                            <Text variant="bodyMd" as="p">Count Badge Text</Text>
-                            <input
-                              type="color"
-                              value={resolveColor(formSettings.stickyCartCountBadgeTextColor, '#ffffff')}
-                              onChange={(e) => updateSetting("stickyCartCountBadgeTextColor", e.target.value)}
-                              className="cartuplift-color-input"
-                              title="Count badge text color"
-                              aria-label="Choose count badge text color"
-                            />
-                          </div>
-                        </InlineStack>
-                      </BlockStack>
-
-                      <TextField
-                        label="Border Radius (px)"
-                        type="number"
-                        value={String(formSettings.stickyCartBorderRadius || 25)}
-                        onChange={(value) => updateSetting("stickyCartBorderRadius", parseInt(value) || 25)}
-                        helpText="Controls how rounded the sticky cart button appears (0 = square, 25 = rounded)"
-                        suffix="px"
-                        autoComplete="off"
-                      />
+                      <div style={{ marginTop: '24px' }}>
+                        <BlockStack gap="300">
+                          <Text variant="headingSm" as="h3">Colors & Styling</Text>
+                          <InlineStack gap="300">
+                            <div className="cartuplift-color-field">
+                              <Text variant="bodyMd" as="p">Background Color</Text>
+                              <input
+                                type="color"
+                                value={resolveColor(formSettings.stickyCartBackgroundColor, '#000000')}
+                                onChange={(e) => updateSetting("stickyCartBackgroundColor", e.target.value)}
+                                className="cartuplift-color-input"
+                                title="Sticky cart background color"
+                                aria-label="Choose sticky cart background color"
+                              />
+                            </div>
+                            <div className="cartuplift-color-field">
+                              <Text variant="bodyMd" as="p">Text Color</Text>
+                              <input
+                                type="color"
+                                value={resolveColor(formSettings.stickyCartTextColor, '#ffffff')}
+                                onChange={(e) => updateSetting("stickyCartTextColor", e.target.value)}
+                                className="cartuplift-color-input"
+                                title="Sticky cart text color"
+                                aria-label="Choose sticky cart text color"
+                              />
+                            </div>
+                            <div className="cartuplift-color-field">
+                              <Text variant="bodyMd" as="p">Count Badge Color</Text>
+                              <input
+                                type="color"
+                                value={resolveColor(formSettings.stickyCartCountBadgeColor, '#ff4444')}
+                                onChange={(e) => updateSetting("stickyCartCountBadgeColor", e.target.value)}
+                                className="cartuplift-color-input"
+                                title="Count badge color"
+                                aria-label="Choose count badge color"
+                              />
+                            </div>
+                            <div className="cartuplift-color-field">
+                              <Text variant="bodyMd" as="p">Count Badge Text</Text>
+                              <input
+                                type="color"
+                                value={resolveColor(formSettings.stickyCartCountBadgeTextColor, '#ffffff')}
+                                onChange={(e) => updateSetting("stickyCartCountBadgeTextColor", e.target.value)}
+                                className="cartuplift-color-input"
+                                title="Count badge text color"
+                                aria-label="Choose count badge text color"
+                              />
+                            </div>
+                          </InlineStack>
+                        </BlockStack>
+                      </div>
                     </>
                   )}
                 </FormLayout>
