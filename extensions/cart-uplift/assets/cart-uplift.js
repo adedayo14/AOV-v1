@@ -978,13 +978,19 @@
         return 0; // Keep original order for same type items
       });
       
-      return sortedItems.map((item, index) => {
+      return sortedItems.map((item, displayIndex) => {
         const isGift = item.properties && item.properties._is_gift === 'true';
         const displayTitle = item.product_title; // Remove duplicate gift icon from title
         const displayPrice = isGift ? 'FREE' : this.formatMoney(item.final_price);
         
+        // Find the original line number from the unsorted cart
+        const originalLineNumber = this.cart.items.findIndex(originalItem => 
+          originalItem.id === item.id || 
+          (originalItem.variant_id === item.variant_id && originalItem.key === item.key)
+        ) + 1;
+        
         return `
-        <div class="cartuplift-item${isGift ? ' cartuplift-gift-item' : ''}" data-variant-id="${item.variant_id}" data-line="${index + 1}">
+        <div class="cartuplift-item${isGift ? ' cartuplift-gift-item' : ''}" data-variant-id="${item.variant_id}" data-line="${originalLineNumber}">
           <div class="cartuplift-item-image">
             <img src="${item.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${item.product_title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
           </div>
@@ -995,15 +1001,15 @@
             ${this.getVariantOptionsHTML(item)}
             <div class="cartuplift-item-quantity-wrapper">
               <div class="cartuplift-quantity">
-                <button class="cartuplift-qty-minus" data-line="${index + 1}"${isGift ? ' style="display:none;"' : ''}>−</button>
+                <button class="cartuplift-qty-minus" data-line="${originalLineNumber}"${isGift ? ' style="display:none;"' : ''}>−</button>
                 <span class="cartuplift-qty-display">${item.quantity}</span>
-                <button class="cartuplift-qty-plus" data-line="${index + 1}"${isGift ? ' style="display:none;"' : ''}>+</button>
+                <button class="cartuplift-qty-plus" data-line="${originalLineNumber}"${isGift ? ' style="display:none;"' : ''}>+</button>
               </div>
             </div>
           </div>
           <div class="cartuplift-item-price-actions">
             <div class="cartuplift-item-price${isGift ? ' cartuplift-gift-price' : ''}">${displayPrice}</div>
-            <button class="cartuplift-item-remove-x" data-line="${index + 1}" aria-label="Remove item"${isGift ? ' style="display:none;"' : ''}>
+            <button class="cartuplift-item-remove-x" data-line="${originalLineNumber}" aria-label="Remove item"${isGift ? ' style="display:none;"' : ''}>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M9 6V4h6v2m-9 0 1 14h10l1-14H6z"/>
               </svg>
@@ -1047,7 +1053,7 @@
                         <span class="cartuplift-gift-progress-text">${Math.round(progress)}%</span>
                       </div>
                       <div class="cartuplift-gift-bar">
-                        <div class="cartuplift-gift-fill" style="width: ${progress}%; background: ${isUnlocked ? '#4CAF50' : '#2196F3'};"></div>
+                        <div class="cartuplift-gift-fill" style="width: ${progress}%; background: ${isUnlocked ? (this.themeColors.primary || '#121212') : '#2196F3'};"></div>
                       </div>
                     </div>
                   `;
@@ -1172,16 +1178,19 @@
       const threshold = this.settings.freeShippingThreshold || 100;
       const progress = Math.min((currentTotal / threshold) * 100, 100);
       
+      // Use theme-detected colors instead of green fallback
+      const safeButtonColor = this.settings.buttonColor || this.themeColors.primary || '#121212';
+      
       console.log('🛒 Free Shipping Progress Bar Debug:', {
         progress: progress,
-        buttonColor: this.settings.buttonColor,
-        progressBarHTML: `width: ${progress}%; background: ${this.settings.buttonColor || '#4CAF50'} !important;`
+        buttonColor: safeButtonColor,
+        progressBarHTML: `width: ${progress}%; background: ${safeButtonColor} !important;`
       });
       
       return `
         <div class="cartuplift-shipping-bar">
           <div class="cartuplift-shipping-progress">
-            <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${this.settings.buttonColor || '#4CAF50'} !important; display: block;"></div>
+            <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${safeButtonColor} !important; display: block;"></div>
           </div>
         </div>
       `;
@@ -1230,7 +1239,7 @@
               <span class="cartuplift-gift-progress-text">${Math.round(progress)}%</span>
             </div>
             <div class="cartuplift-gift-bar">
-              <div class="cartuplift-gift-fill" style="width: ${progress}%; background: ${isUnlocked ? '#4CAF50' : '#2196F3'};"></div>
+              <div class="cartuplift-gift-fill" style="width: ${progress}%; background: ${isUnlocked ? (this.themeColors.primary || '#121212') : '#2196F3'};"></div>
             </div>
           </div>
         `;
