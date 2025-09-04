@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gift Notice Customization Examples</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .example {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .code {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+        .preview {
+            background: #fff;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            padding: 8px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+        .highlight {
+            background: #fef3c7;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎁 Gift Notice Text Customization</h1>
+    
+    <p>You can now customize the gift notice text that appears in your cart when customers have gift items. The system supports dynamic variables that get replaced with actual values.</p>
+    
+    <h2>📝 Available Variables</h2>
+    <ul>
+        <li><code class="highlight">{{amount}}</code> - Dynamically shows the total savings amount (e.g., "£115.00")</li>
+        <li><code class="highlight">{{product}}</code> - Shows the gift product name(s). If multiple gifts, they're comma-separated</li>
+    </ul>
+    
+    <h2>🎨 Customization Examples</h2>
+    
+    <div class="example">
+        <h3>Example 1: Your Current Format</h3>
+        <p>Perfect for showing savings amount with a friendly message.</p>
+        <div class="code">window.CartUpliftSettings = {
+    giftNoticeText: 'Gifts are free - {{amount}} savings included'
+};</div>
+        <div class="preview">🎁 Gifts are free - £115.00 savings included</div>
+    </div>
+    
+    <div class="example">
+        <h3>Example 2: Product Name Focus</h3>
+        <p>Great when you want to highlight which specific products are gifts.</p>
+        <div class="code">window.CartUpliftSettings = {
+    giftNoticeText: '{{product}} added as a FREE gift! Save {{amount}}'
+};</div>
+        <div class="preview">🎁 Premium Hand Cream added as a FREE gift! Save £25.00</div>
+    </div>
+    
+    <div class="example">
+        <h3>Example 3: Multiple Products</h3>
+        <p>When multiple gifts are in cart, products are automatically comma-separated.</p>
+        <div class="code">window.CartUpliftSettings = {
+    giftNoticeText: 'FREE gifts included: {{product}} ({{amount}} value)'
+};</div>
+        <div class="preview">🎁 FREE gifts included: Hand Cream, Travel Pouch (£40.00 value)</div>
+    </div>
+    
+    <div class="example">
+        <h3>Example 4: Promotional Style</h3>
+        <p>More marketing-focused messaging for promotional campaigns.</p>
+        <div class="code">window.CartUpliftSettings = {
+    giftNoticeText: 'BONUS: {{product}} worth {{amount}} - absolutely FREE!'
+};</div>
+        <div class="preview">🎁 BONUS: Luxury Sample Set worth £30.00 - absolutely FREE!</div>
+    </div>
+    
+    <div class="example">
+        <h3>Example 5: Simple & Clean</h3>
+        <p>Minimal approach focusing just on the savings.</p>
+        <div class="code">window.CartUpliftSettings = {
+    giftNoticeText: 'Free gifts worth {{amount}}'
+};</div>
+        <div class="preview">🎁 Free gifts worth £50.00</div>
+    </div>
+    
+    <div class="example">
+        <h3>Example 6: Gratitude Style</h3>
+        <p>Emphasizes customer appreciation and reward.</p>
+        <div class="code">window.CartUpliftSettings = {
+    giftNoticeText: 'Thank you! {{product}} is our gift to you ({{amount}} value)'
+};</div>
+        <div class="preview">🎁 Thank you! Starter Kit is our gift to you (£35.00 value)</div>
+    </div>
+    
+    <h2>⚙️ Implementation</h2>
+    <p>To customize your gift notice text, add the <code>giftNoticeText</code> property to your CartUplift settings:</p>
+    
+    <div class="code">
+&lt;script&gt;
+window.CartUpliftSettings = {
+    // Your existing settings...
+    enableGiftGating: true,
+    giftThresholds: [5000], // £50.00 threshold
+    
+    // Custom gift notice text
+    giftNoticeText: 'Gifts are free - {{amount}} savings included',
+    
+    // Other settings...
+};
+&lt;/script&gt;
+    </div>
+    
+    <h2>🔧 Technical Notes</h2>
+    <ul>
+        <li>If no custom text is provided, the default message "Gifts are free - {{amount}} savings included" is used</li>
+        <li>Variables are case-sensitive: use <code>{{amount}}</code> and <code>{{product}}</code> exactly</li>
+        <li>The gift icon (🎁) is automatically added before your custom text</li>
+        <li>Multiple gift products are automatically comma-separated in the {{product}} variable</li>
+        <li>Amount formatting follows your store's currency settings</li>
+    </ul>
+    
+    <h2>✨ New Features Added</h2>
+    <div style="background: #dcfce7; border: 1px solid #16a34a; border-radius: 6px; padding: 15px; margin: 20px 0;">
+        <h3 style="margin-top: 0; color: #16a34a;">✅ Gift Items Now Show at Cart Top</h3>
+        <p style="margin-bottom: 0;">Gift items automatically appear at the top of your cart, even when customers add more regular products after receiving gifts. This ensures gifts remain prominent and customers always see their rewards first.</p>
+    </div>
+    
+    <div style="background: #dbeafe; border: 1px solid #3b82f6; border-radius: 6px; padding: 15px; margin: 20px 0;">
+        <h3 style="margin-top: 0; color: #3b82f6;">🎨 Customizable Gift Notice Text</h3>
+        <p style="margin-bottom: 0;">You can now completely customize the gift notice message with dynamic variables for amount and product names, giving you full control over how gift rewards are presented to customers.</p>
+    </div>
+</body>
+</html>

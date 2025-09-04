@@ -48,6 +48,9 @@
       this.settings.enableExpressCheckout = this.settings.enableExpressCheckout !== false; // DEFAULT TO TRUE
       this.settings.autoOpenCart = this.settings.autoOpenCart !== false;
       
+      // Set default gift notice text if not provided
+      this.settings.giftNoticeText = this.settings.giftNoticeText || 'Gifts are free - {{amount}} savings included';
+      
       console.log('🔧 CartUplift: Express checkout setting:', this.settings.enableExpressCheckout);
       console.log('🔧 CartUplift: Discount code setting:', this.settings.enableDiscountCode);
       console.log('🎁 CartUplift: Gift gating setting:', this.settings.enableGiftGating);
@@ -759,6 +762,7 @@
       // Calculate original cart total before any discounts
       let originalTotal = 0;
       let giftItemsTotal = 0;
+      let giftItems = [];
       
       if (this.cart && this.cart.items) {
         this.cart.items.forEach(item => {
@@ -766,6 +770,7 @@
           if (isGift) {
             // Track gift items total for reference
             giftItemsTotal += item.original_line_price || item.line_price || (item.price * item.quantity);
+            giftItems.push(item);
           } else {
             // Only include non-gift items in the payable total
             originalTotal += item.original_line_price || item.line_price || (item.price * item.quantity);
@@ -851,7 +856,7 @@
           <div class="cartuplift-footer">
             ${giftItemsTotal > 0 ? `
             <div class="cartuplift-gift-notice" style="margin-bottom:8px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 12px; color: #666;">
-              🎁 Gifts are free - ${this.formatMoney(giftItemsTotal)} savings included
+              🎁 ${this.processGiftNoticeTemplate(this.settings.giftNoticeText, giftItemsTotal, giftItems)}
             </div>
             ` : ''}
             ${hasDiscount ? `
@@ -962,7 +967,18 @@
         `;
       }
       
-      return this.cart.items.map((item, index) => {
+      // Sort items to put gift items at the top
+      const sortedItems = [...this.cart.items].sort((a, b) => {
+        const aIsGift = a.properties && a.properties._is_gift === 'true';
+        const bIsGift = b.properties && b.properties._is_gift === 'true';
+        
+        // Gift items go to top (return negative for a to put it first)
+        if (aIsGift && !bIsGift) return -1;
+        if (!aIsGift && bIsGift) return 1;
+        return 0; // Keep original order for same type items
+      });
+      
+      return sortedItems.map((item, index) => {
         const isGift = item.properties && item.properties._is_gift === 'true';
         const displayTitle = item.product_title; // Remove duplicate gift icon from title
         const displayPrice = isGift ? 'FREE' : this.formatMoney(item.final_price);
@@ -3492,6 +3508,21 @@
       }
       
       return '$' + amount;
+    }
+
+    processGiftNoticeTemplate(template, giftItemsTotal, giftItems = []) {
+      if (!template) return '';
+      
+      let processedText = template;
+      
+      // Replace {{amount}} with the total savings amount
+      processedText = processedText.replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(giftItemsTotal));
+      
+      // Replace {{product}} with gift product names (comma-separated if multiple)
+      const giftNames = giftItems.map(item => item.product_title).join(', ');
+      processedText = processedText.replace(/\{\{\s*product\s*\}\}/g, giftNames);
+      
+      return processedText;
     }
 
     proceedToCheckout() {
