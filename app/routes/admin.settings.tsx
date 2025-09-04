@@ -108,7 +108,7 @@ export const action = withAuthAction(async ({ request, auth }) => {
     enableGiftGating: settings.enableGiftGating === 'true',
     giftProgressStyle: String(settings.giftProgressStyle) || "single-next",
     giftThresholds: String(settings.giftThresholds) || "[]",
-    giftNoticeText: String(settings.giftNoticeText) || "Gifts are free - {{amount}} savings included",
+    giftNoticeText: String(settings.giftNoticeText) || "Free gift added: {{product}} (worth {{amount}})",
   };
   
   try {
@@ -309,7 +309,7 @@ export default function SettingsPage() {
       enableGiftGating: prev.enableGiftGating || false,
       giftProgressStyle: prev.giftProgressStyle || 'single-next',
       giftThresholds: prev.giftThresholds || '[]',
-      giftNoticeText: prev.giftNoticeText || 'Gifts are free - {{amount}} savings included',
+      giftNoticeText: prev.giftNoticeText || 'Free gift added: {{product}} (worth {{amount}})',
     }));
   }, []);
 
@@ -3247,20 +3247,20 @@ export default function SettingsPage() {
                               <Text variant="headingSm" as="h3">Gift Notice Text</Text>
                               <TextField
                                 label="Cart Gift Notice Message"
-                                value={formSettings.giftNoticeText || 'Gifts are free - {{amount}} savings included'}
+                                value={formSettings.giftNoticeText || 'Free gift added: {{product}} (worth {{amount}})'}
                                 onChange={(value) => updateSetting("giftNoticeText", value)}
-                                helpText="Customize the message shown in cart when gifts are applied. Use {{amount}} for savings amount and {{product}} for product names."
-                                placeholder="Gifts are free - {{amount}} savings included"
+                                helpText="Default message: 'Free gift added: {{product}} (worth {{amount}})'"
+                                placeholder="Free gift added: {{product}} (worth {{amount}})"
                                 autoComplete="off"
                                 multiline={2}
                               />
                               <Text variant="bodySm" color="subdued">
-                                <strong>Available variables:</strong><br/>
-                                • <code>{'{{amount}}'}</code> - Total savings amount (e.g., "£115.00")<br/>
-                                • <code>{'{{product}}'}</code> - Gift product names (comma-separated if multiple)
+                                <strong>You can use:</strong><br/>
+                                • <code>{'{{amount}}'}</code> – total savings (e.g. "£115.00")<br/>
+                                • <code>{'{{product}}'}</code> – gift product names (comma-separated if multiple)
                               </Text>
                               <Text variant="bodySm" color="subdued">
-                                <strong>Example:</strong> "BONUS: {'{{product}}'} worth {'{{amount}}'} - absolutely FREE!"
+                                <strong>Fallback (if left blank):</strong> "Free gift included"
                               </Text>
                             </BlockStack>
                           </BlockStack>

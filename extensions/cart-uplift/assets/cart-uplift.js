@@ -49,7 +49,7 @@
       this.settings.autoOpenCart = this.settings.autoOpenCart !== false;
       
       // Set default gift notice text if not provided
-      this.settings.giftNoticeText = this.settings.giftNoticeText || 'Gifts are free - {{amount}} savings included';
+      this.settings.giftNoticeText = this.settings.giftNoticeText || 'Free gift added: {{product}} (worth {{amount}})';
       
       console.log('🔧 CartUplift: Express checkout setting:', this.settings.enableExpressCheckout);
       console.log('🔧 CartUplift: Discount code setting:', this.settings.enableDiscountCode);
@@ -3520,7 +3520,10 @@
     }
 
     processGiftNoticeTemplate(template, giftItemsTotal, giftItems = []) {
-      if (!template) return '';
+      // Use fallback message if template is empty or blank
+      if (!template || template.trim() === '') {
+        return 'Free gift included';
+      }
       
       let processedText = template;
       
