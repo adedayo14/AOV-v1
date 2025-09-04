@@ -8,11 +8,13 @@
   --cartuplift-secondary: #666666;
   --cartuplift-border: #e5e5e5;
   --cartuplift-background: #ffffff;
-  --cartuplift-button-color: #4CAF50;
+  --cartuplift-cart-background: var(--cartuplift-background); /* Dedicated cart background */
+  --cartuplift-button-color: #121212;
+  --cartuplift-success-color: #121212; /* Dark neutral instead of green */
   --cartuplift-recommendations-bg: #ecebe3;
   --cartuplift-teal: #16a085;
   --cartuplift-danger: #ff4444;
-  --cartuplift-success: #22c55e;
+  --cartuplift-success: #121212; /* Dark neutral instead of green */
   --cartuplift-drawer-width: 520px;
   --cartuplift-border-radius: 6px;
 }
@@ -89,7 +91,7 @@ body.cartuplift-no-scroll {
 .cartuplift-drawer {
   width: 100%;
   height: 100svh; /* Use small viewport height to avoid mobile browser chrome issues */
-  background: var(--cartuplift-background);
+  background: var(--cartuplift-cart-background);
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
@@ -104,7 +106,7 @@ body.cartuplift-no-scroll {
    ======================================== */
 .cartuplift-header {
   padding: 12px 16px 8px 16px;
-  background: var(--cartuplift-background);
+  background: var(--cartuplift-cart-background);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -209,6 +211,205 @@ body.cartuplift-no-scroll {
 }
 
 /* ========================================
+   Gift Progress Bars - Compact
+   ======================================== */
+.cartuplift-gift-progress-container {
+  padding: 0 16px 8px;
+  background: var(--cartuplift-background);
+  flex-shrink: 0;
+}
+
+.cartuplift-stacked-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cartuplift-gift-threshold {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cartuplift-gift-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.cartuplift-gift-title {
+  color: #333;
+  font-weight: 500;
+}
+
+.cartuplift-gift-progress-text {
+  color: #666;
+  font-size: 11px;
+}
+
+.cartuplift-gift-bar {
+  width: 100%;
+  height: 4px;
+  background: #f0f0f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.cartuplift-gift-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+  min-width: 1px;
+}
+
+.cartuplift-single-multi-progress {
+  position: relative;
+  padding: 8px 0;
+}
+
+.cartuplift-milestone-bar {
+  width: 100%;
+  height: 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  position: relative;
+  overflow: visible;
+}
+
+.cartuplift-milestone-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+  min-width: 2px;
+}
+
+.cartuplift-milestone-marker {
+  position: absolute;
+  top: -8px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+}
+
+.cartuplift-milestone-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  border: 2px solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  margin-bottom: 4px;
+}
+
+.cartuplift-milestone-dot.unlocked {
+  background: var(--cartuplift-success-color, #121212);
+  border-color: var(--cartuplift-success-color, #121212);
+  color: white;
+}
+
+.cartuplift-milestone-label {
+  font-size: 10px;
+  color: #666;
+  white-space: normal;
+  text-align: center;
+  max-width: 60px;
+  line-height: 1.2;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+}
+
+.cartuplift-next-goal-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cartuplift-unlocked-gifts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cartuplift-unlocked-item {
+  font-size: 11px;
+  color: var(--cartuplift-success-color, #121212);
+  font-weight: 500;
+  padding: 2px 0;
+}
+
+.cartuplift-next-goal {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cartuplift-next-info {
+  font-size: 12px;
+  color: #333;
+  font-weight: 500;
+}
+
+.cartuplift-next-bar {
+  width: 100%;
+  height: 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.cartuplift-next-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+  min-width: 2px;
+}
+
+.cartuplift-progress-text {
+  font-size: 10px;
+  color: #666;
+  text-align: right;
+}
+
+/* Mobile Responsive Adjustments for Gift Progress */
+@media (max-width: 768px) {
+  .cartuplift-gift-progress-container {
+    padding: 0 12px 6px;
+  }
+  .cartuplift-stacked-progress {
+    gap: 8px;
+  }
+  .cartuplift-gift-info {
+    font-size: 11px;
+  }
+  .cartuplift-gift-title {
+    font-size: 11px;
+  }
+  .cartuplift-milestone-marker {
+    top: -6px;
+  }
+  .cartuplift-milestone-dot {
+    width: 16px;
+    height: 16px;
+    font-size: 8px;
+  }
+  .cartuplift-milestone-label {
+    font-size: 9px;
+    max-width: 60px;
+  }
+  .cartuplift-next-info {
+    font-size: 11px;
+  }
+}
+
+/* ========================================
    Content Wrapper - Compact
    ======================================== */
 .cartuplift-content-wrapper {
@@ -217,17 +418,18 @@ body.cartuplift-no-scroll {
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+  background: var(--cartuplift-cart-background); /* Add background to content wrapper */
   /* Let flexbox size this; avoid hard max-height that can cause page scroll on mobile */
   max-height: calc(100svh - 180px);
 }
 
 .cartuplift-items {
   flex: 1;
-  background: var(--cartuplift-background);
+  background: var(--cartuplift-cart-background); /* Use dedicated cart background */
   padding: 0 16px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-bottom: 0; /* no extra gap before recommendations */
+  padding-bottom: 10px; /* small gap before reccomendation */
   
   /* Hide scrollbar */
   -ms-overflow-style: none; /* Internet Explorer 10+ */
@@ -483,6 +685,7 @@ body.cartuplift-no-scroll {
 .cartuplift-scrollable-content {
   padding: 0;
   margin: 0;
+  background: var(--cartuplift-cart-background); /* Add background to scrollable content */
 }
 
 .cartuplift-scrollable-content > *:first-child {
@@ -868,8 +1071,8 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-add-recommendation.added {
-  background: #22c55e;
-  border-color: #22c55e;
+  background: #121212;
+  border-color: #121212;
   color: white;
 }
 
@@ -1189,7 +1392,7 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-discount-message .success {
-  color: #22c55e;
+  color: #121212;
   font-weight: 500;
 }
 
@@ -1200,7 +1403,7 @@ body.cartuplift-no-scroll {
 
 .cartuplift-footer {
   padding: 12px 16px;
-  background: #ffffff;
+  background: var(--cartuplift-cart-background); /* Use theme-matching background */
   border-top: 1px solid #e5e5e5;
   flex-shrink: 0;
 }
@@ -2117,4 +2320,29 @@ body.cartuplift-no-scroll {
   background: #ffffff;
   border-top: 1px solid #e5e5e5;
   flex-shrink: 0;
+}
+
+/* ========================================
+   Gift Item Styling
+   ======================================== */
+.cartuplift-gift-item {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 2px solid var(--cartuplift-primary, #121212);
+  border-radius: 8px;
+  position: relative;
+}
+
+.cartuplift-gift-item::before {
+  content: '🎁';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 18px;
+  z-index: 1;
+}
+
+.cartuplift-gift-price {
+  color: var(--cartuplift-primary, #121212) !important;
+  font-weight: bold;
+  font-size: 14px;
 }

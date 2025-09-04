@@ -23,11 +23,11 @@ export default function App() {
     <AppProvider isEmbeddedApp apiKey={apiKey}>
       <SessionStatus />
       <NavMenu>
-        <Link to="/app" rel="home">
+        <Link to="/admin" rel="home">
           Home
         </Link>
-        <Link to="/app/settings">Settings</Link>
-        <Link to="/app/dashboard">Dashboard</Link>
+        <Link to="/admin/settings">Settings</Link>
+        <Link to="/admin/dashboard">Dashboard</Link>
       </NavMenu>
       <Outlet />
     </AppProvider>

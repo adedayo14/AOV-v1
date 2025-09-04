@@ -16,6 +16,20 @@
       // Merge defaults with provided settings and any globals
       this.settings = Object.assign({}, window.CartUpliftSettings || {}, settings || {});
       
+      // Detect and apply theme colors to prevent green fallbacks
+      this.themeColors = this.detectThemeColors();
+      
+      // Apply theme color fallbacks for critical settings
+      if (!this.settings.shippingBarColor || this.settings.shippingBarColor === '#4CAF50') {
+        this.settings.shippingBarColor = this.themeColors.primary;
+      }
+      
+      // Apply background color from theme detection if not explicitly set
+      if (!this.settings.backgroundColor) {
+        this.settings.backgroundColor = this.themeColors.background;
+        console.log('🎨 Applied detected background color:', this.settings.backgroundColor);
+      }
+      
       // Normalize layout setting if present
       if (this.settings && this.settings.recommendationLayout) {
         const map = { horizontal: 'row', vertical: 'column', grid: 'row' };
@@ -25,6 +39,7 @@
       // Ensure boolean settings are properly set
       this.settings.enableStickyCart = Boolean(this.settings.enableStickyCart);
       this.settings.enableFreeShipping = Boolean(this.settings.enableFreeShipping);
+      this.settings.enableGiftGating = Boolean(this.settings.enableGiftGating);
       this.settings.enableApp = this.settings.enableApp !== false;
       this.settings.enableRecommendations = this.settings.enableRecommendations !== false; // DEFAULT TO TRUE
       this.settings.enableAddons = Boolean(this.settings.enableAddons);
@@ -35,6 +50,9 @@
       
       console.log('🔧 CartUplift: Express checkout setting:', this.settings.enableExpressCheckout);
       console.log('🔧 CartUplift: Discount code setting:', this.settings.enableDiscountCode);
+      console.log('🎁 CartUplift: Gift gating setting:', this.settings.enableGiftGating);
+      console.log('🎁 CartUplift: Gift thresholds:', this.settings.giftThresholds);
+      console.log('🎁 CartUplift: Gift progress style:', this.settings.giftProgressStyle);
       
       this.cart = null;
       this.isOpen = false;
@@ -100,6 +118,277 @@
       }
       
       await this.setup();
+    }
+
+    // Detect theme colors to avoid green fallbacks
+    detectThemeColors() {
+      console.log('🎨 [CartUplift] Starting theme color detection using Shopify best practices...');
+      
+      let primaryColor = null;
+      let detectionSource = '';
+
+      // 1. PRIORITY: Direct access to Shopify color scheme objects (Dawn's approach)
+      try {
+        // Check for color scheme data in the DOM (as used in Dawn theme)
+        const colorSchemeElements = document.querySelectorAll('[class*="color-scheme"], [class*="color-"]');
+        for (const element of colorSchemeElements) {
+          const styles = getComputedStyle(element);
+          
+          // Check Dawn's standard CSS custom properties
+          const buttonColor = styles.getPropertyValue('--color-button').trim();
+          const foregroundColor = styles.getPropertyValue('--color-foreground').trim();
+          
+          if (buttonColor && buttonColor.includes(',')) {
+            // Dawn stores colors as RGB values: "255,255,255"
+            const rgbValues = buttonColor.split(',').map(v => parseInt(v.trim()));
+            if (rgbValues.length >= 3 && rgbValues.every(v => !isNaN(v) && v >= 0 && v <= 255)) {
+              primaryColor = this.rgbToHex(`rgb(${rgbValues.join(',')})`);
+              detectionSource = 'Dawn color scheme --color-button';
+              console.log(`Found Dawn button color: ${primaryColor} from RGB(${rgbValues.join(',')})`);
+              break;
+            }
+          }
+          
+          if (!primaryColor && foregroundColor && foregroundColor.includes(',')) {
+            const rgbValues = foregroundColor.split(',').map(v => parseInt(v.trim()));
+            if (rgbValues.length >= 3 && rgbValues.every(v => !isNaN(v) && v >= 0 && v <= 255)) {
+              primaryColor = this.rgbToHex(`rgb(${rgbValues.join(',')})`);
+              detectionSource = 'Dawn color scheme --color-foreground';
+              console.log(`Found Dawn foreground color: ${primaryColor} from RGB(${rgbValues.join(',')})`);
+              break;
+            }
+          }
+        }
+      } catch (error) {
+        console.log('Could not access color scheme elements:', error);
+      }
+
+      // 2. Check root-level CSS custom properties (Shopify 2.0 standard)
+      if (!primaryColor) {
+        console.log('🔍 Checking root CSS custom properties...');
+        
+        const rootStyle = getComputedStyle(document.documentElement);
+        
+        // Dawn and modern Shopify themes store colors as comma-separated RGB values
+        const colorProperties = [
+          '--color-button',           // Dawn's primary button color
+          '--color-foreground',       // Dawn's text/foreground color
+          '--color-accent',           // Legacy accent color
+          '--color-primary'           // Legacy primary color
+        ];
+
+        for (const property of colorProperties) {
+          try {
+            const value = rootStyle.getPropertyValue(property).trim();
+            if (value && value.includes(',')) {
+              const rgbValues = value.split(',').map(v => parseInt(v.trim()));
+              if (rgbValues.length >= 3 && rgbValues.every(v => !isNaN(v) && v >= 0 && v <= 255)) {
+                primaryColor = this.rgbToHex(`rgb(${rgbValues.join(',')})`);
+                detectionSource = `Root CSS property ${property}`;
+                console.log(`Found root color: ${primaryColor} from ${property}: RGB(${rgbValues.join(',')})`);
+                break;
+              }
+            } else if (value && value.startsWith('#')) {
+              primaryColor = value;
+              detectionSource = `Root CSS property ${property}`;
+              console.log(`Found root color: ${primaryColor} from ${property}`);
+              break;
+            } else if (value && value.startsWith('rgb')) {
+              const hexColor = this.rgbToHex(value);
+              if (hexColor) {
+                primaryColor = hexColor;
+                detectionSource = `Root CSS property ${property}`;
+                console.log(`Found root color: ${primaryColor} from ${property}`);
+                break;
+              }
+            }
+          } catch (error) {
+            // Continue if property doesn't exist
+          }
+        }
+      }
+
+      // 3. Analyze Shopify standard button elements (as per Dawn)
+      if (!primaryColor) {
+        console.log('🔍 Analyzing Shopify standard buttons...');
+        
+        // Dawn and Shopify's recommended button selectors
+        const shopifyButtonSelectors = [
+          '.button:not(.button--secondary):not(.button--tertiary)',  // Dawn primary buttons
+          '.product-form__cart-submit',                              // Dawn add to cart
+          '.shopify-payment-button__button--unbranded',             // Shopify payment buttons
+          'button[type="submit"]:not(.button--secondary)',          // Submit buttons
+          '.btn--primary',                                          // Legacy primary buttons
+          '[data-shopify*="button"]'                               // Shopify-specific buttons
+        ];
+
+        for (const selector of shopifyButtonSelectors) {
+          try {
+            const button = document.querySelector(selector);
+            if (button && button.offsetParent !== null) {
+              const styles = getComputedStyle(button);
+              const bgColor = styles.backgroundColor;
+              
+              if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+                const hexColor = this.rgbToHex(bgColor);
+                if (hexColor) {
+                  // Avoid pure white, black, or transparent
+                  if (hexColor !== '#ffffff' && hexColor !== '#000000' && hexColor !== '#transparent') {
+                    primaryColor = hexColor;
+                    detectionSource = `Shopify button ${selector}`;
+                    console.log(`Found button color: ${primaryColor} from ${selector}`);
+                    break;
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            // Continue with next selector
+          }
+        }
+      }
+
+      // 4. Use Dawn's default dark neutral (never use green or fallbacks)
+      if (!primaryColor) {
+        primaryColor = '#121212'; // Dawn's standard dark color
+        detectionSource = 'Dawn default (#121212)';
+      }
+
+      // CRITICAL: Prevent any green colors (paid app requirement)
+      if (primaryColor && this.isGreenColor(primaryColor)) {
+        console.warn('🚫 [CartUplift] Green color detected, using Dawn default:', primaryColor);
+        primaryColor = '#121212';
+        detectionSource = 'Dawn default (green prevention)';
+      }
+
+      console.log(`✅ [CartUplift] Final color: ${primaryColor} (source: ${detectionSource})`);
+      
+      // Detect background colors
+      let backgroundColor = '#ffffff'; // Default white
+      let bgDetectionSource = 'default';
+      
+      try {
+        // Check for body background first
+        const bodyStyles = getComputedStyle(document.body);
+        let bodyBgColor = bodyStyles.backgroundColor;
+        
+        if (bodyBgColor && bodyBgColor !== 'rgba(0, 0, 0, 0)' && bodyBgColor !== 'transparent') {
+          backgroundColor = this.rgbToHex(bodyBgColor);
+          bgDetectionSource = 'body background';
+          console.log(`🎨 Body background detected: ${backgroundColor}`);
+        } else {
+          // Check root/html background
+          const rootStyles = getComputedStyle(document.documentElement);
+          let rootBgColor = rootStyles.backgroundColor;
+          
+          if (rootBgColor && rootBgColor !== 'rgba(0, 0, 0, 0)' && rootBgColor !== 'transparent') {
+            backgroundColor = this.rgbToHex(rootBgColor);
+            bgDetectionSource = 'root/html background';
+            console.log(`🎨 Root background detected: ${backgroundColor}`);
+          } else {
+            // Check for theme-specific background properties
+            const backgroundProperties = [
+              '--color-background',     // Dawn's background color
+              '--color-body',          // Some themes use this
+              '--background-color',    // Common property
+              '--color-base-background'
+            ];
+
+            for (const property of backgroundProperties) {
+              const value = rootStyles.getPropertyValue(property).trim();
+              if (value) {
+                if (value.includes(',')) {
+                  // RGB values like "255,255,255"
+                  const rgbValues = value.split(',').map(v => parseInt(v.trim()));
+                  if (rgbValues.length >= 3 && rgbValues.every(v => !isNaN(v) && v >= 0 && v <= 255)) {
+                    backgroundColor = this.rgbToHex(`rgb(${rgbValues.join(',')})`);
+                    bgDetectionSource = `CSS property ${property}`;
+                    console.log(`🎨 Background from ${property}: ${backgroundColor}`);
+                    break;
+                  }
+                } else if (value.startsWith('#') || value.startsWith('rgb')) {
+                  backgroundColor = this.rgbToHex(value);
+                  bgDetectionSource = `CSS property ${property}`;
+                  console.log(`🎨 Background from ${property}: ${backgroundColor}`);
+                  break;
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.log('Background color detection error:', error);
+        backgroundColor = '#ffffff';
+        bgDetectionSource = 'fallback to white';
+      }
+      
+      console.log(`🎨 [CartUplift] Final background: ${backgroundColor} (source: ${bgDetectionSource})`);
+      
+      return {
+        primary: primaryColor,
+        background: backgroundColor
+      };
+    }
+
+    // Enhanced green color detection
+    isGreenColor(color) {
+      if (!color || typeof color !== 'string') return false;
+      
+      const hex = color.toLowerCase();
+      
+      // Explicit green color codes to avoid
+      const greenColors = [
+        '#4caf50', '#22c55e', '#10b981', '#059669', '#34d399', 
+        '#6ee7b7', '#a7f3d0', '#d1fae5', '#ecfdf5', '#00ff00',
+        '#008000', '#228b22', '#32cd32', '#7cfc00', '#adff2f',
+        '#9acd32', '#98fb98', '#90ee90', '#00fa9a', '#00ff7f'
+      ];
+      
+      if (greenColors.includes(hex)) return true;
+      
+      // Check RGB values for green-dominant colors
+      try {
+        let r, g, b;
+        
+        if (hex.startsWith('#')) {
+          const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+          if (result) {
+            r = parseInt(result[1], 16);
+            g = parseInt(result[2], 16);
+            b = parseInt(result[3], 16);
+          }
+        } else if (color.includes('rgb')) {
+          const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+          if (match) {
+            r = parseInt(match[1]);
+            g = parseInt(match[2]);
+            b = parseInt(match[3]);
+          }
+        }
+        
+        if (r !== undefined && g !== undefined && b !== undefined) {
+          // Green is dominant and significantly higher than red and blue
+          return g > r + 30 && g > b + 30 && g > 100;
+        }
+      } catch (error) {
+        // Continue with string check
+      }
+      
+      return false;
+    }
+
+    // Helper function to convert RGB to hex
+    rgbToHex(rgb) {
+      if (!rgb || !rgb.includes('rgb')) return null;
+      
+      const match = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+      if (!match) return null;
+      
+      const r = parseInt(match[1]);
+      const g = parseInt(match[2]);
+      const b = parseInt(match[3]);
+      
+      return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
     }
 
     async setup() {
@@ -208,24 +497,88 @@
     }
 
     applyCustomColors() {
+      console.log('🎨 [CartUplift] Applying professional theme colors...');
+      
       const style = document.getElementById('cartuplift-dynamic-styles') || document.createElement('style');
       style.id = 'cartuplift-dynamic-styles';
       
-      // Build CSS with all available color settings
+      // Get theme colors with enhanced detection
+      const themeColors = this.themeColors || this.detectThemeColors();
+      
+      // Ensure we NEVER use green colors in production
+      const safeThemeColor = this.isGreenColor(themeColors.primary) ? '#121212' : themeColors.primary;
+      const safeButtonColor = this.settings.buttonColor && !this.isGreenColor(this.settings.buttonColor) 
+        ? this.settings.buttonColor 
+        : safeThemeColor;
+      const safeShippingColor = this.settings.shippingBarColor && !this.isGreenColor(this.settings.shippingBarColor)
+        ? this.settings.shippingBarColor 
+        : safeThemeColor;
+      
+      // Debug logging with safety checks
+      console.log('🎨 Color safety check:', { 
+        originalTheme: themeColors.primary,
+        safeTheme: safeThemeColor,
+        originalButton: this.settings.buttonColor,
+        safeButton: safeButtonColor,
+        originalShipping: this.settings.shippingBarColor,
+        safeShipping: safeShippingColor
+      });
+      
+      // Build CSS with bulletproof color application
       let css = `
         :root {
-          ${this.settings.buttonColor ? `--cartuplift-button-color: ${this.settings.buttonColor} !important;` : ''}
+          --cartuplift-success-color: ${safeThemeColor} !important;
+          --cartuplift-success: ${safeThemeColor} !important;
+          --cartuplift-button-color: ${safeButtonColor} !important;
+          --cartuplift-shipping-fill: ${safeShippingColor} !important;
           ${this.settings.buttonTextColor ? `--cartuplift-button-text-color: ${this.settings.buttonTextColor} !important;` : ''}
-          ${this.settings.backgroundColor ? `--cartuplift-background: ${this.settings.backgroundColor} !important;` : ''}
+          ${this.settings.backgroundColor ? `--cartuplift-background: ${this.settings.backgroundColor} !important; --cartuplift-cart-background: ${this.settings.backgroundColor} !important;` : ''}
           ${this.settings.textColor ? `--cartuplift-primary: ${this.settings.textColor} !important;` : ''}
           ${this.settings.recommendationsBackgroundColor ? `--cartuplift-recommendations-bg: ${this.settings.recommendationsBackgroundColor} !important;` : ''}
           ${this.settings.shippingBarBackgroundColor ? `--cartuplift-shipping-bg: ${this.settings.shippingBarBackgroundColor} !important;` : ''}
-          ${this.settings.shippingBarColor ? `--cartuplift-shipping-fill: ${this.settings.shippingBarColor} !important;` : ''}
+        }
+        
+        /* CRITICAL: Force override ALL green color possibilities with !important */
+        .cartuplift-progress-fill,
+        .cartuplift-milestone.completed .cartuplift-milestone-icon,
+        .cartuplift-achievement-content,
+        .cartuplift-shipping-progress-bar .cartuplift-progress-fill,
+        .cartuplift-shipping-progress-fill {
+          background: ${safeShippingColor} !important;
+          background-color: ${safeShippingColor} !important;
+        }
+        
+        .cartuplift-milestone.completed .cartuplift-milestone-label,
+        .cartuplift-achievement-text {
+          color: ${safeShippingColor} !important;
+        }
+        
+        /* Prevent any green elements from CSS cascade */
+        .cartuplift-drawer .cartuplift-progress-fill,
+        .cartuplift-drawer .cartuplift-milestone-icon,
+        .cartuplift-drawer .cartuplift-shipping-progress-fill,
+        #cartuplift-cart-popup .cartuplift-progress-fill,
+        .cartuplift-shipping-progress .cartuplift-progress-fill,
+        .cartuplift-recommendations .cartuplift-progress-fill {
+          background-color: ${safeShippingColor} !important;
+        }
+        
+        .cartuplift-drawer [style*="#4CAF50"],
+        .cartuplift-drawer [style*="#22c55e"],
+        .cartuplift-drawer [style*="rgb(76, 175, 80)"],
+        .cartuplift-drawer [style*="rgb(34, 197, 94)"] {
+          background: ${safeThemeColor} !important;
+          color: ${safeThemeColor} !important;
         }
         
         /* Apply background colors */
         ${this.settings.backgroundColor ? `
-        .cartuplift-drawer {
+        .cartuplift-drawer,
+        .cartuplift-header,
+        .cartuplift-content-wrapper,
+        .cartuplift-items,
+        .cartuplift-scrollable-content,
+        .cartuplift-footer {
           background: ${this.settings.backgroundColor} !important;
         }` : ''}
         
@@ -246,43 +599,36 @@
           background: ${this.settings.recommendationsBackgroundColor} !important;
         }` : ''}
         
-        /* Apply button colors */
-        ${this.settings.buttonColor ? `
-        .cartuplift-shipping-progress-fill {
-          background: ${this.settings.buttonColor} !important;
-        }
+        /* Apply button colors with green prevention */
         .cartuplift-checkout-btn,
         .cartuplift-discount-apply,
         .cartuplift-add-recommendation {
-          background: ${this.settings.buttonColor} !important;
-          ${this.settings.buttonTextColor ? `color: ${this.settings.buttonTextColor} !important;` : ''}
+          background: ${safeButtonColor} !important;
+          background-color: ${safeButtonColor} !important;
+          ${this.settings.buttonTextColor ? `color: ${this.settings.buttonTextColor} !important;` : 'color: white !important;'}
         }
+        
         .cartuplift-add-recommendation-circle {
-          border-color: ${this.settings.buttonColor} !important;
-          color: ${this.settings.buttonColor} !important;
+          border-color: ${safeButtonColor} !important;
+          color: ${safeButtonColor} !important;
         }
+        
         .cartuplift-add-recommendation-circle:hover {
-          background: ${this.settings.buttonColor} !important;
+          background: ${safeButtonColor} !important;
+          background-color: ${safeButtonColor} !important;
           color: ${this.settings.buttonTextColor || 'white'} !important;
-        }` : ''}
+        }
         
-        /* Apply button text color separately if only text color is set */
-        ${this.settings.buttonTextColor && !this.settings.buttonColor ? `
-        .cartuplift-checkout-btn,
-        .cartuplift-discount-apply,
-        .cartuplift-add-recommendation {
-          color: ${this.settings.buttonTextColor} !important;
-        }` : ''}
-        
-        /* Apply shipping bar colors */
-        ${this.settings.shippingBarColor ? `
+        /* Apply shipping bar colors with green prevention */
         .cartuplift-shipping-progress-fill {
-          background: ${this.settings.shippingBarColor} !important;
-        }` : ''}
+          background: ${safeShippingColor} !important;
+          background-color: ${safeShippingColor} !important;
+        }
         
         ${this.settings.shippingBarBackgroundColor ? `
         .cartuplift-shipping-progress {
           background: ${this.settings.shippingBarBackgroundColor} !important;
+          background-color: ${this.settings.shippingBarBackgroundColor} !important;
         }` : ''}
           
         /* Hide theme notifications when Cart Uplift is enabled */
@@ -320,12 +666,29 @@
           transform: translateY(-100%) !important;
           pointer-events: none !important;
         }` : ''}
+        
+        /* Professional CSS override for any missed green elements */
+        [style*="color: rgb(76, 175, 80)"],
+        [style*="background: rgb(76, 175, 80)"],
+        [style*="background-color: rgb(76, 175, 80)"],
+        [style*="color: #4CAF50"],
+        [style*="background: #4CAF50"],
+        [style*="background-color: #4CAF50"],
+        [style*="color: #22c55e"],
+        [style*="background: #22c55e"],
+        [style*="background-color: #22c55e"] {
+          color: ${safeThemeColor} !important;
+          background: ${safeThemeColor} !important;
+          background-color: ${safeThemeColor} !important;
+        }
       `;
       
       style.textContent = css;
       if (!document.getElementById('cartuplift-dynamic-styles')) {
         document.head.appendChild(style);
       }
+      
+      console.log('✅ [CartUplift] Professional theme colors applied successfully');
     }
 
     createStickyCart() {
@@ -392,9 +755,57 @@
 
     getDrawerHTML() {
       const itemCount = this.cart?.item_count || 0;
-  const itemsSubtotal = this.cart?.items_subtotal_price || this.cart?.total_price || 0;
-  const { estimatedDiscountCents, hasDiscount, discountLabel } = this.computeEstimatedDiscount(itemsSubtotal);
-  const estimatedSubtotal = Math.max(0, itemsSubtotal - estimatedDiscountCents);
+      
+      // Calculate original cart total before any discounts
+      let originalTotal = 0;
+      let giftItemsTotal = 0;
+      
+      if (this.cart && this.cart.items) {
+        this.cart.items.forEach(item => {
+          const isGift = item.properties && item.properties._is_gift === 'true';
+          if (isGift) {
+            // Track gift items total for reference
+            giftItemsTotal += item.original_line_price || item.line_price || (item.price * item.quantity);
+          } else {
+            // Only include non-gift items in the payable total
+            originalTotal += item.original_line_price || item.line_price || (item.price * item.quantity);
+          }
+        });
+      }
+      
+      console.log('💰 Cart totals calculation:', {
+        originalTotal: originalTotal,
+        giftItemsTotal: giftItemsTotal,
+        shopifyTotal: this.cart?.total_price || 0,
+        note: 'Gift items excluded from payable total'
+      });
+      
+      // Get discount information from Shopify's cart object if available
+      const cartDiscounts = this.cart?.cart_level_discount_applications || [];
+      const hasCartDiscount = cartDiscounts.length > 0;
+      
+      let totalDiscount = 0;
+      let discountLabels = [];
+      
+      if (hasCartDiscount) {
+        cartDiscounts.forEach(discount => {
+          totalDiscount += Math.abs(discount.total_allocated_amount || 0);
+          if (discount.title) discountLabels.push(discount.title);
+        });
+      }
+      
+      // Fallback to manual calculation if no cart discounts found but we have discount attributes
+      let manualDiscount = null;
+      if (!hasCartDiscount) {
+        manualDiscount = this.computeEstimatedDiscount(originalTotal);
+        if (manualDiscount.hasDiscount) {
+          totalDiscount = manualDiscount.estimatedDiscountCents;
+          discountLabels = [manualDiscount.discountLabel];
+        }
+      }
+      
+      const hasDiscount = totalDiscount > 0;
+      const finalTotal = Math.max(0, originalTotal - totalDiscount);
       
       // Check if we should show recommendations - only show if:
       // 1. Recommendations are enabled
@@ -407,6 +818,16 @@
         'loaded:', this._recommendationsLoaded, 
         'count:', this.recommendations?.length || 0,
         'window width:', window.innerWidth);
+      
+      console.log('🛒 Cart discount info:', { 
+        cartDiscounts, 
+        hasCartDiscount, 
+        totalDiscount, 
+        discountLabels,
+        originalTotal,
+        finalTotal,
+        hasDiscount
+      });
       
       return `
         <div class="cartuplift-drawer${shouldShowRecommendations ? ' has-recommendations' : ''}">
@@ -428,15 +849,20 @@
           </div>
           
           <div class="cartuplift-footer">
+            ${giftItemsTotal > 0 ? `
+            <div class="cartuplift-gift-notice" style="margin-bottom:8px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 12px; color: #666;">
+              🎁 Gifts are free - ${this.formatMoney(giftItemsTotal)} savings included
+            </div>
+            ` : ''}
             ${hasDiscount ? `
             <div class="cartuplift-subtotal" style="margin-bottom:8px;">
-              <span>Discount${discountLabel ? ` (${discountLabel})` : ''}</span>
-              <span class="cartuplift-subtotal-amount">- ${this.formatMoney(estimatedDiscountCents)}</span>
+              <span>Discount${discountLabels.length > 0 ? ` (${discountLabels.join(', ')})` : ''}</span>
+              <span class="cartuplift-subtotal-amount">- ${this.formatMoney(totalDiscount)}</span>
             </div>
             ` : ''}
             <div class="cartuplift-subtotal">
-              <span>${hasDiscount ? 'Subtotal (after discount)' : 'Subtotal'}</span>
-              <span class="cartuplift-subtotal-amount">${this.formatMoney(hasDiscount ? estimatedSubtotal : itemsSubtotal)}</span>
+              <span>Subtotal${hasDiscount ? ' (after discount)' : ''}</span>
+              <span class="cartuplift-subtotal-amount">${this.formatMoney(finalTotal)}</span>
             </div>
             
             <button class="cartuplift-checkout-btn" onclick="window.cartUpliftDrawer.proceedToCheckout()">
@@ -454,7 +880,8 @@
 
     getHeaderHTML(itemCount) {
       let threshold = this.settings.freeShippingThreshold || 100;
-  const currentTotal = this.cart ? (this.cart.items_subtotal_price ?? this.cart.total_price) : 0;
+      // Use our custom calculation that excludes gift items
+      const currentTotal = this.getDisplayedTotalCents();
 
       // Shopify prices are always in the smallest currency unit (pence for GBP, cents for USD)
       // So if threshold is 100, it means £100 = 10000 pence
@@ -519,19 +946,7 @@
             <p class="cartuplift-shipping-message">${freeShippingText}</p>
           </div>
         ` : ''}
-        ${this.settings.enableFreeShipping ? (() => {
-          console.log('🛒 Progress Bar Debug:', {
-            progress: progress,
-            buttonColor: this.settings.buttonColor,
-            progressBarHTML: `width: ${progress}%; background: ${this.settings.buttonColor || '#4CAF50'} !important;`
-          });
-          return `
-          <div class="cartuplift-shipping-bar">
-            <div class="cartuplift-shipping-progress">
-              <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${this.settings.buttonColor || '#4CAF50'} !important; display: block;"></div>
-            </div>
-          </div>`;
-        })() : ''}
+        ${this.getUnifiedProgressHTML()}
       `;
     }
 
@@ -547,34 +962,338 @@
         `;
       }
       
-      return this.cart.items.map((item, index) => `
-        <div class="cartuplift-item" data-variant-id="${item.variant_id}" data-line="${index + 1}">
+      return this.cart.items.map((item, index) => {
+        const isGift = item.properties && item.properties._is_gift === 'true';
+        const displayTitle = item.product_title; // Remove duplicate gift icon from title
+        const displayPrice = isGift ? 'FREE' : this.formatMoney(item.final_price);
+        
+        return `
+        <div class="cartuplift-item${isGift ? ' cartuplift-gift-item' : ''}" data-variant-id="${item.variant_id}" data-line="${index + 1}">
           <div class="cartuplift-item-image">
-            <img src="${item.image}" alt="${item.product_title}" loading="lazy">
+            <img src="${item.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${item.product_title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
           </div>
           <div class="cartuplift-item-info">
             <h4 class="cartuplift-item-title">
-              <a href="${item.url}" style="text-transform: none;">${item.product_title}</a>
+              <a href="${item.url}" style="text-transform: none;">${displayTitle}</a>
             </h4>
             ${this.getVariantOptionsHTML(item)}
             <div class="cartuplift-item-quantity-wrapper">
               <div class="cartuplift-quantity">
-                <button class="cartuplift-qty-minus" data-line="${index + 1}">−</button>
+                <button class="cartuplift-qty-minus" data-line="${index + 1}"${isGift ? ' style="display:none;"' : ''}>−</button>
                 <span class="cartuplift-qty-display">${item.quantity}</span>
-                <button class="cartuplift-qty-plus" data-line="${index + 1}">+</button>
+                <button class="cartuplift-qty-plus" data-line="${index + 1}"${isGift ? ' style="display:none;"' : ''}>+</button>
               </div>
             </div>
           </div>
           <div class="cartuplift-item-price-actions">
-            <div class="cartuplift-item-price">${this.formatMoney(item.final_price)}</div>
-            <button class="cartuplift-item-remove-x" data-line="${index + 1}" aria-label="Remove item">
+            <div class="cartuplift-item-price${isGift ? ' cartuplift-gift-price' : ''}">${displayPrice}</div>
+            <button class="cartuplift-item-remove-x" data-line="${index + 1}" aria-label="Remove item"${isGift ? ' style="display:none;"' : ''}>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M9 6V4h6v2m-9 0 1 14h10l1-14H6z"/>
               </svg>
             </button>
           </div>
         </div>
-      `).join('');
+      `;}).join('');
+    }
+
+    getGiftProgressHTML() {
+      try {
+        const giftThresholds = this.settings.giftThresholds ? JSON.parse(this.settings.giftThresholds) : [];
+        if (giftThresholds.length === 0) return '';
+        
+        const sortedThresholds = giftThresholds.sort((a, b) => a.amount - b.amount);
+        const currentTotal = this.cart ? (this.cart.total_price / 100) : 0; // Convert from cents
+        const progressStyle = this.settings.giftProgressStyle || 'single-next';
+        
+        console.log('🎁 Gift Progress Debug:', {
+          currentTotal,
+          thresholds: sortedThresholds,
+          style: progressStyle
+        });
+
+        if (progressStyle === 'stacked') {
+          return `
+            <div class="cartuplift-gift-progress-container">
+              <div class="cartuplift-stacked-progress">
+                ${sortedThresholds.map(threshold => {
+                  const progress = Math.min((currentTotal / threshold.amount) * 100, 100);
+                  const isUnlocked = currentTotal >= threshold.amount;
+                  const remaining = Math.max(threshold.amount - currentTotal, 0);
+                  
+                  return `
+                    <div class="cartuplift-gift-threshold">
+                      <div class="cartuplift-gift-info">
+                        <span class="cartuplift-gift-title">
+                          ${threshold.title} 
+                          ${isUnlocked ? ' ✅' : ` ($${remaining.toFixed(0)} to go)`}
+                        </span>
+                        <span class="cartuplift-gift-progress-text">${Math.round(progress)}%</span>
+                      </div>
+                      <div class="cartuplift-gift-bar">
+                        <div class="cartuplift-gift-fill" style="width: ${progress}%; background: ${isUnlocked ? '#4CAF50' : '#2196F3'};"></div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        if (progressStyle === 'single-multi') {
+          const maxThreshold = sortedThresholds[sortedThresholds.length - 1].amount;
+          const totalProgress = Math.min((currentTotal / maxThreshold) * 100, 100);
+          
+          return `
+            <div class="cartuplift-gift-progress-container">
+              <div class="cartuplift-single-multi-progress">
+                <div class="cartuplift-milestone-bar">
+                  <div class="cartuplift-milestone-fill" style="width: ${totalProgress}%; background: #2196F3;"></div>
+                  ${sortedThresholds.map(threshold => {
+                    const position = (threshold.amount / maxThreshold) * 100;
+                    const isUnlocked = currentTotal >= threshold.amount;
+                    
+                    return `
+                      <div class="cartuplift-milestone-marker" style="left: ${position}%;">
+                        <div class="cartuplift-milestone-dot ${isUnlocked ? 'unlocked' : ''}">
+                          ${isUnlocked ? '✅' : '🎁'}
+                        </div>
+                        <div class="cartuplift-milestone-label">
+                          $${threshold.amount} ${threshold.title}
+                          ${!isUnlocked ? ` ($${(threshold.amount - currentTotal).toFixed(0)} to go)` : ''}
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        // Default: single-next style
+        const nextThreshold = sortedThresholds.find(t => currentTotal < t.amount);
+        const unlockedThresholds = sortedThresholds.filter(t => currentTotal >= t.amount);
+        
+        if (!nextThreshold && unlockedThresholds.length === 0) return '';
+        
+        return `
+          <div class="cartuplift-gift-progress-container">
+            <div class="cartuplift-next-goal-progress">
+              ${unlockedThresholds.length > 0 ? `
+                <div class="cartuplift-unlocked-gifts">
+                  ${unlockedThresholds.map(threshold => `
+                    <div class="cartuplift-unlocked-item">
+                      ✅ ${threshold.title} UNLOCKED!
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+              
+              ${nextThreshold ? `
+                <div class="cartuplift-next-goal">
+                  <div class="cartuplift-next-info">
+                    🎁 Next: ${nextThreshold.title} at $${nextThreshold.amount} 
+                    (spend $${(nextThreshold.amount - currentTotal).toFixed(0)} more)
+                  </div>
+                  <div class="cartuplift-next-bar">
+                    <div class="cartuplift-next-fill" style="width: ${Math.min((currentTotal / nextThreshold.amount) * 100, 100)}%; background: #2196F3;"></div>
+                  </div>
+                  <div class="cartuplift-progress-text">
+                    ${Math.round((currentTotal / nextThreshold.amount) * 100)}% complete
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+        
+      } catch (error) {
+        console.error('🎁 Gift Progress Error:', error);
+        return '';
+      }
+    }
+
+    getUnifiedProgressHTML() {
+      try {
+        const progressBarMode = this.settings.progressBarMode || 'free-shipping';
+        const currentTotal = this.cart ? this.cart.total_price / 100 : 0;
+        
+        console.log('🛒 Unified Progress Debug:', {
+          mode: progressBarMode,
+          enableFreeShipping: this.settings.enableFreeShipping,
+          enableGiftGating: this.settings.enableGiftGating,
+          currentTotal: currentTotal
+        });
+
+        // Return empty if no progress bars are enabled
+        if (!this.settings.enableFreeShipping && !this.settings.enableGiftGating) {
+          return '';
+        }
+
+        switch (progressBarMode) {
+          case 'free-shipping':
+            return this.settings.enableFreeShipping ? this.getFreeShippingProgressHTML() : '';
+          
+          case 'gift-gating':
+            return this.settings.enableGiftGating ? this.getGiftProgressHTML() : '';
+          
+          case 'combined':
+            return this.getCombinedProgressHTML();
+          
+          default:
+            return this.settings.enableFreeShipping ? this.getFreeShippingProgressHTML() : '';
+        }
+      } catch (error) {
+        console.error('🛒 Unified Progress Error:', error);
+        return '';
+      }
+    }
+
+    getFreeShippingProgressHTML() {
+      const currentTotal = this.cart ? this.cart.total_price / 100 : 0;
+      const threshold = this.settings.freeShippingThreshold || 100;
+      const progress = Math.min((currentTotal / threshold) * 100, 100);
+      
+      console.log('🛒 Free Shipping Progress Bar Debug:', {
+        progress: progress,
+        buttonColor: this.settings.buttonColor,
+        progressBarHTML: `width: ${progress}%; background: ${this.settings.buttonColor || '#4CAF50'} !important;`
+      });
+      
+      return `
+        <div class="cartuplift-shipping-bar">
+          <div class="cartuplift-shipping-progress">
+            <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${this.settings.buttonColor || '#4CAF50'} !important; display: block;"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    getCombinedProgressHTML() {
+      const currentTotal = this.cart ? this.cart.total_price / 100 : 0;
+      const giftThresholds = this.settings.giftThresholds ? JSON.parse(this.settings.giftThresholds) : [];
+      const freeShippingThreshold = this.settings.freeShippingThreshold || 100;
+      
+      // Combine all thresholds (gifts + free shipping)
+      const allThresholds = [...giftThresholds];
+      if (this.settings.enableFreeShipping) {
+        allThresholds.push({
+          amount: freeShippingThreshold,
+          title: 'Free Shipping',
+          description: 'Get free shipping on your order'
+        });
+      }
+      
+      if (allThresholds.length === 0) return '';
+      
+      const sortedThresholds = allThresholds.sort((a, b) => a.amount - b.amount);
+      const progressStyle = this.settings.giftProgressStyle || 'single-next';
+      
+      // Use the same rendering logic as gift progress but with combined thresholds
+      if (progressStyle === 'stacked') {
+        return this.renderStackedProgress(sortedThresholds, currentTotal);
+      } else if (progressStyle === 'single-multi') {
+        return this.renderSingleMultiProgress(sortedThresholds, currentTotal);
+      } else {
+        return this.renderSingleNextProgress(sortedThresholds, currentTotal);
+      }
+    }
+
+    renderStackedProgress(thresholds, currentTotal) {
+      const stackedHTML = thresholds.map(threshold => {
+        const progress = Math.min((currentTotal / threshold.amount) * 100, 100);
+        const isUnlocked = currentTotal >= threshold.amount;
+        return `
+          <div class="cartuplift-gift-threshold">
+            <div class="cartuplift-gift-info">
+              <span class="cartuplift-gift-title">
+                ${threshold.title} ${isUnlocked ? '✓' : `($${threshold.amount})`}
+              </span>
+              <span class="cartuplift-gift-progress-text">${Math.round(progress)}%</span>
+            </div>
+            <div class="cartuplift-gift-bar">
+              <div class="cartuplift-gift-fill" style="width: ${progress}%; background: ${isUnlocked ? '#4CAF50' : '#2196F3'};"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      return `
+        <div class="cartuplift-gift-progress-container">
+          <div class="cartuplift-stacked-progress">
+            ${stackedHTML}
+          </div>
+        </div>
+      `;
+    }
+
+    renderSingleMultiProgress(thresholds, currentTotal) {
+      const maxThreshold = Math.max(...thresholds.map(t => t.amount));
+      const overallProgress = Math.min((currentTotal / maxThreshold) * 100, 100);
+      
+      const milestonesHTML = thresholds.map(threshold => {
+        const position = (threshold.amount / maxThreshold) * 100;
+        const isUnlocked = currentTotal >= threshold.amount;
+        return `
+          <div class="cartuplift-milestone-marker" style="left: ${position}%;">
+            <div class="cartuplift-milestone-dot ${isUnlocked ? 'unlocked' : ''}">
+              ${isUnlocked ? '✓' : '$'}
+            </div>
+            <div class="cartuplift-milestone-label">${threshold.title}</div>
+          </div>
+        `;
+      }).join('');
+      
+      return `
+        <div class="cartuplift-gift-progress-container">
+          <div class="cartuplift-single-multi-progress">
+            <div class="cartuplift-milestone-bar">
+              <div class="cartuplift-milestone-fill" style="width: ${overallProgress}%; background: #2196F3;"></div>
+              ${milestonesHTML}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    renderSingleNextProgress(thresholds, currentTotal) {
+      const unlockedThresholds = thresholds.filter(t => currentTotal >= t.amount);
+      const nextThreshold = thresholds.find(t => currentTotal < t.amount);
+      
+      let unlockedHTML = '';
+      if (unlockedThresholds.length > 0) {
+        unlockedHTML = `
+          <div class="cartuplift-unlocked-gifts">
+            ${unlockedThresholds.map(threshold => `
+              <div class="cartuplift-unlocked-item">✓ ${threshold.title} unlocked!</div>
+            `).join('')}
+          </div>
+        `;
+      }
+      
+      return `
+        <div class="cartuplift-gift-progress-container">
+          <div class="cartuplift-next-goal-progress">
+            ${unlockedHTML}
+            ${nextThreshold ? `
+              <div class="cartuplift-next-goal">
+                <div class="cartuplift-next-info">
+                  Next: ${nextThreshold.title} 
+                  (spend $${(nextThreshold.amount - currentTotal).toFixed(0)} more)
+                </div>
+                <div class="cartuplift-next-bar">
+                  <div class="cartuplift-next-fill" style="width: ${Math.min((currentTotal / nextThreshold.amount) * 100, 100)}%; background: #2196F3;"></div>
+                </div>
+                <div class="cartuplift-progress-text">
+                  ${Math.round((currentTotal / nextThreshold.amount) * 100)}% complete
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
     }
 
     getRecommendationsHTML() {
@@ -774,7 +1493,7 @@
               <div class="cartuplift-recommendation-card">
                 <div class="cartuplift-card-content">
                   <div class="cartuplift-product-image">
-                    <img src="${product.image}" alt="${product.title}" loading="lazy">
+                    <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
                   </div>
                   <div class="cartuplift-product-info">
                     <h4><a href="${product.url || '#'}" class="cartuplift-product-link">${product.title}</a></h4>
@@ -794,7 +1513,7 @@
       } else {
         return this.recommendations.map(product => `
           <div class="cartuplift-recommendation-item">
-            <img src="${product.image}" alt="${product.title}" loading="lazy">
+            <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
             <div class="cartuplift-recommendation-info">
               <h4><a href="${product.url}" class="cartuplift-product-link">${product.title}</a></h4>
               <div class="cartuplift-recommendation-price">${this.formatMoney(product.priceCents || 0)}</div>
@@ -1923,6 +2642,13 @@
       this._addToCartBusy = true;
       
       try {
+        // Validate variant ID first
+        if (!variantId || variantId === 'undefined' || variantId === 'null') {
+          console.error('🛒 Invalid variant ID:', variantId);
+          this._addToCartBusy = false;
+          return;
+        }
+        
         // Disable the button temporarily with better UX
         const buttons = document.querySelectorAll(`[data-variant-id="${variantId}"]`);
         buttons.forEach(button => {
@@ -1943,6 +2669,9 @@
           method: 'POST',
           body: formData
         });
+
+        const responseData = response.ok ? await response.json() : await response.text();
+        console.log(`🛒 Add to cart response for variant ${variantId}:`, response.status, responseData);
 
         if (response.ok) {
           // Reset button state immediately on success with success animation
@@ -1979,6 +2708,16 @@
             button.style.transform = 'scale(1)';
           });
           // Don't show rate limit message to user
+        } else if (response.status === 422) {
+          console.error('🛒 Variant not found (422 error) for variant ID:', variantId);
+          // For 422 errors, remove the invalid recommendation to prevent future errors
+          this.removeInvalidRecommendation(variantId);
+          buttons.forEach(button => {
+            button.disabled = false;
+            button.style.opacity = '1';
+            button.style.transform = 'scale(1)';
+            button.style.display = 'none'; // Hide invalid items
+          });
         } else {
           console.error('🛒 Error adding to cart:', response.status, response.statusText);
           // Re-enable buttons on error with subtle shake
@@ -2006,6 +2745,25 @@
         setTimeout(() => {
           this._addToCartBusy = false;
         }, 500);
+      }
+    }
+
+    // Remove invalid recommendations to prevent future 422 errors
+    removeInvalidRecommendation(variantId) {
+      if (this.recommendations && Array.isArray(this.recommendations)) {
+        this.recommendations = this.recommendations.filter(rec => {
+          const recVariantId = rec.variant_id || rec.variantId || rec.id;
+          return recVariantId.toString() !== variantId.toString();
+        });
+        console.log('🛒 Removed invalid recommendation with variant ID:', variantId);
+        
+        // Update the display if drawer is open
+        if (this.isOpen) {
+          const recommendationsContent = document.getElementById('cartuplift-recommendations-content');
+          if (recommendationsContent) {
+            recommendationsContent.innerHTML = this.getRecommendationItems();
+          }
+        }
       }
     }
 
@@ -2180,6 +2938,9 @@
         total.textContent = this.formatMoney(this.getDisplayedTotalCents());
       }
       
+      // Check gift thresholds and auto-add gifts if needed
+      this.checkAndAddGiftThresholds();
+      
       // Only refresh layout if recommendations are loaded (filtering handled elsewhere)
       if (this.settings.enableRecommendations && this._recommendationsLoaded) {
         this.refreshRecommendationLayout();
@@ -2218,10 +2979,320 @@
       }
     }
 
+    // Check if gift thresholds have been reached and auto-add gift products
+    async checkAndAddGiftThresholds() {
+      if (!this.settings.enableGiftGating || !this.settings.giftThresholds || !this.cart) {
+        console.log('🎁 Gift gating disabled or no thresholds/cart:', {
+          enableGiftGating: this.settings.enableGiftGating,
+          hasThresholds: !!this.settings.giftThresholds,
+          hasCart: !!this.cart
+        });        return;
+      }
+
+      try {
+        const giftThresholds = JSON.parse(this.settings.giftThresholds);
+        if (!Array.isArray(giftThresholds) || giftThresholds.length === 0) {
+          console.log('🎁 No valid gift thresholds found');
+          return;
+        }
+
+        const currentTotal = this.getDisplayedTotalCents();
+        console.log('🎁 Checking gift thresholds. Current total:', currentTotal, 'cents (£' + (currentTotal/100).toFixed(2) + ')');
+        console.log('🎁 Available thresholds:', giftThresholds);
+
+        // Track which gifts have been added to prevent duplicates
+        const cartProductIds = this.cart.items.map(item => item.product_id.toString());
+        console.log('🎁 Current cart product IDs:', cartProductIds);
+
+        for (const threshold of giftThresholds) {
+          // Only process product type gifts that have a product ID
+          if (threshold.type !== 'product' || !threshold.productId || !threshold.productHandle) {
+            console.log('🎁 Skipping threshold (not product type or missing data):', threshold);
+            continue;
+          }
+
+          const thresholdAmount = (threshold.amount || 0) * 100; // Convert to pence
+          const hasReachedThreshold = currentTotal >= thresholdAmount;
+          
+          // Extract numeric product ID for comparison
+          let numericProductId = threshold.productId;
+          if (typeof numericProductId === 'string' && numericProductId.includes('gid://shopify/Product/')) {
+            numericProductId = numericProductId.replace('gid://shopify/Product/', '');
+          }
+          
+          const isAlreadyInCart = cartProductIds.includes(numericProductId.toString());
+          
+          // Check if product is in cart but not yet marked as gift
+          const existingCartItem = this.cart.items.find(item => 
+            item.product_id.toString() === numericProductId.toString()
+          );
+          const isAlreadyGift = existingCartItem && existingCartItem.properties && existingCartItem.properties._is_gift === 'true';
+
+          console.log(`🎁 Threshold ${threshold.id}: £${threshold.amount} (${thresholdAmount} pence)`);
+          console.log(`🎁   - Product: ${threshold.productTitle} (ID: ${threshold.productId} -> ${numericProductId})`);
+          console.log(`🎁   - Reached: ${hasReachedThreshold} (${currentTotal} >= ${thresholdAmount})`);
+          console.log(`🎁   - In cart: ${isAlreadyInCart}`);
+          console.log(`🎁   - Already marked as gift: ${isAlreadyGift}`);
+
+          if (hasReachedThreshold) {
+            if (!isAlreadyInCart) {
+              // Product not in cart - add as gift
+              console.log(`🎁 AUTO-ADDING GIFT: ${threshold.productTitle} (${threshold.productHandle})`);
+              await this.addGiftToCart(threshold);
+            } else if (!isAlreadyGift) {
+              // Product in cart but not marked as gift - convert to gift
+              console.log(`🎁 CONVERTING TO GIFT: ${threshold.productTitle} (already in cart)`);
+              await this.convertItemToGift(existingCartItem, threshold);
+            }
+          } else if (!hasReachedThreshold && isAlreadyInCart && isAlreadyGift) {
+            // Threshold no longer met and it's marked as gift - remove
+            console.log(`🎁 Threshold no longer met, removing gift: ${threshold.productTitle}`);
+            await this.removeGiftFromCart(threshold);
+          }
+        }
+      } catch (error) {
+        console.error('🎁 Error checking gift thresholds:', error);
+      }
+    }
+
+    // Add a gift product to the cart
+    async addGiftToCart(threshold) {
+      try {
+        console.log(`🎁 Adding gift to cart: ${threshold.productHandle}`);
+        
+        // Extract numeric ID from GraphQL ID if needed
+        let productId = threshold.productId;
+        if (typeof productId === 'string' && productId.includes('gid://shopify/Product/')) {
+          // Extract the numeric ID from the GraphQL ID
+          productId = productId.replace('gid://shopify/Product/', '');
+          console.log(`🎁 Extracted numeric product ID: ${productId}`);
+        }
+        
+        // For gifts, we need to fetch the product and use the first available variant
+        console.log(`🎁 Fetching product variants for: ${threshold.productHandle}`);
+        return await this.addGiftByHandle(threshold);
+        
+      } catch (error) {
+        console.error(`🎁 Error adding gift to cart:`, error);
+        return false;
+      }
+    }
+
+    // Fallback method to add gift by product handle (fetch product first)
+    async addGiftByHandle(threshold) {
+      try {
+        // Validate product handle
+        if (!threshold.productHandle || typeof threshold.productHandle !== 'string') {
+          console.error(`🎁 Invalid product handle:`, threshold.productHandle, 'type:', typeof threshold.productHandle);
+          return false;
+        }
+        
+        console.log(`🎁 Fetching product by handle: ${threshold.productHandle}`);
+        const response = await fetch(`/products/${threshold.productHandle}.js`);
+        
+        if (!response.ok) {
+          console.error(`🎁 Failed to fetch product: ${threshold.productHandle}`);
+          return false;
+        }
+        
+        const product = await response.json();
+        const firstVariant = product.variants && product.variants[0];
+        
+        if (!firstVariant) {
+          console.error(`🎁 No variants found for product: ${threshold.productHandle}`);
+          return false;
+        }
+        
+        console.log(`🎁 Using first variant ID: ${firstVariant.id} for product: ${product.title}`);
+        
+        const addResponse = await fetch('/cart/add.js', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify({
+            id: firstVariant.id,
+            quantity: 1,
+            properties: {
+              '_is_gift': 'true',
+              '_gift_title': 'Gift',
+              '_original_price': firstVariant.price.toString()
+            },
+            // Try to add with zero price - this may not work with all Shopify setups
+            selling_plan: null
+          })
+        });
+
+        const addResponseData = await addResponse.json();
+        console.log(`🎁 Add variant to cart response:`, addResponseData);
+
+        if (addResponse.ok) {
+          console.log(`🎁 Successfully added gift variant: ${product.title}`);
+          await this.fetchCart();
+          this.updateCartDisplay();
+          return true;
+        } else {
+          console.error(`🎁 Failed to add gift variant:`, addResponseData);
+          return false;
+        }
+      } catch (error) {
+        console.error(`🎁 Error in addGiftByHandle:`, error);
+        return false;
+      }
+    }
+
+    // Convert an existing cart item to a gift (make it free)
+    async convertItemToGift(cartItem, threshold) {
+      try {
+        console.log(`🎁 Converting existing item to gift:`, cartItem);
+        
+        // Calculate the discount needed to make this item free
+        const itemPrice = cartItem.original_line_price || cartItem.line_price || (cartItem.price * cartItem.quantity);
+        
+        // Get the line index (1-based) for this cart item
+        const lineIndex = this.cart.items.findIndex(item => item.key === cartItem.key) + 1;
+        
+        if (lineIndex === 0) {
+          console.error(`🎁 Could not find line index for cart item:`, cartItem);
+          return false;
+        }
+
+        console.log(`🎁 Updating line ${lineIndex} with gift properties and applying gift discount`);
+
+        // Build the updated properties
+        const updatedProperties = {
+          ...cartItem.properties,
+          '_is_gift': 'true',
+          '_gift_title': 'Gift',
+          '_gift_threshold_id': threshold.id.toString(),
+          '_original_price': itemPrice.toString()
+        };
+
+        // Use cart/change.js to update the line with new properties
+        const formData = new FormData();
+        formData.append('line', lineIndex);
+        formData.append('quantity', cartItem.quantity);
+        
+        // Add properties to FormData
+        for (const [key, value] of Object.entries(updatedProperties)) {
+          formData.append(`properties[${key}]`, value);
+        }
+
+        const response = await fetch('/cart/change.js', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          const updatedCart = await response.json();
+          console.log(`🎁 Successfully converted item to gift:`, cartItem.title);
+          
+          // Now apply a gift discount if possible (requires Shopify Plus or specific discount setup)
+          await this.applyGiftDiscount(itemPrice, `Gift: ${cartItem.title}`);
+          
+          this.cart = updatedCart;
+          this.updateCartDisplay();
+          return true;
+        } else {
+          const errorData = await response.json();
+          console.error(`🎁 Failed to convert item to gift:`, errorData);
+          return false;
+        }
+      } catch (error) {
+        console.error(`🎁 Error converting item to gift:`, error);
+        return false;
+      }
+    }
+
+    // Apply a discount for gift items (if discount codes are available)
+    async applyGiftDiscount(discountAmount, giftTitle) {
+      try {
+        // This would require a pre-created discount code for gifts
+        // For now, we'll just log the intent and rely on manual checkout processing
+        console.log(`💰 Gift discount needed: ${this.formatMoney(discountAmount)} for ${giftTitle}`);
+        console.log(`💰 Store owners should create automatic discounts for gift items or handle at checkout`);
+        
+        // Note: Automatic discount application requires either:
+        // 1. Pre-created discount codes
+        // 2. Shopify Scripts (Plus only)
+        // 3. Launchpad apps
+        // 4. Manual checkout processing
+        
+        return true;
+      } catch (error) {
+        console.error(`💰 Error applying gift discount:`, error);
+        return false;
+      }
+    }
+
+    // Remove a gift product from the cart
+    async removeGiftFromCart(threshold) {
+      try {
+        // Extract numeric product ID for comparison
+        let numericProductId = threshold.productId;
+        if (typeof numericProductId === 'string' && numericProductId.includes('gid://shopify/Product/')) {
+          numericProductId = numericProductId.replace('gid://shopify/Product/', '');
+        }
+
+        // Find the gift item in cart
+        const giftItem = this.cart.items.find(item => 
+          item.product_id.toString() === numericProductId.toString() &&
+          item.properties && item.properties._is_gift === 'true'
+        );
+
+        if (giftItem) {
+          console.log(`🎁 Removing gift from cart: ${threshold.productTitle}`);
+          
+          const response = await fetch('/cart/update.js', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+              updates: {
+                [giftItem.key]: 0
+              }
+            })
+          });
+
+          if (response.ok) {
+            console.log(`🎁 Successfully removed gift: ${threshold.productTitle}`);
+            // Refresh cart after removing gift
+            await this.fetchCart();
+            this.updateCartDisplay();
+            return true;
+          } else {
+            console.error(`🎁 Failed to remove gift: ${threshold.productTitle}`, response.status);
+            return false;
+          }
+        } else {
+          console.log(`🎁 Gift not found in cart for removal: ${threshold.productTitle}`);
+        }
+      } catch (error) {
+        console.error(`🎁 Error removing gift from cart:`, error);
+        return false;
+      }
+    }
+
     getDisplayedTotalCents() {
-      const base = this.cart?.items_subtotal_price ?? this.cart?.total_price ?? 0;
-      const { estimatedDiscountCents } = this.computeEstimatedDiscount(base);
-      return Math.max(0, base - estimatedDiscountCents);
+      if (!this.cart || !this.cart.items) {
+        return 0;
+      }
+      
+      // Calculate total excluding gifts (for gift threshold calculations)
+      let total = 0;
+      this.cart.items.forEach(item => {
+        // Skip gift items in price calculations
+        const isGift = item.properties && item.properties._is_gift === 'true';
+        if (!isGift) {
+          // Use original_line_price if available (before discounts), fallback to line_price
+          total += item.original_line_price || item.line_price || (item.price * item.quantity);
+        }
+      });
+      
+      return total;
     }
 
     async openDrawer() {
@@ -2430,6 +3501,25 @@
       });
       
       const notes = document.getElementById('cartuplift-notes-input');
+      
+      // Collect gift items information for checkout processing
+      const giftItems = this.cart?.items?.filter(item => 
+        item.properties && item.properties._is_gift === 'true'
+      ) || [];
+      
+      let checkoutNote = '';
+      if (notes && notes.value.trim()) {
+        checkoutNote = notes.value.trim();
+      }
+      
+      // Add gift instructions to note if there are gifts
+      if (giftItems.length > 0) {
+        const giftNote = `\n\nGIFT ITEMS (FREE): ${giftItems.map(item => 
+          `${item.title} (${this.formatMoney(item.line_price)} - should be FREE)`
+        ).join(', ')}`;
+        checkoutNote += giftNote;
+      }
+      
       const go = () => {
         const attrs = this.cart?.attributes || {};
         const code = attrs['discount_code'];
@@ -2442,11 +3532,12 @@
         }
       };
 
-      if (notes && notes.value.trim()) {
+      // Update cart note if we have notes or gifts
+      if (checkoutNote.trim()) {
         fetch('/cart/update.js', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ note: notes.value.trim() })
+          body: JSON.stringify({ note: checkoutNote.trim() })
         }).then(go);
       } else {
         go();
@@ -3290,7 +4381,7 @@
         if (response.ok) {
           const data = await response.json();
           const products = data.resources?.results?.products || [];
-          return products.map(p => this.formatProduct(p));
+          return products.map(p => this.formatProduct(p)).filter(Boolean);
         }
         
         // Fallback to general products with keyword filtering
@@ -3302,7 +4393,7 @@
             p.product_type?.toLowerCase().includes(keyword.toLowerCase()) ||
             p.tags?.some(tag => tag.toLowerCase().includes(keyword.toLowerCase()))
           );
-          return filtered.slice(0, searchLimit).map(p => this.formatProduct(p));
+          return filtered.slice(0, searchLimit).map(p => this.formatProduct(p)).filter(Boolean);
         }
       } catch (error) {
         console.error(`🤖 Search failed for ${keyword}:`, error);
@@ -3322,7 +4413,7 @@
             const price = p.variants?.[0]?.price || 0;
             return price >= range.min && price <= range.max;
           });
-          return inRange.slice(0, rangeLimit).map(p => this.formatProduct(p));
+          return inRange.slice(0, rangeLimit).map(p => this.formatProduct(p)).filter(Boolean);
         }
       } catch (error) {
         console.error('🤖 Price range search failed:', error);
@@ -3366,7 +4457,7 @@
             const data = await response.json();
             if (data.products?.length > 0) {
               console.log('🤖 Loaded popular products from:', collection);
-              return data.products.map(p => this.formatProduct(p));
+              return data.products.map(p => this.formatProduct(p)).filter(Boolean);
             }
           }
         }
@@ -3375,7 +4466,7 @@
         const response = await fetch(`/products.json?limit=${popularLimit}`);
         if (response.ok) {
           const data = await response.json();
-          return (data.products || []).map(p => this.formatProduct(p));
+          return (data.products || []).map(p => this.formatProduct(p)).filter(Boolean);
         }
       } catch (error) {
         console.error('🤖 Failed to get popular products:', error);
@@ -3393,7 +4484,7 @@
           const response = await fetch(`/recommendations/products.json?product_id=${productId}&limit=${shopifyLimit}`);
           if (response.ok) {
             const data = await response.json();
-            return (data.products || []).map(p => this.formatProduct(p));
+            return (data.products || []).map(p => this.formatProduct(p)).filter(Boolean);
           }
         }
       } catch (error) {
@@ -3405,6 +4496,22 @@
     formatProduct(product) {
       const basePrice = product.variants?.[0]?.price || product.price || 0;
       
+      // Get the first valid variant ID - critical for preventing 422 errors
+      let variantId = null;
+      if (product.variants && product.variants.length > 0) {
+        const firstVariant = product.variants[0];
+        // Ensure we have a valid variant ID
+        if (firstVariant && firstVariant.id) {
+          variantId = firstVariant.id;
+        }
+      }
+      
+      // If no valid variant ID found, exclude this product to prevent errors
+      if (!variantId) {
+        console.warn('🚨 Product has no valid variant ID, excluding:', product.title, product.id);
+        return null;
+      }
+      
       return {
         id: product.id,
         title: product.title,
@@ -3412,7 +4519,7 @@
         priceCents: basePrice ? Math.round(parseFloat(basePrice) * 100) : 0,
         image: product.featured_image || product.image || product.images?.[0]?.src || 
                 product.media?.[0]?.preview_image?.src || 'https://via.placeholder.com/150',
-        variant_id: product.variants?.[0]?.id || product.id,
+        variant_id: variantId,
         url: product.url || `/products/${product.handle}`,
         variants: (product.variants || []).map(v => ({
           ...v,

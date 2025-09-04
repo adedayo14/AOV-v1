@@ -16,6 +16,7 @@ import {
   Spinner,
   InlineStack,
   Badge,
+  RadioButton,
 } from "@shopify/polaris";
 import { withAuth, withAuthAction } from "../utils/auth.server";
 import { getSettings, saveSettings } from "../models/settings.server";
@@ -25,7 +26,32 @@ const { useState, useEffect, useRef } = React;
 export const loader = withAuth(async ({ auth }) => {
   const shop = auth.session.shop;
   const settings = await getSettings(shop);
-  return json({ settings });
+  
+  // Get shop currency information
+  let shopCurrency = { currencyCode: 'USD', moneyFormat: undefined }; // Default fallback
+  try {
+    const shopQuery = `
+      query getShop {
+        shop {
+          currencyCode
+        }
+      }
+    `;
+    
+    const response = await auth.admin.graphql(shopQuery);
+    const shopData = await response.json();
+    
+    if (shopData.data?.shop) {
+      shopCurrency = {
+        currencyCode: shopData.data.shop.currencyCode || 'USD',
+        moneyFormat: undefined
+      };
+    }
+  } catch (error) {
+    console.error('Error fetching shop currency:', error);
+  }
+  
+  return json({ settings, shopCurrency });
 });
 
 export const action = withAuthAction(async ({ request, auth }) => {
@@ -73,10 +99,15 @@ export const action = withAuthAction(async ({ request, auth }) => {
     buttonTextColor: String(settings.buttonTextColor) || "#ffffff",
     recommendationsBackgroundColor: String(settings.recommendationsBackgroundColor) || "#ecebe3",
     shippingBarBackgroundColor: String(settings.shippingBarBackgroundColor) || "#f0f0f0",
-    shippingBarColor: String(settings.shippingBarColor) || "#4CAF50",
+    shippingBarColor: String(settings.shippingBarColor) || "#121212", // Dark neutral default
     recommendationLayout: String(settings.recommendationLayout) || "horizontal",
     complementDetectionMode: String(settings.complementDetectionMode) || "automatic",
     manualRecommendationProducts: String(settings.manualRecommendationProducts) || "",
+    // Progress Bar System
+    progressBarMode: String(settings.progressBarMode) || "free-shipping",
+    enableGiftGating: settings.enableGiftGating === 'true',
+    giftProgressStyle: String(settings.giftProgressStyle) || "single-next",
+    giftThresholds: String(settings.giftThresholds) || "[]",
   };
   
   try {
@@ -88,11 +119,110 @@ export const action = withAuthAction(async ({ request, auth }) => {
   }
 });
 
+// Currency formatting helper function
+function formatCurrency(amount: number | string, currencyCode: string = 'USD', moneyFormat?: string): string {
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  
+  if (moneyFormat) {
+    // Use Shopify's money format if available
+    return moneyFormat.replace(/\{\{\s*amount\s*\}\}/g, numAmount.toFixed(2));
+  }
+  
+  // Fallback to Intl.NumberFormat
+  try {
+    return new Intl.NumberFormat('en', {
+      style: 'currency',
+      currency: currencyCode,
+    }).format(numAmount);
+  } catch (error) {
+    // Ultimate fallback
+    return `${currencyCode} ${numAmount.toFixed(2)}`;
+  }
+}
+
 export default function SettingsPage() {
-  const { settings } = useLoaderData<typeof loader>();
+  const { settings, shopCurrency } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const productsFetcher = useFetcher();
-  const [formSettings, setFormSettings] = useState(settings);
+
+  // Default color constants - avoid green fallbacks
+  const DEFAULT_SHIPPING_COLOR = '#121212'; // Dark neutral instead of blue
+  const DEFAULT_BACKGROUND_COLOR = '#ecebe3';
+
+  // Theme color detection function - defined first to avoid hoisting issues
+  const detectThemeColors = () => {
+    const themeColors = {
+      primary: DEFAULT_SHIPPING_COLOR,
+      background: DEFAULT_BACKGROUND_COLOR
+    };
+
+    try {
+      // Try to detect Shopify theme colors from CSS variables or DOM
+      if (typeof window !== 'undefined') {
+        const computedStyle = getComputedStyle(document.documentElement);
+        
+        // Common Shopify theme CSS variable names
+        const primaryColorVars = [
+          '--color-primary',
+          '--color-accent', 
+          '--color-brand',
+          '--color-button',
+          '--color-theme',
+          '--primary-color',
+          '--accent-color'
+        ];
+        
+        for (const varName of primaryColorVars) {
+          const color = computedStyle.getPropertyValue(varName).trim();
+          if (color && color !== '' && !color.includes('4CAF50') && color !== 'green') {
+            themeColors.primary = color;
+            break;
+          }
+        }
+        
+        // Look for button colors in the DOM as fallback
+        const buttons = document.querySelectorAll('button, .btn, .button, [type="submit"]');
+        for (const button of Array.from(buttons).slice(0, 5)) { // Check first 5 buttons
+          const buttonStyle = getComputedStyle(button);
+          const bgColor = buttonStyle.backgroundColor;
+          const borderColor = buttonStyle.borderColor;
+          
+          // Skip if it's transparent, white, black, or green
+          if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent' && 
+              !bgColor.includes('255, 255, 255') && !bgColor.includes('0, 0, 0') &&
+              !bgColor.includes('76, 175, 80')) { // Avoid the green
+            themeColors.primary = bgColor;
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      console.log('Theme color detection failed, using defaults:', error);
+    }
+    
+    return themeColors;
+  };
+
+  // Validate and set proper defaults for critical settings
+  const validateSettings = (settings: any) => {
+    const validated = { ...settings };
+    const themeColors = detectThemeColors();
+    
+    // Ensure critical color settings have proper defaults, never green fallbacks
+    if (!validated.shippingBarColor || validated.shippingBarColor === '#4CAF50') {
+      validated.shippingBarColor = themeColors.primary;
+    }
+    if (!validated.recommendationsBackgroundColor) {
+      validated.recommendationsBackgroundColor = themeColors.background;
+    }
+    
+    return validated;
+  };
+
+  const [formSettings, setFormSettings] = useState(validateSettings(settings));
+
+  // Use theme colors for better defaults  
+  const themeColors = detectThemeColors();
 
   // Helper function to resolve CSS custom properties with fallbacks for preview
   const resolveColor = (colorValue: string | undefined | null, fallback: string = '#000000'): string => {
@@ -143,8 +273,20 @@ export default function SettingsPage() {
   const [productsLoading, setProductsLoading] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
   const [products, setProducts] = useState<any[]>([]);
+  
+  // Enhanced manual selection with variants
+  const [selectedProductForVariants, setSelectedProductForVariants] = useState<any>(null);
+  const [showVariantSelector, setShowVariantSelector] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   const horizontalTrackRef = useRef<HTMLDivElement>(null);
+  
+  // Gift product selection state
+  const [showGiftProductSelector, setShowGiftProductSelector] = useState(false);
+  const [giftProductSearchQuery, setGiftProductSearchQuery] = useState("");
+  const [giftProductsLoading, setGiftProductsLoading] = useState(false);
+  const [giftProductsError, setGiftProductsError] = useState<string | null>(null);
+  const [giftProducts, setGiftProducts] = useState<any[]>([]);
+  const [currentGiftThreshold, setCurrentGiftThreshold] = useState<any>(null);
   
   // Success banner auto-hide state
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
@@ -161,6 +303,11 @@ export default function SettingsPage() {
       stickyCartCountBadgeColor: prev.stickyCartCountBadgeColor || "#ff4444",
       stickyCartCountBadgeTextColor: prev.stickyCartCountBadgeTextColor || "#ffffff",
       stickyCartBorderRadius: prev.stickyCartBorderRadius || 25,
+      // Progress bar and gift gating defaults
+      progressBarMode: prev.progressBarMode || 'free-shipping',
+      enableGiftGating: prev.enableGiftGating || false,
+      giftProgressStyle: prev.giftProgressStyle || 'single-next',
+      giftThresholds: prev.giftThresholds || '[]',
     }));
   }, []);
 
@@ -204,7 +351,31 @@ export default function SettingsPage() {
   };
 
   const updateSetting = (key: string, value: any) => {
-  setFormSettings((prev: any) => ({ ...prev, [key]: value }));
+    console.log(`Updating ${key} to:`, value); // Debug log
+    setFormSettings((prev: any) => ({ ...prev, [key]: value }));
+  };
+
+  // Gift threshold helper functions
+  const addGiftThreshold = () => {
+    const currentThresholds = formSettings.giftThresholds ? JSON.parse(formSettings.giftThresholds) : [];
+    const newThreshold = {
+      id: Date.now().toString(),
+      amount: 100,
+      title: '',
+      description: '',
+      type: 'product',
+      productHandle: '',
+      discountAmount: 0,
+      discountCode: ''
+    };
+    const updatedThresholds = [...currentThresholds, newThreshold];
+    updateSetting('giftThresholds', JSON.stringify(updatedThresholds));
+  };
+
+  const removeGiftThreshold = (thresholdId: string) => {
+    const currentThresholds = formSettings.giftThresholds ? JSON.parse(formSettings.giftThresholds) : [];
+    const updatedThresholds = currentThresholds.filter((threshold: any) => threshold.id !== thresholdId);
+    updateSetting('giftThresholds', JSON.stringify(updatedThresholds));
   };
 
   const cartPositionOptions = [
@@ -251,26 +422,61 @@ export default function SettingsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showProductSelector, productSearchQuery]);
 
+  // Fetch gift products when selector opens or search changes (debounced)
+  useEffect(() => {
+    if (!showGiftProductSelector) return;
+    setGiftProductsError(null);
+    setGiftProductsLoading(true);
+    const timeout = setTimeout(() => {
+      const qs = new URLSearchParams();
+      if (giftProductSearchQuery) qs.set('query', giftProductSearchQuery);
+      qs.set('limit', '25');
+      productsFetcher.load(`/api/products?${qs.toString()}`);
+    }, 250);
+    return () => {
+      clearTimeout(timeout);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showGiftProductSelector, giftProductSearchQuery]);
+
   useEffect(() => {
     if (productsFetcher.state === 'loading') {
-      setProductsLoading(true);
-      setProductsError(null);
+      if (showProductSelector) {
+        setProductsLoading(true);
+        setProductsError(null);
+      }
+      if (showGiftProductSelector) {
+        setGiftProductsLoading(true);
+        setGiftProductsError(null);
+      }
     }
     if (productsFetcher.state === 'idle') {
       const data: any = productsFetcher.data;
       if (data?.error) {
-        setProducts([]);
-        setProductsError(typeof data.error === 'string' ? data.error : 'Failed to load products');
+        if (showProductSelector) {
+          setProducts([]);
+          setProductsError(typeof data.error === 'string' ? data.error : 'Failed to load products');
+        }
+        if (showGiftProductSelector) {
+          setGiftProducts([]);
+          setGiftProductsError(typeof data.error === 'string' ? data.error : 'Failed to load products');
+        }
       } else {
-        setProducts(Array.isArray(data?.products) ? data.products : []);
+        if (showProductSelector) {
+          setProducts(Array.isArray(data?.products) ? data.products : []);
+        }
+        if (showGiftProductSelector) {
+          setGiftProducts(Array.isArray(data?.products) ? data.products : []);
+        }
       }
-      setProductsLoading(false);
+      if (showProductSelector) setProductsLoading(false);
+      if (showGiftProductSelector) setGiftProductsLoading(false);
     }
-  }, [productsFetcher.state, productsFetcher.data]);
+  }, [productsFetcher.state, productsFetcher.data, showProductSelector, showGiftProductSelector]);
 
   // Calculate free shipping progress
   const threshold = (formSettings.freeShippingThreshold || 100) * 100;
-  const currentTotal = 47400; // £474.00 in pence
+  const currentTotal = 1500; // £15.00 in pence for demo - shows progress needed
   const remaining = Math.max(0, threshold - currentTotal);
   const progress = Math.min((currentTotal / threshold) * 100, 100);
 
@@ -795,6 +1001,35 @@ export default function SettingsPage() {
           .cartuplift-modal-preview-btn.primary {
             background: ${resolveColor(formSettings.buttonColor, '#000000')};
             color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')};
+          }
+
+          /* Gift Product Selector Styles */
+          .cartuplift-selected-gift-product {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f9fafb;
+          }
+
+          .cartuplift-product-info {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+          }
+
+          .cartuplift-product-image {
+            flex-shrink: 0;
+          }
+
+          .cartuplift-gift-product-image {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
           }
 
           /* Sticky Cart Preview Styles */
@@ -2169,6 +2404,418 @@ export default function SettingsPage() {
             padding-left: 16px !important;
             padding-right: 16px !important;
           }
+
+          /* Gift Progress Bars Styles */
+          .cartuplift-gift-progress-container {
+            padding: 0 16px 8px;
+            background: #ffffff;
+            flex-shrink: 0;
+          }
+
+          .cartuplift-stacked-progress {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+          }
+
+          .cartuplift-gift-threshold {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+          }
+
+          .cartuplift-gift-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+          }
+
+          .cartuplift-gift-title {
+            color: #333;
+            font-weight: 500;
+          }
+
+          .cartuplift-gift-progress-text {
+            color: #666;
+            font-size: 11px;
+          }
+
+          .cartuplift-gift-bar {
+            width: 100%;
+            height: 4px;
+            background: #f0f0f0;
+            border-radius: 2px;
+            overflow: hidden;
+          }
+
+          .cartuplift-gift-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.5s ease;
+            min-width: 1px;
+          }
+
+          .cartuplift-single-multi-progress {
+            position: relative;
+            padding: 8px 0;
+          }
+
+          .cartuplift-milestone-bar {
+            width: 100%;
+            height: 6px;
+            background: #f0f0f0;
+            border-radius: 3px;
+            position: relative;
+            overflow: visible;
+          }
+
+          .cartuplift-milestone-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+            min-width: 2px;
+          }
+
+          .cartuplift-milestone-marker {
+            position: absolute;
+            top: -8px;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 2;
+          }
+
+          .cartuplift-milestone-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #f0f0f0;
+            border: 2px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            margin-bottom: 4px;
+          }
+
+          .cartuplift-milestone-dot.unlocked {
+            background: #4CAF50;
+            border-color: #4CAF50;
+            color: white;
+          }
+
+          .cartuplift-milestone-label {
+            font-size: 10px;
+            color: #666;
+            white-space: nowrap;
+            text-align: center;
+            max-width: 80px;
+            line-height: 1.2;
+          }
+
+          .cartuplift-next-goal-progress {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+          }
+
+          .cartuplift-unlocked-gifts {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+          }
+
+          .cartuplift-unlocked-item {
+            font-size: 11px;
+            color: #4CAF50;
+            font-weight: 500;
+            padding: 2px 0;
+          }
+
+          .cartuplift-next-goal {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+          }
+
+          .cartuplift-next-info {
+            font-size: 12px;
+            color: #333;
+            font-weight: 500;
+          }
+
+          .cartuplift-next-bar {
+            width: 100%;
+            height: 6px;
+            background: #f0f0f0;
+            border-radius: 3px;
+            overflow: hidden;
+          }
+
+          .cartuplift-next-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+            min-width: 2px;
+          }
+
+          .cartuplift-progress-text {
+            font-size: 10px;
+            color: #666;
+            text-align: right;
+          }
+
+          /* New Gift Progress Preview Styles */
+          .cartuplift-stacked-bar {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 12px;
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+            background: #fff;
+          }
+
+          .cartuplift-threshold-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+          }
+
+          .cartuplift-threshold-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: #333;
+          }
+
+          .cartuplift-threshold-amount {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+          }
+
+          .cartuplift-threshold-description {
+            font-size: 11px;
+            color: #666;
+            margin-top: 4px;
+          }
+
+          .cartuplift-progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #f0f0f0;
+            border-radius: 3px;
+            overflow: hidden;
+          }
+
+          .cartuplift-progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+            min-width: 2px;
+          }
+
+          .cartuplift-progress-fill.achieved {
+            background: #4CAF50 !important;
+          }
+
+          .cartuplift-single-multi-progress {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+          }
+
+          .cartuplift-milestones-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 500;
+            color: #333;
+          }
+
+          .cartuplift-progress-bar-container {
+            position: relative;
+            margin: 8px 0;
+          }
+
+          .cartuplift-multi-milestone {
+            position: relative;
+          }
+
+          .cartuplift-milestone-marker {
+            position: absolute;
+            top: -2px;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 2;
+          }
+
+          .cartuplift-milestone-marker.achieved .cartuplift-milestone-dot {
+            background: #4CAF50;
+            border-color: #4CAF50;
+          }
+
+          .cartuplift-milestone-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #f0f0f0;
+            border: 2px solid #ddd;
+            margin-bottom: 4px;
+          }
+
+          .cartuplift-milestone-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 9px;
+            color: #666;
+            white-space: nowrap;
+            text-align: center;
+            position: absolute;
+            top: 14px;
+          }
+
+          .cartuplift-milestone-icon {
+            margin-bottom: 2px;
+          }
+
+          .cartuplift-milestones-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+          }
+
+          .cartuplift-milestone-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-size: 11px;
+          }
+
+          .cartuplift-milestone-item.achieved {
+            background: #e8f5e8;
+            color: #2e7d32;
+          }
+
+          .cartuplift-milestone-status {
+            font-weight: 500;
+          }
+
+          .cartuplift-milestone-reward {
+            color: #666;
+          }
+
+          .cartuplift-milestone-item.achieved .cartuplift-milestone-reward {
+            color: #2e7d32;
+          }
+
+          .cartuplift-single-next-progress {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+          }
+
+          .cartuplift-next-goal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 500;
+            color: #333;
+          }
+
+          .cartuplift-goal-description {
+            font-size: 11px;
+            color: #666;
+            margin-top: 4px;
+          }
+
+          .cartuplift-achieved-rewards {
+            padding: 6px 8px;
+            background: #e8f5e8;
+            border-radius: 6px;
+            font-size: 10px;
+            color: #2e7d32;
+            margin-top: 4px;
+          }
+
+          .cartuplift-combined-progress-container {
+            padding: 0 16px 8px;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+          }
+
+          .cartuplift-shipping-section,
+          .cartuplift-gifts-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+          }
+
+          .cartuplift-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 500;
+            color: #333;
+          }
+
+          .cartuplift-section-description {
+            font-size: 11px;
+            color: #666;
+          }
+
+          .cartuplift-achieved-section {
+            padding: 4px 8px;
+            background: #e8f5e8;
+            border-radius: 4px;
+            font-size: 10px;
+            color: #2e7d32;
+            margin-top: 4px;
+          }
+
+          @media (max-width: 768px) {
+            .cartuplift-gift-progress-container {
+              padding: 0 12px 6px;
+            }
+            .cartuplift-stacked-progress {
+              gap: 8px;
+            }
+            .cartuplift-gift-info {
+              font-size: 11px;
+            }
+            .cartuplift-gift-title {
+              font-size: 11px;
+            }
+            .cartuplift-milestone-marker {
+              top: -6px;
+            }
+            .cartuplift-milestone-dot {
+              width: 16px;
+              height: 16px;
+              font-size: 8px;
+            }
+            .cartuplift-milestone-label {
+              font-size: 9px;
+              max-width: 60px;
+            }
+            .cartuplift-next-info {
+              font-size: 11px;
+            }
+          }
         `
       }} />
 
@@ -2218,87 +2865,379 @@ export default function SettingsPage() {
               </BlockStack>
             </Card>
 
-            {/* Free Shipping Incentive */}
+            {/* Customer Incentives */}
             <Card>
               <BlockStack gap="400">
-                <Text variant="headingMd" as="h2">🚚 Free Shipping Incentive</Text>
+                <Text variant="headingMd" as="h2">🎯 Customer Incentives</Text>
                 <FormLayout>
-                  <Checkbox
-                    label="Enable free shipping progress bar"
-                    checked={formSettings.enableFreeShipping}
-                    onChange={(value) => updateSetting("enableFreeShipping", value)}
-                    helpText="ℹ️ Show a progress bar to motivate customers to reach your free shipping threshold."
-                  />
-                  
-                  {formSettings.enableFreeShipping && (
-                    <BlockStack gap="600">
-                      <BlockStack gap="400">
-                        <TextField
-                          label="Progress message"
-                          value={formSettings.freeShippingText}
-                          onChange={(value) => updateSetting("freeShippingText", value)}
-                          helpText="ℹ️ Use {{ amount }} or {amount} where you want the remaining balance to appear. It will update automatically."
-                          placeholder="You're {{ amount }} away from free shipping!"
-                          autoComplete="off"
+                  <BlockStack gap="200">
+                    <Text variant="headingSm" as="h3">Incentive Type</Text>
+                    <Text variant="bodySm" color="subdued">Choose what motivates your customers to spend more</Text>
+                    
+                    <BlockStack gap="300">
+                      <BlockStack gap="100">
+                        <RadioButton
+                          label="Free Shipping Only"
+                          helpText="Show progress towards free shipping threshold"
+                          name="progressBarMode"
+                          checked={(formSettings.progressBarMode || 'free-shipping') === 'free-shipping'}
+                          onChange={() => updateSetting('progressBarMode', 'free-shipping')}
                         />
-                        
-                        <TextField
-                          label="Success message"
-                          value={formSettings.freeShippingAchievedText}
-                          onChange={(value) => updateSetting("freeShippingAchievedText", value)}
-                          helpText="ℹ️ This message is shown once the free shipping threshold is reached."
-                          placeholder="🎉 Congratulations! You've unlocked free shipping!"
-                          autoComplete="off"
-                        />
+                        <Text variant="bodySm" color="subdued" tone="subdued">
+                          Simple progress bar showing how close customers are to free shipping
+                        </Text>
                       </BlockStack>
                       
-                      <div className="cartuplift-shipping-row">
-                        <div>
-                          <Text variant="headingMd" as="h3">Threshold</Text>
-                          <div className="cartuplift-threshold-input">
+                      <BlockStack gap="100">
+                        <RadioButton
+                          label="Gift & Rewards System"
+                          helpText="Show progress towards gift thresholds and rewards"
+                          name="progressBarMode"
+                          checked={formSettings.progressBarMode === 'gift-gating'}
+                          onChange={() => updateSetting('progressBarMode', 'gift-gating')}
+                        />
+                        <Text variant="bodySm" color="subdued" tone="subdued">
+                          Advanced progress system with multiple gift thresholds and rewards
+                        </Text>
+                      </BlockStack>
+                      
+                      <BlockStack gap="100">
+                        <RadioButton
+                          label="Combined (Free Shipping + Gifts)"
+                          helpText="Show both free shipping and gift thresholds together"
+                          name="progressBarMode"
+                          checked={formSettings.progressBarMode === 'combined'}
+                          onChange={() => updateSetting('progressBarMode', 'combined')}
+                        />
+                        <Text variant="bodySm" color="subdued" tone="subdued">
+                          Unified progress bar combining free shipping and gift thresholds
+                        </Text>
+                      </BlockStack>
+                    </BlockStack>
+                  </BlockStack>
+                  
+                  {/* Free Shipping Settings - shown when Free Shipping Only is selected */}
+                  {(formSettings.progressBarMode || 'free-shipping') === 'free-shipping' && (
+                    <BlockStack key="free-shipping-settings" gap="400">
+                      <Checkbox
+                        label="Enable free shipping progress bar"
+                        checked={formSettings.enableFreeShipping}
+                        onChange={(value) => updateSetting("enableFreeShipping", value)}
+                        helpText="ℹ️ Show a progress bar to motivate customers to reach your free shipping threshold."
+                      />
+                      
+                      {formSettings.enableFreeShipping && (
+                        <BlockStack gap="600">
+                          <BlockStack gap="400">
                             <TextField
-                              label=""
-                              labelHidden
-                              type="number"
-                              value={String(formSettings.freeShippingThreshold)}
-                              onChange={(value) => updateSetting("freeShippingThreshold", parseInt(value) || 100)}
-                              helpText="ℹ️ Minimum amount for free shipping"
+                              label="Progress message"
+                              value={formSettings.freeShippingText}
+                              onChange={(value) => updateSetting("freeShippingText", value)}
+                              helpText="ℹ️ Use {{ amount }} or {amount} where you want the remaining balance to appear. It will update automatically."
+                              placeholder="You're {{ amount }} away from free shipping!"
                               autoComplete="off"
                             />
+                            
+                            <TextField
+                              label="Success message"
+                              value={formSettings.freeShippingAchievedText}
+                              onChange={(value) => updateSetting("freeShippingAchievedText", value)}
+                              helpText="ℹ️ This message is shown once the free shipping threshold is reached."
+                              placeholder="🎉 Congratulations! You've unlocked free shipping!"
+                              autoComplete="off"
+                            />
+                          </BlockStack>
+                          
+                          <div className="cartuplift-shipping-row">
+                            <div>
+                              <Text variant="headingMd" as="h3">Threshold</Text>
+                              <div className="cartuplift-threshold-input">
+                                <TextField
+                                  label=""
+                                  labelHidden
+                                  type="number"
+                                  value={String(formSettings.freeShippingThreshold)}
+                                  onChange={(value) => updateSetting("freeShippingThreshold", parseInt(value) || 100)}
+                                  helpText="ℹ️ Minimum amount for free shipping"
+                                  autoComplete="off"
+                                />
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <Text variant="headingMd" as="h3">Background</Text>
+                              <input
+                                type="color"
+                                value={resolveColor(formSettings.shippingBarBackgroundColor, '#f0f0f0')}
+                                onChange={(e) => updateSetting("shippingBarBackgroundColor", e.target.value)}
+                                className="cartuplift-color-input-full-width"
+                                title={resolveColor(formSettings.shippingBarBackgroundColor, '#f0f0f0')}
+                                aria-label={`Shipping bar background color: ${resolveColor(formSettings.shippingBarBackgroundColor, '#f0f0f0')}`}
+                              />
+                            </div>
+                            
+                            <div>
+                              <Text variant="headingMd" as="h3">Bar Color</Text>
+                              <input
+                                type="color"
+                                value={resolveColor(formSettings.shippingBarColor, themeColors.primary)}
+                                onChange={(e) => updateSetting("shippingBarColor", e.target.value)}
+                                className="cartuplift-color-input-full-width"
+                                title={resolveColor(formSettings.shippingBarColor, themeColors.primary)}
+                                aria-label={`Shipping bar color: ${resolveColor(formSettings.shippingBarColor, themeColors.primary)}`}
+                              />
+                            </div>
                           </div>
-                        </div>
-                        
-                        <div>
-                          <Text variant="headingMd" as="h3">Background</Text>
-                          <input
-                            type="color"
-                            value={resolveColor(formSettings.shippingBarBackgroundColor, '#f0f0f0')}
-                            onChange={(e) => updateSetting("shippingBarBackgroundColor", e.target.value)}
-                            className="cartuplift-color-input-full-width"
-                            title={resolveColor(formSettings.shippingBarBackgroundColor, '#f0f0f0')}
-                            aria-label={`Shipping bar background color: ${resolveColor(formSettings.shippingBarBackgroundColor, '#f0f0f0')}`}
-                          />
-                        </div>
-                        
-                        <div>
-                          <Text variant="headingMd" as="h3">Bar Color</Text>
-                          <input
-                            type="color"
-                            value={resolveColor(formSettings.shippingBarColor, '#4CAF50')}
-                            onChange={(e) => updateSetting("shippingBarColor", e.target.value)}
-                            className="cartuplift-color-input-full-width"
-                            title={resolveColor(formSettings.shippingBarColor, '#4CAF50')}
-                            aria-label={`Shipping bar color: ${resolveColor(formSettings.shippingBarColor, '#4CAF50')}`}
-                          />
-                        </div>
-                      </div>
+                        </BlockStack>
+                      )}
+                    </BlockStack>
+                  )}
+                  
+                  {/* Gift Gating Settings - shown when Gift & Rewards or Combined is selected */}
+                  {(formSettings.progressBarMode === 'gift-gating' || formSettings.progressBarMode === 'combined') && (
+                    <BlockStack key="gift-gating-settings" gap="400">
+                      <Checkbox
+                        label="Enable Gift Gating"
+                        checked={formSettings.enableGiftGating || false}
+                        onChange={(value) => updateSetting("enableGiftGating", value)}
+                        helpText="Unlock gifts, discounts, or free products when customers reach spending thresholds"
+                      />
+                      
+                      {formSettings.enableGiftGating && (
+                        <BlockStack gap="400">
+                          <BlockStack gap="200">
+                            <Text variant="headingSm" as="h3">Progress Bar Display Style</Text>
+                            <BlockStack gap="300">
+                              <BlockStack gap="100">
+                                <RadioButton
+                                  label="Stacked Progress Bars"
+                                  id="stacked"
+                                  name="giftProgressStyle"
+                                  checked={(formSettings.giftProgressStyle || 'single-next') === 'stacked'}
+                                  onChange={() => updateSetting('giftProgressStyle', 'stacked')}
+                                />
+                                <Text variant="bodySm" color="subdued" tone="subdued">
+                                  Show separate progress bars for each threshold
+                                </Text>
+                              </BlockStack>
+                              
+                              <BlockStack gap="100">
+                                <RadioButton
+                                  label="Single Bar with All Milestones"
+                                  id="single-multi"
+                                  name="giftProgressStyle"
+                                  checked={(formSettings.giftProgressStyle || 'single-next') === 'single-multi'}
+                                  onChange={() => updateSetting('giftProgressStyle', 'single-multi')}
+                                />
+                                <Text variant="bodySm" color="subdued" tone="subdued">
+                                  One progress bar showing all reward milestones
+                                </Text>
+                              </BlockStack>
+                              
+                              <BlockStack gap="100">
+                                <RadioButton
+                                  label="Single Bar with Next Goal Focus"
+                                  id="single-next"
+                                  name="giftProgressStyle"
+                                  checked={(formSettings.giftProgressStyle || 'single-next') === 'single-next'}
+                                  onChange={() => updateSetting('giftProgressStyle', 'single-next')}
+                                />
+                                <Text variant="bodySm" color="subdued" tone="subdued">
+                                  Focus on the next achievable reward
+                                </Text>
+                              </BlockStack>
+                            </BlockStack>
+                          </BlockStack>
+                          
+                          <BlockStack gap="200">
+                            <Text variant="headingSm" as="h3">Gift Thresholds</Text>
+                            <Text variant="bodySm" color="subdued">
+                              Set spending thresholds to unlock gifts, discounts, or free products
+                            </Text>
+                            
+                            <BlockStack gap="200" align="center">
+                              <Button onClick={addGiftThreshold} variant="secondary">Add Gift Threshold</Button>
+                            </BlockStack>
+                            
+                            <BlockStack gap="300">
+                              {(() => {
+                                const giftThresholds = formSettings.giftThresholds ? JSON.parse(formSettings.giftThresholds) : [];
+                                
+                                if (giftThresholds.length === 0) {
+                                  return (
+                                    <Text variant="bodySm" color="subdued" alignment="center">
+                                      No gift thresholds added yet. Click "Add Gift Threshold" to get started.
+                                    </Text>
+                                  );
+                                }
+                                
+                                return (
+                                  <BlockStack gap="300">
+                                    {giftThresholds.map((threshold: any, index: number) => (
+                                      <Card key={threshold.id} padding="400">
+                                        <BlockStack gap="300">
+                                          <InlineStack align="space-between">
+                                            <Text variant="headingSm" as="h4">Threshold #{index + 1}</Text>
+                                            <Button 
+                                              onClick={() => removeGiftThreshold(threshold.id)} 
+                                              variant="tertiary" 
+                                              tone="critical"
+                                              size="micro"
+                                            >
+                                              Remove
+                                            </Button>
+                                          </InlineStack>
+                                          
+                                          <InlineStack gap="300">
+                                            <TextField
+                                              label="Spending Amount"
+                                              type="number"
+                                              value={threshold.amount?.toString() || ''}
+                                              onChange={(value) => {
+                                                const updated = giftThresholds.map((t: any) => 
+                                                  t.id === threshold.id ? { ...t, amount: parseInt(value) || 0 } : t
+                                                );
+                                                updateSetting('giftThresholds', JSON.stringify(updated));
+                                              }}
+                                              prefix={shopCurrency?.currencyCode === 'GBP' ? '£' : shopCurrency?.currencyCode === 'EUR' ? '€' : '$'}
+                                              autoComplete="off"
+                                            />
+                                            
+                                            <Select
+                                              label="Reward Type"
+                                              options={[
+                                                { label: 'Free Product', value: 'product' },
+                                                { label: 'Percentage Discount', value: 'discount_percentage' },
+                                                { label: 'Discount Code', value: 'discount_store' }
+                                              ]}
+                                              value={threshold.type || 'product'}
+                                              onChange={(value) => {
+                                                const updated = giftThresholds.map((t: any) => 
+                                                  t.id === threshold.id ? { ...t, type: value } : t
+                                                );
+                                                updateSetting('giftThresholds', JSON.stringify(updated));
+                                              }}
+                                            />
+                                          </InlineStack>
+                                          
+                                          <TextField
+                                            label="Gift Title"
+                                            value={threshold.title || ''}
+                                            onChange={(value) => {
+                                              const updated = giftThresholds.map((t: any) => 
+                                                t.id === threshold.id ? { ...t, title: value } : t
+                                              );
+                                              updateSetting('giftThresholds', JSON.stringify(updated));
+                                            }}
+                                            placeholder="e.g., Free Sample Pack"
+                                            autoComplete="off"
+                                          />
+                                          
+                                          <TextField
+                                            label="Description"
+                                            value={threshold.description || ''}
+                                            onChange={(value) => {
+                                              const updated = giftThresholds.map((t: any) => 
+                                                t.id === threshold.id ? { ...t, description: value } : t
+                                              );
+                                              updateSetting('giftThresholds', JSON.stringify(updated));
+                                            }}
+                                            placeholder="Optional description for customers"
+                                            autoComplete="off"
+                                          />
+                                          
+                                          {threshold.type === 'product' && (
+                                            <BlockStack gap="200">
+                                              <Text variant="headingSm" as="h4">Gift Product</Text>
+                                              {threshold.productId ? (
+                                                <div className="cartuplift-selected-gift-product">
+                                                  {threshold.productImage && (
+                                                    <div className="cartuplift-product-image">
+                                                      <img 
+                                                        src={threshold.productImage} 
+                                                        alt={threshold.productImageAlt || threshold.productTitle}
+                                                        className="cartuplift-gift-product-image"
+                                                      />
+                                                    </div>
+                                                  )}
+                                                  <div className="cartuplift-product-info">
+                                                    <Text variant="bodyMd" fontWeight="medium">
+                                                      {threshold.productTitle}
+                                                    </Text>
+                                                  </div>
+                                                  <Button
+                                                    variant="plain"
+                                                    onClick={() => {
+                                                      setCurrentGiftThreshold(threshold);
+                                                      setShowGiftProductSelector(true);
+                                                    }}
+                                                  >
+                                                    Change Product
+                                                  </Button>
+                                                </div>
+                                              ) : (
+                                                <Button
+                                                  onClick={() => {
+                                                    setCurrentGiftThreshold(threshold);
+                                                    setShowGiftProductSelector(true);
+                                                  }}
+                                                >
+                                                  Select Gift Product
+                                                </Button>
+                                              )}
+                                            </BlockStack>
+                                          )}
+                                          
+                                          {threshold.type === 'discount_percentage' && (
+                                            <InlineStack gap="200">
+                                              <TextField
+                                                label="Discount Amount (%)"
+                                                type="number"
+                                                value={threshold.discountAmount?.toString() || ''}
+                                                onChange={(value) => {
+                                                  const updated = giftThresholds.map((t: any) => 
+                                                    t.id === threshold.id ? { ...t, discountAmount: parseFloat(value) || 0 } : t
+                                                  );
+                                                  updateSetting('giftThresholds', JSON.stringify(updated));
+                                                }}
+                                                suffix="%"
+                                                autoComplete="off"
+                                              />
+                                            </InlineStack>
+                                          )}
+                                          
+                                          {threshold.type === 'discount_store' && (
+                                            <TextField
+                                              label="Discount Code (from Shopify)"
+                                              value={threshold.discountCode || ''}
+                                              onChange={(value) => {
+                                                const updated = giftThresholds.map((t: any) => 
+                                                  t.id === threshold.id ? { ...t, discountCode: value } : t
+                                                );
+                                                updateSetting('giftThresholds', JSON.stringify(updated));
+                                              }}
+                                              placeholder="e.g., SAVE20"
+                                              helpText="Store-wide discount code created in Shopify"
+                                              autoComplete="off"
+                                            />
+                                          )}
+                                        </BlockStack>
+                                      </Card>
+                                    ))}
+                                  </BlockStack>
+                                );
+                              })()}
+                            </BlockStack>
+                          </BlockStack>
+                        </BlockStack>
+                      )}
                     </BlockStack>
                   )}
                 </FormLayout>
               </BlockStack>
             </Card>
 
-            {/* Appearance & Positioning */}
+            {/* Appearance & Style */}
             <Card>
               <BlockStack gap="400">
                 <Text variant="headingMd" as="h2">🎨 Appearance & Style</Text>
@@ -2588,30 +3527,6 @@ export default function SettingsPage() {
                 </FormLayout>
               </BlockStack>
             </Card>
-
-            {/* Checkout Options */}
-            <Card>
-              <BlockStack gap="400">
-                <Text variant="headingMd" as="h2">💳 Checkout Options</Text>
-                <FormLayout>
-                  <TextField
-                    label="Checkout Button Text"
-                    value={formSettings.checkoutButtonText || 'CHECKOUT'}
-                    onChange={(value) => updateSetting("checkoutButtonText", value)}
-                    helpText="Text for the main checkout button"
-                    placeholder="CHECKOUT"
-                    autoComplete="off"
-                  />
-                  
-                  <Checkbox
-                    label="Enable Express Checkout Buttons"
-                    checked={formSettings.enableExpressCheckout}
-                    onChange={(value) => updateSetting("enableExpressCheckout", value)}
-                    helpText="Show PayPal, Shop Pay, and other express checkout options"
-                  />
-                </FormLayout>
-              </BlockStack>
-            </Card>
           </BlockStack>
         </div>
 
@@ -2621,18 +3536,6 @@ export default function SettingsPage() {
             {/* Header */}
             <div className="cartuplift-preview-header">
                   <h2 className="cartuplift-cart-title">CART (5)</h2>
-                  {formSettings.enableFreeShipping && (
-                    <div className="cartuplift-shipping-info">
-                      <p className="cartuplift-shipping-message">
-                        {remaining > 0 
-                          ? (formSettings.freeShippingText || "Spend {{ amount }} more for free shipping!")
-                              .replace(/\{\{\s*amount\s*\}\}/g, `${(remaining / 100).toFixed(2)}`)
-                              .replace(/{amount}/g, `${(remaining / 100).toFixed(2)}`)
-                          : formSettings.freeShippingAchievedText || "🎉 Congratulations! You've unlocked free shipping!"
-                        }
-                      </p>
-                    </div>
-                  )}
                   <button className="cartuplift-close" aria-label="Close cart">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-icon-large">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -2640,9 +3543,9 @@ export default function SettingsPage() {
                   </button>
                 </div>
 
-                {/* Free Shipping Progress Bar */}
-                {formSettings.enableFreeShipping && (
-                  <div className="cartuplift-shipping-bar">
+                {/* Progress Bar Preview */}
+                {(formSettings.progressBarMode === 'free-shipping' || !formSettings.progressBarMode) && (
+                  <div key="free-shipping-preview" className="cartuplift-shipping-bar">
                     <div className="cartuplift-shipping-progress">
                       <div 
                         className="cartuplift-shipping-progress-fill" 
@@ -2652,6 +3555,251 @@ export default function SettingsPage() {
                         }}
                       ></div>
                     </div>
+                  </div>
+                )}
+                
+                {formSettings.progressBarMode === 'gift-gating' && (
+                  <div key="gift-gating-preview" className="cartuplift-gift-progress-container">
+                    {(() => {
+                      const giftThresholds = formSettings.giftThresholds ? JSON.parse(formSettings.giftThresholds) : [];
+                      const currentCartTotal = 474; // Demo cart total
+                      const giftProgressStyle = formSettings.giftProgressStyle || 'single-next';
+                      
+                      // If no thresholds, show sample data for preview
+                      const sampleThresholds = giftThresholds.length > 0 ? giftThresholds : [
+                        { id: '1', amount: 250, title: 'Free Gift', description: 'Get a free sample pack', type: 'free_product' },
+                        { id: '2', amount: 500, title: '20% Off', description: '20% off your entire order', type: 'discount_store' },
+                        { id: '3', amount: 750, title: 'Premium Gift', description: 'Free premium product', type: 'free_product' }
+                      ];
+                      
+                      const sortedThresholds = [...sampleThresholds].sort((a, b) => a.amount - b.amount);
+                      
+                      if (giftProgressStyle === 'stacked') {
+                        return (
+                          <div className="cartuplift-stacked-progress">
+                            {sortedThresholds.map((threshold, index) => {
+                              const progress = Math.min((currentCartTotal / threshold.amount) * 100, 100);
+                              const isAchieved = currentCartTotal >= threshold.amount;
+                              
+                              return (
+                                <div key={threshold.id} className="cartuplift-stacked-bar">
+                                  <div className="cartuplift-threshold-info">
+                                    <span className="cartuplift-threshold-title">
+                                      {isAchieved ? '✓' : '🎁'} {threshold.title}
+                                    </span>
+                                    <span className="cartuplift-threshold-amount">£{threshold.amount}</span>
+                                  </div>
+                                  <div className="cartuplift-progress-bar">
+                                    <div 
+                                      className={`cartuplift-progress-fill ${isAchieved ? 'achieved' : ''}`}
+                                      style={{ 
+                                        width: `${progress}%`,
+                                        background: isAchieved ? '#4CAF50' : resolveColor(formSettings.shippingBarColor, '#2196F3')
+                                      }}
+                                    ></div>
+                                  </div>
+                                  <div className="cartuplift-threshold-description">{threshold.description}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      } else if (giftProgressStyle === 'single-multi') {
+                        const maxThreshold = Math.max(...sortedThresholds.map(t => t.amount));
+                        const overallProgress = Math.min((currentCartTotal / maxThreshold) * 100, 100);
+                        
+                        return (
+                          <div className="cartuplift-single-multi-progress">
+                            <div className="cartuplift-milestones-header">
+                              <span>🎯 Gift Milestones</span>
+                              <span>£{currentCartTotal} / £{maxThreshold}</span>
+                            </div>
+                            <div className="cartuplift-progress-bar-container">
+                              <div className="cartuplift-progress-bar cartuplift-multi-milestone">
+                                <div 
+                                  className="cartuplift-progress-fill"
+                                  style={{ 
+                                    width: `${overallProgress}%`,
+                                    background: resolveColor(formSettings.shippingBarColor, '#2196F3')
+                                  }}
+                                ></div>
+                                {sortedThresholds.map((threshold, index) => {
+                                  const position = (threshold.amount / maxThreshold) * 100;
+                                  const isAchieved = currentCartTotal >= threshold.amount;
+                                  
+                                  return (
+                                    <div
+                                      key={threshold.id}
+                                      className={`cartuplift-milestone-marker ${isAchieved ? 'achieved' : ''}`}
+                                      style={{ left: `${position}%` }}
+                                      title={`${threshold.title} - £${threshold.amount}`}
+                                    >
+                                      <div className="cartuplift-milestone-dot"></div>
+                                      <div className="cartuplift-milestone-label">
+                                        <span className="cartuplift-milestone-icon">{isAchieved ? '✓' : '🎁'}</span>
+                                        <span>£{threshold.amount}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                            <div className="cartuplift-milestones-list">
+                              {sortedThresholds.map((threshold, index) => {
+                                const isAchieved = currentCartTotal >= threshold.amount;
+                                const remaining = threshold.amount - currentCartTotal;
+                                
+                                return (
+                                  <div key={threshold.id} className={`cartuplift-milestone-item ${isAchieved ? 'achieved' : ''}`}>
+                                    <span className="cartuplift-milestone-status">
+                                      {isAchieved ? '✅' : remaining > 0 ? `£${remaining.toFixed(2)} to go` : '🎁'}
+                                    </span>
+                                    <span className="cartuplift-milestone-reward">{threshold.title}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      } else {
+                        // single-next style (default)
+                        const nextThreshold = sortedThresholds.find(t => currentCartTotal < t.amount);
+                        const achievedThresholds = sortedThresholds.filter(t => currentCartTotal >= t.amount);
+                        
+                        if (!nextThreshold) {
+                          // All thresholds achieved
+                          const lastThreshold = sortedThresholds[sortedThresholds.length - 1];
+                          return (
+                            <div className="cartuplift-single-next-progress">
+                              <div className="cartuplift-next-goal-header">
+                                <span>🎉 All rewards unlocked!</span>
+                              </div>
+                              <div className="cartuplift-progress-bar">
+                                <div 
+                                  className="cartuplift-progress-fill achieved"
+                                  style={{ 
+                                    width: '100%',
+                                    background: '#4CAF50'
+                                  }}
+                                ></div>
+                              </div>
+                              <div className="cartuplift-goal-description">
+                                You've earned: {achievedThresholds.map(t => t.title).join(', ')}
+                              </div>
+                            </div>
+                          );
+                        }
+                        
+                        const progress = Math.min((currentCartTotal / nextThreshold.amount) * 100, 100);
+                        const remaining = nextThreshold.amount - currentCartTotal;
+                        
+                        return (
+                          <div className="cartuplift-single-next-progress">
+                            <div className="cartuplift-next-goal-header">
+                              <span>🎁 Next Reward: {nextThreshold.title}</span>
+                              <span>£{remaining.toFixed(2)} to go</span>
+                            </div>
+                            <div className="cartuplift-progress-bar">
+                              <div 
+                                className="cartuplift-progress-fill"
+                                style={{ 
+                                  width: `${progress}%`,
+                                  background: resolveColor(formSettings.shippingBarColor, '#2196F3')
+                                }}
+                              ></div>
+                            </div>
+                            <div className="cartuplift-goal-description">
+                              {nextThreshold.description}
+                            </div>
+                            {achievedThresholds.length > 0 && (
+                              <div className="cartuplift-achieved-rewards">
+                                <span>✅ Already earned: {achievedThresholds.map(t => t.title).join(', ')}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+                    })()}
+                  </div>
+                )}
+                
+                {formSettings.progressBarMode === 'combined' && (
+                  <div key="combined-preview" className="cartuplift-combined-progress-container">
+                    <div className="cartuplift-shipping-section">
+                      <div className="cartuplift-section-header">
+                        <span>🚚 Free Shipping Progress</span>
+                        <span>{formatCurrency((165 / 100), shopCurrency?.currencyCode || 'USD')} / {formatCurrency(((formSettings.freeShippingThreshold || 250) / 100), shopCurrency?.currencyCode || 'USD')}</span>
+                      </div>
+                      <div className="cartuplift-progress-bar">
+                        <div 
+                          className="cartuplift-progress-fill"
+                          style={{
+                            width: `${Math.min((165 / (formSettings.freeShippingThreshold || 250)) * 100, 100)}%`,
+                            background: resolveColor(formSettings.shippingBarColor, '#4CAF50')
+                          }}
+                        ></div>
+                      </div>
+                      <div className="cartuplift-section-description">
+                        {165 < (formSettings.freeShippingThreshold || 250) 
+                          ? `${formatCurrency((((formSettings.freeShippingThreshold || 250) - 165) / 100), shopCurrency?.currencyCode || 'USD')} more for free shipping`
+                          : "✅ Free shipping unlocked!"
+                        }
+                      </div>
+                    </div>
+                    
+                    <div className="cartuplift-gifts-section">
+                        {(() => {
+                          const giftThresholds = formSettings.giftThresholds ? JSON.parse(formSettings.giftThresholds) : [];
+                          const currentCartTotal = 474;
+                          
+                          // If no thresholds, show sample data
+                          const sampleThresholds = giftThresholds.length > 0 ? giftThresholds : [
+                            { id: '1', amount: 250, title: 'Free Gift', description: 'Get a free sample pack', type: 'free_product' },
+                            { id: '2', amount: 500, title: '20% Off', description: '20% off your entire order', type: 'discount_store' }
+                          ];
+                          
+                          const sortedThresholds = [...sampleThresholds].sort((a, b) => a.amount - b.amount);
+                          const nextThreshold = sortedThresholds.find(t => currentCartTotal < t.amount);
+                          const achievedThresholds = sortedThresholds.filter(t => currentCartTotal >= t.amount);
+                          
+                          if (!nextThreshold) {
+                            return (
+                              <div className="cartuplift-section-header">
+                                <span>🎉 All gift rewards unlocked!</span>
+                              </div>
+                            );
+                          }
+                          
+                          const progress = Math.min((currentCartTotal / nextThreshold.amount) * 100, 100);
+                          const remaining = nextThreshold.amount - currentCartTotal;
+                          
+                          return (
+                            <>
+                              <div className="cartuplift-section-header">
+                                <span>🎁 Next Gift: {nextThreshold.title}</span>
+                                <span>£{remaining.toFixed(2)} to go</span>
+                              </div>
+                              <div className="cartuplift-progress-bar">
+                                <div 
+                                  className="cartuplift-progress-fill"
+                                  style={{ 
+                                    width: `${progress}%`,
+                                    background: resolveColor(formSettings.shippingBarColor, '#FF9800')
+                                  }}
+                                ></div>
+                              </div>
+                              <div className="cartuplift-section-description">
+                                {nextThreshold.description}
+                              </div>
+                              {achievedThresholds.length > 0 && (
+                                <div className="cartuplift-achieved-section">
+                                  <span>✅ Earned: {achievedThresholds.map(t => t.title).join(', ')}</span>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
                   </div>
                 )}
 
@@ -2674,7 +3822,7 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       <div className="cartuplift-item-price-actions">
-                        <div className="cartuplift-item-price">£19.99</div>
+                        <div className="cartuplift-item-price">{formatCurrency(19.99, shopCurrency?.currencyCode || 'USD')}</div>
                         <button className="cartuplift-item-remove" title="Remove item">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-icon-medium">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
@@ -2699,7 +3847,7 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       <div className="cartuplift-item-price-actions">
-                        <div className="cartuplift-item-price">£89.99</div>
+                        <div className="cartuplift-item-price">{formatCurrency(89.99, shopCurrency?.currencyCode || 'USD')}</div>
                         <button className="cartuplift-item-remove" title="Remove item">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-icon-medium">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
@@ -2724,7 +3872,7 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       <div className="cartuplift-item-price-actions">
-                        <div className="cartuplift-item-price">£29.99</div>
+                        <div className="cartuplift-item-price">{formatCurrency(29.99, shopCurrency?.currencyCode || 'USD')}</div>
                         <button className="cartuplift-item-remove" title="Remove item">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-icon-medium">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.111 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
@@ -2957,6 +4105,11 @@ export default function SettingsPage() {
                                         if (val) {
                                           const next = Array.from(new Set([...selectedProducts, p.id]));
                                           setSelectedProducts(next);
+                                          // If product has variants, show variant selector
+                                          if (p.variants && p.variants.length > 1) {
+                                            setSelectedProductForVariants(p);
+                                            setShowVariantSelector(true);
+                                          }
                                         } else {
                                           const next = selectedProducts.filter((id: string) => id !== p.id);
                                           setSelectedProducts(next);
@@ -2967,12 +4120,84 @@ export default function SettingsPage() {
                                     <div className="cartuplift-product-meta">
                                       <p className="cartuplift-product-title">{p.title}</p>
                                       <p className="cartuplift-product-sub">{p.handle}</p>
+                                      {checked && p.variants && p.variants.length > 1 && (
+                                        <div style={{ marginTop: '8px' }}>
+                                          <Button 
+                                            size="micro" 
+                                            onClick={() => {
+                                              setSelectedProductForVariants(p);
+                                              setShowVariantSelector(true);
+                                            }}
+                                          >
+                                            Select Variants ({p.variants.length} available)
+                                          </Button>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 );
                               })}
                             </div>
                           )}
+                        </BlockStack>
+                      </Modal.Section>
+                    </Modal>
+                  )}
+
+                  {/* Variant Selector Modal */}
+                  {showVariantSelector && selectedProductForVariants && (
+                    <Modal
+                      open
+                      onClose={() => {
+                        setShowVariantSelector(false);
+                        setSelectedProductForVariants(null);
+                      }}
+                      title={`Select variants for ${selectedProductForVariants.title}`}
+                      primaryAction={{
+                        content: 'Done',
+                        onAction: () => {
+                          setShowVariantSelector(false);
+                          setSelectedProductForVariants(null);
+                        },
+                      }}
+                    >
+                      <Modal.Section>
+                        <BlockStack gap="300">
+                          <Text as="p">Choose which variants of this product to recommend:</Text>
+                          {selectedProductForVariants.variants?.map((variant: any) => (
+                            <Card key={variant.id}>
+                              <div style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <Checkbox
+                                  label=""
+                                  checked={selectedProducts.includes(variant.id)}
+                                  onChange={(checked: boolean) => {
+                                    if (checked) {
+                                      const next = Array.from(new Set([...selectedProducts, variant.id]));
+                                      setSelectedProducts(next);
+                                    } else {
+                                      const next = selectedProducts.filter((id: string) => id !== variant.id);
+                                      setSelectedProducts(next);
+                                    }
+                                  }}
+                                />
+                                <div style={{ flex: 1 }}>
+                                  <Text as="p" fontWeight="semibold">
+                                    {variant.title !== 'Default Title' ? variant.title : 'Default'}
+                                  </Text>
+                                  <Text as="p" tone="subdued">
+                                    ${variant.price} • SKU: {variant.sku || 'N/A'} • Stock: {variant.inventoryQuantity || 0}
+                                  </Text>
+                                </div>
+                                {variant.image && (
+                                  <img 
+                                    src={variant.image} 
+                                    alt={variant.title}
+                                    style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }}
+                                  />
+                                )}
+                              </div>
+                            </Card>
+                          ))}
                         </BlockStack>
                       </Modal.Section>
                     </Modal>
@@ -2992,7 +4217,7 @@ export default function SettingsPage() {
                 <div className="cartuplift-footer">
                   <div className="cartuplift-subtotal">
                     <span>Subtotal</span>
-                    <span>£474.00</span>
+                    <span>{formatCurrency(474.00, shopCurrency?.currencyCode || 'USD')}</span>
                   </div>
                   
                   <button className="cartuplift-checkout-btn">{formSettings.checkoutButtonText || 'CHECKOUT'}</button>
@@ -3016,12 +4241,87 @@ export default function SettingsPage() {
                     <span className="cartuplift-sticky-count">5</span>
                   )}
                   {formSettings.stickyCartShowTotal !== false && (
-                    <span className="cartuplift-sticky-total">£474.00</span>
+                    <span className="cartuplift-sticky-total">{formatCurrency(474.00, shopCurrency?.currencyCode || 'USD')}</span>
                   )}
                 </button>
               </div>
         </div>
       </div>
+
+      {/* Gift Product Selector Modal */}
+      {showGiftProductSelector && (
+        <Modal
+          open
+          onClose={() => setShowGiftProductSelector(false)}
+          title="Select Gift Product"
+          primaryAction={{
+            content: 'Done',
+            onAction: () => {
+              setShowGiftProductSelector(false);
+            }
+          }}
+          secondaryActions={[{ content: 'Cancel', onAction: () => setShowGiftProductSelector(false) }]}
+        >
+          <Modal.Section>
+            <BlockStack gap="300">
+              <TextField
+                label="Search products"
+                value={giftProductSearchQuery}
+                onChange={(v: string) => setGiftProductSearchQuery(v)}
+                autoComplete="off"
+                placeholder="Search by title, vendor, or tag"
+              />
+              {giftProductsLoading ? (
+                <InlineStack align="center">
+                  <Spinner accessibilityLabel="Loading products" />
+                </InlineStack>
+              ) : (
+                <div className="cartuplift-product-selector-list">
+                  {giftProductsError && (
+                    <Banner tone="critical">{giftProductsError}</Banner>
+                  )}
+                  {giftProducts.length === 0 && (
+                    <Text as="p" tone="subdued">No products found.</Text>
+                  )}
+                  {giftProducts.map((p: any) => {
+                    const isSelected = currentGiftThreshold?.productId === p.id;
+                    return (
+                      <div key={p.id} className="cartuplift-product-row">
+                        <Checkbox
+                          label=""
+                          checked={isSelected}
+                          onChange={(val: boolean) => {
+                            if (val && currentGiftThreshold) {
+                              const giftThresholds = formSettings.giftThresholds ? JSON.parse(formSettings.giftThresholds) : [];
+                              const updated = giftThresholds.map((t: any) => 
+                                t.id === currentGiftThreshold.id ? { 
+                                  ...t, 
+                                  productId: p.id,
+                                  productHandle: p.handle,
+                                  productTitle: p.title,
+                                  productImage: p.image,
+                                  productImageAlt: p.imageAlt || p.title
+                                } : t
+                              );
+                              updateSetting('giftThresholds', JSON.stringify(updated));
+                              setShowGiftProductSelector(false);
+                            }
+                          }}
+                        />
+                        <img className="cartuplift-product-thumb" src={p.image || ''} alt={p.imageAlt || p.title} />
+                        <div className="cartuplift-product-meta">
+                          <p className="cartuplift-product-title">{p.title}</p>
+                          <p className="cartuplift-product-sub">{p.handle}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </BlockStack>
+          </Modal.Section>
+        </Modal>
+      )}
     </Page>
   );
 }

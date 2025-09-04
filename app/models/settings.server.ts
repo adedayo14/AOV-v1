@@ -44,6 +44,12 @@ export interface SettingsData {
   maxRecommendations: number;
   complementDetectionMode: string;
   manualRecommendationProducts: string;
+  
+  // Gift Gating Settings
+  enableGiftGating: boolean;
+  progressBarMode: string;
+  giftProgressStyle: string;
+  giftThresholds: string;
 }
 
 export async function getSettings(shop: string): Promise<SettingsData> {
@@ -90,6 +96,10 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       maxRecommendations: settings.maxRecommendations,
       complementDetectionMode: (settings as any).complementDetectionMode ?? "automatic",
       manualRecommendationProducts: (settings as any).manualRecommendationProducts ?? "",
+      enableGiftGating: (settings as any).enableGiftGating ?? false,
+      progressBarMode: (settings as any).progressBarMode ?? "free-shipping",
+      giftProgressStyle: (settings as any).giftProgressStyle ?? "single-next",
+      giftThresholds: (settings as any).giftThresholds ?? "[]",
     };
   } catch (error) {
     console.error("Error fetching settings:", error);
@@ -102,11 +112,11 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
     // Filter to only include valid SettingsData fields
     const validFields: (keyof SettingsData)[] = [
       'enableApp', 'enableStickyCart', 'showOnlyOnCartPage', 'autoOpenCart', 'enableFreeShipping', 'freeShippingThreshold',
-      'enableRecommendations', 'enableAddons', 'enableDiscountCode', 'enableNotes', 'enableExpressCheckout', 'enableAnalytics',
+      'enableRecommendations', 'enableAddons', 'enableDiscountCode', 'enableNotes', 'enableExpressCheckout', 'enableAnalytics', 'enableGiftGating',
       'cartPosition', 'cartIcon', 'freeShippingText', 'freeShippingAchievedText', 'recommendationsTitle', 'actionText',
       'addButtonText', 'checkoutButtonText', 'applyButtonText',
       'backgroundColor', 'textColor', 'buttonColor', 'buttonTextColor', 'recommendationsBackgroundColor', 'shippingBarBackgroundColor', 'shippingBarColor', 'recommendationLayout', 'maxRecommendations',
-      'complementDetectionMode', 'manualRecommendationProducts'
+      'complementDetectionMode', 'manualRecommendationProducts', 'progressBarMode', 'giftProgressStyle', 'giftThresholds'
     ];
     
     const filteredData: Partial<SettingsData> = {};
@@ -158,6 +168,10 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       maxRecommendations: settings.maxRecommendations,
       complementDetectionMode: (settings as any).complementDetectionMode ?? "automatic",
       manualRecommendationProducts: (settings as any).manualRecommendationProducts ?? "",
+      enableGiftGating: (settings as any).enableGiftGating ?? false,
+      progressBarMode: (settings as any).progressBarMode ?? "free-shipping",
+      giftProgressStyle: (settings as any).giftProgressStyle ?? "single-next",
+      giftThresholds: (settings as any).giftThresholds ?? "[]",
     };
   } catch (error) {
     console.error("Error saving settings:", error);
@@ -210,5 +224,11 @@ export function getDefaultSettings(): SettingsData {
     maxRecommendations: 3,
     complementDetectionMode: "automatic",
     manualRecommendationProducts: "",
+    
+    // Gift Gating Settings
+    enableGiftGating: false,
+    progressBarMode: "free-shipping",
+    giftProgressStyle: "single-next",
+    giftThresholds: "[]",
   };
 }

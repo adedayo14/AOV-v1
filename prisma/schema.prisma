@@ -79,6 +79,12 @@ model Settings {
   complementDetectionMode String   @default("automatic")
   manualRecommendationProducts String @default("")
   
+  // Progress Bar System
+  progressBarMode         String   @default("free-shipping") // "free-shipping", "gift-gating", "combined"
+  enableGiftGating        Boolean  @default(false)
+  giftProgressStyle       String   @default("single-next") // "stacked", "single-multi", "single-next"
+  giftThresholds          String   @default("[]") // JSON array of gift thresholds
+  
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 }
