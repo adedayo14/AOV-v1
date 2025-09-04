@@ -9,7 +9,7 @@
   --cartuplift-border: #e5e5e5;
   --cartuplift-background: #ffffff;
   --cartuplift-cart-background: var(--cartuplift-background); /* Dedicated cart background */
-  --cartuplift-button-color: #121212;
+  --cartuplift-button-color: #000000; /* Progress bars and buttons default to black */
   --cartuplift-success-color: #121212; /* Dark neutral instead of green */
   --cartuplift-recommendations-bg: #ecebe3;
   --cartuplift-teal: #16a085;
@@ -199,7 +199,7 @@ body.cartuplift-no-scroll {
 
 .cartuplift-shipping-progress-fill {
   height: 100%;
-  background: var(--cartuplift-button-color);
+  background: #000000; /* Force black progress */
   border-radius: 3px;
   transition: width 0.5s ease, background 0.3s ease;
   min-width: 2px;
@@ -282,6 +282,7 @@ body.cartuplift-no-scroll {
   border-radius: 3px;
   transition: width 0.5s ease;
   min-width: 2px;
+  background: #000000; /* Force black for milestone bar */
 }
 
 .cartuplift-milestone-marker {
@@ -370,6 +371,7 @@ body.cartuplift-no-scroll {
   border-radius: 3px;
   transition: width 0.5s ease;
   min-width: 2px;
+  background: #000000; /* Force black for next-goal bar */
 }
 
 .cartuplift-progress-text {

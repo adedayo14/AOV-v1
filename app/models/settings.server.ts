@@ -99,7 +99,7 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       enableGiftGating: (settings as any).enableGiftGating ?? false,
       progressBarMode: (settings as any).progressBarMode ?? "free-shipping",
       giftProgressStyle: (settings as any).giftProgressStyle ?? "single-next",
-      giftThresholds: (settings as any).giftThresholds ?? "[]",
+  giftThresholds: (settings as any).giftThresholds ?? "[]",
     };
   } catch (error) {
     console.error("Error fetching settings:", error);
@@ -115,8 +115,8 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       'enableRecommendations', 'enableAddons', 'enableDiscountCode', 'enableNotes', 'enableExpressCheckout', 'enableAnalytics', 'enableGiftGating',
       'cartPosition', 'cartIcon', 'freeShippingText', 'freeShippingAchievedText', 'recommendationsTitle', 'actionText',
       'addButtonText', 'checkoutButtonText', 'applyButtonText',
-      'backgroundColor', 'textColor', 'buttonColor', 'buttonTextColor', 'recommendationsBackgroundColor', 'shippingBarBackgroundColor', 'shippingBarColor', 'recommendationLayout', 'maxRecommendations',
-      'complementDetectionMode', 'manualRecommendationProducts', 'progressBarMode', 'giftProgressStyle', 'giftThresholds'
+  'backgroundColor', 'textColor', 'buttonColor', 'buttonTextColor', 'recommendationsBackgroundColor', 'shippingBarBackgroundColor', 'shippingBarColor', 'recommendationLayout', 'maxRecommendations',
+  'complementDetectionMode', 'manualRecommendationProducts', 'progressBarMode', 'giftProgressStyle', 'giftThresholds'
     ];
     
     const filteredData: Partial<SettingsData> = {};
@@ -171,7 +171,7 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       enableGiftGating: (settings as any).enableGiftGating ?? false,
       progressBarMode: (settings as any).progressBarMode ?? "free-shipping",
       giftProgressStyle: (settings as any).giftProgressStyle ?? "single-next",
-      giftThresholds: (settings as any).giftThresholds ?? "[]",
+  giftThresholds: (settings as any).giftThresholds ?? "[]",
     };
   } catch (error) {
     console.error("Error saving settings:", error);
@@ -186,11 +186,11 @@ export function getDefaultSettings(): SettingsData {
     enableStickyCart: true,
     showOnlyOnCartPage: false,
     autoOpenCart: true,
-    enableFreeShipping: true,
+  enableFreeShipping: false,
     freeShippingThreshold: 100,
     
     // Advanced Features
-    enableRecommendations: true,
+  enableRecommendations: false,
     enableAddons: false,
     enableDiscountCode: true,
     enableNotes: false,
@@ -229,6 +229,6 @@ export function getDefaultSettings(): SettingsData {
     enableGiftGating: false,
     progressBarMode: "free-shipping",
     giftProgressStyle: "single-next",
-    giftThresholds: "[]",
+  giftThresholds: "[]",
   };
 }

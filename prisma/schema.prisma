@@ -44,7 +44,7 @@ model Settings {
   freeShippingThreshold   Float    @default(100)
   
   // Advanced Features
-  enableRecommendations   Boolean  @default(true)
+  enableRecommendations   Boolean  @default(false)
   enableAddons            Boolean  @default(false)
   enableDiscountCode      Boolean  @default(true)
   enableNotes             Boolean  @default(false)
