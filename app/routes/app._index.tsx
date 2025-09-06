@@ -52,20 +52,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
   
   // Check if app embed is installed in theme
-  // For now, we'll consider it "installed" if enableApp is true and we're not on initial setup
-  // In a production app, you might want to check the theme files via GraphQL API
-  const themeEmbedInstalled = !!settings.enableApp && (
-    !!settings.enableRecommendations || 
-    !!settings.enableFreeShipping || 
-    settings.backgroundColor !== "#ffffff" ||
-    settings.textColor !== "#1A1A1A" ||
-    (settings.buttonColor !== "var(--button-background, #000000)" && settings.buttonColor !== "#000000")
-  );
+  // TODO: Implement real detection via Admin API; default to false to avoid confusion
+  const themeEmbedInstalled = false;
 
   // Calculate setup progress focusing on explicit user actions (start lower by default)
   const setupSteps = [
-    { key: 'themeEmbed', label: 'App embed installed in theme', completed: themeEmbedInstalled },
-    { key: 'enableApp', label: 'App functionality enabled', completed: !!settings.enableApp },
+    { key: 'themeEmbed', label: 'Enable app embed in theme', completed: themeEmbedInstalled },
     { key: 'configureRecommendations', label: 'Recommendations configured', completed: !!settings.enableRecommendations },
     { key: 'configureFreeShipping', label: 'Free shipping setup', completed: !!settings.enableFreeShipping },
     { key: 'styling', label: 'Styling customized', completed: (

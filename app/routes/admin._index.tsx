@@ -46,12 +46,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   // Calculate setup progress based on key settings
-  // Note: We can't auto-detect embed status yet, so keep it explicitly incomplete for clarity
+  // TODO: Implement real detection; default to false to avoid confusion
+  const themeEmbedInstalled = false;
   const setupSteps = [
-    { key: 'embed', label: 'Enable app embed in theme', completed: false },
-    { key: 'enableApp', label: 'App enabled', completed: !!settings.enableApp },
+    { key: 'themeEmbed', label: 'Enable app embed in theme', completed: themeEmbedInstalled },
     { key: 'enableRecommendations', label: 'Recommendations configured', completed: !!settings.enableRecommendations },
-    { key: 'enableFreeShipping', label: 'Free shipping setup', completed: !!settings.enableFreeShipping },
+  { key: 'enableFreeShipping', label: 'Free shipping setup', completed: !!settings.enableFreeShipping },
     // Treat styling as customized only when values differ from true defaults used in DB
     { key: 'styling', label: 'Styling customized', completed: (settings.backgroundColor !== '#ffffff') || (settings.buttonColor !== '#000000') || (settings.textColor !== '#1A1A1A') },
   ];
@@ -59,7 +59,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const completedSteps = setupSteps.filter(step => step.completed).length;
   const progressPercentage = Math.round((completedSteps / setupSteps.length) * 100);
 
-  return json({ setupSteps, progressPercentage, shop, currentThemeId });
+  return json({ setupSteps, progressPercentage, shop, currentThemeId, themeEmbedInstalled });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -118,7 +118,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Index() {
-  const { setupSteps, progressPercentage, shop, currentThemeId } = useLoaderData<typeof loader>();
+  const { setupSteps, progressPercentage, shop, currentThemeId, themeEmbedInstalled } = useLoaderData<typeof loader>();
 
   // Build absolute admin URL so it doesn't try to open inside the embed iframe
   const shopHandle = (shop || '').replace('.myshopify.com', '');
@@ -307,12 +307,15 @@ export default function Index() {
               </div>
               
               <InlineStack gap="300">
-                <Link to="/app/settings">
-                  <Button variant="primary">Complete Setup</Button>
-                </Link>
-                <a href={themeEditorUrl} target="_top" rel="noopener noreferrer">
-                  <Button variant="secondary">Install Theme Embed</Button>
-                </a>
+                {!themeEmbedInstalled ? (
+                  <a href={themeEditorUrl} target="_top" rel="noopener noreferrer">
+                    <Button variant="primary">Install Theme Embed</Button>
+                  </a>
+                ) : (
+                  <Link to="/app/settings">
+                    <Button variant="primary">Complete Setup</Button>
+                  </Link>
+                )}
               </InlineStack>
             </BlockStack>
           </Card>
