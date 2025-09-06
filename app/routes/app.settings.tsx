@@ -605,7 +605,7 @@ export default function SettingsPage() {
 
           .cartuplift-shipping-progress-fill {
             height: 100%;
-            background: ${resolveColor(formSettings.shippingBarColor, '#4CAF50')};
+            background: ${resolveColor(formSettings.shippingBarColor, '#121212')};
             border-radius: 3px;
             transition: width 0.5s ease, background 0.3s ease;
             min-width: 2px;
@@ -1245,7 +1245,7 @@ export default function SettingsPage() {
 
           .cartuplift-shipping-progress-fill {
             height: 100%;
-            background: ${resolveColor(formSettings.shippingBarColor, '#4CAF50')};
+            background: ${resolveColor(formSettings.shippingBarColor, '#121212')};
             border-radius: 3px;
             transition: width 0.5s ease, background 0.3s ease;
             min-width: 2px;

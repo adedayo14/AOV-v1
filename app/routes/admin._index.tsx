@@ -16,24 +16,50 @@ import { authenticate } from "../shopify.server";
 import { getSettings } from "../models/settings.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
-  
+
   // Get current settings to calculate setup progress
   const settings = await getSettings(shop);
-  
+
+  // Get the current theme ID for direct linking to Theme Editor
+  let currentThemeId: string | null = null;
+  try {
+    const response = await admin.graphql(`
+      #graphql
+      query getCurrentThemeForAdminIndex {
+        themes(first: 50) {
+          edges {
+            node { id name role }
+          }
+        }
+      }
+    `);
+    const responseJson = await response.json();
+    const themes = responseJson.data?.themes?.edges || [];
+    const currentTheme = themes.find((t: any) => t.node.role === 'MAIN');
+    if (currentTheme) {
+      currentThemeId = currentTheme.node.id.split('/').pop();
+    }
+  } catch (err) {
+    console.error('Failed to fetch current theme (admin._index):', err);
+  }
+
   // Calculate setup progress based on key settings
+  // Note: We can't auto-detect embed status yet, so keep it explicitly incomplete for clarity
   const setupSteps = [
-    { key: 'enableApp', label: 'App enabled', completed: settings.enableApp },
-    { key: 'enableRecommendations', label: 'Recommendations configured', completed: settings.enableRecommendations },
-    { key: 'enableFreeShipping', label: 'Free shipping setup', completed: settings.enableFreeShipping },
-    { key: 'styling', label: 'Styling customized', completed: settings.backgroundColor !== '#ffffff' || settings.buttonColor !== 'var(--button-background, #000000)' || settings.textColor !== '#1A1A1A' },
+    { key: 'embed', label: 'Enable app embed in theme', completed: false },
+    { key: 'enableApp', label: 'App enabled', completed: !!settings.enableApp },
+    { key: 'enableRecommendations', label: 'Recommendations configured', completed: !!settings.enableRecommendations },
+    { key: 'enableFreeShipping', label: 'Free shipping setup', completed: !!settings.enableFreeShipping },
+    // Treat styling as customized only when values differ from true defaults used in DB
+    { key: 'styling', label: 'Styling customized', completed: (settings.backgroundColor !== '#ffffff') || (settings.buttonColor !== '#000000') || (settings.textColor !== '#1A1A1A') },
   ];
-  
+
   const completedSteps = setupSteps.filter(step => step.completed).length;
   const progressPercentage = Math.round((completedSteps / setupSteps.length) * 100);
 
-  return json({ setupSteps, progressPercentage });
+  return json({ setupSteps, progressPercentage, shop, currentThemeId });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -92,7 +118,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Index() {
-  const { setupSteps, progressPercentage } = useLoaderData<typeof loader>();
+  const { setupSteps, progressPercentage, shop, currentThemeId } = useLoaderData<typeof loader>();
+
+  // Build absolute admin URL so it doesn't try to open inside the embed iframe
+  const shopHandle = (shop || '').replace('.myshopify.com', '');
+  const themeEditorUrl = currentThemeId
+    ? `https://admin.shopify.com/store/${shopHandle}/themes/${currentThemeId}/editor?context=apps`
+    : `https://admin.shopify.com/store/${shopHandle}/themes/current/editor?context=apps`;
 
   return (
     <Page fullWidth>
@@ -199,7 +231,26 @@ export default function Index() {
                 </Text>
               </BlockStack>
               
-              <ProgressBar progress={progressPercentage} size="small" />
+              <div className="cartuplift-setup-progress">
+                <ProgressBar progress={progressPercentage} size="small" />
+              </div>
+              <style
+                dangerouslySetInnerHTML={{
+                  __html: `
+                    /* Force Polaris ProgressBar to black (scoped to setup section) */
+                    .cartuplift-setup-progress .Polaris-ProgressBar__Indicator,
+                    .cartuplift-setup-progress .Polaris-ProgressBar__Indicator:after {
+                      background: #000 !important;
+                      background-color: #000 !important;
+                    }
+                    /* Override Polaris CSS variables to ensure black indicator */
+                    .cartuplift-setup-progress .Polaris-ProgressBar {
+                      --pc-progress-bar-indicator: #000 !important;
+                      --pc-progress-bar-color: #000 !important;
+                    }
+                  `,
+                }}
+              />
               
               <style dangerouslySetInnerHTML={{
                 __html: `
@@ -259,13 +310,9 @@ export default function Index() {
                 <Link to="/app/settings">
                   <Button variant="primary">Complete Setup</Button>
                 </Link>
-                <Button 
-                  url="https://test-lab-101.myshopify.com/admin/themes/current/editor" 
-                  external
-                  variant="secondary"
-                >
-                  Install Theme Embed
-                </Button>
+                <a href={themeEditorUrl} target="_top" rel="noopener noreferrer">
+                  <Button variant="secondary">Install Theme Embed</Button>
+                </a>
               </InlineStack>
             </BlockStack>
           </Card>
@@ -355,14 +402,9 @@ export default function Index() {
               </div>
               <div className="card-button-wrapper">
                 <div className="cartuplift-action-buttons">
-                  <Button 
-                    url="https://test-lab-101.myshopify.com/admin/themes/current/editor" 
-                    external
-                    variant="primary"
-                    size="large"
-                  >
-                    Open Theme Editor
-                  </Button>
+                  <a href={themeEditorUrl} target="_top" rel="noopener noreferrer">
+                    <Button variant="primary" size="large">Open Theme Editor</Button>
+                  </a>
                 </div>
               </div>
             </Card>

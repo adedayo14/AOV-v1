@@ -16,11 +16,40 @@ import { authenticate } from "../shopify.server";
 import { getSettings } from "../models/settings.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const shop = session.shop;
+  const { session, admin } = await authenticate.admin(request);
+  const shop = session.shop; // e.g. test-lab-101.myshopify.com
   
   // Get current settings to calculate setup progress
   const settings = await getSettings(shop);
+  
+  // Get the current theme ID to create direct embed link
+  let currentThemeId = null;
+  try {
+    const response = await admin.graphql(`
+      #graphql
+      query getCurrentTheme {
+        themes(first: 50) {
+          edges {
+            node {
+              id
+              name
+              role
+            }
+          }
+        }
+      }
+    `);
+    
+    const responseJson = await response.json();
+    const themes = responseJson.data?.themes?.edges || [];
+    const currentTheme = themes.find((theme: any) => theme.node.role === 'MAIN');
+    if (currentTheme) {
+      // Extract numeric ID from GraphQL ID (e.g., "gid://shopify/Theme/123456789" -> "123456789")
+      currentThemeId = currentTheme.node.id.split('/').pop();
+    }
+  } catch (error) {
+    console.error('Failed to fetch current theme:', error);
+  }
   
   // Calculate setup progress focusing on explicit user actions (start lower by default)
   const setupSteps = [
@@ -33,7 +62,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const completedSteps = setupSteps.filter(step => step.completed).length;
   const progressPercentage = Math.round((completedSteps / setupSteps.length) * 100);
 
-  return json({ setupSteps, progressPercentage });
+  return json({ setupSteps, progressPercentage, currentThemeId, shop });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -92,7 +121,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Index() {
-  const { setupSteps, progressPercentage } = useLoaderData<typeof loader>();
+  const { setupSteps, progressPercentage, currentThemeId, shop } = useLoaderData<typeof loader>();
+
+  // Build absolute admin URL so it doesn't resolve to the app/dev origin
+  const shopHandle = (shop || '').replace('.myshopify.com', '');
+  const themeEditorUrl = currentThemeId
+    ? `https://admin.shopify.com/store/${shopHandle}/themes/${currentThemeId}/editor?context=apps`
+    : `https://admin.shopify.com/store/${shopHandle}/themes/current/editor?context=apps`;
 
   return (
     <Page fullWidth>
@@ -199,13 +234,21 @@ export default function Index() {
                 </Text>
               </BlockStack>
               
-              <ProgressBar progress={progressPercentage} size="small" />
+              <div className="cartuplift-setup-progress">
+                <ProgressBar progress={progressPercentage} size="small" />
+              </div>
               <style dangerouslySetInnerHTML={{
                 __html: `
-                  /* Force Polaris ProgressBar to black */
-                  .Polaris-ProgressBar__Indicator,
-                  .Polaris-ProgressBar__Indicator:after {
+                  /* Force Polaris ProgressBar to black (scoped) */
+                  .cartuplift-setup-progress .Polaris-ProgressBar__Indicator,
+                  .cartuplift-setup-progress .Polaris-ProgressBar__Indicator:after {
+                    background: #000 !important;
                     background-color: #000 !important;
+                  }
+                  /* Newer Polaris may use CSS variables; override them too */
+                  .cartuplift-setup-progress .Polaris-ProgressBar {
+                    --pc-progress-bar-color: #000 !important;
+                    --p-progress-bar-indicator: #000 !important;
                   }
                 `
               }} />
@@ -268,13 +311,13 @@ export default function Index() {
                 <Link to="/app/settings">
                   <Button variant="primary">Complete Setup</Button>
                 </Link>
-                <Button 
-                  url="https://test-lab-101.myshopify.com/admin/themes/current/editor" 
-                  external
-                  variant="secondary"
-                >
-                  Install Theme Embed
-                </Button>
+                <a href={themeEditorUrl} target="_top" rel="noopener noreferrer">
+                  <Button 
+                    variant="secondary"
+                  >
+                    Install Theme Embed
+                  </Button>
+                </a>
               </InlineStack>
             </BlockStack>
           </Card>
@@ -364,14 +407,14 @@ export default function Index() {
               </div>
               <div className="card-button-wrapper">
                 <div className="cartuplift-action-buttons">
-                  <Button 
-                    url="https://test-lab-101.myshopify.com/admin/themes/current/editor" 
-                    external
-                    variant="primary"
-                    size="large"
-                  >
-                    Open Theme Editor
-                  </Button>
+                  <a href={themeEditorUrl} target="_top" rel="noopener noreferrer">
+                    <Button 
+                      variant="primary"
+                      size="large"
+                    >
+                      Open Theme Editor
+                    </Button>
+                  </a>
                 </div>
               </div>
             </Card>

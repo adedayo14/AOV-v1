@@ -2,7 +2,7 @@
   'use strict';
   
   // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v178';
+  const CART_UPLIFT_VERSION = 'v179';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
   // Safe analytics shim (no-op if not provided by host)
@@ -19,9 +19,9 @@
       // Detect and apply theme colors to prevent green fallbacks
       this.themeColors = this.detectThemeColors();
       
-      // Apply theme color fallbacks for critical settings
+      // Apply color fallback for progress bars: default to BLACK (never theme blue/green)
       if (!this.settings.shippingBarColor || this.settings.shippingBarColor === '#4CAF50') {
-        this.settings.shippingBarColor = this.themeColors.primary;
+        this.settings.shippingBarColor = '#121212';
       }
       
       // Apply background color from theme detection if not explicitly set
@@ -1058,7 +1058,7 @@
       `;}).join('');
     }
 
-    getGiftProgressHTML() {
+  getGiftProgressHTML() {
       try {
         const giftThresholds = this.settings.giftThresholds ? JSON.parse(this.settings.giftThresholds) : [];
         if (giftThresholds.length === 0) return '';
@@ -1078,12 +1078,13 @@
         if (sortedThresholds.length === 1) {
           const threshold = sortedThresholds[0];
           const progress = Math.min((currentTotal / threshold.amount) * 100, 100);
-          const safeButtonColor = this.settings.buttonColor || this.themeColors.primary || '#121212';
+          // Use shippingBarColor for all progress fills; default to black
+          const safeShippingColor = (this.settings.shippingBarColor || '#121212');
           
           return `
             <div class="cartuplift-shipping-bar">
               <div class="cartuplift-shipping-progress">
-                <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${safeButtonColor} !important; display: block;"></div>
+                <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${safeShippingColor} !important; display: block;"></div>
               </div>
             </div>
           `;
@@ -1108,7 +1109,7 @@
                         <span class="cartuplift-gift-progress-text">${Math.round(progress)}%</span>
                       </div>
                       <div class="cartuplift-gift-bar">
-                        <div class="cartuplift-gift-fill" style="width: ${progress}%; background: ${isUnlocked ? (this.themeColors.primary || '#121212') : '#2196F3'};"></div>
+                        <div class="cartuplift-gift-fill" style="width: ${progress}%; background: ${(this.settings.shippingBarColor || '#121212')};"></div>
                       </div>
                     </div>
                   `;
@@ -1126,7 +1127,7 @@
             <div class="cartuplift-gift-progress-container">
               <div class="cartuplift-single-multi-progress">
                 <div class="cartuplift-milestone-bar">
-                  <div class="cartuplift-milestone-fill" style="width: ${totalProgress}%; background: #2196F3;"></div>
+                  <div class="cartuplift-milestone-fill" style="width: ${totalProgress}%; background: ${(this.settings.shippingBarColor || '#121212')};"></div>
                   ${sortedThresholds.map(threshold => {
                     const position = (threshold.amount / maxThreshold) * 100;
                     const isUnlocked = currentTotal >= threshold.amount;
@@ -1175,7 +1176,7 @@
                     (spend $${(nextThreshold.amount - currentTotal).toFixed(0)} more)
                   </div>
                   <div class="cartuplift-next-bar">
-                    <div class="cartuplift-next-fill" style="width: ${Math.min((currentTotal / nextThreshold.amount) * 100, 100)}%; background: #2196F3;"></div>
+                    <div class="cartuplift-next-fill" style="width: ${Math.min((currentTotal / nextThreshold.amount) * 100, 100)}%; background: ${(this.settings.shippingBarColor || '#121212')};"></div>
                   </div>
                   <div class="cartuplift-progress-text">
                     ${Math.round((currentTotal / nextThreshold.amount) * 100)}% complete
@@ -1233,19 +1234,19 @@
       const threshold = this.settings.freeShippingThreshold || 100;
       const progress = Math.min((currentTotal / threshold) * 100, 100);
       
-      // Use theme-detected colors instead of green fallback
-      const safeButtonColor = this.settings.buttonColor || this.themeColors.primary || '#121212';
+  // Use shippingBarColor (default black) consistently for the fill
+  const safeShippingColor = this.settings.shippingBarColor || '#121212';
       
       console.log('🛒 Free Shipping Progress Bar Debug:', {
-        progress: progress,
-        buttonColor: safeButtonColor,
-        progressBarHTML: `width: ${progress}%; background: ${safeButtonColor} !important;`
+    progress: progress,
+    shippingColor: safeShippingColor,
+    progressBarHTML: `width: ${progress}%; background: ${safeShippingColor} !important;`
       });
       
       return `
         <div class="cartuplift-shipping-bar">
           <div class="cartuplift-shipping-progress">
-            <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${safeButtonColor} !important; display: block;"></div>
+      <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${safeShippingColor} !important; display: block;"></div>
           </div>
         </div>
       `;
@@ -1294,7 +1295,7 @@
               <span class="cartuplift-gift-progress-text">${Math.round(progress)}%</span>
             </div>
             <div class="cartuplift-gift-bar">
-              <div class="cartuplift-gift-fill" style="width: ${progress}%; background: ${isUnlocked ? (this.themeColors.primary || '#121212') : '#2196F3'};"></div>
+              <div class="cartuplift-gift-fill" style="width: ${progress}%; background: ${isUnlocked ? (this.themeColors.primary || '#121212') : '#121212'};"></div>
             </div>
           </div>
         `;
@@ -1330,7 +1331,7 @@
         <div class="cartuplift-gift-progress-container">
           <div class="cartuplift-single-multi-progress">
             <div class="cartuplift-milestone-bar">
-              <div class="cartuplift-milestone-fill" style="width: ${overallProgress}%; background: #2196F3;"></div>
+              <div class="cartuplift-milestone-fill" style="width: ${overallProgress}%; background: ${this.themeColors.primary || '#121212'};"></div>
               ${milestonesHTML}
             </div>
           </div>
@@ -1364,7 +1365,7 @@
                   (spend $${(nextThreshold.amount - currentTotal).toFixed(0)} more)
                 </div>
                 <div class="cartuplift-next-bar">
-                  <div class="cartuplift-next-fill" style="width: ${Math.min((currentTotal / nextThreshold.amount) * 100, 100)}%; background: #2196F3;"></div>
+                  <div class="cartuplift-next-fill" style="width: ${Math.min((currentTotal / nextThreshold.amount) * 100, 100)}%; background: ${this.themeColors.primary || '#121212'};"></div>
                 </div>
                 <div class="cartuplift-progress-text">
                   ${Math.round((currentTotal / nextThreshold.amount) * 100)}% complete
