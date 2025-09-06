@@ -53,7 +53,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   
   // Calculate setup progress focusing on explicit user actions (start lower by default)
   const setupSteps = [
-    { key: 'embed', label: 'Install theme embed', completed: false },
     { key: 'enableApp', label: 'App functionality enabled', completed: !!settings.enableApp },
     { key: 'configureRecommendations', label: 'Recommendations configured', completed: !!settings.enableRecommendations },
     { key: 'configureFreeShipping', label: 'Free shipping setup', completed: !!settings.enableFreeShipping },
