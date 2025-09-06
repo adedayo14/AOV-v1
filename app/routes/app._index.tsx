@@ -53,10 +53,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   
   // Calculate setup progress focusing on explicit user actions (start lower by default)
   const setupSteps = [
-    { key: 'embed', label: 'Enable app embed in theme', completed: false },
-    { key: 'enableApp', label: 'Enable the app', completed: !!settings.enableApp },
-    { key: 'configureRecommendations', label: 'Turn on recommendations', completed: !!settings.enableRecommendations },
-    { key: 'configureFreeShipping', label: 'Turn on free shipping bar', completed: !!settings.enableFreeShipping },
+    { key: 'embed', label: 'Install theme embed', completed: false },
+    { key: 'enableApp', label: 'App functionality enabled', completed: !!settings.enableApp },
+    { key: 'configureRecommendations', label: 'Recommendations configured', completed: !!settings.enableRecommendations },
+    { key: 'configureFreeShipping', label: 'Free shipping setup', completed: !!settings.enableFreeShipping },
+    { key: 'styling', label: 'Styling customized', completed: (
+      settings.backgroundColor !== "#ffffff" ||
+      settings.textColor !== "#1A1A1A" ||
+      (settings.buttonColor !== "var(--button-background, #000000)" && settings.buttonColor !== "#000000")
+    )},
   ];
   
   const completedSteps = setupSteps.filter(step => step.completed).length;
