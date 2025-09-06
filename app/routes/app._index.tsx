@@ -315,13 +315,6 @@ export default function Index() {
                 <Link to="/app/settings">
                   <Button variant="primary">Complete Setup</Button>
                 </Link>
-                <a href={themeEditorUrl} target="_top" rel="noopener noreferrer">
-                  <Button 
-                    variant="secondary"
-                  >
-                    Install Theme Embed
-                  </Button>
-                </a>
               </InlineStack>
             </BlockStack>
           </Card>
