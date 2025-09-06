@@ -51,8 +51,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.error('Failed to fetch current theme:', error);
   }
   
+  // Check if app embed is installed in theme
+  // For now, we'll consider it "installed" if enableApp is true and we're not on initial setup
+  // In a production app, you might want to check the theme files via GraphQL API
+  const themeEmbedInstalled = !!settings.enableApp && (
+    !!settings.enableRecommendations || 
+    !!settings.enableFreeShipping || 
+    settings.backgroundColor !== "#ffffff" ||
+    settings.textColor !== "#1A1A1A" ||
+    (settings.buttonColor !== "var(--button-background, #000000)" && settings.buttonColor !== "#000000")
+  );
+
   // Calculate setup progress focusing on explicit user actions (start lower by default)
   const setupSteps = [
+    { key: 'themeEmbed', label: 'App embed installed in theme', completed: themeEmbedInstalled },
     { key: 'enableApp', label: 'App functionality enabled', completed: !!settings.enableApp },
     { key: 'configureRecommendations', label: 'Recommendations configured', completed: !!settings.enableRecommendations },
     { key: 'configureFreeShipping', label: 'Free shipping setup', completed: !!settings.enableFreeShipping },
@@ -66,7 +78,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const completedSteps = setupSteps.filter(step => step.completed).length;
   const progressPercentage = Math.round((completedSteps / setupSteps.length) * 100);
 
-  return json({ setupSteps, progressPercentage, currentThemeId, shop });
+  return json({ setupSteps, progressPercentage, currentThemeId, shop, themeEmbedInstalled });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -125,7 +137,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Index() {
-  const { setupSteps, progressPercentage, currentThemeId, shop } = useLoaderData<typeof loader>();
+  const { setupSteps, progressPercentage, currentThemeId, shop, themeEmbedInstalled } = useLoaderData<typeof loader>();
 
   // Build absolute admin URL so it doesn't resolve to the app/dev origin
   const shopHandle = (shop || '').replace('.myshopify.com', '');
@@ -312,9 +324,15 @@ export default function Index() {
               </div>
               
               <InlineStack gap="300">
-                <Link to="/app/settings">
-                  <Button variant="primary">Complete Setup</Button>
-                </Link>
+                {!themeEmbedInstalled ? (
+                  <a href={themeEditorUrl} target="_top" rel="noopener noreferrer">
+                    <Button variant="primary">Install Theme Embed</Button>
+                  </a>
+                ) : (
+                  <Link to="/app/settings">
+                    <Button variant="primary">Complete Setup</Button>
+                  </Link>
+                )}
               </InlineStack>
             </BlockStack>
           </Card>
