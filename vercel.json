@@ -1,0 +1,22 @@
+{
+  "buildCommand": "remix vite:build",
+  "devCommand": "remix vite:dev --port $PORT",
+  "installCommand": "npm install",
+  "framework": null,
+  "outputDirectory": "build/client",
+  "serverFiles": ["build/server/**"],
+  "functions": {
+    "app/entry.server.tsx": {
+      "includeFiles": "build/server/**"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/((?!build/).*)",
+      "destination": "/app/entry.server.tsx"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
