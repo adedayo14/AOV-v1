@@ -1,12 +1,10 @@
 {
   "buildCommand": "npm run build",
   "installCommand": "npm install",
-  "outputDirectory": "build/client",
-  "framework": null,
   "rewrites": [
     {
-      "source": "/((?!build/).*)",
-      "destination": "/"
+      "source": "/(.*)",
+      "destination": "/api"
     }
   ]
 }
