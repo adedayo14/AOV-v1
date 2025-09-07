@@ -1,9 +1,5 @@
 (function() {
   'use strict';
-  
-  // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v180';
-  console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
   // Safe analytics shim (no-op if not provided by host)
   const CartAnalytics = (window.CartAnalytics && typeof window.CartAnalytics.trackEvent === 'function')
@@ -27,7 +23,6 @@
       // Apply background color from theme detection if not explicitly set
       if (!this.settings.backgroundColor) {
         this.settings.backgroundColor = this.themeColors.background;
-        console.log('🎨 Applied detected background color:', this.settings.backgroundColor);
       }
       
       // Normalize layout setting if present
@@ -54,12 +49,6 @@
       // Set default gift price text if not provided
       this.settings.giftPriceText = this.settings.giftPriceText || 'FREE';
       
-      console.log('🔧 CartUplift: Express checkout setting:', this.settings.enableExpressCheckout);
-      console.log('🔧 CartUplift: Discount code setting:', this.settings.enableDiscountCode);
-      console.log('🎁 CartUplift: Gift gating setting:', this.settings.enableGiftGating);
-      console.log('🎁 CartUplift: Gift thresholds:', this.settings.giftThresholds);
-      console.log('🎁 CartUplift: Gift progress style:', this.settings.giftProgressStyle);
-      
       this.cart = null;
       this.isOpen = false;
       this._isAnimating = false;
@@ -78,8 +67,6 @@
   
       // CRITICAL FIX: Listen for settings updates BEFORE initialization
       this._settingsUpdateHandler = async (event) => {
-        console.log('🛒 Settings update received:', event);
-        
         // Deep merge the settings
         this.settings = Object.assign({}, this.settings, window.CartUpliftSettings || {});
         
@@ -89,11 +76,8 @@
           this.settings.recommendationLayout = map[this.settings.recommendationLayout] || this.settings.recommendationLayout;
         }
         
-        console.log('🛒 Updated settings:', this.settings);
-        
         // If recommendations were just enabled and not loaded yet
         if (this.settings.enableRecommendations && !this._recommendationsLoaded) {
-          console.log('🛒 Loading recommendations after settings update...');
           await this.loadRecommendations();
           this._recommendationsLoaded = true;
         } else if (this._allRecommendations.length) {
@@ -115,8 +99,6 @@
     }
 
     async init() {
-      console.log('🛒 Initializing Cart Uplift...');
-      
       if (document.readyState === 'loading') {
         await new Promise(resolve => {
           document.addEventListener('DOMContentLoaded', resolve);
@@ -128,7 +110,6 @@
 
     // Detect theme colors to avoid green fallbacks
     detectThemeColors() {
-      console.log('🎨 [CartUplift] Starting theme color detection using Shopify best practices...');
       
       let primaryColor = null;
       let detectionSource = '';
@@ -150,7 +131,6 @@
             if (rgbValues.length >= 3 && rgbValues.every(v => !isNaN(v) && v >= 0 && v <= 255)) {
               primaryColor = this.rgbToHex(`rgb(${rgbValues.join(',')})`);
               detectionSource = 'Dawn color scheme --color-button';
-              console.log(`Found Dawn button color: ${primaryColor} from RGB(${rgbValues.join(',')})`);
               break;
             }
           }
@@ -160,18 +140,15 @@
             if (rgbValues.length >= 3 && rgbValues.every(v => !isNaN(v) && v >= 0 && v <= 255)) {
               primaryColor = this.rgbToHex(`rgb(${rgbValues.join(',')})`);
               detectionSource = 'Dawn color scheme --color-foreground';
-              console.log(`Found Dawn foreground color: ${primaryColor} from RGB(${rgbValues.join(',')})`);
               break;
             }
           }
         }
       } catch (error) {
-        console.log('Could not access color scheme elements:', error);
       }
 
       // 2. Check root-level CSS custom properties (Shopify 2.0 standard)
       if (!primaryColor) {
-        console.log('🔍 Checking root CSS custom properties...');
         
         const rootStyle = getComputedStyle(document.documentElement);
         
@@ -191,20 +168,17 @@
               if (rgbValues.length >= 3 && rgbValues.every(v => !isNaN(v) && v >= 0 && v <= 255)) {
                 primaryColor = this.rgbToHex(`rgb(${rgbValues.join(',')})`);
                 detectionSource = `Root CSS property ${property}`;
-                console.log(`Found root color: ${primaryColor} from ${property}: RGB(${rgbValues.join(',')})`);
                 break;
               }
             } else if (value && value.startsWith('#')) {
               primaryColor = value;
               detectionSource = `Root CSS property ${property}`;
-              console.log(`Found root color: ${primaryColor} from ${property}`);
               break;
             } else if (value && value.startsWith('rgb')) {
               const hexColor = this.rgbToHex(value);
               if (hexColor) {
                 primaryColor = hexColor;
                 detectionSource = `Root CSS property ${property}`;
-                console.log(`Found root color: ${primaryColor} from ${property}`);
                 break;
               }
             }
@@ -216,7 +190,6 @@
 
       // 3. Analyze Shopify standard button elements (as per Dawn)
       if (!primaryColor) {
-        console.log('🔍 Analyzing Shopify standard buttons...');
         
         // Dawn and Shopify's recommended button selectors
         const shopifyButtonSelectors = [
@@ -242,7 +215,6 @@
                   if (hexColor !== '#ffffff' && hexColor !== '#000000' && hexColor !== '#transparent') {
                     primaryColor = hexColor;
                     detectionSource = `Shopify button ${selector}`;
-                    console.log(`Found button color: ${primaryColor} from ${selector}`);
                     break;
                   }
                 }
@@ -267,7 +239,6 @@
         detectionSource = 'Dawn default (green prevention)';
       }
 
-      console.log(`✅ [CartUplift] Final color: ${primaryColor} (source: ${detectionSource})`);
       
       // Detect background colors
       let backgroundColor = '#ffffff'; // Default white
@@ -281,7 +252,6 @@
         if (bodyBgColor && bodyBgColor !== 'rgba(0, 0, 0, 0)' && bodyBgColor !== 'transparent') {
           backgroundColor = this.rgbToHex(bodyBgColor);
           bgDetectionSource = 'body background';
-          console.log(`🎨 Body background detected: ${backgroundColor}`);
         } else {
           // Check root/html background
           const rootStyles = getComputedStyle(document.documentElement);
@@ -290,7 +260,6 @@
           if (rootBgColor && rootBgColor !== 'rgba(0, 0, 0, 0)' && rootBgColor !== 'transparent') {
             backgroundColor = this.rgbToHex(rootBgColor);
             bgDetectionSource = 'root/html background';
-            console.log(`🎨 Root background detected: ${backgroundColor}`);
           } else {
             // Check for theme-specific background properties
             const backgroundProperties = [
@@ -309,13 +278,11 @@
                   if (rgbValues.length >= 3 && rgbValues.every(v => !isNaN(v) && v >= 0 && v <= 255)) {
                     backgroundColor = this.rgbToHex(`rgb(${rgbValues.join(',')})`);
                     bgDetectionSource = `CSS property ${property}`;
-                    console.log(`🎨 Background from ${property}: ${backgroundColor}`);
                     break;
                   }
                 } else if (value.startsWith('#') || value.startsWith('rgb')) {
                   backgroundColor = this.rgbToHex(value);
                   bgDetectionSource = `CSS property ${property}`;
-                  console.log(`🎨 Background from ${property}: ${backgroundColor}`);
                   break;
                 }
               }
@@ -323,12 +290,10 @@
           }
         }
       } catch (error) {
-        console.log('Background color detection error:', error);
         backgroundColor = '#ffffff';
         bgDetectionSource = 'fallback to white';
       }
       
-      console.log(`🎨 [CartUplift] Final background: ${backgroundColor} (source: ${bgDetectionSource})`);
       
       return {
         primary: primaryColor,
@@ -398,7 +363,6 @@
     }
 
     async setup() {
-      console.log('🛒 Setting up Cart Uplift...');
       
       // Fetch initial cart data FIRST
       await this.fetchCart();
@@ -449,14 +413,12 @@
         
         // Load recommendations if enabled and not loaded
         if (this.settings.enableRecommendations && !this._recommendationsLoaded) {
-          console.log('🛒 Loading recommendations (delayed check)...');
           await this.loadRecommendations();
           this._recommendationsLoaded = true;
           this.updateDrawerContent();
         }
       }, 500);
       
-      console.log('🛒 Cart Uplift setup complete.');
 
       // Listen for late settings injection (upsell embed) and refresh recommendations
       document.addEventListener('cartuplift:settings:updated', async () => {
@@ -476,13 +438,11 @@
       
       // Add method to soft refresh recommendations (force cart re-sync)
       window.cartUpliftSoftRefresh = async () => {
-        console.log('🔄 Soft refresh triggered...');
         await this.fetchCart();
         if (this._recommendationsLoaded) {
           this.rebuildRecommendationsFromMaster();
         }
         this.updateDrawerContent();
-        console.log('🔄 Soft refresh complete');
       };
     }
 
@@ -581,16 +541,13 @@
             this.settings = Object.assign(this.settings, newSettings);
             window.CartUpliftSettings = Object.assign(window.CartUpliftSettings || {}, newSettings);
             this.updateDrawerContent();
-            console.log('🔄 Settings refreshed from API:', newSettings);
           }
         }
       } catch (error) {
-        console.log('🔄 Could not refresh settings from API:', error);
       }
     }
 
     applyCustomColors() {
-      console.log('🎨 [CartUplift] Applying professional theme colors...');
       
       const style = document.getElementById('cartuplift-dynamic-styles') || document.createElement('style');
       style.id = 'cartuplift-dynamic-styles';
@@ -614,7 +571,6 @@
       }
       
       // Debug logging with safety checks
-      console.log('🎨 Color safety check:', { 
         originalTheme: themeColors.primary,
         safeTheme: safeThemeColor,
         originalButton: this.settings.buttonColor,
@@ -787,7 +743,6 @@
         document.head.appendChild(style);
       }
       
-      console.log('✅ [CartUplift] Professional theme colors applied successfully');
     }
 
     createStickyCart() {
@@ -874,7 +829,6 @@
         });
       }
       
-      console.log('💰 Cart totals calculation:', {
         originalTotal: originalTotal,
         giftItemsTotal: giftItemsTotal,
         shopifyTotal: this.cart?.total_price || 0,
@@ -914,13 +868,11 @@
       const shouldShowRecommendations = this.settings.enableRecommendations && 
         ((!this._recommendationsLoaded) || (this.recommendations && this.recommendations.length > 0));
       
-      console.log('🛒 shouldShowRecommendations:', shouldShowRecommendations, 
         'enableRecommendations:', this.settings.enableRecommendations,
         'loaded:', this._recommendationsLoaded, 
         'count:', this.recommendations?.length || 0,
         'window width:', window.innerWidth);
       
-      console.log('🛒 Cart discount info:', { 
         cartDiscounts, 
         hasCartDiscount, 
         totalDiscount, 
@@ -943,7 +895,6 @@
               ${this.settings.enableAddons ? this.getAddonsHTML() : ''}
               ${shouldShowRecommendations ? this.getRecommendationsHTML() : ''}
               ${(() => {
-                console.log('🔧 CartUplift: Rendering discount section, enableDiscountCode:', this.settings.enableDiscountCode, 'enableNotes:', this.settings.enableNotes);
                 return this.settings.enableDiscountCode || this.settings.enableNotes ? this.getDiscountHTML() : '';
               })()}
             </div>
@@ -971,7 +922,6 @@
             </button>
             
             ${(() => {
-              console.log('🔧 CartUplift: Rendering footer, enableExpressCheckout:', this.settings.enableExpressCheckout);
               return this.settings.enableExpressCheckout ? this.getExpressCheckoutHTML() : '';
             })()}
           </div>
@@ -1185,7 +1135,6 @@
         const currentTotal = this.cart ? (this.cart.total_price / 100) : 0; // Convert from cents
         const progressStyle = this.settings.giftProgressStyle || 'single-next';
         
-        console.log('🎁 Gift Progress Debug:', {
           currentTotal,
           thresholds: sortedThresholds,
           style: progressStyle,
@@ -1316,7 +1265,6 @@
         const progressBarMode = this.settings.progressBarMode || 'free-shipping';
         const currentTotal = this.cart ? this.cart.total_price / 100 : 0;
         
-        console.log('🛒 Unified Progress Debug:', {
           mode: progressBarMode,
           enableFreeShipping: this.settings.enableFreeShipping,
           enableGiftGating: this.settings.enableGiftGating,
@@ -1355,7 +1303,6 @@
   // Use shippingBarColor (default black) consistently for the fill
   const safeShippingColor = this.settings.shippingBarColor || '#121212';
       
-      console.log('🛒 Free Shipping Progress Bar Debug:', {
     progress: progress,
     shippingColor: safeShippingColor,
     progressBarHTML: `width: ${progress}%; background: ${safeShippingColor} !important;`
@@ -1541,7 +1488,6 @@
           ${layout === 'row' ? controlsHTML : ''}
         </div>
       `;
-      console.log('🛒 Recommendations HTML rendered (should start EXPANDED):', html.includes('collapsed'));
       return html;
     }
 
@@ -1551,7 +1497,6 @@
       if (!section) {
         // If section doesn't exist but should, recreate the entire drawer
         if (this.settings.enableRecommendations && this._recommendationsLoaded && this.recommendations.length > 0) {
-          console.log('🛒 Recommendations section missing, recreating drawer...');
           this.updateDrawerContent();
           return;
         }
@@ -1607,8 +1552,6 @@
       
       requestAnimationFrame(() => {
         const cartProductIds = (this.cart?.items || []).map(i => i.product_id);
-        console.log('🔍 DEBUG: Cart product IDs:', cartProductIds, 'types:', cartProductIds.map(id => typeof id));
-        console.log('🔍 DEBUG: Recommendation IDs:', this._allRecommendations.map(p => ({ id: p.id, title: p.title, type: typeof p.id })));
         
         // Build visible list by skipping any product in cart and taking next from master, preserving order
         const desired = Number(this.settings.maxRecommendations);
@@ -1618,7 +1561,6 @@
           // Check both strict and loose equality for ID comparison
           const isInCartStrict = cartProductIds.includes(p.id);
           const isInCartLoose = cartProductIds.some(cartId => cartId == p.id);
-          console.log(`🔍 DEBUG: ${p.title} (id: ${p.id}, type: ${typeof p.id}) - strict match: ${isInCartStrict}, loose match: ${isInCartLoose}`);
           if (isInCartStrict || isInCartLoose) continue;
           newRecommendations.push(p);
           if (newRecommendations.length >= max) break;
@@ -1643,7 +1585,6 @@
       if (this._rebuildInProgress) return;
       
       const cartProductIds = (this.cart?.items || []).map(i => i.product_id);
-      console.log('🔍 SYNC DEBUG: Cart product IDs:', cartProductIds, 'types:', cartProductIds.map(id => typeof id));
       
       // Build visible list by skipping any product in cart and taking next from master, preserving order
       const desired = Number(this.settings.maxRecommendations);
@@ -1653,7 +1594,6 @@
         // Check both strict and loose equality for ID comparison
         const isInCartStrict = cartProductIds.includes(p.id);
         const isInCartLoose = cartProductIds.some(cartId => cartId == p.id);
-        console.log(`🔍 SYNC DEBUG: ${p.title} (id: ${p.id}, type: ${typeof p.id}) - strict match: ${isInCartStrict}, loose match: ${isInCartLoose}`);
         if (isInCartStrict || isInCartLoose) continue;
         newRecommendations.push(p);
         if (newRecommendations.length >= max) break;
@@ -1665,9 +1605,7 @@
       
       if (JSON.stringify(currentIds) !== JSON.stringify(newIds)) {
         this.recommendations = newRecommendations;
-        console.log('🔍 SYNC DEBUG: Updated recommendations to:', newRecommendations.map(r => r.title));
       } else {
-        console.log('🔍 SYNC DEBUG: No changes needed in recommendations');
       }
     }
 
@@ -1829,7 +1767,6 @@
         this.scrollAmount = 346;
       }
       
-      console.log('🛒 Scroll setup:', { isMobile, scrollAmount: this.scrollAmount });
       
       // Bind navigation events
       const prevBtn = document.querySelector('.cartuplift-carousel-nav.prev');
@@ -1897,7 +1834,6 @@
       const currentScroll = scrollContainer.scrollLeft;
       const targetScroll = Math.max(0, currentScroll - this.scrollAmount);
       
-      console.log('🛒 Scroll prev:', { currentScroll, targetScroll, scrollAmount: this.scrollAmount });
       
       scrollContainer.scrollTo({
         left: targetScroll,
@@ -1916,7 +1852,6 @@
         targetScroll = maxScroll;
       }
       
-      console.log('🛒 Scroll next:', { currentScroll, targetScroll, maxScroll, scrollAmount: this.scrollAmount });
       
       scrollContainer.scrollTo({
         left: targetScroll,
@@ -2193,7 +2128,6 @@
       }
       
       // Debug log to check current settings
-      console.log('🛒 Modal opened with settings:', {
         enableDiscountCode: this.settings.enableDiscountCode,
         enableNotes: this.settings.enableNotes,
         enableGiftMessage: this.settings.enableGiftMessage
@@ -2239,7 +2173,6 @@
         if (messageEl) messageEl.innerHTML = `<span class="success">Code "${discountCode}" is already applied.</span>`;
         return;
       }
-      console.log('Applying discount code:', discountCode);
       
       // Disable button and show loading
       if (button) {
@@ -2462,7 +2395,6 @@
         
         if (response.ok) {
           await this.fetchCart();
-          console.log('Cart attributes saved:', cartAttributes);
         }
       } catch (error) {
         console.error('Error saving cart attributes:', error);
@@ -2684,14 +2616,12 @@
           e.preventDefault();
           e.stopPropagation();
           
-          console.log('🛒 Toggle button clicked!', e.target);
           
           // Robustly find the toggle button and recommendations section
           const toggleButton = e.target.classList.contains('cartuplift-recommendations-toggle')
             ? e.target
             : e.target.closest('.cartuplift-recommendations-toggle');
             
-          console.log('🛒 Toggle button found:', toggleButton);
           
           // Find the recommendations section relative to the toggle button
           let recommendations = toggleButton.closest('.cartuplift-recommendations');
@@ -2699,13 +2629,10 @@
             recommendations = container.querySelector('.cartuplift-recommendations');
           }
           
-          console.log('🛒 Recommendations section found:', recommendations);
           
           if (recommendations) {
             const isCollapsed = recommendations.classList.contains('collapsed');
-            console.log('🛒 Toggle clicked! Before toggle - isCollapsed:', isCollapsed, 'classes:', recommendations.className);
             recommendations.classList.toggle('collapsed');
-            console.log('🛒 After toggle - nowCollapsed:', recommendations.classList.contains('collapsed'), 'classes:', recommendations.className);
             // Update content aria-hidden
             const content = recommendations.querySelector('#cartuplift-recommendations-content');
             if (content) {
@@ -2726,7 +2653,6 @@
             // Sync aria state
             const nowCollapsed = recommendations.classList.contains('collapsed');
             toggleButton.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
-            console.log('🛒 Recommendations collapsed:', recommendations.classList.contains('collapsed'));
           }
         } else if (e.target.classList.contains('cartuplift-carousel-nav') || e.target.closest('.cartuplift-carousel-nav')) {
           // Handle carousel navigation
@@ -2795,7 +2721,6 @@
       try {
         const response = await fetch('/cart.js');
         this.cart = await response.json();
-        console.log('🛒 Cart fetched:', this.cart);
   // Recompute visible recommendations against fixed master list whenever cart changes
   this.rebuildRecommendationsFromMaster();
       } catch (error) {
@@ -2834,7 +2759,6 @@
     async addToCart(variantId, quantity = 1) {
       // Prevent multiple rapid clicks
       if (this._addToCartBusy) {
-        console.log('🛒 Add to cart already in progress, ignoring click');
         return;
       }
       
@@ -2870,7 +2794,6 @@
         });
 
         const responseData = response.ok ? await response.json() : await response.text();
-        console.log(`🛒 Add to cart response for variant ${variantId}:`, response.status, responseData);
 
         if (response.ok) {
           // Reset button state immediately on success with success animation
@@ -2954,7 +2877,6 @@
           const recVariantId = rec.variant_id || rec.variantId || rec.id;
           return recVariantId.toString() !== variantId.toString();
         });
-        console.log('🛒 Removed invalid recommendation with variant ID:', variantId);
         
         // Update the display if drawer is open
         if (this.isOpen) {
@@ -2968,7 +2890,6 @@
 
     async loadRecommendations() {
       try {
-        console.log('🛒 Loading smart recommendations...');
         
         // Initialize recommendation engine if not exists
         if (!this.recommendationEngine) {
@@ -2984,7 +2905,6 @@
   this.rebuildRecommendationsFromMaster();
   this._recommendationsLoaded = true;
         
-        console.log('🛒 Smart recommendations loaded:', recommendations.length, 'products');
         
         // Update recommendations display if drawer is open
         if (this.isOpen) {
@@ -3003,7 +2923,6 @@
 
     async loadRecommendationsFallback() {
       try {
-        console.log('🛒 Loading fallback recommendations...');
         
   let apiUrl = '';
   let products = [];
@@ -3015,11 +2934,9 @@
         if (this.cart && this.cart.items && this.cart.items.length > 0) {
           const productId = this.cart.items[0].product_id;
           apiUrl = `/recommendations/products.json?product_id=${productId}&limit=${desiredMax}`;
-          console.log('🛒 Loading recommendations based on cart item:', productId);
         } else {
           // Load popular/featured products when cart is empty
           apiUrl = `/products.json?limit=${desiredMax}`;
-          console.log('🛒 Loading popular products (cart is empty)');
         }
         
         const response = await fetch(apiUrl);
@@ -3027,15 +2944,12 @@
         if (response.ok) {
           const data = await response.json();
           products = data.products || [];
-          console.log('🛒 API returned', products.length, 'products');
         } else {
-          console.log('🛒 API failed, will load fallback products');
         }
         
         // Always try to keep a buffer so we can fill visible list after filtering cart items
         const targetBuffer = Math.max(desiredMax * 3, desiredMax + 8); // Larger buffer for better selection
         if (products.length < targetBuffer) {
-          console.log(`🛒 Loading additional products to reach buffer size ${targetBuffer}...`);
           try {
             const extraLimit = Math.max(targetBuffer * 2, 20); // load more for better filtering
             const fallbackResponse = await fetch(`/products.json?limit=${extraLimit}`); // Load more for better filtering
@@ -3056,7 +2970,6 @@
               const needed = targetBuffer - products.length;
               products = products.concat(filteredProducts.slice(0, needed));
               
-              console.log('🛒 Added', Math.min(needed, filteredProducts.length), 'fallback products (buffering)');
             }
           } catch (fallbackError) {
             console.error('🛒 Error loading fallback products:', fallbackError);
@@ -3087,7 +3000,6 @@
   // Build visible list from fixed master, filtered against cart
   this._recommendationsLocked = true;
   this.rebuildRecommendationsFromMaster();
-        console.log('🛒 Fallback recommendations loaded:', this._allRecommendations.length, 'showing:', this.recommendations.length);
         
         // Update recommendations display if drawer is open
         if (this.isOpen) {
@@ -3127,7 +3039,6 @@
       const contentWrapper = popup.querySelector('.cartuplift-content-wrapper');
       const currentScrollTop = contentWrapper ? contentWrapper.scrollTop : 0;
       
-      console.log('🛒 Updating drawer content, cart:', this.cart);
       popup.innerHTML = this.getDrawerHTML();
       this.attachDrawerEvents();
       
@@ -3185,7 +3096,6 @@
     // Check if gift thresholds have been reached and auto-add gift products
     async checkAndAddGiftThresholds() {
       if (!this.settings.enableGiftGating || !this.settings.giftThresholds || !this.cart) {
-        console.log('🎁 Gift gating disabled or no thresholds/cart:', {
           enableGiftGating: this.settings.enableGiftGating,
           hasThresholds: !!this.settings.giftThresholds,
           hasCart: !!this.cart
@@ -3195,22 +3105,17 @@
       try {
         const giftThresholds = JSON.parse(this.settings.giftThresholds);
         if (!Array.isArray(giftThresholds) || giftThresholds.length === 0) {
-          console.log('🎁 No valid gift thresholds found');
           return;
         }
 
         const currentTotal = this.getDisplayedTotalCents();
-        console.log('🎁 Checking gift thresholds. Current total:', currentTotal, 'cents (£' + (currentTotal/100).toFixed(2) + ')');
-        console.log('🎁 Available thresholds:', giftThresholds);
 
         // Track which gifts have been added to prevent duplicates
         const cartProductIds = this.cart.items.map(item => item.product_id.toString());
-        console.log('🎁 Current cart product IDs:', cartProductIds);
 
         for (const threshold of giftThresholds) {
           // Only process product type gifts that have a product ID
           if (threshold.type !== 'product' || !threshold.productId || !threshold.productHandle) {
-            console.log('🎁 Skipping threshold (not product type or missing data):', threshold);
             continue;
           }
 
@@ -3231,25 +3136,17 @@
           );
           const isAlreadyGift = existingCartItem && existingCartItem.properties && existingCartItem.properties._is_gift === 'true';
 
-          console.log(`🎁 Threshold ${threshold.id}: £${threshold.amount} (${thresholdAmount} pence)`);
-          console.log(`🎁   - Product: ${threshold.productTitle} (ID: ${threshold.productId} -> ${numericProductId})`);
-          console.log(`🎁   - Reached: ${hasReachedThreshold} (${currentTotal} >= ${thresholdAmount})`);
-          console.log(`🎁   - In cart: ${isAlreadyInCart}`);
-          console.log(`🎁   - Already marked as gift: ${isAlreadyGift}`);
 
           if (hasReachedThreshold) {
             if (!isAlreadyInCart) {
               // Product not in cart - add as gift
-              console.log(`🎁 AUTO-ADDING GIFT: ${threshold.productTitle} (${threshold.productHandle})`);
               await this.addGiftToCart(threshold);
             } else if (!isAlreadyGift) {
               // Product in cart but not marked as gift - convert to gift
-              console.log(`🎁 CONVERTING TO GIFT: ${threshold.productTitle} (already in cart)`);
               await this.convertItemToGift(existingCartItem, threshold);
             }
           } else if (!hasReachedThreshold && isAlreadyInCart && isAlreadyGift) {
             // Threshold no longer met and it's marked as gift - remove
-            console.log(`🎁 Threshold no longer met, removing gift: ${threshold.productTitle}`);
             await this.removeGiftFromCart(threshold);
           }
         }
@@ -3261,18 +3158,15 @@
     // Add a gift product to the cart
     async addGiftToCart(threshold) {
       try {
-        console.log(`🎁 Adding gift to cart: ${threshold.productHandle}`);
         
         // Extract numeric ID from GraphQL ID if needed
         let productId = threshold.productId;
         if (typeof productId === 'string' && productId.includes('gid://shopify/Product/')) {
           // Extract the numeric ID from the GraphQL ID
           productId = productId.replace('gid://shopify/Product/', '');
-          console.log(`🎁 Extracted numeric product ID: ${productId}`);
         }
         
         // For gifts, we need to fetch the product and use the first available variant
-        console.log(`🎁 Fetching product variants for: ${threshold.productHandle}`);
         return await this.addGiftByHandle(threshold);
         
       } catch (error) {
@@ -3290,7 +3184,6 @@
           return false;
         }
         
-        console.log(`🎁 Fetching product by handle: ${threshold.productHandle}`);
         const response = await fetch(`/products/${threshold.productHandle}.js`);
         
         if (!response.ok) {
@@ -3306,7 +3199,6 @@
           return false;
         }
         
-        console.log(`🎁 Using first variant ID: ${firstVariant.id} for product: ${product.title}`);
         
         const addResponse = await fetch('/cart/add.js', {
           method: 'POST',
@@ -3329,10 +3221,8 @@
         });
 
         const addResponseData = await addResponse.json();
-        console.log(`🎁 Add variant to cart response:`, addResponseData);
 
         if (addResponse.ok) {
-          console.log(`🎁 Successfully added gift variant: ${product.title}`);
           await this.fetchCart();
           this.updateCartDisplay();
           return true;
@@ -3349,7 +3239,6 @@
     // Convert an existing cart item to a gift (make it free)
     async convertItemToGift(cartItem, threshold) {
       try {
-        console.log(`🎁 Converting existing item to gift:`, cartItem);
         
         // Calculate the discount needed to make this item free
         const itemPrice = cartItem.original_line_price || cartItem.line_price || (cartItem.price * cartItem.quantity);
@@ -3362,7 +3251,6 @@
           return false;
         }
 
-        console.log(`🎁 Updating line ${lineIndex} with gift properties`);
 
         // Build the updated properties - preserve existing properties and add gift markers
         const updatedProperties = {
@@ -3391,7 +3279,6 @@
 
         if (response.ok) {
           const updatedCart = await response.json();
-          console.log(`🎁 Successfully converted item to gift:`, cartItem.title);
           
           this.cart = updatedCart;
           this.updateCartDisplay();
@@ -3423,7 +3310,6 @@
         );
 
         if (giftItem) {
-          console.log(`🎁 Removing gift from cart: ${threshold.productTitle}`);
           
           const response = await fetch('/cart/update.js', {
             method: 'POST',
@@ -3439,7 +3325,6 @@
           });
 
           if (response.ok) {
-            console.log(`🎁 Successfully removed gift: ${threshold.productTitle}`);
             // Refresh cart after removing gift
             await this.fetchCart();
             this.updateCartDisplay();
@@ -3449,7 +3334,6 @@
             return false;
           }
         } else {
-          console.log(`🎁 Gift not found in cart for removal: ${threshold.productTitle}`);
         }
       } catch (error) {
         console.error(`🎁 Error removing gift from cart:`, error);
@@ -3490,7 +3374,6 @@
       }
 
       // ALWAYS refresh cart and recommendations when opening drawer
-      console.log('🔄 Refreshing cart and recommendations on drawer open...');
       await this.fetchCart();
       
       if (this.settings.enableRecommendations && this._recommendationsLoaded) {
@@ -3754,7 +3637,6 @@
 
     // Add early interceptors to prevent theme notifications
     installEarlyInterceptors() {
-      console.log('🛒 Installing early theme notification interceptors...');
       
       // Override Shopify's cart API responses to prevent notifications
       const originalParse = JSON.parse;
@@ -3800,7 +3682,6 @@
             blockedCartEvents.has(type) &&
             window.cartUpliftDrawer && window.cartUpliftDrawer.settings && window.cartUpliftDrawer.settings.enableApp
           ) {
-            console.log(`🛒 Blocked theme event listener: ${type}`);
             return; // Don't add the theme's event listener
           }
         } catch (e) {
@@ -3817,7 +3698,6 @@
           const originalPublish = window.Shopify.publish || (() => {});
           window.Shopify.publish = function(event, data) {
             if (event && event.includes('cart')) {
-              console.log('🛒 Intercepted Shopify cart event:', event);
               // Don't publish cart events when our drawer is enabled
               if (window.cartUpliftDrawer && window.cartUpliftDrawer.settings.enableApp) {
                 return;
@@ -3840,14 +3720,12 @@
         themeCartNotificationFunctions.forEach(funcName => {
           if (window[funcName]) {
             window[funcName] = () => {
-              console.log(`🛒 Blocked theme function: ${funcName}`);
             };
           }
           
           // Check in theme object
           if (window.theme && window.theme[funcName]) {
             window.theme[funcName] = () => {
-              console.log(`🛒 Blocked theme.${funcName}`);
             };
           }
         });
@@ -3865,7 +3743,6 @@
         commonCartEventNames.forEach(eventName => {
           document.addEventListener(eventName, (e) => {
             if (window.cartUpliftDrawer && window.cartUpliftDrawer.settings.enableApp) {
-              console.log(`🛒 Blocked theme cart event: ${eventName}`);
               e.preventDefault();
               e.stopPropagation();
               e.stopImmediatePropagation();
@@ -3898,14 +3775,12 @@
           probe.style.pointerEvents = 'none';
           probe.innerHTML = '<div class="additional-checkout-buttons" data-shopify="payment-button"></div>';
           document.body.appendChild(probe);
-          console.log('🔧 CartUplift: Created fallback payment probe');
         }
 
         const target = probe.querySelector('.additional-checkout-buttons') || probe;
         const observer = new MutationObserver(() => {
           const dynamicWrap = probe.querySelector('.additional-checkout-buttons');
           if (dynamicWrap && dynamicWrap.children && dynamicWrap.children.length > 0) {
-            console.log('✅ CartUplift: Detected Shopify payment buttons via observer');
             try { this.mountExpressButtons(); } catch (e) {}
             observer.disconnect();
           }
@@ -3938,7 +3813,6 @@
           fallbackProbe.innerHTML = '<div class="additional-checkout-buttons" data-shopify="payment-button"></div>';
           document.body.appendChild(fallbackProbe);
           probe = fallbackProbe;
-          console.log('🔧 CartUplift: Injected fallback payment probe');
         }
         
         // Find Shopify-generated dynamic buttons
@@ -3950,9 +3824,6 @@
 
         // Only attempt mount if Shopify has injected child buttons
         if (dynamicWrap.children.length) {
-          console.log('🔧 CartUplift: Attempting to mount express checkout buttons...');
-          console.log('🔧 CartUplift: Children count:', dynamicWrap.children.length);
-          console.log('✅ CartUplift: Found dynamic payment buttons, mounting...');
           
           // Clear previous
           slot.innerHTML = '';
@@ -3969,7 +3840,6 @@
           // Mark ready to avoid future warnings
           this._expressReady = true;
 
-          console.log('✅ CartUplift: Express checkout buttons mounted successfully');
 
           // Hook click passthrough if needed: delegate clicks to original hidden buttons
           slot.addEventListener('click', (ev) => {
@@ -4003,7 +3873,6 @@
 
     // Enhanced method to hide theme notifications with multiple strategies
     hideThemeNotifications() {
-      console.log('🛒 Hiding theme notifications...');
       
       const hideNotifications = () => {
         // Common theme notification selectors - comprehensive list
@@ -4124,12 +3993,10 @@
       if (window.theme && window.theme.cart) {
         if (window.theme.cart.open) {
           window.theme.cart.open = () => {
-            console.log('🛒 Theme cart open prevented - using Cart Uplift instead');
           };
         }
         if (window.theme.cart.show) {
           window.theme.cart.show = () => {
-            console.log('🛒 Theme cart show prevented - using Cart Uplift instead');
           };
         }
       }
@@ -4157,7 +4024,6 @@
 
     // Setup mutation observer to catch dynamically added notifications
     setupNotificationBlocker() {
-      console.log('🛒 Setting up notification blocker...');
       
       // Create a mutation observer to watch for theme notifications being added
       const observer = new MutationObserver((mutations) => {
@@ -4185,7 +4051,6 @@
                 ));
                             // Hide if it's a cart notification and not our drawer
               if (isCartNotification && !node.id?.includes('cartuplift')) {
-                console.log('🛒 Blocking dynamically added theme notification:', node);
                 node.style.setProperty('display', 'none', 'important');
                 node.style.setProperty('visibility', 'hidden', 'important');
                 node.style.setProperty('opacity', '0', 'important');
@@ -4208,7 +4073,6 @@
         subtree: true
       });
       
-      console.log('🛒 Notification blocker installed');
     }
 
     // Helper: build clean variant/options markup skipping default noise
@@ -4362,7 +4226,6 @@
         });
       }
       
-      console.log('🤖 AI Complement Detection initialized with', this.complementRules.size, 'automatic rules');
     }
 
     loadManualRules() {
@@ -4380,10 +4243,8 @@
           });
         }
         
-        console.log('🤖 Manual complement rules loaded:', this.manualRules.size, 'rules');
       } catch (error) {
         console.error('🤖 Failed to parse manual complement rules:', error);
-        console.log('🤖 Manual rules JSON was:', manualRulesJson);
       }
     }
 
@@ -4393,7 +4254,6 @@
         const cart = this.cartUplift.cart;
         const mode = this.cartUplift.settings.complementDetectionMode || 'automatic';
         
-        console.log('🤖 Smart recommendations mode:', mode);
         
         // Empty cart strategy
         if (!cart || !cart.items || cart.items.length === 0) {
@@ -4437,7 +4297,6 @@
           .map(id => id.trim())
           .filter(Boolean);
         
-        console.log('🛠️ Manual products selected:', manualProductIds);
         
         for (const productId of manualProductIds) {
           try {
@@ -4465,7 +4324,6 @@
         // Check against manual rules first (higher priority)
         for (const [pattern, rule] of this.manualRules) {
           if (pattern.test(productText)) {
-            console.log('🤖 Manual rule matched for:', item.product_title, '→', rule.complements);
             
             for (const complement of rule.complements) {
               const products = await this.searchProductsByKeyword(complement);
@@ -4488,7 +4346,6 @@
     async getSmartRecommendations(cart) {
       const recommendations = [];
       
-      console.log('🤖 Analyzing cart for smart recommendations...');
       
       // Strategy 1: AI-Powered Complement Detection
       const complementRecommendations = await this.getComplementRecommendations(cart);
@@ -4522,7 +4379,6 @@
         // Check against AI detection rules
         for (const [pattern, rule] of this.complementRules) {
           if (pattern.test(productText)) {
-            console.log('🤖 AI detected complements for:', item.product_title, '→', rule.complements);
             rule.complements.forEach(complement => complementTypes.add(complement));
           }
         }
@@ -4645,7 +4501,6 @@
       });
       // Sort by score (highest first) to get a stable, meaningful base order
       unique.sort((a, b) => (b.score || 0) - (a.score || 0));
-      console.log('🤖 Master recommendations (sorted, unsliced):', unique.map(r => `${r.title} (${r.reason}, ${r.score?.toFixed?.(2)})`));
       return unique;
     }
 
@@ -4736,7 +4591,6 @@
           if (response.ok) {
             const data = await response.json();
             if (data.products?.length > 0) {
-              console.log('🤖 Loaded popular products from:', collection);
               return data.products.map(p => this.formatProduct(p)).filter(Boolean);
             }
           }
@@ -4816,9 +4670,7 @@
         
         if (response.ok) {
           this.purchasePatterns = await response.json();
-          console.log('🤖 Purchase patterns loaded:', Object.keys(this.purchasePatterns.frequentPairs || {}).length, 'products');
         } else {
-          console.log('🤖 No purchase patterns available, using AI-only mode');
           this.purchasePatterns = { frequentPairs: {} };
         }
       } catch (error) {

@@ -237,17 +237,7 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     if (path.includes('/api/cart-tracking')) {
-      // Accept storefront tracking posts (form-urlencoded)
-      const formData = await request.formData();
-      const eventType = String(formData.get('eventType') || '');
-      const sessionId = String(formData.get('sessionId') || '');
-      const shop = String(formData.get('shop') || '');
-      const productId = String(formData.get('productId') || '');
-      const productTitle = String(formData.get('productTitle') || '');
-      const revenue = formData.get('revenue') ? Number(formData.get('revenue')) : undefined;
-
-      console.log('Proxy cart event:', { eventType, sessionId, shop, productId, productTitle, revenue });
-
+      // Accept storefront tracking posts (form-urlencoded) - tracking disabled in production
       return json({ success: true }, {
         headers: {
           "Access-Control-Allow-Origin": "*",

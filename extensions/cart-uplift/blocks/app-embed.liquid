@@ -50,7 +50,6 @@
 
       // Only proceed if Cart Uplift is enabled
       if (!isEnabled) {
-        console.log('🛒 Cart Uplift: Disabled via theme settings');
         return;
       }
 
@@ -61,8 +60,6 @@
   const shopDomain = '{{ shop.permanent_domain }}';
   // Use app proxy to fetch settings to ensure storefront accessibility
   const apiUrl = `/apps/cart-uplift/api/settings?shop=${encodeURIComponent(shopDomain)}`;
-      console.log('🔧 Fetching settings from:', apiUrl);
-      console.log('🔧 Shop domain:', shopDomain);
       
       // Fire-and-forget heartbeat to mark embed enabled in backend
       try {
@@ -75,18 +72,15 @@
 
       fetch(apiUrl)
         .then(response => {
-          console.log('🔧 API Response status:', response.status);
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
           }
           return response.json();
         })
         .then(data => {
-          console.log('🔧 Backend settings received:', data);
           backendSettings = data || {};
           // Merge settings: defaults < backendSettings (no theme override since all config is in backend)
           window.CartUpliftSettings = Object.assign({}, defaults, backendSettings);
-          console.log('🛒 Cart Uplift Settings:', window.CartUpliftSettings);
           
           // Initialize cart if enabled
           if (window.CartUpliftSettings.enableApp) {
@@ -97,11 +91,8 @@
           }
         })
         .catch(error => {
-          console.log('🔧 Backend settings fetch failed:', error);
-          console.log('🛒 Cart Uplift: Using default settings (backend unavailable)');
           // Fallback to defaults only
           window.CartUpliftSettings = defaults;
-          console.log('🛒 Cart Uplift Settings (fallback):', window.CartUpliftSettings);
           
           // Initialize cart if enabled
           if (window.CartUpliftSettings.enableApp) {
