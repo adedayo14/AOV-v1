@@ -508,19 +508,8 @@
         const r = stickyBtn.getBoundingClientRect();
         return { x: r.left + r.width / 2, y: r.top + r.height / 2, el: stickyBtn };
       }
-      // Fallbacks: common header cart selectors
-      const headerTargets = [
-        '.header .cart-link', '.site-header__cart', '.cart-icon', '.cart-link__bubble', '[data-cart-drawer-toggle]'
-      ];
-      for (const sel of headerTargets) {
-        const el = document.querySelector(sel);
-        if (el && el.offsetParent !== null) {
-          const r = el.getBoundingClientRect();
-          return { x: r.left + r.width / 2, y: r.top + r.height / 2, el };
-        }
-      }
-      // Default to right edge center
-      return { x: window.innerWidth - 24, y: window.innerHeight / 2, el: null };
+  // Universal fallback: always animate to the right edge so direction is consistent across themes
+  return { x: window.innerWidth - 24, y: window.innerHeight / 2, el: null };
     }
 
     // Animate a small ghost dot from source to target

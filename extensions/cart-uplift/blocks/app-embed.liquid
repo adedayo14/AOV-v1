@@ -11,8 +11,9 @@
         // Theme embed settings (frequently changed)
         autoOpenCart: true,
         enableFreeShipping: true,
-        freeShippingThreshold: 150,
-        buttonColor: "#4CAF50",
+        freeShippingThreshold: 0,
+        // Neutral defaults to avoid green; real colors come from backend or theme detection in JS
+        buttonColor: "#000000",
         textColor: "#1a1a1a",
 
         // Backend general settings (configured once)
@@ -26,8 +27,9 @@
         freeShippingAchievedText: "🎉 Free shipping unlocked!",
 
         // Features
-        enableRecommendations: true,
-        recommendationLayout: "column",
+  enableRecommendations: true,
+  // Match backend normalization (horizontal -> row)
+  recommendationLayout: "horizontal",
         maxRecommendations: 3,
         enableAddons: false,
         enableDiscountCode: true,
@@ -37,10 +39,10 @@
         // Advanced
         drawerWidth: 540,
         borderRadius: 8,
-        showBrandBadge: true,
+  showBrandBadge: true,
         enableQuantitySelectors: true,
         enableItemRemoval: true,
-        enableAnalytics: false
+  enableAnalytics: false
       };
 
       // Simple theme embed toggle
