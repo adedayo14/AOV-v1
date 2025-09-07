@@ -2330,7 +2330,7 @@ body.cartuplift-no-scroll {
    ======================================== */
 .cartuplift-gift-item {
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border: 2px solid var(--cartuplift-primary, #121212);
+  border: 1px solid var(--cartuplift-primary, #121212);
   border-radius: 8px;
   position: relative;
 }
@@ -2341,13 +2341,14 @@ body.cartuplift-no-scroll {
   align-items: center;
   justify-content: center;
   vertical-align: middle;
-  margin-right: 6px;
+  margin-left: 6px; /* icon is after title now */
   line-height: 0;
   color: var(--cartuplift-button-color, #000);
 }
 
 .cartuplift-item-title .cartuplift-title-text {
   vertical-align: middle;
+  padding-right: 8px; /* give breathing room to the right edge */
 }
 
 .cartuplift-gift-price {
