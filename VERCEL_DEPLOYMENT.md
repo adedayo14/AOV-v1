@@ -32,3 +32,4 @@ NODE_ENV=production
 - Your app will be available at: `https://[your-project-name].vercel.app`
 - Update the `application_url` and `redirect_urls` in `shopify.app.toml`
 - Test the app installation in a development store
+# Trigger deployment with complete env vars
