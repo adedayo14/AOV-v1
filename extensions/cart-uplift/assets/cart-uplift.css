@@ -2335,13 +2335,19 @@ body.cartuplift-no-scroll {
   position: relative;
 }
 
-.cartuplift-gift-item::before {
-  content: '🎁';
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  font-size: 18px;
-  z-index: 1;
+/* Gift title icon before the product title */
+.cartuplift-item-title .cartuplift-gift-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  margin-right: 6px;
+  line-height: 0;
+  color: var(--cartuplift-button-color, #000);
+}
+
+.cartuplift-item-title .cartuplift-title-text {
+  vertical-align: middle;
 }
 
 .cartuplift-gift-price {

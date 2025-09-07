@@ -2,7 +2,7 @@
   'use strict';
   
   // Version marker (increment when deploying to verify fresh assets)
-  const CART_UPLIFT_VERSION = 'v179';
+  const CART_UPLIFT_VERSION = 'v180';
   console.log('🛒 Cart Uplift script loaded', CART_UPLIFT_VERSION);
 
   // Safe analytics shim (no-op if not provided by host)
@@ -1110,10 +1110,35 @@
       
       return sortedItems.map((item, displayIndex) => {
         const isGift = item.properties && item.properties._is_gift === 'true';
-        const giftIcon = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 16px; height: 16px; display: inline; margin-right: 6px; color: #ff6b35;"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" /></svg>';
-        const displayTitle = isGift ? (giftIcon + item.product_title) : item.product_title;
-        const giftPriceText = this.settings.giftPriceText || 'FREE';
-        const displayPrice = isGift ? giftPriceText : this.formatMoney(item.final_price);
+        // Gift icon: stroke uses currentColor. We'll color it with the button color via CSS.
+        const giftIcon = '<span class="cartuplift-gift-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="16" height="16" focusable="false"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" /></svg></span>';
+        const displayTitle = isGift ? (giftIcon + `<span class="cartuplift-title-text">${item.product_title}</span>`) : item.product_title;
+        // Show gift label in price area: prefer the gift title saved on the line item; else try to resolve from matching gift threshold; else FREE
+        let giftLabel = (item.properties && (item.properties._gift_title || item.properties._gift_label)) || '';
+        if (!giftLabel) {
+          try {
+            const thresholds = this.settings.giftThresholds ? JSON.parse(this.settings.giftThresholds) : [];
+            if (thresholds && thresholds.length) {
+              const itemPid = (item.product_id || item.productId || '').toString();
+              const url = item.url || '';
+              const handleMatch = typeof url === 'string' ? url.match(/\/products\/([^/?#]+)/) : null;
+              const itemHandle = handleMatch ? handleMatch[1] : '';
+              const match = thresholds.find(t => {
+                // Match by productId (GraphQL or numeric) or handle
+                let tid = t.productId;
+                if (typeof tid === 'string' && tid.includes('gid://shopify/Product/')) tid = tid.replace('gid://shopify/Product/', '');
+                return (tid && tid.toString() === itemPid) || (t.productHandle && itemHandle && t.productHandle === itemHandle);
+              });
+              if (match && match.title) giftLabel = String(match.title);
+            }
+          } catch (_) {}
+        }
+        if (!giftLabel) giftLabel = this.settings.giftPriceText || 'FREE';
+        const safeGiftLabel = (giftLabel ? String(giftLabel) : '')
+          .replace(/🎁/g, '')
+          .replace(/<[^>]*>/g, '')
+          .trim() || 'FREE';
+        const displayPrice = isGift ? safeGiftLabel : this.formatMoney(item.final_price);
         
         // Find the original line number from the unsorted cart
         const originalLineNumber = this.cart.items.findIndex(originalItem => 
@@ -1128,7 +1153,7 @@
           </div>
           <div class="cartuplift-item-info">
             <h4 class="cartuplift-item-title">
-              <a href="${item.url}" style="text-transform: none;">${displayTitle}</a>
+              <a href="${item.url}" class="cartuplift-item-link">${displayTitle}</a>
             </h4>
             ${this.getVariantOptionsHTML(item)}
             <div class="cartuplift-item-quantity-wrapper">
@@ -3294,7 +3319,8 @@
             quantity: 1,
             properties: {
               '_is_gift': 'true',
-              '_gift_title': 'Gift',
+              '_gift_title': (threshold && threshold.title) ? String(threshold.title) : 'Gift',
+              '_gift_label': (threshold && threshold.title) ? String(threshold.title) : 'Gift',
               '_original_price': firstVariant.price.toString()
             },
             // Try to add with zero price - this may not work with all Shopify setups
@@ -3342,7 +3368,8 @@
         const updatedProperties = {
           ...cartItem.properties,
           '_is_gift': 'true',
-          '_gift_title': 'Gift',
+          '_gift_title': (threshold && threshold.title) ? String(threshold.title) : 'Gift',
+          '_gift_label': (threshold && threshold.title) ? String(threshold.title) : 'Gift',
           '_gift_threshold_id': threshold.id.toString(),
           '_original_price': itemPrice.toString()
         };
