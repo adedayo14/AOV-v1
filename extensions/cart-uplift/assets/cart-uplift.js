@@ -417,6 +417,9 @@
       // Set up cart replacement
       this.setupCartUpliftInterception();
       
+  // Track last click to support fly-to-cart animation
+  this.installClickTracker();
+
       // Install cart monitoring
       this.installAddToCartMonitoring();
       
@@ -483,6 +486,101 @@
       };
     }
 
+    // Track last meaningful click to derive animation source
+    installClickTracker() {
+      this._lastClick = null;
+      document.addEventListener('click', (e) => {
+        const el = e.target.closest('button, [type="submit"], .product-form, form, a, .add-to-cart, [name="add"], [data-add-to-cart]');
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        // Use click point if available, else center of element
+        const x = (typeof e.clientX === 'number' && e.clientX) ? e.clientX : rect.left + rect.width / 2;
+        const y = (typeof e.clientY === 'number' && e.clientY) ? e.clientY : rect.top + rect.height / 2;
+        this._lastClick = { x, y, time: Date.now(), rect };
+      }, true);
+    }
+
+    // Compute target point: our sticky cart button or header cart as fallback
+    getFlyTargetPoint() {
+      // Prefer our sticky cart button when visible
+      const stickyBtn = document.querySelector('#cartuplift-sticky .cartuplift-sticky-btn');
+      if (stickyBtn && stickyBtn.offsetParent !== null) {
+        const r = stickyBtn.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2, el: stickyBtn };
+      }
+      // Fallbacks: common header cart selectors
+      const headerTargets = [
+        '.header .cart-link', '.site-header__cart', '.cart-icon', '.cart-link__bubble', '[data-cart-drawer-toggle]'
+      ];
+      for (const sel of headerTargets) {
+        const el = document.querySelector(sel);
+        if (el && el.offsetParent !== null) {
+          const r = el.getBoundingClientRect();
+          return { x: r.left + r.width / 2, y: r.top + r.height / 2, el };
+        }
+      }
+      // Default to right edge center
+      return { x: window.innerWidth - 24, y: window.innerHeight / 2, el: null };
+    }
+
+    // Animate a small ghost dot from source to target
+    flyToCart(options = {}) {
+      try {
+        // Respect user reduced motion
+        const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduceMotion) return;
+        const now = Date.now();
+        const recent = this._lastClick && (now - this._lastClick.time < 2000) ? this._lastClick : null;
+        const src = options.source || recent || { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+        const tgt = this.getFlyTargetPoint();
+        if (!src || !tgt) return;
+
+        // Create ghost
+        const ghost = document.createElement('div');
+        ghost.style.position = 'fixed';
+        ghost.style.left = `${src.x}px`;
+        ghost.style.top = `${src.y}px`;
+        ghost.style.width = '12px';
+        ghost.style.height = '12px';
+        ghost.style.borderRadius = '50%';
+        ghost.style.zIndex = '2147483647';
+        ghost.style.pointerEvents = 'none';
+        ghost.style.background = this.themeColors?.primary || '#121212';
+        ghost.style.boxShadow = '0 0 0 2px rgba(0,0,0,0.08)';
+        ghost.style.transform = 'translate(-50%, -50%)';
+        ghost.style.opacity = '0.95';
+        document.body.appendChild(ghost);
+
+        const duration = 500; // ms
+        const start = performance.now();
+        const sx = src.x, sy = src.y, ex = tgt.x, ey = tgt.y;
+        const ease = (t) => 1 - Math.pow(1 - t, 3); // easeOutCubic
+
+        const step = (ts) => {
+          const t = Math.min(1, (ts - start) / duration);
+          const e = ease(t);
+          const cx = sx + (ex - sx) * e;
+          const cy = sy + (ey - sy) * e;
+          ghost.style.left = `${cx}px`;
+          ghost.style.top = `${cy}px`;
+          ghost.style.opacity = `${1 - 0.3 * t}`;
+          if (t < 1) {
+            requestAnimationFrame(step);
+          } else {
+            ghost.remove();
+            // Pulse target on arrival
+            if (tgt.el) {
+              tgt.el.classList.add('cartuplift-pulse');
+              setTimeout(() => tgt.el.classList.remove('cartuplift-pulse'), 450);
+            }
+          }
+        };
+        requestAnimationFrame(step);
+      } catch (_) {
+        // No-op on failure
+      }
+    }
+
     async refreshSettingsFromAPI() {
       try {
         const shopDomain = window.CartUpliftShop || window.Shopify?.shop;
@@ -519,6 +617,12 @@
       const safeShippingColor = this.settings.shippingBarColor && !this.isGreenColor(this.settings.shippingBarColor)
         ? this.settings.shippingBarColor 
         : safeThemeColor;
+
+      // Append minimal animation CSS for pulse effect if not present
+      const pulseCSS = `\n@keyframes cartupliftPulse {\n  0% { transform: scale(1); }\n  50% { transform: scale(1.08); }\n  100% { transform: scale(1); }\n}\n.cartuplift-sticky-btn.cartuplift-pulse {\n  animation: cartupliftPulse 450ms ease-out;\n}\n`;
+      if (!style.textContent.includes('@keyframes cartupliftPulse')) {
+        style.textContent += pulseCSS;
+      }
       
       // Debug logging with safety checks
       console.log('🎨 Color safety check:', { 
@@ -3469,6 +3573,9 @@
             setTimeout(async () => {
               await this.fetchCart();
               this.updateDrawerContent();
+              if (this.settings.enableApp) {
+                this.flyToCart();
+              }
               if (this.settings.autoOpenCart && this.settings.enableApp) {
                 // Hide theme notifications only when we open our drawer
                 this.hideThemeNotifications();
@@ -3508,6 +3615,9 @@
               setTimeout(async () => {
                 await self.fetchCart();
                 self.updateDrawerContent();
+                if (self.settings.enableApp) {
+                  self.flyToCart();
+                }
                 if (self.settings.autoOpenCart && self.settings.enableApp) {
                   // Hide theme notifications only when we open our drawer
                   self.hideThemeNotifications();
