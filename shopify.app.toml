@@ -29,7 +29,7 @@ scopes = "read_customers,read_discounts,read_orders,read_script_tags,read_themes
 redirect_urls = ["https://cartuplift.vercel.app/auth/callback", "https://cartuplift.vercel.app/auth/shopify/callback", "https://cartuplift.vercel.app/api/auth/callback"]
 
 [app_proxy]
-url = "https://arg-expertise-permitted-harold.trycloudflare.com/apps/proxy"
+url = "https://cartuplift.vercel.app/apps/proxy"
 subpath = "cart-uplift"
 prefix = "apps"
 
