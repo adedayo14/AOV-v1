@@ -62,6 +62,15 @@
       console.log('🔧 Fetching settings from:', apiUrl);
       console.log('🔧 Shop domain:', shopDomain);
       
+      // Fire-and-forget heartbeat to mark embed enabled in backend
+      try {
+        fetch('/apps/cart-uplift/api/embed-heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shop: shopDomain })
+        }).catch(() => {});
+      } catch (e) {}
+
       fetch(apiUrl)
         .then(response => {
           console.log('🔧 API Response status:', response.status);

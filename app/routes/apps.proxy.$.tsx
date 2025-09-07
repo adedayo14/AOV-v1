@@ -75,6 +75,31 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
+    // Heartbeat from theme embed to mark installed/enabled
+    if (path.includes('/api/embed-heartbeat')) {
+      const contentType = request.headers.get('content-type') || '';
+      const payload = contentType.includes('application/json') ? await request.json() : Object.fromEntries(await request.formData());
+      const shop = String((payload as any).shop || '')
+        || request.headers.get('X-Shopify-Shop-Domain')
+        || request.headers.get('x-shopify-shop-domain')
+        || new URL(request.url).searchParams.get('shop')
+        || '';
+
+      if (!shop) {
+        return json({ success: false, error: 'Missing shop' }, { status: 400, headers: { "Access-Control-Allow-Origin": "*" } });
+      }
+
+      const now = new Date().toISOString();
+      await saveSettings(shop, { themeEmbedEnabled: true, themeEmbedLastSeen: now });
+      return json({ success: true }, {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+        },
+      });
+    }
+
     // Validate discount codes from the storefront (cart modal)
     if (path.includes('/api/discount')) {
       // Verify the app proxy signature and get the shop

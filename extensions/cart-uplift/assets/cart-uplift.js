@@ -2537,7 +2537,7 @@
           const productTitle = card.querySelector('h4')?.textContent || `Product ${selectedVariantId}`;
           
           // Track product click
-          CartAnalytics.trackEvent('product_click', {
+          if (this.settings.enableAnalytics) CartAnalytics.trackEvent('product_click', {
             productId: selectedVariantId,
             productTitle: productTitle
           });
@@ -2553,7 +2553,7 @@
           const productTitle = e.target.dataset.productTitle || `Product ${variantId}`;
           
           // Track product click
-          CartAnalytics.trackEvent('product_click', {
+          if (this.settings.enableAnalytics) CartAnalytics.trackEvent('product_click', {
             productId: variantId,
             productTitle: productTitle
           });
@@ -2990,9 +2990,21 @@
     }
 
     updateDrawerContent() {
+      // Always update sticky cart counters even if the drawer isn't mounted
+      try {
+        const countEl = document.querySelector('.cartuplift-sticky-count');
+        const totalEl = document.querySelector('.cartuplift-sticky-total');
+        if (countEl && this.settings.stickyCartShowCount !== false && this.cart) {
+          countEl.textContent = this.cart.item_count;
+        }
+        if (totalEl && this.settings.stickyCartShowTotal !== false && this.cart) {
+          totalEl.textContent = this.formatMoney(this.getDisplayedTotalCents());
+        }
+      } catch {}
+
       const popup = document.querySelector('#cartuplift-cart-popup');
       if (!popup) return;
-      
+
       // Preserve scroll position
       const contentWrapper = popup.querySelector('.cartuplift-content-wrapper');
       const currentScrollTop = contentWrapper ? contentWrapper.scrollTop : 0;
@@ -3009,15 +3021,7 @@
         });
       }
       
-      // Update sticky cart
-      const count = document.querySelector('.cartuplift-sticky-count');
-      const total = document.querySelector('.cartuplift-sticky-total');
-      if (count && this.settings.stickyCartShowCount !== false) {
-        count.textContent = this.cart.item_count;
-      }
-      if (total && this.settings.stickyCartShowTotal !== false) {
-        total.textContent = this.formatMoney(this.getDisplayedTotalCents());
-      }
+  // Sticky cart already updated above
       
       // Check gift thresholds and auto-add gifts if needed
       this.checkAndAddGiftThresholds();
@@ -3356,7 +3360,7 @@
       if (this._isAnimating || this.isOpen) return;
       
       // Track cart open event
-      CartAnalytics.trackEvent('cart_open');
+  if (this.settings.enableAnalytics) CartAnalytics.trackEvent('cart_open');
       
       this._isAnimating = true;
       const container = document.getElementById('cartuplift-app-container');
@@ -3407,7 +3411,7 @@
       if (this._isAnimating || !this.isOpen) return;
       
       // Track cart close event
-      CartAnalytics.trackEvent('cart_close');
+  if (this.settings.enableAnalytics) CartAnalytics.trackEvent('cart_close');
       
       this._isAnimating = true;
       const container = document.getElementById('cartuplift-app-container');
@@ -3461,13 +3465,15 @@
         const isCartUpdate = url.includes('/cart/update');
         
         if (isCartAdd) {
-          if (response.ok && this.settings.autoOpenCart && this.settings.enableApp) {
-            // CRITICAL: Hide theme notifications immediately
-            this.hideThemeNotifications();
+          if (response.ok) {
             setTimeout(async () => {
               await this.fetchCart();
               this.updateDrawerContent();
-              this.openDrawer();
+              if (this.settings.autoOpenCart && this.settings.enableApp) {
+                // Hide theme notifications only when we open our drawer
+                this.hideThemeNotifications();
+                this.openDrawer();
+              }
             }, 100);
           }
         } else if (response.ok && (isCartChange || isCartUpdate)) {
@@ -3498,14 +3504,15 @@
       XMLHttpRequest.prototype.send = function() {
         if (this._url && this._url.includes('/cart/add')) {
           this.addEventListener('load', function() {
-            if (this.status === 200 && self.settings.autoOpenCart && self.settings.enableApp) {
-              // Hide theme notifications
-              self.hideThemeNotifications();
-              
+            if (this.status === 200) {
               setTimeout(async () => {
                 await self.fetchCart();
                 self.updateDrawerContent();
-                self.openDrawer();
+                if (self.settings.autoOpenCart && self.settings.enableApp) {
+                  // Hide theme notifications only when we open our drawer
+                  self.hideThemeNotifications();
+                  self.openDrawer();
+                }
               }, 100);
             }
           });
@@ -3571,7 +3578,7 @@
 
     proceedToCheckout() {
       // Track checkout start
-      CartAnalytics.trackEvent('checkout_start', {
+  if (this.settings.enableAnalytics) CartAnalytics.trackEvent('checkout_start', {
         revenue: this.cart ? this.cart.total_price / 100 : 0 // Convert from cents
       });
       

@@ -51,15 +51,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.error('Failed to fetch current theme:', error);
   }
   
-  // Check if app embed is installed in theme
-  // TODO: Implement real detection via Admin API; default to false to avoid confusion
-  const themeEmbedInstalled = false;
-
-  // Calculate setup progress focusing on explicit user actions (start lower by default)
+  // Calculate setup progress focusing on core features
   const setupSteps = [
-    { key: 'themeEmbed', label: 'Enable app embed in theme', completed: themeEmbedInstalled },
-    { key: 'configureRecommendations', label: 'Recommendations configured', completed: !!settings.enableRecommendations },
-    { key: 'configureFreeShipping', label: 'Free shipping setup', completed: !!settings.enableFreeShipping },
+    { key: 'stickyCart', label: 'Sticky cart enabled', completed: !!settings.enableStickyCart },
+  { key: 'analytics', label: 'Analytics enabled', completed: !!settings.enableAnalytics },
+    { key: 'recommendations', label: 'Recommendations configured', completed: !!settings.enableRecommendations },
+    { key: 'incentives', label: 'Incentives configured', completed: (
+      // Free shipping considered configured only if threshold > 0
+      (!!settings.enableFreeShipping && Number(settings.freeShippingThreshold) > 0) ||
+      // Gift gating considered configured only if there are one or more thresholds
+      (!!(settings as any).enableGiftGating && (() => { try { return (JSON.parse((settings as any).giftThresholds || '[]') || []).length > 0; } catch { return false; } })()) ||
+      // Combined progress bar mode also counts
+      (settings as any).progressBarMode === 'combined'
+    ) },
     { key: 'styling', label: 'Styling customized', completed: (
       settings.backgroundColor !== "#ffffff" ||
       settings.textColor !== "#1A1A1A" ||
@@ -70,7 +74,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const completedSteps = setupSteps.filter(step => step.completed).length;
   const progressPercentage = Math.round((completedSteps / setupSteps.length) * 100);
 
-  return json({ setupSteps, progressPercentage, currentThemeId, shop, themeEmbedInstalled });
+  return json({ setupSteps, progressPercentage, currentThemeId, shop });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -129,7 +133,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Index() {
-  const { setupSteps, progressPercentage, currentThemeId, shop, themeEmbedInstalled } = useLoaderData<typeof loader>();
+  const { setupSteps, progressPercentage, currentThemeId, shop } = useLoaderData<typeof loader>();
 
   // Build absolute admin URL so it doesn't resolve to the app/dev origin
   const shopHandle = (shop || '').replace('.myshopify.com', '');
@@ -316,15 +320,12 @@ export default function Index() {
               </div>
               
               <InlineStack gap="300">
-                {!themeEmbedInstalled ? (
-                  <a href={themeEditorUrl} target="_top" rel="noopener noreferrer">
-                    <Button variant="primary">Install Theme Embed</Button>
-                  </a>
-                ) : (
-                  <Link to="/app/settings">
-                    <Button variant="primary">Complete Setup</Button>
-                  </Link>
-                )}
+                <Link to="/app/settings">
+                  <Button variant="primary">Complete Setup</Button>
+                </Link>
+                <a href={themeEditorUrl} target="_top" rel="noopener noreferrer">
+                  <Button variant="secondary">Install Theme Embed</Button>
+                </a>
               </InlineStack>
             </BlockStack>
           </Card>

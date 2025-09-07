@@ -50,6 +50,10 @@ export interface SettingsData {
   progressBarMode: string;
   giftProgressStyle: string;
   giftThresholds: string;
+
+  // Theme embed status (updated by storefront heartbeat)
+  themeEmbedEnabled?: boolean;
+  themeEmbedLastSeen?: string; // ISO string
 }
 
 export async function getSettings(shop: string): Promise<SettingsData> {
@@ -100,6 +104,8 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       progressBarMode: (settings as any).progressBarMode ?? "free-shipping",
       giftProgressStyle: (settings as any).giftProgressStyle ?? "single-next",
   giftThresholds: (settings as any).giftThresholds ?? "[]",
+  themeEmbedEnabled: (settings as any).themeEmbedEnabled ?? false,
+  themeEmbedLastSeen: (settings as any).themeEmbedLastSeen ? new Date((settings as any).themeEmbedLastSeen).toISOString() : undefined,
     };
   } catch (error) {
     console.error("Error fetching settings:", error);
@@ -116,7 +122,8 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       'cartPosition', 'cartIcon', 'freeShippingText', 'freeShippingAchievedText', 'recommendationsTitle', 'actionText',
       'addButtonText', 'checkoutButtonText', 'applyButtonText',
   'backgroundColor', 'textColor', 'buttonColor', 'buttonTextColor', 'recommendationsBackgroundColor', 'shippingBarBackgroundColor', 'shippingBarColor', 'recommendationLayout', 'maxRecommendations',
-  'complementDetectionMode', 'manualRecommendationProducts', 'progressBarMode', 'giftProgressStyle', 'giftThresholds'
+  'complementDetectionMode', 'manualRecommendationProducts', 'progressBarMode', 'giftProgressStyle', 'giftThresholds',
+  'themeEmbedEnabled', 'themeEmbedLastSeen'
     ];
     
     const filteredData: Partial<SettingsData> = {};
@@ -172,6 +179,8 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       progressBarMode: (settings as any).progressBarMode ?? "free-shipping",
       giftProgressStyle: (settings as any).giftProgressStyle ?? "single-next",
   giftThresholds: (settings as any).giftThresholds ?? "[]",
+  themeEmbedEnabled: (settings as any).themeEmbedEnabled ?? false,
+  themeEmbedLastSeen: (settings as any).themeEmbedLastSeen ? new Date((settings as any).themeEmbedLastSeen).toISOString() : undefined,
     };
   } catch (error) {
     console.error("Error saving settings:", error);
@@ -187,7 +196,7 @@ export function getDefaultSettings(): SettingsData {
     showOnlyOnCartPage: false,
     autoOpenCart: true,
   enableFreeShipping: false,
-    freeShippingThreshold: 100,
+    freeShippingThreshold: 0,
     
     // Advanced Features
   enableRecommendations: false,
@@ -195,7 +204,7 @@ export function getDefaultSettings(): SettingsData {
     enableDiscountCode: true,
     enableNotes: false,
     enableExpressCheckout: true,
-    enableAnalytics: true,
+  enableAnalytics: false,
     
     // Cart Behavior & Position
     cartPosition: "bottom-right",
@@ -230,5 +239,7 @@ export function getDefaultSettings(): SettingsData {
     progressBarMode: "free-shipping",
     giftProgressStyle: "single-next",
   giftThresholds: "[]",
+  themeEmbedEnabled: false,
+  themeEmbedLastSeen: undefined,
   };
 }

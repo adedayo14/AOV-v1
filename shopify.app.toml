@@ -2,7 +2,7 @@
 
 client_id = "06d17c445a3713f419add1e31894bcc3"
 name = "cart-uplift-app"
-application_url = "https://longer-travel-unknown-wrote.trycloudflare.com"
+application_url = "https://complexity-dual-pins-speakers.trycloudflare.com"
 embedded = true
 handle = "cart-uplift-app-7"
 
@@ -26,10 +26,10 @@ api_version = "2025-07"
 scopes = "read_customers,read_discounts,read_orders,read_script_tags,read_themes,write_orders,write_products,write_script_tags,write_themes"
 
 [auth]
-redirect_urls = ["https://longer-travel-unknown-wrote.trycloudflare.com/auth/callback", "https://longer-travel-unknown-wrote.trycloudflare.com/auth/shopify/callback", "https://longer-travel-unknown-wrote.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://complexity-dual-pins-speakers.trycloudflare.com/auth/callback", "https://complexity-dual-pins-speakers.trycloudflare.com/auth/shopify/callback", "https://complexity-dual-pins-speakers.trycloudflare.com/api/auth/callback"]
 
 [app_proxy]
-url = "https://longer-travel-unknown-wrote.trycloudflare.com/apps/proxy"
+url = "https://complexity-dual-pins-speakers.trycloudflare.com/apps/proxy"
 subpath = "cart-uplift"
 prefix = "apps"
 

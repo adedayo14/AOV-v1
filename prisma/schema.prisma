@@ -40,8 +40,8 @@ model Settings {
   enableStickyCart        Boolean  @default(true)
   showOnlyOnCartPage      Boolean  @default(false)
   autoOpenCart            Boolean  @default(true)
-  enableFreeShipping      Boolean  @default(true)
-  freeShippingThreshold   Float    @default(100)
+  enableFreeShipping      Boolean  @default(false)
+  freeShippingThreshold   Float    @default(0)
   
   // Advanced Features
   enableRecommendations   Boolean  @default(false)
@@ -49,7 +49,7 @@ model Settings {
   enableDiscountCode      Boolean  @default(true)
   enableNotes             Boolean  @default(false)
   enableExpressCheckout   Boolean  @default(true)
-  enableAnalytics         Boolean  @default(true)
+  enableAnalytics         Boolean  @default(false)
   
   // Cart Behavior & Position
   cartPosition            String   @default("bottom-right")
@@ -84,6 +84,10 @@ model Settings {
   enableGiftGating        Boolean  @default(false)
   giftProgressStyle       String   @default("single-next") // "stacked", "single-multi", "single-next"
   giftThresholds          String   @default("[]") // JSON array of gift thresholds
+
+  // Theme App Embed Status
+  themeEmbedEnabled       Boolean  @default(false)
+  themeEmbedLastSeen      DateTime?
   
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt

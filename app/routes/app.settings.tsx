@@ -67,14 +67,14 @@ export const action = withAuthAction(async ({ request, auth }) => {
     showOnlyOnCartPage: settings.showOnlyOnCartPage === 'true',
     autoOpenCart: settings.autoOpenCart === 'true',
     enableFreeShipping: settings.enableFreeShipping === 'true',
-    freeShippingThreshold: Number(settings.freeShippingThreshold) || 100,
+  freeShippingThreshold: Number(settings.freeShippingThreshold ?? 0),
     enableRecommendations: settings.enableRecommendations === 'true',
     enableAddons: settings.enableAddons === 'true',
     enableDiscountCode: settings.enableDiscountCode === 'true',
     enableNotes: settings.enableNotes === 'true',
     enableExpressCheckout: settings.enableExpressCheckout === 'true',
     enableAnalytics: settings.enableAnalytics === 'true',
-    maxRecommendations: Number(settings.maxRecommendations) || 6,
+  maxRecommendations: Number(settings.maxRecommendations ?? 6),
     cartPosition: String(settings.cartPosition) || 'bottom-right',
     cartIcon: String(settings.cartIcon) || 'cart',
     // New sticky cart settings
@@ -290,6 +290,9 @@ export default function SettingsPage() {
   
   // Success banner auto-hide state
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [showErrorBanner, setShowErrorBanner] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
   // Ensure new sticky cart settings have defaults
   useEffect(() => {
@@ -313,12 +316,39 @@ export default function SettingsPage() {
 
   // Auto-hide success banner after 3 seconds
   useEffect(() => {
-    if (fetcher.state === "idle" && fetcher.data && (fetcher.data as any)?.success) {
-      setShowSuccessBanner(true);
-      const timer = setTimeout(() => {
-        setShowSuccessBanner(false);
-      }, 3000);
+    // Track transitions to detect silent failures
+    if (fetcher.state === 'submitting') submittingRef.current = true;
+    if (fetcher.state === 'idle' && submittingRef.current && !fetcher.data) {
+      submittingRef.current = false;
+      setShowSuccessBanner(false);
+      setErrorMessage('We could not confirm if settings were saved. Please try again.');
+      setShowErrorBanner(true);
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+      const timer = setTimeout(() => setShowErrorBanner(false), 6000);
       return () => clearTimeout(timer);
+    }
+
+    if (fetcher.state === "idle" && fetcher.data) {
+      const data: any = fetcher.data;
+      if (data?.success) {
+        submittingRef.current = false;
+        setShowErrorBanner(false);
+        setErrorMessage(null);
+        setShowSuccessBanner(true);
+        // Make sure the user sees the banner
+        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+        const timer = setTimeout(() => setShowSuccessBanner(false), 3000);
+        return () => clearTimeout(timer);
+      }
+      if (data?.success === false) {
+        submittingRef.current = false;
+        setShowSuccessBanner(false);
+        setErrorMessage(typeof data?.message === 'string' ? data.message : 'Failed to save settings');
+        setShowErrorBanner(true);
+        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+        const timer = setTimeout(() => setShowErrorBanner(false), 6000);
+        return () => clearTimeout(timer);
+      }
     }
   }, [fetcher.state, fetcher.data]);
 
@@ -347,7 +377,7 @@ export default function SettingsPage() {
     Object.entries(formSettings).forEach(([key, value]) => {
       formData.append(key, String(value));
     });
-    fetcher.submit(formData, { method: "post" });
+  fetcher.submit(formData, { method: "post", action: "." });
   };
 
   const updateSetting = (key: string, value: any) => {
@@ -475,10 +505,10 @@ export default function SettingsPage() {
   }, [productsFetcher.state, productsFetcher.data, showProductSelector, showGiftProductSelector]);
 
   // Calculate free shipping progress
-  const threshold = (formSettings.freeShippingThreshold || 100) * 100;
-  const currentTotal = 1500; // £15.00 in pence for demo - shows progress needed
-  const remaining = Math.max(0, threshold - currentTotal);
-  const progress = Math.min((currentTotal / threshold) * 100, 100);
+  const threshold = Number(formSettings.freeShippingThreshold ?? 0) * 100;
+  const currentTotal = 1500; // £15.00 in smallest unit for demo
+  const remaining = threshold > 0 ? Math.max(0, threshold - currentTotal) : 0;
+  const progress = threshold > 0 ? Math.min((currentTotal / threshold) * 100, 100) : 0;
 
   return (
     <Page
@@ -2820,9 +2850,14 @@ export default function SettingsPage() {
       }} />
 
       <div className="cartuplift-settings-layout">
-        {showSuccessBanner && (
+        {(showSuccessBanner || showErrorBanner) && (
           <div className="cartuplift-success-banner">
-            <Banner tone="success">Settings saved successfully!</Banner>
+            {showSuccessBanner && (
+              <Banner tone="success">Settings saved successfully!</Banner>
+            )}
+            {showErrorBanner && (
+              <Banner tone="critical">{errorMessage || 'Failed to save settings'}</Banner>
+            )}
           </div>
         )}
         
@@ -2859,7 +2894,7 @@ export default function SettingsPage() {
                     label="Enable Analytics Tracking"
                     checked={formSettings.enableAnalytics}
                     onChange={(value) => updateSetting("enableAnalytics", value)}
-                    helpText="Track cart performance and user behavior"
+                    helpText="Optional. Tracks cart opens, clicks on recommendations, and checkout starts. No PII collected."
                   />
                 </FormLayout>
               </BlockStack>
