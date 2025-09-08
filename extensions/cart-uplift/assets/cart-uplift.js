@@ -576,6 +576,7 @@
       }
       
       // Debug logging with safety checks
+      console.log('🛒 Cart Uplift: Color application:', {
         originalTheme: themeColors.primary,
         safeTheme: safeThemeColor,
         originalButton: this.settings.buttonColor,
