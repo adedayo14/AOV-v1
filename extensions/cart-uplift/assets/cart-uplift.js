@@ -852,6 +852,7 @@
         });
       }
       
+      console.log('🛒 Cart Uplift: Total calculations:', {
         originalTotal: originalTotal,
         giftItemsTotal: giftItemsTotal,
         shopifyTotal: this.cart?.total_price || 0,
@@ -891,11 +892,14 @@
       const shouldShowRecommendations = this.settings.enableRecommendations && 
         ((!this._recommendationsLoaded) || (this.recommendations && this.recommendations.length > 0));
       
-        'enableRecommendations:', this.settings.enableRecommendations,
-        'loaded:', this._recommendationsLoaded, 
-        'count:', this.recommendations?.length || 0,
-        'window width:', window.innerWidth);
+      console.log('🛒 Cart Uplift: Recommendations check:', {
+        'enableRecommendations': this.settings.enableRecommendations,
+        'loaded': this._recommendationsLoaded, 
+        'count': this.recommendations?.length || 0,
+        'window width': window.innerWidth
+      });
       
+      console.log('🛒 Cart Uplift: Discount calculations:', {
         cartDiscounts, 
         hasCartDiscount, 
         totalDiscount, 
@@ -1158,6 +1162,7 @@
         const currentTotal = this.cart ? (this.cart.total_price / 100) : 0; // Convert from cents
         const progressStyle = this.settings.giftProgressStyle || 'single-next';
         
+        console.log('🛒 Cart Uplift: Gift progress data:', {
           currentTotal,
           thresholds: sortedThresholds,
           style: progressStyle,
@@ -1288,6 +1293,7 @@
         const progressBarMode = this.settings.progressBarMode || 'free-shipping';
         const currentTotal = this.cart ? this.cart.total_price / 100 : 0;
         
+        console.log('🛒 Cart Uplift: Unified progress data:', {
           mode: progressBarMode,
           enableFreeShipping: this.settings.enableFreeShipping,
           enableGiftGating: this.settings.enableGiftGating,
@@ -1323,12 +1329,13 @@
       const threshold = this.settings.freeShippingThreshold || 100;
       const progress = Math.min((currentTotal / threshold) * 100, 100);
       
-  // Use shippingBarColor (default black) consistently for the fill
-  const safeShippingColor = this.settings.shippingBarColor || '#121212';
+      // Use shippingBarColor (default black) consistently for the fill
+      const safeShippingColor = this.settings.shippingBarColor || '#121212';
       
-    progress: progress,
-    shippingColor: safeShippingColor,
-    progressBarHTML: `width: ${progress}%; background: ${safeShippingColor} !important;`
+      console.log('🛒 Cart Uplift: Free shipping progress:', {
+        progress: progress,
+        shippingColor: safeShippingColor,
+        progressBarHTML: `width: ${progress}%; background: ${safeShippingColor} !important;`
       });
       
       return `
@@ -2151,6 +2158,7 @@
       }
       
       // Debug log to check current settings
+      console.log('🛒 Cart Uplift: Modal settings:', {
         enableDiscountCode: this.settings.enableDiscountCode,
         enableNotes: this.settings.enableNotes,
         enableGiftMessage: this.settings.enableGiftMessage
@@ -3131,10 +3139,12 @@
     // Check if gift thresholds have been reached and auto-add gift products
     async checkAndAddGiftThresholds() {
       if (!this.settings.enableGiftGating || !this.settings.giftThresholds || !this.cart) {
+        console.log('🛒 Cart Uplift: Gift threshold check skipped:', {
           enableGiftGating: this.settings.enableGiftGating,
           hasThresholds: !!this.settings.giftThresholds,
           hasCart: !!this.cart
-        });        return;
+        });
+        return;
       }
 
       try {
