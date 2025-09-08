@@ -85,6 +85,11 @@
           this.rebuildRecommendationsFromMaster();
         }
         
+        // Refresh sticky cart when settings change
+        if (this.settings.enableStickyCart) {
+          this.createStickyCart();
+        }
+        
         // Re-render drawer to apply new settings
         this.updateDrawerContent();
         
@@ -3030,6 +3035,9 @@
         if (totalEl && this.settings.stickyCartShowTotal !== false && this.cart) {
           totalEl.textContent = this.formatMoney(this.getDisplayedTotalCents());
         }
+        
+        // Ensure sticky cart is visible if enabled
+        this.refreshStickyCart();
       } catch {}
 
       const popup = document.querySelector('#cartuplift-cart-popup');
@@ -3058,6 +3066,15 @@
       // Only refresh layout if recommendations are loaded (filtering handled elsewhere)
       if (this.settings.enableRecommendations && this._recommendationsLoaded) {
         this.refreshRecommendationLayout();
+      }
+    }
+
+    refreshStickyCart() {
+      if (this.settings.enableStickyCart) {
+        const existing = document.getElementById('cartuplift-sticky');
+        if (!existing) {
+          this.createStickyCart();
+        }
       }
     }
 

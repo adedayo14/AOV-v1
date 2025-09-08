@@ -7,7 +7,7 @@ embedded = true
 handle = "cart-uplift-app-7"
 
 [build]
-automatically_update_urls_on_dev = true
+automatically_update_urls_on_dev = false
 include_config_on_deploy = true
 
 [webhooks]
@@ -26,7 +26,11 @@ api_version = "2025-07"
 scopes = "read_customers,read_discounts,read_orders,read_script_tags,read_themes,write_orders,write_products,write_script_tags,write_themes"
 
 [auth]
-redirect_urls = ["https://cartuplift.vercel.app/auth/callback", "https://cartuplift.vercel.app/auth/shopify/callback", "https://cartuplift.vercel.app/api/auth/callback"]
+redirect_urls = [
+  "https://cartuplift.vercel.app/auth/callback",
+  "https://cartuplift.vercel.app/auth/shopify/callback",
+  "https://cartuplift.vercel.app/api/auth/callback"
+]
 
 [app_proxy]
 url = "https://cartuplift.vercel.app/apps/proxy"

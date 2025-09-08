@@ -18,17 +18,19 @@ async function ensureMigrationsApplied() {
   if (process.env.NODE_ENV === 'production' && !(global as any).__migrationsApplied) {
     (global as any).__migrationsApplied = true;
     try {
-      // Dynamically import to avoid bundling issues
       const { exec } = await import('node:child_process');
       const { promisify } = await import('node:util');
       const pexec = promisify(exec);
-      // Use npx prisma migrate deploy, which is idempotent and safe
-      await pexec('npx prisma migrate deploy', { env: process.env as any });
-      // eslint-disable-next-line no-console
-      console.log('Prisma migrations deployed');
+      try {
+        await pexec('npx prisma migrate deploy', { env: process.env as any });
+        console.log('Prisma migrations deployed');
+      } catch (e) {
+        console.warn('Prisma migrate deploy failed, attempting db push:', e);
+        await pexec('npx prisma db push', { env: process.env as any });
+        console.log('Prisma db push completed');
+      }
     } catch (e) {
-      // eslint-disable-next-line no-console
-      console.warn('Prisma migrate deploy failed (continuing):', e);
+      console.warn('Prisma setup failed (continuing):', e);
     }
   }
 }

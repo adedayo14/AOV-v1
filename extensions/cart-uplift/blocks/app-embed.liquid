@@ -48,10 +48,12 @@
       // Simple theme embed toggle
       const isEnabled = {{ block.settings.enable_cart_uplift | default: true | json }};
 
-      // Only proceed if Cart Uplift is enabled
       if (!isEnabled) {
+        console.warn('🛒 Cart Uplift: Disabled via theme settings');
         return;
       }
+
+      console.log('🛒 Cart Uplift: Starting initialization...');
 
       // Fetch backend settings from your app's API
       let backendSettings = {};
