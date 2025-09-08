@@ -54,6 +54,7 @@
       }
 
       console.log('🛒 Cart Uplift: Starting initialization...');
+      console.log('🛒 Cart Uplift: Settings defaults:', defaults);
 
       // Fetch backend settings from your app's API
       let backendSettings = {};
@@ -80,28 +81,46 @@
           return response.json();
         })
         .then(data => {
+          console.log('🛒 Cart Uplift: Backend settings loaded:', data);
           backendSettings = data || {};
           // Merge settings: defaults < backendSettings (no theme override since all config is in backend)
           window.CartUpliftSettings = Object.assign({}, defaults, backendSettings);
           
-          // Initialize cart if enabled
-          if (window.CartUpliftSettings.enableApp) {
-            // Create new cart uplift instance
-            if (window.CartUpliftDrawer) {
-              window.cartUpliftDrawer = new window.CartUpliftDrawer(window.CartUpliftSettings);
-            }
-          }
-        })
-        .catch(error => {
-          // Fallback to defaults only
-          window.CartUpliftSettings = defaults;
+          console.log('🛒 Cart Uplift: Final settings:', window.CartUpliftSettings);
           
           // Initialize cart if enabled
           if (window.CartUpliftSettings.enableApp) {
+            console.log('🛒 Cart Uplift: App enabled, initializing drawer...');
             // Create new cart uplift instance
             if (window.CartUpliftDrawer) {
               window.cartUpliftDrawer = new window.CartUpliftDrawer(window.CartUpliftSettings);
+              console.log('🛒 Cart Uplift: Drawer initialized successfully');
+            } else {
+              console.error('🛒 Cart Uplift: CartUpliftDrawer class not found');
             }
+          } else {
+            console.warn('🛒 Cart Uplift: App is disabled in settings');
+          }
+        })
+        .catch(error => {
+          console.error('🛒 Cart Uplift: API call failed:', error);
+          // Fallback to defaults only
+          window.CartUpliftSettings = defaults;
+          
+          console.log('🛒 Cart Uplift: Using fallback settings:', window.CartUpliftSettings);
+          
+          // Initialize cart if enabled
+          if (window.CartUpliftSettings.enableApp) {
+            console.log('🛒 Cart Uplift: App enabled (fallback), initializing drawer...');
+            // Create new cart uplift instance
+            if (window.CartUpliftDrawer) {
+              window.cartUpliftDrawer = new window.CartUpliftDrawer(window.CartUpliftSettings);
+              console.log('🛒 Cart Uplift: Drawer initialized successfully (fallback)');
+            } else {
+              console.error('🛒 Cart Uplift: CartUpliftDrawer class not found (fallback)');
+            }
+          } else {
+            console.warn('🛒 Cart Uplift: App is disabled in fallback settings');
           }
         });
 
@@ -140,7 +159,7 @@
 
 {% schema %}
 {
-  "name": "Cart Uplift",
+  "name": "Cart Uplift - Live App",
   "target": "body",
   "settings": [
     {

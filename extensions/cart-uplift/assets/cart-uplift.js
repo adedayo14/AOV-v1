@@ -751,14 +751,26 @@
     }
 
     createStickyCart() {
-      if (!this.settings.enableStickyCart) return;
+      console.log('🛒 Cart Uplift: createStickyCart called, enableStickyCart:', this.settings.enableStickyCart);
+      
+      if (!this.settings.enableStickyCart) {
+        console.log('🛒 Cart Uplift: Sticky cart disabled in settings');
+        return;
+      }
+      
+      console.log('🛒 Cart Uplift: Creating sticky cart...');
       
       const existing = document.getElementById('cartuplift-sticky');
-      if (existing) existing.remove();
+      if (existing) {
+        console.log('🛒 Cart Uplift: Removing existing sticky cart');
+        existing.remove();
+      }
 
       const stickyCart = document.createElement('div');
       stickyCart.id = 'cartuplift-sticky';
       stickyCart.className = `cartuplift-sticky ${this.settings.cartPosition || 'bottom-right'}`;
+      
+      console.log('🛒 Cart Uplift: Sticky cart element created with class:', stickyCart.className);
       
       // Build the button content based on settings
       let buttonContent = '';
@@ -784,11 +796,16 @@
         </button>
       `;
       
+      console.log('🛒 Cart Uplift: Adding sticky cart to body');
       document.body.appendChild(stickyCart);
+      
+      console.log('🛒 Cart Uplift: Sticky cart added to DOM:', document.getElementById('cartuplift-sticky'));
       
       stickyCart.querySelector('.cartuplift-sticky-btn').addEventListener('click', () => {
         this.openDrawer();
       });
+      
+      console.log('🛒 Cart Uplift: Sticky cart setup complete');
     }
 
     createDrawer() {
