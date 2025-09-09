@@ -1542,6 +1542,13 @@
             this.updateDots(contentEl);
           }, 100);
         }
+        
+        // Setup grid hover handlers after content update
+        if (layout === 'grid') {
+          setTimeout(() => {
+            this.attachGridHoverHandlers();
+          }, 50);
+        }
       }
     }
 
@@ -1664,7 +1671,7 @@
         // Adjust to multiples of 4 for clean grid
         const adjustedCount = Math.min(gridProducts.length, Math.ceil(gridProducts.length / 4) * 4);
         const productsToShow = gridProducts.slice(0, adjustedCount);
-        return `
+        const gridHtml = `
           <div class="cartuplift-grid-container" data-original-title="${(this.settings.recommendationsTitle || 'You might also like').replace(/"/g,'&quot;')}">
             ${productsToShow.map(product => `
               <div class="cartuplift-grid-item" data-product-id="${product.id}" data-variant-id="${product.variant_id}" data-title="${product.title.replace(/"/g,'&quot;')}" data-price="${this.formatMoney(product.priceCents || 0)}">
@@ -1679,6 +1686,11 @@
               </div>`).join('')}
           </div>
         `;
+        
+        // Schedule hover handlers to be attached after DOM update
+        setTimeout(() => this.attachGridHoverHandlers(), 10);
+        
+        return gridHtml;
       } else {
         return this.recommendations.map(product => `
           <div class="cartuplift-recommendation-item">
