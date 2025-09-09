@@ -26,6 +26,7 @@ const { useState, useEffect, useRef } = React;
 export const loader = withAuth(async ({ auth }) => {
   const shop = auth.session.shop;
   const settings = await getSettings(shop);
+  try { console.log('[app.settings.loader] shop', shop, 'recommendationLayout', settings?.recommendationLayout); } catch(_) {}
   
   // Get shop currency information
   let shopCurrency = { currencyCode: 'USD', moneyFormat: undefined }; // Default fallback
@@ -100,7 +101,15 @@ export const action = withAuthAction(async ({ request, auth }) => {
     recommendationsBackgroundColor: String(settings.recommendationsBackgroundColor) || "#ecebe3",
     shippingBarBackgroundColor: String(settings.shippingBarBackgroundColor) || "#f0f0f0",
     shippingBarColor: String(settings.shippingBarColor) || "#121212", // Dark neutral default
-    recommendationLayout: String(settings.recommendationLayout) || "horizontal",
+    // Normalize legacy recommendation layout values to new naming before saving
+    recommendationLayout: (() => {
+      const legacy = String(settings.recommendationLayout || '').toLowerCase();
+      if (legacy === 'horizontal' || legacy === 'row') return 'carousel';
+      if (legacy === 'vertical' || legacy === 'column') return 'list';
+      if (legacy === 'grid') return 'grid';
+      // default new value
+      return 'carousel';
+    })(),
     complementDetectionMode: String(settings.complementDetectionMode) || "automatic",
     manualRecommendationProducts: String(settings.manualRecommendationProducts) || "",
     // Progress Bar System
@@ -112,6 +121,7 @@ export const action = withAuthAction(async ({ request, auth }) => {
   
   try {
     await saveSettings(shop, processedSettings);
+  try { console.log('[app.settings.action] saved recommendationLayout', processedSettings.recommendationLayout); } catch(_) {}
     return json({ success: true, message: "Settings saved successfully!" });
   } catch (error) {
     console.error("Error saving settings:", error);
@@ -424,9 +434,11 @@ export default function SettingsPage() {
     { label: "Basket", value: "basket" },
   ];
 
+  // Updated recommendation layout options (legacy Horizontal/Vertical replaced)
   const recommendationLayoutOptions = [
-    { label: "Horizontal", value: "row" },
-    { label: "Vertical", value: "column" },
+    { label: "Carousel", value: "carousel" },
+    { label: "List", value: "list" },
+    { label: "Grid", value: "grid" },
   ];
 
   const complementDetectionModeOptions = [
@@ -3919,8 +3931,8 @@ export default function SettingsPage() {
 
                   {/* Recommendations Section */}
                   {formSettings.enableRecommendations && (
-                    <div className={`cartuplift-recommendations ${formSettings.recommendationLayout === 'row' || formSettings.recommendationLayout === 'horizontal' ? 'is-horizontal' : ''}`}>
-                      {(formSettings.recommendationLayout === 'column' || formSettings.recommendationLayout === 'fullwidth' || formSettings.recommendationLayout === 'grid') && (
+                    <div className={`cartuplift-recommendations ${formSettings.recommendationLayout === 'carousel' ? 'is-horizontal' : ''}`}>
+                      {(formSettings.recommendationLayout === 'list' || formSettings.recommendationLayout === 'fullwidth' || formSettings.recommendationLayout === 'grid') && (
                         <div className="cartuplift-recommendations-header">
                           <h3 className="cartuplift-recommendations-title">
                             {formSettings.recommendationsTitle || 'RECOMMENDED FOR YOU'}
@@ -3933,7 +3945,7 @@ export default function SettingsPage() {
                         </div>
                       )}
                       <div className="cartuplift-recommendations-content">
-                        {formSettings.recommendationLayout === 'column' ? (
+                        {formSettings.recommendationLayout === 'list' ? (
                           <>
                             <div className="cartuplift-recommendation-item">
                               <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-3_large.png" alt="Example Product Title" />
@@ -3999,7 +4011,7 @@ export default function SettingsPage() {
                               <button>+</button>
                             </div>
                           </div>
-                        ) : (formSettings.recommendationLayout === 'row' || formSettings.recommendationLayout === 'horizontal') ? (
+                        ) : (formSettings.recommendationLayout === 'carousel') ? (
                           <div className="cartuplift-horizontal-card">
                             <div className="cartuplift-recommendations-header">
                               <h3 className="cartuplift-recommendations-title">
