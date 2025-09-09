@@ -1667,25 +1667,24 @@
         // Adjust to multiples of 4 for clean grid
         const adjustedCount = Math.min(gridProducts.length, Math.ceil(gridProducts.length / 4) * 4);
         const productsToShow = gridProducts.slice(0, adjustedCount);
-        
         return `
           <div class="cartuplift-grid-container">
             ${productsToShow.map(product => `
-              <div class="cartuplift-grid-item">
+              <div class="cartuplift-grid-item" data-product-id="${product.id}" data-variant-id="${product.variant_id}">
                 <div class="cartuplift-grid-image">
-                  <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
-                  <div class="cartuplift-grid-overlay">
-                    <div class="cartuplift-grid-title">${product.title}</div>
-                    <div class="cartuplift-grid-price">${this.formatMoney(product.priceCents || 0)}</div>
-                    <button class="cartuplift-grid-add-btn" data-variant-id="${product.variant_id}">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                      </svg>
-                    </button>
-                  </div>
+                  <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" decoding="async" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
                 </div>
-              </div>
-            `).join('')}
+                <div class="cartuplift-grid-hover">
+                  <div class="cartuplift-grid-meta">
+                    <div class="cartuplift-grid-title" title="${product.title}">${product.title}</div>
+                    <div class="cartuplift-grid-price">${this.formatMoney(product.priceCents || 0)}</div>
+                  </div>
+                  <button class="cartuplift-grid-add-btn" data-variant-id="${product.variant_id}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6h15l-1.5 12.5a2 2 0 01-2 1.5H8a2 2 0 01-2-1.5L4.5 6H20M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2M9 11h6M9 15h6"/></svg>
+                    <span>${this.settings.addButtonText || 'Add'}</span>
+                  </button>
+                </div>
+              </div>`).join('')}
           </div>
         `;
       } else {
@@ -2645,7 +2644,10 @@
           e.preventDefault();
           e.stopPropagation();
           const variantId = e.target.dataset.variantId;
-          const productTitle = e.target.dataset.productTitle || `Product ${variantId}`;
+          if (variantId) {
+            this.addVariantToCart(variantId);
+          }
+          // Title is no longer needed for this inline add flow (hover reveals title visually)
           
           // Track product click
         } else if (e.target.classList.contains('cartuplift-grid-add-btn')) {

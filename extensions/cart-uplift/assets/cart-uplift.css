@@ -1182,99 +1182,66 @@ body.cartuplift-no-scroll {
   padding: 16px;
 }
 
+/* --- Minimal COS-style Grid (desktop) --- */
 .cartuplift-grid-container {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(4, 104px);
+  grid-auto-rows: 157px;
+  gap: 16px 24px;
+  justify-content: center;
   background: #f5f5f5;
-  padding: 16px;
-  border-radius: 8px;
+  padding: 20px 24px;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .cartuplift-grid-item {
   position: relative;
-  aspect-ratio: 1;
-  border-radius: 8px;
+  width: 104px;
+  height: 157px;
+  cursor: pointer;
   overflow: hidden;
-  cursor: pointer;
+  background: #ffffff;
+  transition: border-color .2s ease, box-shadow .2s ease;
 }
 
-.cartuplift-grid-image {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.cartuplift-grid-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.cartuplift-grid-overlay {
+.cartuplift-grid-item::after {
+  content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 12px;
+  inset: 0;
+  border: 1px solid transparent;
+  pointer-events: none;
+  transition: border-color .25s ease;
 }
 
-.cartuplift-grid-item:hover .cartuplift-grid-overlay {
-  opacity: 1;
+.cartuplift-grid-item:hover::after {
+  border-color: rgba(0,0,0,0.25);
 }
 
-.cartuplift-grid-title {
-  color: white;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.2;
-  margin: 0;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
+.cartuplift-grid-image { position: relative; width:100%; height:100%; }
+.cartuplift-grid-image img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 
-.cartuplift-grid-price {
-  color: white;
-  font-size: 12px;
-  font-weight: 600;
-  position: absolute;
-  top: 12px;
-  right: 12px;
-}
+/* Hover content container */
+.cartuplift-grid-hover { position:absolute; inset:0; display:flex; flex-direction:column; opacity:0; transition:opacity .28s ease; padding:6px 6px 8px; }
+.cartuplift-grid-item:hover .cartuplift-grid-hover { opacity:1; }
 
-.cartuplift-grid-add-btn {
-  background: white;
-  border: none;
-  border-radius: 4px;
-  padding: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  align-self: center;
-  margin: 0 auto;
-  width: 36px;
-  height: 36px;
-}
+.cartuplift-grid-meta { display:flex; justify-content:space-between; align-items:flex-start; font-size:10px; font-weight:500; letter-spacing:.25px; text-transform:uppercase; gap:4px; }
+.cartuplift-grid-title { flex:1; color:#111; line-height:1.2; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.cartuplift-grid-price { color:#111; margin-left:6px; white-space:nowrap; }
 
-.cartuplift-grid-add-btn:hover {
-  background: #f0f0f0;
-}
+.cartuplift-grid-add-btn { margin-top:auto; align-self:center; background: #000; color:#fff; border:0; font-size:11px; font-weight:500; padding:6px 10px; line-height:1; border-radius:0; display:inline-flex; gap:6px; align-items:center; opacity:0; transform:translateY(6px); transition:opacity .3s ease, transform .3s ease, background .2s ease; }
+.cartuplift-grid-item:hover .cartuplift-grid-add-btn { opacity:1; transform:translateY(0); }
+.cartuplift-grid-add-btn svg { width:14px; height:14px; }
+.cartuplift-grid-add-btn:hover { background:#222; }
 
-.cartuplift-grid-add-btn svg {
-  width: 16px;
-  height: 16px;
-  color: #333;
-}
+/* Remove old overlay styles (kept for safety) */
+.cartuplift-grid-overlay { display:none !important; }
+
+/* Limit to exactly 8 items visually (2 rows) */
+.cartuplift-grid-container > .cartuplift-grid-item:nth-child(n+9) { display:none !important; }
+
+/* Typography smoothing */
+.cartuplift-grid-container, .cartuplift-grid-container * { -webkit-font-smoothing: antialiased; }
 
 /* Mobile adjustments for grid */
 @media (max-width: 768px) {
