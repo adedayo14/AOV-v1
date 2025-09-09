@@ -27,7 +27,7 @@
       
       // Normalize layout setting if present
       if (this.settings && this.settings.recommendationLayout) {
-        const map = { horizontal: 'row', vertical: 'column', grid: 'row' };
+        const map = { horizontal: 'row', vertical: 'column', grid: 'grid', carousel: 'row', list: 'column' };
         this.settings.recommendationLayout = map[this.settings.recommendationLayout] || this.settings.recommendationLayout;
       }
       
@@ -72,7 +72,7 @@
         
         // Normalize layout again after update
         if (this.settings.recommendationLayout) {
-          const map = { horizontal: 'row', vertical: 'column', grid: 'row' };
+          const map = { horizontal: 'row', vertical: 'column', grid: 'grid', carousel: 'row', list: 'column' };
           this.settings.recommendationLayout = map[this.settings.recommendationLayout] || this.settings.recommendationLayout;
         }
         
@@ -1458,7 +1458,7 @@
 
     getRecommendationsHTML() {
       // Normalize again in case settings arrived late
-      const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'row' };
+      const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'grid', carousel: 'row', list: 'column' };
       const layoutRaw = this.settings.recommendationLayout || 'column';
       const layout = layoutMap[layoutRaw] || layoutRaw;
       const title = (this.settings.recommendationsTitle || 'You might also like');
@@ -1518,10 +1518,10 @@
       }
       
   // Update layout class
-      const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'row' };
+      const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'grid', carousel: 'row', list: 'column' };
       const layoutRaw = this.settings.recommendationLayout || 'column';
       const layout = layoutMap[layoutRaw] || layoutRaw;
-  section.className = `cartuplift-recommendations cartuplift-recommendations-${layout}${layout === 'row' ? ' cartuplift-recommendations-row' : ''}`;
+  section.className = `cartuplift-recommendations cartuplift-recommendations-${layout}${layout === 'row' ? ' cartuplift-recommendations-row' : ''}${layout === 'grid' ? ' cartuplift-recommendations-grid' : ''}`;
       
       // Update title
       const titleEl = section.querySelector('.cartuplift-recommendations-title');
@@ -1631,7 +1631,7 @@
         return '';
       }
       
-      const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'row' };
+      const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'grid', carousel: 'row', list: 'column' };
       const layoutRaw = this.settings.recommendationLayout || 'row';
       const layout = layoutMap[layoutRaw] || layoutRaw;
       
@@ -1653,6 +1653,34 @@
                     <div class="cartuplift-recommendation-price">${this.formatMoney(product.priceCents || 0)}</div>
                     <button class="cartuplift-add-recommendation" data-product-id="${product.id}" data-variant-id="${product.variant_id}">
                       ${this.settings.addButtonText || 'Add+'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else if (layout === 'grid') {
+        // Grid layout - special grid-based display
+        const maxProducts = this.settings.maxRecommendations || 8;
+        const gridProducts = this.recommendations.slice(0, maxProducts);
+        // Adjust to multiples of 4 for clean grid
+        const adjustedCount = Math.min(gridProducts.length, Math.ceil(gridProducts.length / 4) * 4);
+        const productsToShow = gridProducts.slice(0, adjustedCount);
+        
+        return `
+          <div class="cartuplift-grid-container">
+            ${productsToShow.map(product => `
+              <div class="cartuplift-grid-item">
+                <div class="cartuplift-grid-image">
+                  <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
+                  <div class="cartuplift-grid-overlay">
+                    <div class="cartuplift-grid-title">${product.title}</div>
+                    <div class="cartuplift-grid-price">${this.formatMoney(product.priceCents || 0)}</div>
+                    <button class="cartuplift-grid-add-btn" data-variant-id="${product.variant_id}">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                      </svg>
                     </button>
                   </div>
                 </div>
@@ -1714,14 +1742,17 @@
         // Re-apply layout class to container  
         const recommendationsSection = document.querySelector('.cartuplift-recommendations');
         if (recommendationsSection) {
-          const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'row' };
+          const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'grid', carousel: 'row', list: 'column' };
           const layoutRaw = this.settings.recommendationLayout || 'column';
           const layout = layoutMap[layoutRaw] || layoutRaw;
           // Remove old layout classes and add new one
-          recommendationsSection.classList.remove('cartuplift-recommendations-row', 'cartuplift-recommendations-column');
+          recommendationsSection.classList.remove('cartuplift-recommendations-row', 'cartuplift-recommendations-column', 'cartuplift-recommendations-grid');
           recommendationsSection.classList.add(`cartuplift-recommendations-${layout}`);
           if (layout === 'row') {
             recommendationsSection.classList.add('cartuplift-recommendations-row');
+          }
+          if (layout === 'grid') {
+            recommendationsSection.classList.add('cartuplift-recommendations-grid');
           }
           
           // Ensure controls exist and setup navigation if horizontal layout
@@ -2617,6 +2648,16 @@
           const productTitle = e.target.dataset.productTitle || `Product ${variantId}`;
           
           // Track product click
+        } else if (e.target.classList.contains('cartuplift-grid-add-btn')) {
+          e.preventDefault();
+          e.stopPropagation();
+          const variantId = e.target.dataset.variantId;
+          const productTitle = e.target.dataset.productTitle || `Product ${variantId}`;
+          
+          // Track grid button click and add to cart
+          if (variantId) {
+            this.addToCart(variantId, 1, productTitle);
+          }
           if (this.settings.enableAnalytics) CartAnalytics.trackEvent('product_click', {
             productId: variantId,
             productTitle: productTitle

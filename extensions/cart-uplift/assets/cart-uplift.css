@@ -1177,6 +1177,125 @@ body.cartuplift-no-scroll {
   color: white;
 }
 
+/* Grid Layout - for premium grid display */
+.cartuplift-recommendations-grid .cartuplift-recommendations-content {
+  padding: 16px;
+}
+
+.cartuplift-grid-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 16px;
+  background: #f5f5f5;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.cartuplift-grid-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.cartuplift-grid-image {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.cartuplift-grid-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cartuplift-grid-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px;
+}
+
+.cartuplift-grid-item:hover .cartuplift-grid-overlay {
+  opacity: 1;
+}
+
+.cartuplift-grid-title {
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.cartuplift-grid-price {
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.cartuplift-grid-add-btn {
+  background: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  margin: 0 auto;
+  width: 36px;
+  height: 36px;
+}
+
+.cartuplift-grid-add-btn:hover {
+  background: #f0f0f0;
+}
+
+.cartuplift-grid-add-btn svg {
+  width: 16px;
+  height: 16px;
+  color: #333;
+}
+
+/* Mobile adjustments for grid */
+@media (max-width: 768px) {
+  .cartuplift-grid-container {
+    grid-template-columns: 2fr 2fr 1fr;
+    grid-template-rows: 1fr;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .cartuplift-grid-item {
+    scroll-snap-align: start;
+    min-width: calc(50% - 8px);
+  }
+  
+  .cartuplift-grid-item:nth-child(3n) {
+    min-width: 25%;
+  }
+}
+
 .cartuplift-recommendations-loading,
 .cartuplift-recommendations-empty {
   padding: 20px;

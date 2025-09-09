@@ -399,8 +399,9 @@ export default function SettingsPage() {
   ];
 
   const recommendationLayoutOptions = [
-    { label: "Horizontal", value: "row" },
-    { label: "Vertical", value: "column" },
+    { label: "Carousel", value: "carousel" },
+    { label: "List", value: "list" },
+    { label: "Grid", value: "grid" },
   ];
 
   const complementDetectionModeOptions = [
@@ -2285,64 +2286,97 @@ export default function SettingsPage() {
             letter-spacing: 0.5px;
           }
           
-          /* Grid Layout (2x2) */
+          /* Grid Layout (2x4) */
           .cartuplift-grid-layout {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 8px;
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 8px;
           }
           
           .cartuplift-grid-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 6px;
+            overflow: hidden;
             background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 12px;
-            text-align: center;
+            cursor: pointer;
           }
           
           .cartuplift-grid-item img {
             width: 100%;
-            max-width: 120px;
-            height: 120px;
+            height: 100%;
             object-fit: cover;
-            border-radius: 6px;
-            margin-bottom: 8px;
           }
           
           .cartuplift-grid-item h5 {
-            font-size: 12px;
-            font-weight: 500;
-            margin: 0 0 4px 0;
-            color: #000;
-            line-height: 1.3;
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            font-size: 9px;
+            font-weight: 600;
+            margin: 0;
+            color: white;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+            line-height: 1.2;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            background: rgba(0,0,0,0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
           
           .cartuplift-grid-item span {
-            font-size: 13px;
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 9px;
             font-weight: 600;
-            color: #000;
-            display: block;
-            margin-bottom: 8px;
+            color: white;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            background: rgba(0,0,0,0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
           }
           
           .cartuplift-grid-item button {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            border: 2px solid ${resolveColor(formSettings.buttonColor, '#000000')};
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            border: none;
             background: white;
-            color: ${resolveColor(formSettings.buttonColor, '#000000')};
+            color: #333;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
-            margin: 0 auto;
+            font-size: 12px;
+            font-weight: 600;
+            opacity: 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          }
+          
+          .cartuplift-grid-item:hover h5,
+          .cartuplift-grid-item:hover span,
+          .cartuplift-grid-item:hover button {
+            opacity: 1;
           }
           
           .cartuplift-grid-item button:hover {
-            background: ${resolveColor(formSettings.buttonColor, '#000000')};
-            color: white;
+            background: #f0f0f0;
+            transform: translateX(-50%) translateY(-1px);
           }
 
           /* Container spacing: keep 16px side padding so full-bleed bands can offset with -16px */
@@ -3950,8 +3984,8 @@ export default function SettingsPage() {
 
                   {/* Recommendations Section */}
                   {formSettings.enableRecommendations && (
-                    <div className={`cartuplift-recommendations ${formSettings.recommendationLayout === 'row' || formSettings.recommendationLayout === 'horizontal' ? 'is-horizontal' : ''}`}>
-                      {(formSettings.recommendationLayout === 'column' || formSettings.recommendationLayout === 'fullwidth' || formSettings.recommendationLayout === 'grid') && (
+                    <div className={`cartuplift-recommendations ${formSettings.recommendationLayout === 'carousel' || formSettings.recommendationLayout === 'row' || formSettings.recommendationLayout === 'horizontal' ? 'is-horizontal' : ''}`}>
+                      {(formSettings.recommendationLayout === 'list' || formSettings.recommendationLayout === 'column' || formSettings.recommendationLayout === 'fullwidth' || formSettings.recommendationLayout === 'grid') && (
                         <div className="cartuplift-recommendations-header">
                           <h3 className="cartuplift-recommendations-title">
                             {formSettings.recommendationsTitle || 'RECOMMENDED FOR YOU'}
@@ -3964,7 +3998,7 @@ export default function SettingsPage() {
                         </div>
                       )}
                       <div className="cartuplift-recommendations-content">
-                        {formSettings.recommendationLayout === 'column' ? (
+                        {formSettings.recommendationLayout === 'list' || formSettings.recommendationLayout === 'column' ? (
                           <>
                             <div className="cartuplift-recommendation-item">
                               <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-3_large.png" alt="Example Product Title" />
@@ -4007,30 +4041,54 @@ export default function SettingsPage() {
                           <div className="cartuplift-grid-layout">
                             <div className="cartuplift-grid-item">
                               <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-6_large.png" alt="Example Product Title" />
-                              <h5>Example Product Title</h5>
-                              <span>£89.99</span>
-                              <button>+</button>
+                              <h5>QUILTED DOWN VEST</h5>
+                              <span>£179.00</span>
+                              <button>🛒</button>
                             </div>
                             <div className="cartuplift-grid-item">
                               <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png" alt="Example Product Title" />
-                              <h5>Example Product Title</h5>
-                              <span>£19.99</span>
-                              <button>+</button>
+                              <h5>PREMIUM HOODIE</h5>
+                              <span>£89.99</span>
+                              <button>🛒</button>
                             </div>
                             <div className="cartuplift-grid-item">
                               <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-2_large.png" alt="Example Product Title" />
-                              <h5>Example Product Title</h5>
-                              <span>£89.99</span>
-                              <button>+</button>
+                              <h5>CLASSIC TEE</h5>
+                              <span>£39.99</span>
+                              <button>🛒</button>
                             </div>
                             <div className="cartuplift-grid-item">
                               <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-3_large.png" alt="Example Product Title" />
-                              <h5>Example Product Title</h5>
-                              <span>£49.99</span>
-                              <button>+</button>
+                              <h5>COTTON SHIRT</h5>
+                              <span>£59.99</span>
+                              <button>🛒</button>
+                            </div>
+                            <div className="cartuplift-grid-item">
+                              <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-4_large.png" alt="Example Product Title" />
+                              <h5>DENIM JACKET</h5>
+                              <span>£129.99</span>
+                              <button>🛒</button>
+                            </div>
+                            <div className="cartuplift-grid-item">
+                              <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-5_large.png" alt="Example Product Title" />
+                              <h5>WOOL SWEATER</h5>
+                              <span>£99.99</span>
+                              <button>🛒</button>
+                            </div>
+                            <div className="cartuplift-grid-item">
+                              <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-6_large.png" alt="Example Product Title" />
+                              <h5>LEATHER BOOTS</h5>
+                              <span>£199.99</span>
+                              <button>🛒</button>
+                            </div>
+                            <div className="cartuplift-grid-item">
+                              <img src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png" alt="Example Product Title" />
+                              <h5>CANVAS SNEAKERS</h5>
+                              <span>£79.99</span>
+                              <button>🛒</button>
                             </div>
                           </div>
-                        ) : (formSettings.recommendationLayout === 'row' || formSettings.recommendationLayout === 'horizontal') ? (
+                        ) : (formSettings.recommendationLayout === 'carousel' || formSettings.recommendationLayout === 'row' || formSettings.recommendationLayout === 'horizontal') ? (
                           <div className="cartuplift-horizontal-card">
                             <div className="cartuplift-recommendations-header">
                               <h3 className="cartuplift-recommendations-title">
