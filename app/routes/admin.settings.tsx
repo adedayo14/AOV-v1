@@ -3384,30 +3384,30 @@ export default function SettingsPage() {
                         />
                       </InlineStack>
 
-                      <div style={{ marginTop: '24px' }}>
+                      <div style={{ marginTop: '16px' }}>
                         <BlockStack gap="300">
                           <Text variant="headingSm" as="h3">Display Options</Text>
-                        <InlineStack gap="400">
-                          <Checkbox
-                            label="Show Cart Icon"
-                            checked={formSettings.stickyCartShowIcon !== false}
-                            onChange={(checked) => updateSetting("stickyCartShowIcon", checked)}
-                          />
-                          <Checkbox
-                            label="Show Item Count"
-                            checked={formSettings.stickyCartShowCount !== false}
-                            onChange={(checked) => updateSetting("stickyCartShowCount", checked)}
-                          />
-                          <Checkbox
-                            label="Show Total Price"
-                            checked={formSettings.stickyCartShowTotal !== false}
-                            onChange={(checked) => updateSetting("stickyCartShowTotal", checked)}
-                          />
-                        </InlineStack>
-                      </BlockStack>
+                          <InlineStack gap="400">
+                            <Checkbox
+                              label="Show Cart Icon"
+                              checked={formSettings.stickyCartShowIcon !== false}
+                              onChange={(checked) => updateSetting("stickyCartShowIcon", checked)}
+                            />
+                            <Checkbox
+                              label="Show Item Count"
+                              checked={formSettings.stickyCartShowCount !== false}
+                              onChange={(checked) => updateSetting("stickyCartShowCount", checked)}
+                            />
+                            <Checkbox
+                              label="Show Total Price"
+                              checked={formSettings.stickyCartShowTotal !== false}
+                              onChange={(checked) => updateSetting("stickyCartShowTotal", checked)}
+                            />
+                          </InlineStack>
+                        </BlockStack>
                       </div>
 
-                      <div style={{ marginTop: '24px' }}>
+                      <div style={{ marginTop: '16px' }}>
                         <BlockStack gap="300">
                           <Text variant="headingSm" as="h3">Colors & Styling</Text>
                           <InlineStack gap="300">

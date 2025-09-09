@@ -117,7 +117,6 @@
     detectThemeColors() {
       
       let primaryColor = null;
-      let detectionSource = '';
 
       // 1. PRIORITY: Direct access to Shopify color scheme objects (Dawn's approach)
       try {
@@ -135,7 +134,6 @@
             const rgbValues = buttonColor.split(',').map(v => parseInt(v.trim()));
             if (rgbValues.length >= 3 && rgbValues.every(v => !isNaN(v) && v >= 0 && v <= 255)) {
               primaryColor = this.rgbToHex(`rgb(${rgbValues.join(',')})`);
-              detectionSource = 'Dawn color scheme --color-button';
               break;
             }
           }
@@ -144,7 +142,6 @@
             const rgbValues = foregroundColor.split(',').map(v => parseInt(v.trim()));
             if (rgbValues.length >= 3 && rgbValues.every(v => !isNaN(v) && v >= 0 && v <= 255)) {
               primaryColor = this.rgbToHex(`rgb(${rgbValues.join(',')})`);
-              detectionSource = 'Dawn color scheme --color-foreground';
               break;
             }
           }
@@ -172,18 +169,15 @@
               const rgbValues = value.split(',').map(v => parseInt(v.trim()));
               if (rgbValues.length >= 3 && rgbValues.every(v => !isNaN(v) && v >= 0 && v <= 255)) {
                 primaryColor = this.rgbToHex(`rgb(${rgbValues.join(',')})`);
-                detectionSource = `Root CSS property ${property}`;
                 break;
               }
             } else if (value && value.startsWith('#')) {
               primaryColor = value;
-              detectionSource = `Root CSS property ${property}`;
               break;
             } else if (value && value.startsWith('rgb')) {
               const hexColor = this.rgbToHex(value);
               if (hexColor) {
                 primaryColor = hexColor;
-                detectionSource = `Root CSS property ${property}`;
                 break;
               }
             }
@@ -219,7 +213,6 @@
                   // Avoid pure white, black, or transparent
                   if (hexColor !== '#ffffff' && hexColor !== '#000000' && hexColor !== '#transparent') {
                     primaryColor = hexColor;
-                    detectionSource = `Shopify button ${selector}`;
                     break;
                   }
                 }
@@ -234,20 +227,17 @@
       // 4. Use Dawn's default dark neutral (never use green or fallbacks)
       if (!primaryColor) {
         primaryColor = '#121212'; // Dawn's standard dark color
-        detectionSource = 'Dawn default (#121212)';
       }
 
       // CRITICAL: Prevent any green colors (paid app requirement)
       if (primaryColor && this.isGreenColor(primaryColor)) {
         console.warn('🚫 [CartUplift] Green color detected, using Dawn default:', primaryColor);
         primaryColor = '#121212';
-        detectionSource = 'Dawn default (green prevention)';
       }
 
       
       // Detect background colors
       let backgroundColor = '#ffffff'; // Default white
-      let bgDetectionSource = 'default';
       
       try {
         // Check for body background first
@@ -256,7 +246,6 @@
         
         if (bodyBgColor && bodyBgColor !== 'rgba(0, 0, 0, 0)' && bodyBgColor !== 'transparent') {
           backgroundColor = this.rgbToHex(bodyBgColor);
-          bgDetectionSource = 'body background';
         } else {
           // Check root/html background
           const rootStyles = getComputedStyle(document.documentElement);
@@ -264,7 +253,6 @@
           
           if (rootBgColor && rootBgColor !== 'rgba(0, 0, 0, 0)' && rootBgColor !== 'transparent') {
             backgroundColor = this.rgbToHex(rootBgColor);
-            bgDetectionSource = 'root/html background';
           } else {
             // Check for theme-specific background properties
             const backgroundProperties = [
@@ -282,12 +270,10 @@
                   const rgbValues = value.split(',').map(v => parseInt(v.trim()));
                   if (rgbValues.length >= 3 && rgbValues.every(v => !isNaN(v) && v >= 0 && v <= 255)) {
                     backgroundColor = this.rgbToHex(`rgb(${rgbValues.join(',')})`);
-                    bgDetectionSource = `CSS property ${property}`;
                     break;
                   }
                 } else if (value.startsWith('#') || value.startsWith('rgb')) {
                   backgroundColor = this.rgbToHex(value);
-                  bgDetectionSource = `CSS property ${property}`;
                   break;
                 }
               }
@@ -296,7 +282,6 @@
         }
       } catch (error) {
         backgroundColor = '#ffffff';
-        bgDetectionSource = 'fallback to white';
       }
       
       
@@ -753,9 +738,8 @@
 
     createStickyCart() {
       console.log('🛒 Cart Uplift: createStickyCart called, enableStickyCart:', this.settings.enableStickyCart);
-      
+
       if (!this.settings.enableStickyCart) {
-        console.log('🛒 Cart Uplift: Sticky cart disabled in settings');
         return;
       }
       
@@ -1635,7 +1619,6 @@
       
       if (JSON.stringify(currentIds) !== JSON.stringify(newIds)) {
         this.recommendations = newRecommendations;
-      } else {
       }
     }
 
@@ -2824,8 +2807,6 @@
           body: formData
         });
 
-        const responseData = response.ok ? await response.json() : await response.text();
-
         if (response.ok) {
           // Reset button state immediately on success with success animation
           buttons.forEach(button => {
@@ -2975,7 +2956,6 @@
         if (response.ok) {
           const data = await response.json();
           products = data.products || [];
-        } else {
         }
         
         // Always try to keep a buffer so we can fill visible list after filtering cart items
@@ -3379,6 +3359,8 @@
             return false;
           }
         } else {
+          // Gift item not found in cart
+          return false;
         }
       } catch (error) {
         console.error(`🎁 Error removing gift from cart:`, error);
@@ -4733,9 +4715,4 @@
     window.cartUpliftDrawer = new CartUpliftDrawer(window.CartUpliftSettings);
   }
 
-})();// Force rebuild Fri Aug 29 23:15:47 BST 2025
-// Force rebuild Sat Aug 30 08:52:09 BST 2025
-// Force rebuild Sat Aug 30 10:57:43 BST 2025
-// Force rebuild Sat Aug 30 12:39:18 BST 2025
-// Force rebuild Sat Aug 30 12:55:08 BST 2025
-// Debug toggle behavior Sat Aug 30 12:58:15 BST 2025
+})();
