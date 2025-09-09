@@ -1668,20 +1668,15 @@
         const adjustedCount = Math.min(gridProducts.length, Math.ceil(gridProducts.length / 4) * 4);
         const productsToShow = gridProducts.slice(0, adjustedCount);
         return `
-          <div class="cartuplift-grid-container">
+          <div class="cartuplift-grid-container" data-original-title="${(this.settings.recommendationsTitle || 'You might also like').replace(/"/g,'&quot;')}">
             ${productsToShow.map(product => `
-              <div class="cartuplift-grid-item" data-product-id="${product.id}" data-variant-id="${product.variant_id}">
+              <div class="cartuplift-grid-item" data-product-id="${product.id}" data-variant-id="${product.variant_id}" data-title="${product.title.replace(/"/g,'&quot;')}" data-price="${this.formatMoney(product.priceCents || 0)}">
                 <div class="cartuplift-grid-image">
                   <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" decoding="async" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
                 </div>
                 <div class="cartuplift-grid-hover">
-                  <div class="cartuplift-grid-meta">
-                    <div class="cartuplift-grid-title" title="${product.title}">${product.title}</div>
-                    <div class="cartuplift-grid-price">${this.formatMoney(product.priceCents || 0)}</div>
-                  </div>
-                  <button class="cartuplift-grid-add-btn" data-variant-id="${product.variant_id}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6h15l-1.5 12.5a2 2 0 01-2 1.5H8a2 2 0 01-2-1.5L4.5 6H20M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2M9 11h6M9 15h6"/></svg>
-                    <span>${this.settings.addButtonText || 'Add'}</span>
+                  <button class="cartuplift-grid-add-btn" data-variant-id="${product.variant_id}" aria-label="Add ${product.title}">
+                    ${this.getCartIconSVG()}<span>${this.settings.addButtonText || 'Add'}</span>
                   </button>
                 </div>
               </div>`).join('')}
@@ -1751,6 +1746,9 @@
             recommendationsSection.classList.add('cartuplift-recommendations-row');
           }
           if (layout === 'grid') {
+            this.attachGridHoverHandlers();
+          }
+          if (layout === 'grid') {
             recommendationsSection.classList.add('cartuplift-recommendations-grid');
           }
           
@@ -1795,6 +1793,43 @@
           }
         }
       }
+    }
+
+    getCartIconSVG() {
+      const icon = (this.settings.cartIcon || 'cart');
+      switch(icon) {
+        case 'bag':
+          return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V7a6 6 0 0 1 12 0v1"/><path d="M6 8h12l1 13H5L6 8Z"/></svg>`;
+        case 'basket':
+          return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14l-1.5 8h-11L5 11Z"/><path d="M9 11V7a3 3 0 0 1 6 0v4"/></svg>`;
+        default:
+          return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6h15l-1.5 12.5a2 2 0 0 1-2 1.5H8a2 2 0 0 1-2-1.5L4.5 6H20"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>`;
+      }
+    }
+
+    attachGridHoverHandlers() {
+      const container = document.querySelector('.cartuplift-grid-container');
+      if (!container) return;
+      const headerTitleEl = document.querySelector('.cartuplift-recommendations-title');
+      if (!headerTitleEl) return;
+      const original = container.getAttribute('data-original-title') || headerTitleEl.textContent;
+      this._originalRecommendationsTitle = original;
+      container.querySelectorAll('.cartuplift-grid-item').forEach(item => {
+        item.addEventListener('mouseenter', () => {
+          const t = item.getAttribute('data-title');
+          if (t && headerTitleEl) headerTitleEl.textContent = t;
+        });
+        item.addEventListener('mouseleave', (e) => {
+          // Only restore if moving outside the item (not to a child)
+          if (!container.matches(':hover') && headerTitleEl) {
+            headerTitleEl.textContent = this._originalRecommendationsTitle;
+          }
+        });
+      });
+      // Restore when leaving entire grid
+      container.addEventListener('mouseleave', () => {
+        if (headerTitleEl) headerTitleEl.textContent = this._originalRecommendationsTitle;
+      });
     }
 
     setupScrollControls(scrollContainer) {
