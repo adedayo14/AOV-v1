@@ -1,16 +1,11 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
+// Production Prisma schema for PostgreSQL
 generator client {
   provider = "prisma-client-js"
 }
 
-// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
-// enough when changing adapters.
-// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_DATABASE_URL")
 }
 
 model Session {
@@ -74,7 +69,7 @@ model Settings {
   shippingBarColor        String   @default("#121212")
   
   // Recommendation Settings
-  recommendationLayout    String   @default("horizontal")
+  recommendationLayout    String   @default("carousel")
   maxRecommendations      Int      @default(6)
   complementDetectionMode String   @default("automatic")
   manualRecommendationProducts String @default("")

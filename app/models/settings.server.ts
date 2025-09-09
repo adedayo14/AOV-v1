@@ -1,5 +1,17 @@
 import db from "../db.server";
 
+// Migration helper to convert old layout values to new ones
+function migrateRecommendationLayout(oldLayout: string): string {
+  const migrationMap: { [key: string]: string } = {
+    'horizontal': 'carousel',
+    'vertical': 'list',
+    'row': 'carousel',
+    'column': 'list',
+  };
+  
+  return migrationMap[oldLayout] || oldLayout;
+}
+
 export interface SettingsData {
   // Core Features
   enableApp: boolean;
@@ -96,7 +108,7 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       recommendationsBackgroundColor: (settings as any).recommendationsBackgroundColor ?? "#ecebe3",
       shippingBarBackgroundColor: (settings as any).shippingBarBackgroundColor ?? "#f0f0f0",
       shippingBarColor: (settings as any).shippingBarColor ?? "#121212",
-      recommendationLayout: settings.recommendationLayout,
+      recommendationLayout: migrateRecommendationLayout(settings.recommendationLayout),
       maxRecommendations: settings.maxRecommendations,
       complementDetectionMode: (settings as any).complementDetectionMode ?? "automatic",
       manualRecommendationProducts: (settings as any).manualRecommendationProducts ?? "",
@@ -131,6 +143,11 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       if (field in settingsData && settingsData[field] !== undefined) {
         (filteredData as any)[field] = settingsData[field];
       }
+    }
+    
+    // Migrate recommendation layout values if present
+    if (filteredData.recommendationLayout) {
+      filteredData.recommendationLayout = migrateRecommendationLayout(filteredData.recommendationLayout);
     }
     
     const settings = await db.settings.upsert({
@@ -171,7 +188,7 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       recommendationsBackgroundColor: (settings as any).recommendationsBackgroundColor ?? "#ecebe3",
       shippingBarBackgroundColor: (settings as any).shippingBarBackgroundColor ?? "#f0f0f0",
       shippingBarColor: (settings as any).shippingBarColor ?? "#121212",
-      recommendationLayout: settings.recommendationLayout,
+      recommendationLayout: migrateRecommendationLayout(settings.recommendationLayout),
       maxRecommendations: settings.maxRecommendations,
       complementDetectionMode: (settings as any).complementDetectionMode ?? "automatic",
       manualRecommendationProducts: (settings as any).manualRecommendationProducts ?? "",
@@ -229,7 +246,7 @@ export function getDefaultSettings(): SettingsData {
     shippingBarColor: "var(--accent, #121212)", // Theme accent with green fallback
     
     // Recommendation Settings
-    recommendationLayout: "horizontal",
+    recommendationLayout: "carousel",
     maxRecommendations: 3,
     complementDetectionMode: "automatic",
     manualRecommendationProducts: "",
