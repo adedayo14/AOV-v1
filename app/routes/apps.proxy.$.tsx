@@ -16,7 +16,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
       const settings = await getSettings(shop);
       // Normalize layout to theme values
-      const layoutMap: Record<string, string> = { horizontal: 'row', vertical: 'column', grid: 'row' };
+      // Normalize legacy values while preserving new ones.
+      // Legacy -> internal classes: horizontal/row/carousel => row, vertical/column/list => column, grid stays grid
+      const layoutMap: Record<string, string> = {
+        horizontal: 'row',
+        row: 'row',
+        carousel: 'row',
+        vertical: 'column',
+        column: 'column',
+        list: 'column',
+        grid: 'grid'
+      };
       const normalized = {
         source: 'db',
         ...settings,
@@ -34,7 +44,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
       console.error("Settings API error:", error);
       // Fail open: return default settings so storefront keeps working
       const defaults = getDefaultSettings();
-      const layoutMap: Record<string, string> = { horizontal: 'row', vertical: 'column', grid: 'row' };
+      const layoutMap: Record<string, string> = {
+        horizontal: 'row',
+        row: 'row',
+        carousel: 'row',
+        vertical: 'column',
+        column: 'column',
+        list: 'column',
+        grid: 'grid'
+      };
       const normalized = {
         source: 'defaults',
         ...defaults,

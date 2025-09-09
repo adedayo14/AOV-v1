@@ -27,7 +27,7 @@
       
       // Normalize layout setting if present
       if (this.settings && this.settings.recommendationLayout) {
-        const map = { horizontal: 'row', vertical: 'column', grid: 'grid', carousel: 'row', list: 'column' };
+        const map = { horizontal: 'row', row: 'row', carousel: 'row', vertical: 'column', column: 'column', list: 'column', grid: 'grid' };
         this.settings.recommendationLayout = map[this.settings.recommendationLayout] || this.settings.recommendationLayout;
       }
       
@@ -72,7 +72,7 @@
         
         // Normalize layout again after update
         if (this.settings.recommendationLayout) {
-          const map = { horizontal: 'row', vertical: 'column', grid: 'grid', carousel: 'row', list: 'column' };
+          const map = { horizontal: 'row', row: 'row', carousel: 'row', vertical: 'column', column: 'column', list: 'column', grid: 'grid' };
           this.settings.recommendationLayout = map[this.settings.recommendationLayout] || this.settings.recommendationLayout;
         }
         
@@ -1458,7 +1458,7 @@
 
     getRecommendationsHTML() {
       // Normalize again in case settings arrived late
-      const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'grid', carousel: 'row', list: 'column' };
+  const layoutMap = { horizontal: 'row', row: 'row', carousel: 'row', vertical: 'column', column: 'column', list: 'column', grid: 'grid' };
       const layoutRaw = this.settings.recommendationLayout || 'column';
       const layout = layoutMap[layoutRaw] || layoutRaw;
       const title = (this.settings.recommendationsTitle || 'You might also like');
@@ -1518,7 +1518,7 @@
       }
       
   // Update layout class
-      const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'grid', carousel: 'row', list: 'column' };
+  const layoutMap = { horizontal: 'row', row: 'row', carousel: 'row', vertical: 'column', column: 'column', list: 'column', grid: 'grid' };
       const layoutRaw = this.settings.recommendationLayout || 'column';
       const layout = layoutMap[layoutRaw] || layoutRaw;
   section.className = `cartuplift-recommendations cartuplift-recommendations-${layout}${layout === 'row' ? ' cartuplift-recommendations-row' : ''}${layout === 'grid' ? ' cartuplift-recommendations-grid' : ''}`;
@@ -1631,7 +1631,7 @@
         return '';
       }
       
-      const layoutMap = { horizontal: 'row', vertical: 'column', grid: 'grid', carousel: 'row', list: 'column' };
+  const layoutMap = { horizontal: 'row', row: 'row', carousel: 'row', vertical: 'column', column: 'column', list: 'column', grid: 'grid' };
       const layoutRaw = this.settings.recommendationLayout || 'row';
       const layout = layoutMap[layoutRaw] || layoutRaw;
       
