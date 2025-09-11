@@ -274,10 +274,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         const products = lineItems.map((item: any) => ({
           id: item.node.product?.id,
           title: item.node.product?.title
-        })).filter(p => p.id && p.title);
+  })).filter((p: { id?: string; title?: string }) => p.id && p.title);
         
         // Track individual products
-        products.forEach(product => {
+  products.forEach((product: { id: string; title: string }) => {
           productNames.set(product.id, product.title);
         });
         

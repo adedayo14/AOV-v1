@@ -152,10 +152,11 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       'enableApp', 'enableStickyCart', 'showOnlyOnCartPage', 'autoOpenCart', 'enableFreeShipping', 'freeShippingThreshold',
       'enableRecommendations', 'enableAddons', 'enableDiscountCode', 'enableNotes', 'enableExpressCheckout', 'enableAnalytics', 'enableGiftGating',
       'cartPosition', 'cartIcon', 'freeShippingText', 'freeShippingAchievedText', 'recommendationsTitle', 'actionText',
-  'addButtonText', 'checkoutButtonText', 'applyButtonText', 'discountLinkText', 'notesLinkText',
-  'backgroundColor', 'textColor', 'buttonColor', 'buttonTextColor', 'recommendationsBackgroundColor', 'shippingBarBackgroundColor', 'shippingBarColor', 'recommendationLayout', 'maxRecommendations',
-  'complementDetectionMode', 'manualRecommendationProducts', 'progressBarMode', 'giftProgressStyle', 'giftThresholds',
-  'themeEmbedEnabled', 'themeEmbedLastSeen'
+      'addButtonText', 'checkoutButtonText', 'applyButtonText',
+      // Note: discountLinkText and notesLinkText are not in production schema; do not persist them to avoid 500s
+      'backgroundColor', 'textColor', 'buttonColor', 'buttonTextColor', 'recommendationsBackgroundColor', 'shippingBarBackgroundColor', 'shippingBarColor', 'recommendationLayout', 'maxRecommendations',
+      'complementDetectionMode', 'manualRecommendationProducts', 'progressBarMode', 'giftProgressStyle', 'giftThresholds',
+      'themeEmbedEnabled', 'themeEmbedLastSeen'
     ];
     
     const filteredData: Partial<SettingsData> = {};
@@ -178,43 +179,72 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       filteredData.recommendationLayout = migrateRecommendationLayout(filteredData.recommendationLayout);
     }
     
-    // Try saving, with multiple fallback strategies
+    // Try saving, stripping unknown fields reported by Prisma and retrying up to 3 times
     let settings;
-    try {
-      console.log('🔧 Attempting full save with all fields...');
-      settings = await (db as any).settings.upsert({
-        where: { shop },
-        create: {
-          shop,
-          ...filteredData,
-        },
-        update: filteredData,
-      });
-      console.log('🔧 Full save successful');
-    } catch (dbError: any) {
-      console.error('💥 Full save failed:', dbError.message);
-      
-      // If error mentions enableTitleCaps, try without it
-      if (dbError.message && (dbError.message.includes('enableTitleCaps') || dbError.message.includes('column'))) {
-        console.log('🔧 Retrying without enableTitleCaps column...');
-        const { enableTitleCaps, ...filteredDataWithoutTitleCaps } = filteredData;
-        try {
-          settings = await (db as any).settings.upsert({
-            where: { shop },
-            create: {
-              shop,
-              ...filteredDataWithoutTitleCaps,
-            },
-            update: filteredDataWithoutTitleCaps,
-          });
-          console.log('🔧 Save without enableTitleCaps successful');
-        } catch (secondError: any) {
-          console.error('💥 Second save attempt failed:', secondError.message);
-          throw new Error('Database save failed: ' + secondError.message);
+    let attempt = 0;
+    let dataForSave: any = { ...filteredData };
+    const maxAttempts = 3;
+
+    while (attempt < maxAttempts) {
+      try {
+        if (attempt > 0) console.log(`🔧 Retry save attempt #${attempt} with fields:`, Object.keys(dataForSave));
+        console.log('🔧 Attempting save...');
+        settings = await (db as any).settings.upsert({
+          where: { shop },
+          create: { shop, ...dataForSave },
+          update: dataForSave,
+        });
+        console.log('🔧 Save successful');
+        break;
+      } catch (dbError: any) {
+        console.error('💥 Save failed:', dbError?.message || dbError);
+        // Parse Prisma error messages to detect unknown/invalid fields
+        const msg = String(dbError?.message || '');
+        const unknownFieldMatches: string[] = [];
+
+        // Prisma (JS) often reports: Unknown arg `fieldName` in data.update
+        const unknownArgRegex = /Unknown arg `([^`]+)` in data\.(?:create|update)/g;
+        let m;
+        while ((m = unknownArgRegex.exec(msg)) !== null) {
+          unknownFieldMatches.push(m[1]);
         }
-      } else {
-        throw dbError;
+
+        // Postgres column errors might mention column name in quotes
+        const columnRegex = /column\s+"([^"]+)"\s+of\s+relation\s+"settings"/gi;
+        while ((m = columnRegex.exec(msg)) !== null) {
+          unknownFieldMatches.push(m[1]);
+        }
+
+        // Generic fallback: specifically remove fields we know differ in prod
+        const likelyOffenders = ['discountLinkText', 'notesLinkText'];
+        for (const f of likelyOffenders) {
+          if (msg.includes(f)) unknownFieldMatches.push(f);
+        }
+
+        // De-duplicate
+        const fieldsToRemove = Array.from(new Set(unknownFieldMatches));
+
+        if (fieldsToRemove.length === 0) {
+          // As a last safety, if error mentions 'column' but we couldn't extract, remove enableTitleCaps once
+          if (msg.includes('column') && 'enableTitleCaps' in dataForSave) {
+            delete dataForSave.enableTitleCaps;
+            attempt++;
+            continue;
+          }
+          throw new Error('Database save failed: ' + msg);
+        }
+
+        console.warn('🔧 Stripping unknown fields and retrying:', fieldsToRemove);
+        for (const field of fieldsToRemove) {
+          delete dataForSave[field];
+        }
+
+        attempt++;
       }
+    }
+
+    if (!settings) {
+      throw new Error('Database save failed after retries');
     }
     
     console.log('🔧 settings saved successfully:', { shop, id: settings?.id });
