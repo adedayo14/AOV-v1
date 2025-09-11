@@ -1194,9 +1194,10 @@ body.cartuplift-no-scroll {
   background: var(--cartuplift-recommendations-bg);
   border: none;
   border-radius: 0;
-  overflow: hidden;
+  overflow: visible; /* Allow borders to show properly */
   margin: 0 0 16px 0; /* Add 16px bottom margin for spacing under cards */
   transition: grid-template-rows 0.3s ease; /* Smooth transition */
+  padding: 0; /* Ensure no padding cuts off borders */
 }
 
 /* Collapsed state: 1 row only (3 items max) */
@@ -1219,7 +1220,7 @@ body.cartuplift-no-scroll {
   width: 100%; /* Full width of column */
   height: 156px; /* Increased height to match grid-auto-rows */
   cursor: pointer;
-  overflow: hidden;
+  overflow: visible; /* Allow border to show fully */
   background: var(--cartuplift-recommendations-bg); /* Use selected section background */
   border: 0.5px solid transparent; /* All 4 sides with thin hidden borders */
   transition: border-color .2s ease, background-color .2s ease;
@@ -1228,17 +1229,21 @@ body.cartuplift-no-scroll {
   justify-content: center;
   padding: 0; /* Remove padding so image fills entire area */
   box-sizing: border-box;
+  margin: 0; /* Ensure no margin cuts off borders */
 }
 
 /* Remove right border from last column items (every 3rd item) */
 .cartuplift-grid-item:nth-child(3n) {
   border-right: 0.5px solid transparent; /* Keep transparent, will show on hover */
+  margin-right: 0; /* Ensure no right margin */
 }
 
-/* Show full thin black outline on hover */
+/* Show full thin black outline on hover with improved visibility */
 .cartuplift-grid-item:hover {
   border-color: #000000; /* All 4 sides get black border */
   background-color: #f8f8f8;
+  z-index: 10; /* Ensure hover state appears above adjacent items */
+  position: relative;
 }
 
 /* Remove right border hover effect from last column items - NOT NEEDED ANYMORE */
