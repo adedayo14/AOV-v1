@@ -31,6 +31,7 @@ export const loader = withAuth(async ({ auth }) => {
   console.log('🔍 SETTINGS DEBUG - Loader returning:', {
     recommendationLayout: settings.recommendationLayout,
     enableRecommendations: settings.enableRecommendations,
+    enableTitleCaps: settings.enableTitleCaps,
     shop: shop
   });
   
