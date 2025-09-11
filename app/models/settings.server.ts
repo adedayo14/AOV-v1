@@ -163,14 +163,34 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       filteredData.recommendationLayout = migrateRecommendationLayout(filteredData.recommendationLayout);
     }
     
-  const settings = await (db as any).settings.upsert({
-      where: { shop },
-      create: {
-        shop,
-        ...filteredData,
-      },
-      update: filteredData,
-    });
+    // Try saving with enableTitleCaps field, fallback without it if column doesn't exist
+    let settings;
+    try {
+      settings = await (db as any).settings.upsert({
+        where: { shop },
+        create: {
+          shop,
+          ...filteredData,
+        },
+        update: filteredData,
+      });
+    } catch (dbError: any) {
+      // If error contains references to enableTitleCaps column, try without it
+      if (dbError.message && dbError.message.includes('enableTitleCaps')) {
+        console.log('🔧 enableTitleCaps column not found, saving without it...');
+        const { enableTitleCaps, ...filteredDataWithoutTitleCaps } = filteredData;
+        settings = await (db as any).settings.upsert({
+          where: { shop },
+          create: {
+            shop,
+            ...filteredDataWithoutTitleCaps,
+          },
+          update: filteredDataWithoutTitleCaps,
+        });
+      } else {
+        throw dbError;
+      }
+    }
     
     console.log('🔧 settings saved successfully:', { shop, enableTitleCaps: settings.enableTitleCaps });
 
