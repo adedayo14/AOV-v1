@@ -3583,13 +3583,6 @@ export default function SettingsPage() {
                       autoComplete="off"
                     />
                     
-                    <Checkbox
-                      label="Show Product Titles in Caps"
-                      checked={formSettings.enableTitleCaps || false}
-                      onChange={(value) => updateSetting("enableTitleCaps", value)}
-                      helpText="Display product titles in UPPERCASE for both cart items and recommendations"
-                    />
-                    
                     <Select
                       label="Recommendation Mode (AI vs. Manual)"
                       options={complementDetectionModeOptions}
