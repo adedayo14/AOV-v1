@@ -431,7 +431,91 @@ export default function SettingsPage() {
       }}
       fullWidth
     >
-      <style dangerouslySetInnerHTML={{ __html: `/* styles trimmed for brevity in patch - full CSS retained from snapshot */` }} />
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+/* Layout */
+.cartuplift-settings-layout { display: grid; grid-template-columns: 1fr 420px; gap: 24px; align-items: start; }
+.cartuplift-settings-column { min-width: 0; }
+.cartuplift-preview-column { position: sticky; top: 100px; align-self: start; }
+
+@media (max-width: 1200px) {
+  .cartuplift-settings-layout { grid-template-columns: 1fr 380px; gap: 20px; }
+}
+@media (max-width: 992px) {
+  .cartuplift-settings-layout { grid-template-columns: 1fr; }
+  .cartuplift-preview-column { position: relative; top: 0; }
+}
+
+/* Preview container */
+.cartuplift-preview-container { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+.cartuplift-preview-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #eee; }
+.cartuplift-cart-title { margin: 0; font-size: 14px; letter-spacing: 0.08em; font-weight: 700; }
+.cartuplift-close { background: transparent; border: 0; padding: 6px; cursor: not-allowed; color: #999; }
+.cartuplift-icon-large { width: 22px; height: 22px; }
+
+/* Shipping bar */
+.cartuplift-shipping-bar { padding: 12px 16px; }
+.cartuplift-shipping-progress { height: 8px; width: 100%; background: #f1f1f1; border-radius: 999px; overflow: hidden; }
+.cartuplift-shipping-progress-fill { height: 100%; background: var(--cartuplift-shipping-color, #121212); border-radius: 999px; transition: width 200ms ease; }
+
+/* Content */
+.cartuplift-content-wrapper { padding: 12px 16px 16px; }
+.cartuplift-items { display: flex; flex-direction: column; gap: 12px; }
+.cartuplift-item { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: start; }
+.cartuplift-item-first { padding-top: 4px; }
+.cartuplift-item-image img { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; background: #fafafa; border: 1px solid #eee; }
+.cartuplift-item-info { display: flex; flex-direction: column; gap: 6px; }
+.cartuplift-item-title { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.3; }
+.cartuplift-item-variant { font-size: 12px; color: #666; }
+.cartuplift-quantity { display: inline-flex; align-items: center; gap: 8px; border: 1px solid #e5e5e5; border-radius: 8px; padding: 2px 6px; width: fit-content; }
+.cartuplift-qty-minus, .cartuplift-qty-plus { background: #f6f6f6; border: 0; border-radius: 6px; width: 22px; height: 22px; line-height: 22px; text-align: center; cursor: not-allowed; color: #888; }
+.cartuplift-qty-display { min-width: 14px; text-align: center; font-size: 13px; }
+.cartuplift-item-price-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.cartuplift-item-price { font-weight: 700; font-size: 14px; }
+.cartuplift-item-remove { background: transparent; border: 0; padding: 6px; cursor: not-allowed; color: #999; }
+.cartuplift-icon-medium { width: 18px; height: 18px; }
+
+/* Recommendations */
+.cartuplift-recommendations { margin-top: 10px; border-top: 1px dashed #eee; padding-top: 12px; }
+.cartuplift-recommendations-header { display: flex; align-items: center; justify-content: space-between; }
+.cartuplift-recommendations-title { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; }
+.cartuplift-recommendations-toggle { background: transparent; border: 0; padding: 6px; cursor: not-allowed; color: #999; }
+.cartuplift-icon-small { width: 16px; height: 16px; }
+.cartuplift-recommendations.is-horizontal { overflow: hidden; }
+
+/* Footer */
+.cartuplift-footer { border-top: 1px solid #eee; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
+.cartuplift-subtotal { display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600; }
+.cartuplift-checkout-btn { width: 100%; background: #111; color: #fff; border: 0; border-radius: 8px; font-weight: 700; height: 44px; cursor: not-allowed; }
+.cartuplift-express-checkout { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cartuplift-paypal-btn { background: #FFC439; border: 0; border-radius: 8px; height: 40px; cursor: not-allowed; display: flex; align-items: center; justify-content: center; }
+.cartuplift-paypal-logo { height: 18px; }
+.cartuplift-shoppay-btn { background: #5a31f4; color: #fff; border: 0; border-radius: 8px; height: 40px; font-weight: 700; cursor: not-allowed; }
+
+/* Sticky cart preview */
+.cartuplift-sticky-preview { position: fixed; z-index: 5; }
+.cartuplift-sticky-preview.bottom-right { bottom: 20px; right: 20px; }
+.cartuplift-sticky-preview.bottom-left { bottom: 20px; left: 20px; }
+.cartuplift-sticky-preview.bottom-center { bottom: 20px; left: 50%; transform: translateX(-50%); }
+.cartuplift-sticky-preview.top-right { top: 20px; right: 20px; }
+.cartuplift-sticky-preview.top-left { top: 20px; left: 20px; }
+.cartuplift-sticky-preview.right-middle { top: 50%; right: 20px; transform: translateY(-50%); }
+.cartuplift-sticky-preview.left-middle { top: 50%; left: 20px; transform: translateY(-50%); }
+.cartuplift-sticky-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--cartuplift-sticky-bg, #000); color: var(--cartuplift-sticky-fg, #fff); border: 0; height: 44px; padding: 0 14px; border-radius: 999px; box-shadow: 0 4px 18px rgba(0,0,0,0.15); cursor: not-allowed; }
+.cartuplift-sticky-icon { width: 20px; height: 20px; }
+.cartuplift-sticky-count { background: #ff4444; color: #fff; font-weight: 700; min-width: 18px; height: 18px; border-radius: 999px; text-align: center; font-size: 12px; line-height: 18px; padding: 0 6px; }
+.cartuplift-sticky-total { font-weight: 700; }
+
+/* Product selector modal */
+.cartuplift-product-selector-list { display: flex; flex-direction: column; gap: 8px; max-height: 55vh; overflow: auto; }
+.cartuplift-product-row { display: grid; grid-template-columns: auto 48px 1fr; align-items: center; gap: 12px; padding: 8px; border: 1px solid #eee; border-radius: 8px; }
+.cartuplift-product-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; background: #fafafa; border: 1px solid #eee; }
+.cartuplift-product-title { margin: 0; font-weight: 600; }
+.cartuplift-product-sub { margin: 0; color: #666; font-size: 12px; }
+`
+        }}
+      />
 
       <div className="cartuplift-settings-layout">
         {showSuccessBanner && (
