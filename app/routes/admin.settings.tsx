@@ -280,22 +280,7 @@ export default function SettingsPage() {
     }
   }, [fetcher.state, fetcher.data]);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      if (previewRef.current) {
-        const scrollTop = window.scrollY;
-        if (scrollTop > 100) {
-          previewRef.current.style.position = 'fixed';
-          previewRef.current.style.top = '20px';
-        } else {
-          previewRef.current.style.position = 'sticky';
-          previewRef.current.style.top = '100px';
-        }
-      }
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  // Rely on CSS position: sticky for the preview column; avoid JS toggling that can shift layout
 
   const handleSubmit = () => {
     const formData = new FormData();
@@ -431,13 +416,13 @@ export default function SettingsPage() {
       }}
       fullWidth
     >
-      <style
+  <style
         dangerouslySetInnerHTML={{
           __html: `
 /* Layout */
 .cartuplift-settings-layout { display: grid; grid-template-columns: 1fr 420px; gap: 24px; align-items: start; }
 .cartuplift-settings-column { min-width: 0; }
-.cartuplift-preview-column { position: sticky; top: 100px; align-self: start; }
+.cartuplift-preview-column { position: sticky; top: 100px; align-self: start; width: 420px; justify-self: end; }
 
 @media (max-width: 1200px) {
   .cartuplift-settings-layout { grid-template-columns: 1fr 380px; gap: 20px; }
