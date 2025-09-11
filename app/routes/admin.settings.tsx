@@ -433,7 +433,7 @@ export default function SettingsPage() {
 }
 
 /* Preview container */
-.cartuplift-preview-container { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+.cartuplift-preview-container { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.04); color: var(--cartuplift-text-color, #1A1A1A); }
 .cartuplift-preview-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #eee; }
 .cartuplift-cart-title { margin: 0; font-size: 14px; letter-spacing: 0.08em; font-weight: 700; }
 .cartuplift-close { background: transparent; border: 0; padding: 6px; cursor: not-allowed; color: #999; }
@@ -441,7 +441,8 @@ export default function SettingsPage() {
 
 /* Shipping bar */
 .cartuplift-shipping-bar { padding: 12px 16px; }
-.cartuplift-shipping-progress { height: 8px; width: 100%; background: #f1f1f1; border-radius: 999px; overflow: hidden; }
+.cartuplift-shipping-text { font-size: 12px; color: #555; margin: 0 0 8px 0; }
+.cartuplift-shipping-progress { height: 8px; width: 100%; background: var(--cartuplift-shipping-bg, #f1f1f1); border-radius: 999px; overflow: hidden; }
 .cartuplift-shipping-progress-fill { height: 100%; background: var(--cartuplift-shipping-color, #121212); border-radius: 999px; transition: width 200ms ease; }
 
 /* Content */
@@ -468,11 +469,24 @@ export default function SettingsPage() {
 .cartuplift-recommendations-toggle { background: transparent; border: 0; padding: 6px; cursor: not-allowed; color: #999; }
 .cartuplift-icon-small { width: 16px; height: 16px; }
 .cartuplift-recommendations.is-horizontal { overflow: hidden; }
+.cartuplift-recommendations-body { background: var(--cartuplift-recs-bg, #ecebe3); border-radius: 10px; padding: 10px; margin-top: 10px; }
+.cartuplift-cards-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.cartuplift-cards-list { display: flex; flex-direction: column; gap: 10px; }
+.cartuplift-cards-carousel { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+.cartuplift-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 6px; min-width: 150px; }
+.cartuplift-card-row { display: grid; grid-template-columns: 64px 1fr auto; gap: 8px; align-items: center; background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 8px; }
+.cartuplift-card-image { width: 100%; aspect-ratio: 1/1; border-radius: 8px; object-fit: cover; background: #fafafa; border: 1px solid #eee; }
+.cartuplift-card-thumb { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; background: #fafafa; border: 1px solid #eee; }
+.cartuplift-card-title { margin: 0; font-size: 13px; font-weight: 600; }
+.cartuplift-card-price { font-size: 13px; font-weight: 700; }
+.cartuplift-card-actions { margin-top: 4px; }
+.cartuplift-add-btn { width: 100%; background: var(--cartuplift-button-bg, #111); color: var(--cartuplift-button-fg, #fff); border: 0; border-radius: 8px; font-weight: 700; height: 32px; cursor: not-allowed; }
+.is-title-caps .cartuplift-item-title, .is-title-caps .cartuplift-card-title, .is-title-caps .cartuplift-recommendations-title { text-transform: uppercase; }
 
 /* Footer */
 .cartuplift-footer { border-top: 1px solid #eee; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
 .cartuplift-subtotal { display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600; }
-.cartuplift-checkout-btn { width: 100%; background: #111; color: #fff; border: 0; border-radius: 8px; font-weight: 700; height: 44px; cursor: not-allowed; }
+.cartuplift-checkout-btn { width: 100%; background: var(--cartuplift-button-bg, #111); color: var(--cartuplift-button-fg, #fff); border: 0; border-radius: 8px; font-weight: 700; height: 44px; cursor: not-allowed; }
 .cartuplift-express-checkout { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .cartuplift-paypal-btn { background: #FFC439; border: 0; border-radius: 8px; height: 40px; cursor: not-allowed; display: flex; align-items: center; justify-content: center; }
 .cartuplift-paypal-logo { height: 18px; }
@@ -487,9 +501,9 @@ export default function SettingsPage() {
 .cartuplift-sticky-preview.top-left { top: 20px; left: 20px; }
 .cartuplift-sticky-preview.right-middle { top: 50%; right: 20px; transform: translateY(-50%); }
 .cartuplift-sticky-preview.left-middle { top: 50%; left: 20px; transform: translateY(-50%); }
-.cartuplift-sticky-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--cartuplift-sticky-bg, #000); color: var(--cartuplift-sticky-fg, #fff); border: 0; height: 44px; padding: 0 14px; border-radius: 999px; box-shadow: 0 4px 18px rgba(0,0,0,0.15); cursor: not-allowed; }
+.cartuplift-sticky-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--cartuplift-sticky-bg, #000); color: var(--cartuplift-sticky-fg, #fff); border: 0; height: 44px; padding: 0 14px; border-radius: var(--cartuplift-sticky-radius, 999px); box-shadow: 0 4px 18px rgba(0,0,0,0.15); cursor: not-allowed; }
 .cartuplift-sticky-icon { width: 20px; height: 20px; }
-.cartuplift-sticky-count { background: #ff4444; color: #fff; font-weight: 700; min-width: 18px; height: 18px; border-radius: 999px; text-align: center; font-size: 12px; line-height: 18px; padding: 0 6px; }
+.cartuplift-sticky-count { background: var(--cartuplift-badge-bg, #ff4444); color: var(--cartuplift-badge-fg, #fff); font-weight: 700; min-width: 18px; height: 18px; border-radius: 999px; text-align: center; font-size: 12px; line-height: 18px; padding: 0 6px; }
 .cartuplift-sticky-total { font-weight: 700; }
 
 /* Product selector modal */
@@ -992,7 +1006,25 @@ export default function SettingsPage() {
         </div>
 
         <div className="cartuplift-preview-column" ref={previewRef}>
-          <div className="cartuplift-preview-container">
+          <div
+            className={`cartuplift-preview-container ${formSettings.enableTitleCaps ? 'is-title-caps' : ''}`}
+            style={{
+              // CSS variables to reflect settings in preview only
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore
+              '--cartuplift-text-color': formSettings.textColor || '#1A1A1A',
+              '--cartuplift-button-bg': formSettings.buttonColor || '#111111',
+              '--cartuplift-button-fg': formSettings.buttonTextColor || '#ffffff',
+              '--cartuplift-recs-bg': (formSettings as any).recommendationsBackgroundColor || '#ecebe3',
+              '--cartuplift-shipping-color': formSettings.shippingBarColor || '#121212',
+              '--cartuplift-shipping-bg': formSettings.shippingBarBackgroundColor || '#f1f1f1',
+              '--cartuplift-sticky-bg': formSettings.stickyCartBackgroundColor || '#000000',
+              '--cartuplift-sticky-fg': formSettings.stickyCartTextColor || '#ffffff',
+              '--cartuplift-badge-bg': formSettings.stickyCartCountBadgeColor || '#ff4444',
+              '--cartuplift-badge-fg': formSettings.stickyCartCountBadgeTextColor || '#ffffff',
+              '--cartuplift-sticky-radius': `${formSettings.stickyCartBorderRadius || 25}px`,
+            } as React.CSSProperties}
+          >
             <div className="cartuplift-preview-header">
               <h2 className="cartuplift-cart-title">CART (5)</h2>
               <button className="cartuplift-close" aria-label="Close cart">
@@ -1003,6 +1035,11 @@ export default function SettingsPage() {
             </div>
             {(formSettings.progressBarMode === 'free-shipping' || !formSettings.progressBarMode) && (
               <div key="free-shipping-preview" className="cartuplift-shipping-bar">
+                <p className="cartuplift-shipping-text">
+                  {progress >= 100
+                    ? (formSettings.freeShippingAchievedText || '🎉 Congratulations! You\'ve unlocked free shipping!')
+                    : (formSettings.freeShippingText || "You're {{ amount }} away from free shipping!").replace(/\{\{\s*amount\s*\}|\{amount\}/g, formatCurrency(Math.max((threshold - currentTotal) / 100, 0), shopCurrency?.currencyCode || 'USD'))}
+                </p>
                 <div className="cartuplift-shipping-progress">
                   <div className="cartuplift-shipping-progress-fill" style={{ width: `${progress}%` }} />
                 </div>
@@ -1037,6 +1074,46 @@ export default function SettingsPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
                       </svg>
                     </button>
+                  </div>
+                  <div className="cartuplift-recommendations-body">
+                    {formSettings.recommendationLayout === 'grid' && (
+                      <div className="cartuplift-cards-grid">
+                        {[1,2,3,4].slice(0, Math.max(2, Math.min(4, parseInt(String(formSettings.maxRecommendations || 4)))))].map((i) => (
+                          <div key={`g${i}`} className="cartuplift-card">
+                            <img className="cartuplift-card-image" src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png" alt="Product" />
+                            <p className="cartuplift-card-title">Sample Product {i}</p>
+                            <p className="cartuplift-card-price">{formatCurrency(19.99 + i, shopCurrency?.currencyCode || 'USD')}</p>
+                            <div className="cartuplift-card-actions"><button className="cartuplift-add-btn">{formSettings.addButtonText || 'Add'}</button></div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {formSettings.recommendationLayout === 'list' && (
+                      <div className="cartuplift-cards-list">
+                        {[1,2,3,4].slice(0, Math.max(2, Math.min(4, parseInt(String(formSettings.maxRecommendations || 4)))))].map((i) => (
+                          <div key={`l${i}`} className="cartuplift-card-row">
+                            <img className="cartuplift-card-thumb" src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png" alt="Product" />
+                            <div>
+                              <p className="cartuplift-card-title">Sample Product {i}</p>
+                              <p className="cartuplift-card-price">{formatCurrency(19.99 + i, shopCurrency?.currencyCode || 'USD')}</p>
+                            </div>
+                            <div className="cartuplift-card-actions" style={{ width: '110px' }}><button className="cartuplift-add-btn">{formSettings.addButtonText || 'Add'}</button></div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {formSettings.recommendationLayout === 'carousel' && (
+                      <div className="cartuplift-cards-carousel">
+                        {[1,2,3,4].slice(0, Math.max(2, Math.min(4, parseInt(String(formSettings.maxRecommendations || 4)))))].map((i) => (
+                          <div key={`c${i}`} className="cartuplift-card" style={{ minWidth: '160px' }}>
+                            <img className="cartuplift-card-image" src="https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png" alt="Product" />
+                            <p className="cartuplift-card-title">Sample Product {i}</p>
+                            <p className="cartuplift-card-price">{formatCurrency(19.99 + i, shopCurrency?.currencyCode || 'USD')}</p>
+                            <div className="cartuplift-card-actions"><button className="cartuplift-add-btn">{formSettings.addButtonText || 'Add'}</button></div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
