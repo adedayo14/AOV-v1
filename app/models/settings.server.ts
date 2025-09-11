@@ -135,6 +135,9 @@ export async function getSettings(shop: string): Promise<SettingsData> {
 
 export async function saveSettings(shop: string, settingsData: Partial<SettingsData>): Promise<SettingsData> {
   try {
+    console.log('🔧 saveSettings called for shop:', shop);
+    console.log('🔧 settingsData received:', settingsData);
+    
     // Filter to only include valid SettingsData fields
     const validFields: (keyof SettingsData)[] = [
       'enableApp', 'enableStickyCart', 'showOnlyOnCartPage', 'autoOpenCart', 'enableFreeShipping', 'freeShippingThreshold',
@@ -153,6 +156,8 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       }
     }
     
+    console.log('🔧 filteredData after processing:', filteredData);
+    
     // Migrate recommendation layout values if present
     if (filteredData.recommendationLayout) {
       filteredData.recommendationLayout = migrateRecommendationLayout(filteredData.recommendationLayout);
@@ -166,6 +171,8 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       },
       update: filteredData,
     });
+    
+    console.log('🔧 settings saved successfully:', { shop, enableTitleCaps: settings.enableTitleCaps });
 
     return {
       enableApp: settings.enableApp,
@@ -212,8 +219,10 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
   themeEmbedLastSeen: (settings as any).themeEmbedLastSeen ? new Date((settings as any).themeEmbedLastSeen).toISOString() : undefined,
     };
   } catch (error) {
-    console.error("Error saving settings:", error);
-    throw new Error("Failed to save settings");
+    console.error("💥 Error saving settings:", error);
+    console.error("💥 Shop:", shop);
+    console.error("💥 Settings data:", settingsData);
+    throw new Error("Failed to save settings: " + (error as Error).message);
   }
 }
 
