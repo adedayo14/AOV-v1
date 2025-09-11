@@ -1956,11 +1956,11 @@
       const icon = (this.settings.cartIcon || 'cart');
       switch(icon) {
         case 'bag':
-          return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V7a6 6 0 0 1 12 0v1"/><path d="M6 8h12l1 13H5L6 8Z"/></svg>`;
+          return `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 7h-3V6a4 4 0 0 0-8 0v1H5a1 1 0 0 0-1 1v11a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8a1 1 0 0 0-1-1zM10 6a2 2 0 0 1 4 0v1h-4V6zm8 13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V9h2v1a1 1 0 0 0 2 0V9h4v1a1 1 0 0 0 2 0V9h2v10z"/></svg>`;
         case 'basket':
-          return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14l-1.5 8h-11L5 11Z"/><path d="M9 11V7a3 3 0 0 1 6 0v4"/></svg>`;
+          return `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21.5 9h-3.73l-2.54-5.09A1 1 0 0 0 14.34 3H9.66a1 1 0 0 0-.89.54L6.23 9H2.5a1 1 0 0 0-1 1v9a3 3 0 0 0 3 3h15a3 3 0 0 0 3-3v-9a1 1 0 0 0-1-1zM9.66 5h4.68l1.33 2.67H8.33L9.66 5zm9.84 14a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-8h18v8z"/></svg>`;
         default:
-          return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6h15l-1.5 12.5a2 2 0 0 1-2 1.5H8a2 2 0 0 1-2-1.5L4.5 6H20"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>`;
+          return `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21.08 7h-3.78l-2.05-4.11A1 1 0 0 0 14.36 2H9.64a1 1 0 0 0-.89.55L6.7 7H2.92a1 1 0 0 0-.92 1.39l2 5A1 1 0 0 0 5 14h14a1 1 0 0 0 .92-.61l2-5A1 1 0 0 0 21.08 7zM9.64 4h4.72l1.2 2.4H8.44L9.64 4zm8.23 8H6.13l-1.2-3h14.14l-1.2 3zm-2.87 2H9v7a1 1 0 0 0 2 0v-6h4v6a1 1 0 0 0 2 0v-7z"/></svg>`;
       }
     }
 

@@ -1268,34 +1268,53 @@ body.cartuplift-no-scroll {
 .cartuplift-grid-price { display:none !important; }
 
 .cartuplift-grid-add-btn { 
-  background: #fff; /* White background */
+  /* Match the theme-icon-button-round-light style */
+  background: rgba(255, 255, 255, 0.9); /* Semi-transparent white background */
   color: #000; /* Black icon */
-  border: 1px solid #ddd; /* Light border for definition */
-  width: 28px; 
-  height: 28px; 
-  border-radius: 50%; 
+  border: none; /* No border for cleaner look */
+  width: 28px; /* Same as w-7 (1.75rem = 28px) */
+  height: 28px; /* Same as h-7 */
+  border-radius: 50%; /* Fully rounded */
   display: inline-flex; 
   align-items: center; 
   justify-content: center; 
-  opacity: 0; 
+  opacity: 0.8; /* Start with 80% opacity like the reference */
   transform: translateY(6px); 
-  transition: opacity .3s ease, transform .3s ease, background .2s ease, border-color .2s ease;
+  transition: all 0.3s ease; /* Smooth transitions */
   cursor: pointer;
+  position: relative;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+  /* Add the extended click area like the reference */
 }
-.cartuplift-grid-item:hover .cartuplift-grid-add-btn { opacity:1; transform:translateY(0); }
+
+/* Extended click area (like the after pseudo-element in reference) */
+.cartuplift-grid-add-btn::after {
+  content: '';
+  position: absolute;
+  left: -8px; /* -0.5rem = -8px */
+  top: -8px;
+  width: calc(100% + 16px); /* +1rem = +16px total */
+  height: calc(100% + 16px);
+  display: block;
+  pointer-events: auto;
+}
+
+.cartuplift-grid-item:hover .cartuplift-grid-add-btn { 
+  opacity: 1; /* Full opacity on hover */
+  transform: translateY(0); 
+  background: rgba(255, 255, 255, 1); /* Fully opaque on hover */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Stronger shadow on hover */
+}
 .cartuplift-grid-add-btn svg { 
-  width: 16px; 
+  width: 16px; /* Same as h-4 w-4 from reference */
   height: 16px; 
-  fill: none; /* For outline icons */
-  stroke: currentColor; /* Black stroke */
-  stroke-width: 1.5; /* Thin stroke */
+  fill: currentColor; /* Use fill instead of stroke for solid icons */
+  stroke: none; /* Remove stroke */
+  stroke-width: 0;
   pointer-events: none; /* Prevent SVG from blocking clicks */
 }
-.cartuplift-grid-add-btn:hover { 
-  background: #f5f5f5; /* Slightly darker white on hover */
-  border-color: #bbb; /* Darker border on hover */
-  opacity: 1 !important;
-}
+
+/* Remove old hover styles that are now integrated above */
 
 /* Hide ALL old overlay styles completely */
 .cartuplift-grid-overlay { display:none !important; }
