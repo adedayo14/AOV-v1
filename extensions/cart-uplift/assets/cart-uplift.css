@@ -697,7 +697,7 @@ body.cartuplift-no-scroll {
 
 .cartuplift-scrollable-content .cartuplift-recommendations {
   margin-top: 0;
-  padding-top: 12px;  /* add equal space above header so it sits lower */
+  padding-top: 6px;   /* reduced from 12px - less space above header */
   padding-bottom: 0;  /* keep compact spacing after content */
   padding-left: 10px; /* add left padding for horizontal cards */
 }
@@ -716,11 +716,11 @@ body.cartuplift-no-scroll {
   align-items: center;
   width: 100%;
   padding-left: 16px;
-  padding-top: 10px;
-  padding-bottom: 10px; /* Add bottom padding for more space between header and cards */
+  padding-top: 8px;    /* reduced from 10px */
+  padding-bottom: 6px; /* reduced from 10px - less space between header and cards */
   padding-right: 16px; /* Reduced to move toggle closer to edge */
   background: var(--cartuplift-recommendations-bg);
-  height: 46px;  /* Increased from 36px to account for bottom padding */
+  height: 40px;  /* reduced from 46px to account for less padding */
   box-sizing: border-box;
   position: relative;
   z-index: 3; /* Ensure header/toggle are clickable above scroll content on mobile */
@@ -785,7 +785,7 @@ body.cartuplift-no-scroll {
   position: relative;
   display: block; /* Default visible; allow collapsed state to override */
   background: var(--cartuplift-recommendations-bg);
-  padding: 12px;
+  padding: 8px 12px 12px 12px; /* reduced top padding from 12px to 8px */
   /* Smooth transitions for content changes */
   transition: opacity 0.2s ease, transform 0.2s ease;
   transform: translateZ(0); /* Force hardware acceleration */
@@ -794,7 +794,7 @@ body.cartuplift-no-scroll {
 /* Ensure recommendations are visible by default */
 .cartuplift-recommendations:not(.collapsed) .cartuplift-recommendations-content {
   display: block !important;
-  margin-top: 12px; /* add equal space below header so title is visually centered */
+  margin-top: 0; /* removed margin-top to reduce spacing between header and content */
 }
 
 .cartuplift-recommendations.collapsed .cartuplift-recommendations-content {
