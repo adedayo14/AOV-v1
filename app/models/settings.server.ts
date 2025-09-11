@@ -138,10 +138,19 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
     console.log('🔧 saveSettings called for shop:', shop);
     console.log('🔧 settingsData received:', settingsData);
     
+    // Test database connection first
+    try {
+      await (db as any).$connect();
+      console.log('🔧 Database connection successful');
+    } catch (connectError: any) {
+      console.error('💥 Database connection failed:', connectError.message);
+      throw new Error('Database connection failed: ' + connectError.message);
+    }
+    
     // Filter to only include valid SettingsData fields
     const validFields: (keyof SettingsData)[] = [
       'enableApp', 'enableStickyCart', 'showOnlyOnCartPage', 'autoOpenCart', 'enableFreeShipping', 'freeShippingThreshold',
-      'enableRecommendations', 'enableAddons', 'enableDiscountCode', 'enableNotes', 'enableExpressCheckout', 'enableAnalytics', 'enableGiftGating', 'enableTitleCaps',
+      'enableRecommendations', 'enableAddons', 'enableDiscountCode', 'enableNotes', 'enableExpressCheckout', 'enableAnalytics', 'enableGiftGating',
       'cartPosition', 'cartIcon', 'freeShippingText', 'freeShippingAchievedText', 'recommendationsTitle', 'actionText',
   'addButtonText', 'checkoutButtonText', 'applyButtonText', 'discountLinkText', 'notesLinkText',
   'backgroundColor', 'textColor', 'buttonColor', 'buttonTextColor', 'recommendationsBackgroundColor', 'shippingBarBackgroundColor', 'shippingBarColor', 'recommendationLayout', 'maxRecommendations',
@@ -156,6 +165,12 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       }
     }
     
+    // Only include enableTitleCaps if it exists in the request and we can handle it
+    if ('enableTitleCaps' in settingsData && settingsData.enableTitleCaps !== undefined) {
+      console.log('🔧 Including enableTitleCaps in save operation');
+      (filteredData as any).enableTitleCaps = settingsData.enableTitleCaps;
+    }
+    
     console.log('🔧 filteredData after processing:', filteredData);
     
     // Migrate recommendation layout values if present
@@ -163,9 +178,10 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       filteredData.recommendationLayout = migrateRecommendationLayout(filteredData.recommendationLayout);
     }
     
-    // Try saving with enableTitleCaps field, fallback without it if column doesn't exist
+    // Try saving, with multiple fallback strategies
     let settings;
     try {
+      console.log('🔧 Attempting full save with all fields...');
       settings = await (db as any).settings.upsert({
         where: { shop },
         create: {
@@ -174,25 +190,34 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
         },
         update: filteredData,
       });
+      console.log('🔧 Full save successful');
     } catch (dbError: any) {
-      // If error contains references to enableTitleCaps column, try without it
-      if (dbError.message && dbError.message.includes('enableTitleCaps')) {
-        console.log('🔧 enableTitleCaps column not found, saving without it...');
+      console.error('💥 Full save failed:', dbError.message);
+      
+      // If error mentions enableTitleCaps, try without it
+      if (dbError.message && (dbError.message.includes('enableTitleCaps') || dbError.message.includes('column'))) {
+        console.log('🔧 Retrying without enableTitleCaps column...');
         const { enableTitleCaps, ...filteredDataWithoutTitleCaps } = filteredData;
-        settings = await (db as any).settings.upsert({
-          where: { shop },
-          create: {
-            shop,
-            ...filteredDataWithoutTitleCaps,
-          },
-          update: filteredDataWithoutTitleCaps,
-        });
+        try {
+          settings = await (db as any).settings.upsert({
+            where: { shop },
+            create: {
+              shop,
+              ...filteredDataWithoutTitleCaps,
+            },
+            update: filteredDataWithoutTitleCaps,
+          });
+          console.log('🔧 Save without enableTitleCaps successful');
+        } catch (secondError: any) {
+          console.error('💥 Second save attempt failed:', secondError.message);
+          throw new Error('Database save failed: ' + secondError.message);
+        }
       } else {
         throw dbError;
       }
     }
     
-    console.log('🔧 settings saved successfully:', { shop, enableTitleCaps: settings.enableTitleCaps });
+    console.log('🔧 settings saved successfully:', { shop, id: settings?.id });
 
     return {
       enableApp: settings.enableApp,
