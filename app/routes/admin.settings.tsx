@@ -510,9 +510,6 @@ export default function SettingsPage() {
       }}
       fullWidth
     >
-      <h1 style={{ backgroundColor: 'yellow', padding: '50px', fontSize: '30px', color: 'black' }}>
-        �🔥🔥 TESTING - CAN YOU SEE THIS YELLOW BOX? 🔥🔥🔥
-      </h1>
       <style dangerouslySetInnerHTML={{
         __html: `
           /* Fixed Layout Styles */
@@ -3584,6 +3581,13 @@ export default function SettingsPage() {
                       helpText="Text for recommendation Add buttons"
                       placeholder="Add"
                       autoComplete="off"
+                    />
+                    
+                    <Checkbox
+                      label="Show Product Titles in Caps"
+                      checked={formSettings.enableTitleCaps || false}
+                      onChange={(value) => updateSetting("enableTitleCaps", value)}
+                      helpText="Display product titles in UPPERCASE for both cart items and recommendations"
                     />
                     
                     <Select
