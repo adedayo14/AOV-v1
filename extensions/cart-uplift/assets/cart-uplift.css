@@ -1195,7 +1195,7 @@ body.cartuplift-no-scroll {
   border: none;
   border-radius: 0;
   overflow: hidden;
-  margin: 0;
+  margin: 0 0 16px 0; /* Add 16px bottom margin for spacing under cards */
   transition: grid-template-rows 0.3s ease; /* Smooth transition */
 }
 
@@ -1226,7 +1226,7 @@ body.cartuplift-no-scroll {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px; /* Increased padding for larger cards */
+  padding: 0; /* Remove padding so image fills entire area */
   box-sizing: border-box;
 }
 
@@ -1255,7 +1255,7 @@ body.cartuplift-no-scroll {
   inset: 0; 
   width: 100%; 
   height: 100%; 
-  object-fit: contain; 
+  object-fit: cover; /* Changed from contain to cover to fill entire area */
 }
 
 /* Hover content container - ONLY button, no title/price on image */
@@ -1341,9 +1341,9 @@ body.cartuplift-no-scroll {
     scroll-snap-type: x mandatory !important;
     gap: 4px !important; /* Much thinner gap between cards */
     padding: 0 16px 16px 16px !important; /* Added bottom padding for space under cards */
-    height: 156px !important; /* Increased height to accommodate bottom padding */
+    height: 172px !important; /* Increased height to accommodate bottom padding */
     width: 100% !important;
-    margin: 0 !important;
+    margin: 0 0 16px 0 !important; /* Add bottom margin for spacing under cards */
   }
   
   .cartuplift-grid-item {
@@ -1353,7 +1353,7 @@ body.cartuplift-no-scroll {
     width: 140px !important;
     height: 140px !important;
     scroll-snap-align: start !important;
-    padding: 8px !important;
+    padding: 0 !important; /* Remove padding so image fills entire area */
     display: flex !important; /* Override any hidden states */
   }
   
