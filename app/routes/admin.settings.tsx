@@ -27,6 +27,13 @@ export const loader = withAuth(async ({ auth }) => {
   const shop = auth.session.shop;
   const settings = await getSettings(shop);
   
+  // DEBUG: Log the actual settings to see what's being returned
+  console.log('🔍 SETTINGS DEBUG - Loader returning:', {
+    recommendationLayout: settings.recommendationLayout,
+    enableRecommendations: settings.enableRecommendations,
+    shop: shop
+  });
+  
   // Get shop currency information
   let shopCurrency = { currencyCode: 'USD', moneyFormat: undefined }; // Default fallback
   try {
@@ -93,6 +100,8 @@ export const action = withAuthAction(async ({ request, auth }) => {
     addButtonText: String(settings.addButtonText) || "Add",
     checkoutButtonText: String(settings.checkoutButtonText) || "CHECKOUT",
     applyButtonText: String(settings.applyButtonText) || "Apply",
+  discountLinkText: String(settings.discountLinkText || '+ Got a promotion code?'),
+  notesLinkText: String(settings.notesLinkText || '+ Add order notes'),
     backgroundColor: String(settings.backgroundColor) || "#ffffff",
     textColor: String(settings.textColor) || "#1A1A1A",
     buttonColor: String(settings.buttonColor) || "#000000",
@@ -100,7 +109,7 @@ export const action = withAuthAction(async ({ request, auth }) => {
     recommendationsBackgroundColor: String(settings.recommendationsBackgroundColor) || "#ecebe3",
     shippingBarBackgroundColor: String(settings.shippingBarBackgroundColor) || "#f0f0f0",
     shippingBarColor: String(settings.shippingBarColor) || "#121212", // Dark neutral default
-    recommendationLayout: String(settings.recommendationLayout) || "horizontal",
+    recommendationLayout: String(settings.recommendationLayout) || "carousel",
     complementDetectionMode: String(settings.complementDetectionMode) || "automatic",
     manualRecommendationProducts: String(settings.manualRecommendationProducts) || "",
     // Progress Bar System
@@ -110,10 +119,16 @@ export const action = withAuthAction(async ({ request, auth }) => {
     giftThresholds: String(settings.giftThresholds) || "[]",
     giftNoticeText: String(settings.giftNoticeText) || "Free gift added: {{product}} (worth {{amount}})",
     giftPriceText: String(settings.giftPriceText) || "FREE",
+    enableTitleCaps: settings.enableTitleCaps === 'true',
   };
   
   try {
     await saveSettings(shop, processedSettings);
+    console.log('🔄 SETTINGS DEBUG - Action saved:', {
+      recommendationLayout: processedSettings.recommendationLayout,
+      enableRecommendations: processedSettings.enableRecommendations,
+      shop: shop
+    });
     return json({ success: true, message: "Settings saved successfully!" });
   } catch (error) {
     console.error("Error saving settings:", error);
@@ -399,9 +414,9 @@ export default function SettingsPage() {
   ];
 
   const recommendationLayoutOptions = [
-    { label: "Carousel", value: "carousel" },
-    { label: "List", value: "list" },
-    { label: "Grid", value: "grid" },
+    { label: "🚀 NEW Carousel", value: "carousel" },
+    { label: "📋 NEW List", value: "list" },
+    { label: "⚡ NEW Grid (Premium)", value: "grid" },
   ];
 
   const complementDetectionModeOptions = [
@@ -2869,6 +2884,11 @@ export default function SettingsPage() {
       }} />
 
       <div className="cartuplift-settings-layout">
+        {/* DEVELOPMENT VERSION BANNER - Always visible for testing */}
+        <div className="cartuplift-success-banner">
+          <Banner tone="info">🔥 DEVELOPMENT VERSION LOADED - NEW LAYOUT OPTIONS AVAILABLE 🔥</Banner>
+        </div>
+
         {showSuccessBanner && (
           <div className="cartuplift-success-banner">
             <Banner tone="success">Settings saved successfully!</Banner>
@@ -3508,7 +3528,11 @@ export default function SettingsPage() {
                       label="Layout Style"
                       options={recommendationLayoutOptions}
                       value={formSettings.recommendationLayout}
-                      onChange={(value) => updateSetting("recommendationLayout", value)}
+                      onChange={(value) => {
+                        console.log('🎯 Dropdown onChange - received value:', value);
+                        console.log('🎯 Available options:', recommendationLayoutOptions);
+                        updateSetting("recommendationLayout", value);
+                      }}
                       helpText="How recommendations are displayed in the cart"
                     />
                     
@@ -3551,6 +3575,13 @@ export default function SettingsPage() {
                       autoComplete="off"
                     />
                     
+                    <Checkbox
+                      label="Show Product Titles in Caps"
+                      checked={formSettings.enableTitleCaps || false}
+                      onChange={(value) => updateSetting("enableTitleCaps", value)}
+                      helpText="Display product titles in UPPERCASE for both cart items and recommendations"
+                    />
+                    
                     <Select
                       label="Recommendation Mode (AI vs. Manual)"
                       options={complementDetectionModeOptions}
@@ -3588,6 +3619,7 @@ export default function SettingsPage() {
             <Card>
               <BlockStack gap="400">
                 <Text variant="headingMd" as="h2">⚡ Additional Features</Text>
+                <Text as="p" tone="subdued">Admin Settings UI version: links-2025-09-10-2</Text>
                 <FormLayout>
                   <Checkbox
                     label="Enable Discount Code Field"
@@ -3595,14 +3627,12 @@ export default function SettingsPage() {
                     onChange={(value) => updateSetting("enableDiscountCode", value)}
                     helpText="Allow customers to apply discount codes in cart"
                   />
-                  
                   {formSettings.enableDiscountCode && (
                     <TextField
-                      label="Apply Button Text"
-                      value={formSettings.applyButtonText || 'Apply'}
-                      onChange={(value) => updateSetting("applyButtonText", value)}
-                      helpText="Text for discount code apply button"
-                      placeholder="Apply"
+                      label="Promotion Link Text"
+                      value={formSettings.discountLinkText || '+ Got a promotion code?'}
+                      onChange={(value) => updateSetting('discountLinkText', value)}
+                      helpText="Inline link label shown on your online store to open the discount code modal"
                       autoComplete="off"
                     />
                   )}
@@ -3614,15 +3644,18 @@ export default function SettingsPage() {
                     helpText="Let customers add special instructions"
                   />
 
-                  {(formSettings.enableDiscountCode || formSettings.enableNotes) && (
+                  {formSettings.enableNotes && (
                     <TextField
-                      label="Action Button Text"
-                      value={formSettings.actionText || ""}
-                      onChange={(value) => updateSetting("actionText", value)}
-                      placeholder="Add discount codes and notes"
-                      helpText="Text shown on the button that opens the discount/notes modal"
+                      label="Notes Link Text"
+                      value={formSettings.notesLinkText || '+ Add order notes'}
+                      onChange={(value) => updateSetting('notesLinkText', value)}
+                      helpText="Inline link label shown on your online store to open the order notes modal"
                       autoComplete="off"
                     />
+                  )}
+
+                  {(formSettings.enableDiscountCode || formSettings.enableNotes) && (
+                    <Text as="p" tone="subdued">Inline links are used on the online store. The old full-width button is deprecated.</Text>
                   )}
                 </FormLayout>
               </BlockStack>

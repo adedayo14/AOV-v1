@@ -697,8 +697,8 @@ body.cartuplift-no-scroll {
 
 .cartuplift-scrollable-content .cartuplift-recommendations {
   margin-top: 0;
-  padding-top: 0;   /* remove space before header */
-  padding-bottom: 0;/* tighten space under content */
+  padding-top: 12px;  /* add equal space above header so it sits lower */
+  padding-bottom: 0;  /* keep compact spacing after content */
   padding-left: 10px; /* add left padding for horizontal cards */
 }
 
@@ -794,6 +794,7 @@ body.cartuplift-no-scroll {
 /* Ensure recommendations are visible by default */
 .cartuplift-recommendations:not(.collapsed) .cartuplift-recommendations-content {
   display: block !important;
+  margin-top: 12px; /* add equal space below header so title is visually centered */
 }
 
 .cartuplift-recommendations.collapsed .cartuplift-recommendations-content {
@@ -1179,47 +1180,83 @@ body.cartuplift-no-scroll {
 
 /* Grid Layout - for premium grid display */
 .cartuplift-recommendations-grid .cartuplift-recommendations-content {
-  padding: 16px;
+  padding: 0; /* No padding for full width grid */
+  margin: 0; /* Remove any margins */
 }
 
-/* --- Minimal COS-style Grid (desktop) --- */
+/* --- Dynamic Grid: 2 rows (standard) or 1 row (collapsed) --- */
 .cartuplift-grid-container {
   display: grid;
-  grid-template-columns: repeat(4, 104px);
-  grid-auto-rows: 157px;
-  gap: 16px 24px;
-  justify-content: center;
-  background: #f5f5f5;
-  padding: 20px 24px;
+  grid-template-columns: repeat(3, 1fr); /* Always 3 columns */
+  grid-template-rows: repeat(2, 156px); /* Default: 2 rows for 6 items */
+  gap: 0;
+  width: 100%;
+  background: var(--cartuplift-recommendations-bg);
+  border: none;
   border-radius: 0;
-  box-shadow: none;
+  overflow: hidden;
+  margin: 0;
+  transition: grid-template-rows 0.3s ease; /* Smooth transition */
+}
+
+/* Collapsed state: 1 row only (3 items max) */
+.cartuplift-grid-container.collapsed {
+  grid-template-rows: 156px; /* Single row */
+}
+
+/* Hide items beyond the visible limit */
+.cartuplift-grid-container.collapsed > .cartuplift-grid-item:nth-child(n+4) { 
+  display: none !important; 
+}
+
+/* Standard state: limit to 6 items */
+.cartuplift-grid-container:not(.collapsed) > .cartuplift-grid-item:nth-child(n+7) { 
+  display: none !important; 
 }
 
 .cartuplift-grid-item {
   position: relative;
-  width: 104px;
-  height: 157px;
+  width: 100%; /* Full width of column */
+  height: 156px; /* Increased height to match grid-auto-rows */
   cursor: pointer;
   overflow: hidden;
-  background: #ffffff;
-  transition: border-color .2s ease, box-shadow .2s ease;
+  background: var(--cartuplift-recommendations-bg); /* Use selected section background */
+  border: 0.5px solid transparent; /* All 4 sides with thin hidden borders */
+  transition: border-color .2s ease, background-color .2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px; /* Increased padding for larger cards */
+  box-sizing: border-box;
 }
 
-.cartuplift-grid-item::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border: 1px solid transparent;
-  pointer-events: none;
-  transition: border-color .25s ease;
+/* Remove right border from last column items (every 3rd item) */
+.cartuplift-grid-item:nth-child(3n) {
+  border-right: 0.5px solid transparent; /* Keep transparent, will show on hover */
 }
 
-.cartuplift-grid-item:hover::after {
-  border-color: rgba(0,0,0,0.25);
+/* Show full thin black outline on hover */
+.cartuplift-grid-item:hover {
+  border-color: #000000; /* All 4 sides get black border */
+  background-color: #f8f8f8;
 }
 
-.cartuplift-grid-image { position: relative; width:100%; height:100%; }
-.cartuplift-grid-image img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+/* Remove right border hover effect from last column items - NOT NEEDED ANYMORE */
+
+.cartuplift-grid-image { 
+  position: absolute; 
+  inset: 0; 
+  width: 100%; 
+  height: 100%; 
+  background: #f8f8f8;
+}
+.cartuplift-grid-image img { 
+  position: absolute; 
+  inset: 0; 
+  width: 100%; 
+  height: 100%; 
+  object-fit: contain; 
+}
 
 /* Hover content container - ONLY button, no title/price on image */
 .cartuplift-grid-hover { position:absolute; inset:0; display:flex; flex-direction:column; opacity:0; transition:opacity .28s ease; padding:6px 6px 8px; justify-content:flex-end; align-items:center; }
@@ -1230,10 +1267,35 @@ body.cartuplift-no-scroll {
 .cartuplift-grid-title { display:none !important; }
 .cartuplift-grid-price { display:none !important; }
 
-.cartuplift-grid-add-btn { background: #000; color:#fff; border:0; font-size:11px; font-weight:500; padding:6px 10px; line-height:1; border-radius:0; display:inline-flex; gap:6px; align-items:center; opacity:0; transform:translateY(6px); transition:opacity .3s ease, transform .3s ease, background .2s ease; }
+.cartuplift-grid-add-btn { 
+  background: #fff; /* White background */
+  color: #000; /* Black icon */
+  border: 1px solid #ddd; /* Light border for definition */
+  width: 28px; 
+  height: 28px; 
+  border-radius: 50%; 
+  display: inline-flex; 
+  align-items: center; 
+  justify-content: center; 
+  opacity: 0; 
+  transform: translateY(6px); 
+  transition: opacity .3s ease, transform .3s ease, background .2s ease, border-color .2s ease;
+  cursor: pointer;
+}
 .cartuplift-grid-item:hover .cartuplift-grid-add-btn { opacity:1; transform:translateY(0); }
-.cartuplift-grid-add-btn svg { width:14px; height:14px; }
-.cartuplift-grid-add-btn:hover { background:#222; }
+.cartuplift-grid-add-btn svg { 
+  width: 16px; 
+  height: 16px; 
+  fill: none; /* For outline icons */
+  stroke: currentColor; /* Black stroke */
+  stroke-width: 1.5; /* Thin stroke */
+  pointer-events: none; /* Prevent SVG from blocking clicks */
+}
+.cartuplift-grid-add-btn:hover { 
+  background: #f5f5f5; /* Slightly darker white on hover */
+  border-color: #bbb; /* Darker border on hover */
+  opacity: 1 !important;
+}
 
 /* Hide ALL old overlay styles completely */
 .cartuplift-grid-overlay { display:none !important; }
@@ -1241,29 +1303,85 @@ body.cartuplift-no-scroll {
 .cartuplift-grid-container .cartuplift-grid-title { display:none !important; }
 .cartuplift-grid-container .cartuplift-grid-price { display:none !important; }
 
-/* Limit to exactly 8 items visually (2 rows) */
-.cartuplift-grid-container > .cartuplift-grid-item:nth-child(n+9) { display:none !important; }
+/* Limit to exactly 6 items visually (2 rows of 3) - REMOVED, now handled dynamically */
 
 /* Typography smoothing */
 .cartuplift-grid-container, .cartuplift-grid-container * { -webkit-font-smoothing: antialiased; }
 
 /* Mobile adjustments for grid */
 @media (max-width: 768px) {
-  .cartuplift-grid-container {
-    grid-template-columns: 2fr 2fr 1fr;
-    grid-template-rows: 1fr;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
+  /* Mobile: Single scrollable row with 2.3 items visible - OVERRIDE DESKTOP */
+  .cartuplift-grid-container,
+  .cartuplift-grid-container.collapsed {
+    display: flex !important; /* Override grid layout completely */
+    flex-direction: row !important;
+    grid-template-columns: unset !important;
+    grid-template-rows: unset !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scroll-snap-type: x mandatory !important;
+    gap: 4px !important; /* Much thinner gap between cards */
+    padding: 0 16px 16px 16px !important; /* Added bottom padding for space under cards */
+    height: 156px !important; /* Increased height to accommodate bottom padding */
+    width: 100% !important;
+    margin: 0 !important;
   }
   
   .cartuplift-grid-item {
-    scroll-snap-align: start;
-    min-width: calc(50% - 8px);
+    flex: 0 0 140px !important; /* Fixed width, no grow/shrink */
+    min-width: 140px !important;
+    max-width: 140px !important;
+    width: 140px !important;
+    height: 140px !important;
+    scroll-snap-align: start !important;
+    padding: 8px !important;
+    display: flex !important; /* Override any hidden states */
   }
   
-  .cartuplift-grid-item:nth-child(3n) {
-    min-width: 25%;
+  /* Show ALL items on mobile - override desktop limits */
+  .cartuplift-grid-container > .cartuplift-grid-item:nth-child(n+4),
+  .cartuplift-grid-container > .cartuplift-grid-item:nth-child(n+7),
+  .cartuplift-grid-container.collapsed > .cartuplift-grid-item:nth-child(n+4) { 
+    display: flex !important; 
+  }
+  
+  /* Hide scrollbar completely on mobile */
+  .cartuplift-grid-container::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+  
+  .cartuplift-grid-container {
+    -ms-overflow-style: none !important;  /* Internet Explorer 10+ */
+    scrollbar-width: none !important;  /* Firefox */
+  }
+  
+  /* Adjust button size for mobile */
+  .cartuplift-grid-add-btn {
+    width: 24px !important;
+    height: 24px !important;
+  }
+  
+  .cartuplift-grid-add-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+  
+  /* Make cart container bigger on mobile when using grid */
+  .cartuplift-recommendations-grid .cartuplift-items {
+    max-height: calc(100vh - 280px) !important; /* More space for cart items */
+    flex: 1 !important;
+  }
+  
+  .cartuplift-recommendations-grid .cartuplift-content-wrapper {
+    max-height: calc(100vh - 120px) !important; /* Bigger overall container */
+  }
+  
+  /* Reduce grid section height to give more space to cart */
+  .cartuplift-recommendations-grid {
+    flex-shrink: 0 !important;
+    min-height: auto !important;
   }
 }
 
@@ -1774,6 +1892,38 @@ body.cartuplift-no-scroll {
 
 .cartuplift-action-button:hover {
   filter: brightness(0.9);
+}
+
+/* Inline links for promotions and notes */
+.cartuplift-inline-links {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 16px 12px;
+}
+
+.cartuplift-inline-sep {
+  color: #999;
+}
+
+.cartuplift-inline-link {
+  color: #1a1a1a; /* Match product titles - black */
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cartuplift-inline-link:hover {
+  text-decoration: underline;
+}
+
+.cartuplift-inline-link svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 /* Custom Modal Styles */
@@ -2445,4 +2595,14 @@ body.cartuplift-no-scroll {
   color: var(--cartuplift-primary, #121212) !important;
   font-weight: bold;
   font-size: 14px;
+}
+
+/* Title Caps Setting - Apply when enabled */
+[data-cartuplift-title-caps="true"] .cartuplift-item-title,
+[data-cartuplift-title-caps="true"] .cartuplift-item-title a,
+[data-cartuplift-title-caps="true"] .cartuplift-recommendation-card h4,
+[data-cartuplift-title-caps="true"] .cartuplift-recommendation-item h4,
+[data-cartuplift-title-caps="true"] .cartuplift-recommendation-info h4,
+[data-cartuplift-title-caps="true"] .cartuplift-grid-item h4 {
+  text-transform: uppercase !important;
 }

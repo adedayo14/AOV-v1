@@ -115,7 +115,8 @@
     })();
   </script>
 
-  <script src="{{ 'cart-uplift.js' | asset_url }}" defer></script>
+  {%- comment -%} Added version param to bust CDN cache without renaming file {%- endcomment -%}
+  <script src="{{ 'cart-uplift.js' | asset_url }}?v=no-icon-2025-09-10-5" defer></script>
 
   <script>
     // Analytics will be enabled based on backend settings

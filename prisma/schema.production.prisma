@@ -45,6 +45,7 @@ model Settings {
   enableNotes             Boolean  @default(false)
   enableExpressCheckout   Boolean  @default(true)
   enableAnalytics         Boolean  @default(false)
+  enableTitleCaps         Boolean  @default(false)
   
   // Cart Behavior & Position
   cartPosition            String   @default("bottom-right")

@@ -94,6 +94,8 @@ export const action = withAuthAction(async ({ request, auth }) => {
     addButtonText: String(settings.addButtonText) || "Add",
     checkoutButtonText: String(settings.checkoutButtonText) || "CHECKOUT",
     applyButtonText: String(settings.applyButtonText) || "Apply",
+  discountLinkText: String(settings.discountLinkText || '+ Got a promotion code?'),
+  notesLinkText: String(settings.notesLinkText || '+ Add order notes'),
     backgroundColor: String(settings.backgroundColor) || "#ffffff",
     textColor: String(settings.textColor) || "#1A1A1A",
     buttonColor: String(settings.buttonColor) || "#000000",
@@ -3532,9 +3534,10 @@ export default function SettingsPage() {
             )}
 
             {/* Additional Features */}
-            <Card>
+      <Card>
               <BlockStack gap="400">
-                <Text variant="headingMd" as="h2">⚡ Additional Features</Text>
+        <Text variant="headingMd" as="h2">⚡ Additional Features</Text>
+        <Text as="p" tone="subdued">Settings UI version: links-2025-09-10-2</Text>
                 <FormLayout>
                   <Checkbox
                     label="Enable Discount Code Field"
@@ -3542,14 +3545,12 @@ export default function SettingsPage() {
                     onChange={(value) => updateSetting("enableDiscountCode", value)}
                     helpText="Allow customers to apply discount codes in cart"
                   />
-                  
                   {formSettings.enableDiscountCode && (
                     <TextField
-                      label="Apply Button Text"
-                      value={formSettings.applyButtonText || 'Apply'}
-                      onChange={(value) => updateSetting("applyButtonText", value)}
-                      helpText="Text for discount code apply button"
-                      placeholder="Apply"
+                      label="Promotion Link Text"
+                      value={formSettings.discountLinkText || '+ Got a promotion code?'}
+                      onChange={(value) => updateSetting('discountLinkText', value)}
+                      helpText="Inline link label shown on your online store to open the discount code modal"
                       autoComplete="off"
                     />
                   )}
@@ -3561,15 +3562,18 @@ export default function SettingsPage() {
                     helpText="Let customers add special instructions"
                   />
 
-                  {(formSettings.enableDiscountCode || formSettings.enableNotes) && (
+                  {formSettings.enableNotes && (
                     <TextField
-                      label="Action Button Text"
-                      value={formSettings.actionText || ""}
-                      onChange={(value) => updateSetting("actionText", value)}
-                      placeholder="Add discount codes and notes"
-                      helpText="Text shown on the button that opens the discount/notes modal"
+                      label="Notes Link Text"
+                      value={formSettings.notesLinkText || '+ Add order notes'}
+                      onChange={(value) => updateSetting('notesLinkText', value)}
+                      helpText="Inline link label shown on your online store to open the order notes modal"
                       autoComplete="off"
                     />
+                  )}
+
+                  {(formSettings.enableDiscountCode || formSettings.enableNotes) && (
+                    <Text as="p" tone="subdued">Inline links will be shown instead of the full-width button.</Text>
                   )}
                 </FormLayout>
               </BlockStack>
@@ -4250,12 +4254,21 @@ export default function SettingsPage() {
                     </Modal>
                   )}
 
-                  {/* Discount & Notes Section - Collapsed Button Like Real Cart */}
+                  {/* Promotion & Notes Inline Links Preview */}
                   {(formSettings.enableDiscountCode || formSettings.enableNotes) && (
-                    <div className="cartuplift-discount-section">
-                      <button className="cartuplift-rainbow-card-button" type="button">
-                        {formSettings.actionText || 'Add discount codes and notes'}
-                      </button>
+                    <div style={{ marginTop: '8px', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                        {formSettings.enableDiscountCode && (
+                          <span style={{ color: '#0a66c2', cursor: 'pointer', textDecoration: 'underline' }}>
+                            {formSettings.discountLinkText || '+ Got a promotion code?'}
+                          </span>
+                        )}
+                        {formSettings.enableNotes && (
+                          <span style={{ color: '#0a66c2', cursor: 'pointer', textDecoration: 'underline' }}>
+                            {formSettings.notesLinkText || '+ Add order notes'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

@@ -28,6 +28,7 @@ export interface SettingsData {
   enableNotes: boolean;
   enableExpressCheckout: boolean;
   enableAnalytics: boolean;
+  enableTitleCaps: boolean;
   
   // Cart Behavior & Position
   cartPosition: string;
@@ -41,6 +42,9 @@ export interface SettingsData {
   addButtonText: string;
   checkoutButtonText: string;
   applyButtonText: string;
+  discountLinkText: string;
+  notesLinkText: string;
+  
   
   // Appearance
   backgroundColor: string;
@@ -70,7 +74,7 @@ export interface SettingsData {
 
 export async function getSettings(shop: string): Promise<SettingsData> {
   try {
-    const settings = await db.settings.findUnique({
+  const settings = await (db as any).settings.findUnique({
       where: { shop }
     });
 
@@ -92,6 +96,7 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       enableNotes: settings.enableNotes,
       enableExpressCheckout: settings.enableExpressCheckout,
       enableAnalytics: settings.enableAnalytics,
+      enableTitleCaps: (settings as any).enableTitleCaps ?? false,
       cartPosition: settings.cartPosition,
       cartIcon: settings.cartIcon,
       freeShippingText: settings.freeShippingText,
@@ -101,6 +106,9 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       addButtonText: (settings as any).addButtonText ?? "Add",
       checkoutButtonText: (settings as any).checkoutButtonText ?? "CHECKOUT",
       applyButtonText: (settings as any).applyButtonText ?? "Apply",
+  discountLinkText: (settings as any).discountLinkText ?? "+ Got a promotion code?",
+  notesLinkText: (settings as any).notesLinkText ?? "+ Add order notes",
+      
       backgroundColor: settings.backgroundColor,
       textColor: settings.textColor,
       buttonColor: settings.buttonColor,
@@ -132,7 +140,7 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       'enableApp', 'enableStickyCart', 'showOnlyOnCartPage', 'autoOpenCart', 'enableFreeShipping', 'freeShippingThreshold',
       'enableRecommendations', 'enableAddons', 'enableDiscountCode', 'enableNotes', 'enableExpressCheckout', 'enableAnalytics', 'enableGiftGating',
       'cartPosition', 'cartIcon', 'freeShippingText', 'freeShippingAchievedText', 'recommendationsTitle', 'actionText',
-      'addButtonText', 'checkoutButtonText', 'applyButtonText',
+  'addButtonText', 'checkoutButtonText', 'applyButtonText',
   'backgroundColor', 'textColor', 'buttonColor', 'buttonTextColor', 'recommendationsBackgroundColor', 'shippingBarBackgroundColor', 'shippingBarColor', 'recommendationLayout', 'maxRecommendations',
   'complementDetectionMode', 'manualRecommendationProducts', 'progressBarMode', 'giftProgressStyle', 'giftThresholds',
   'themeEmbedEnabled', 'themeEmbedLastSeen'
@@ -150,7 +158,7 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       filteredData.recommendationLayout = migrateRecommendationLayout(filteredData.recommendationLayout);
     }
     
-    const settings = await db.settings.upsert({
+  const settings = await (db as any).settings.upsert({
       where: { shop },
       create: {
         shop,
@@ -172,6 +180,7 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       enableNotes: settings.enableNotes,
       enableExpressCheckout: settings.enableExpressCheckout,
       enableAnalytics: settings.enableAnalytics,
+      enableTitleCaps: (settings as any).enableTitleCaps ?? false,
       cartPosition: settings.cartPosition,
       cartIcon: settings.cartIcon,
       freeShippingText: settings.freeShippingText,
@@ -181,6 +190,9 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       addButtonText: (settings as any).addButtonText ?? "Add",
       checkoutButtonText: (settings as any).checkoutButtonText ?? "CHECKOUT",
       applyButtonText: (settings as any).applyButtonText ?? "Apply",
+  discountLinkText: (settings as any).discountLinkText ?? "+ Got a promotion code?",
+  notesLinkText: (settings as any).notesLinkText ?? "+ Add order notes",
+      
       backgroundColor: settings.backgroundColor,
       textColor: settings.textColor,
       buttonColor: settings.buttonColor,
@@ -222,6 +234,7 @@ export function getDefaultSettings(): SettingsData {
     enableNotes: false,
     enableExpressCheckout: true,
   enableAnalytics: false,
+    enableTitleCaps: false,
     
     // Cart Behavior & Position
     cartPosition: "bottom-right",
@@ -235,6 +248,9 @@ export function getDefaultSettings(): SettingsData {
     addButtonText: "Add",
     checkoutButtonText: "CHECKOUT",
     applyButtonText: "Apply",
+  discountLinkText: "+ Got a promotion code?",
+  notesLinkText: "+ Add order notes",
+    
     
     // Appearance
     backgroundColor: "#ffffff",

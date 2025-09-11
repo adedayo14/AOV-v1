@@ -1,6 +1,31 @@
 (function() {
   'use strict';
 
+  // Version sentinel & live verification (cache-bust expectation)
+  (function(){
+    const v = 'grid-2025-09-10-3';
+    if (window.CART_UPLIFT_ASSET_VERSION !== v) {
+      window.CART_UPLIFT_ASSET_VERSION = v;
+      console.log('[CartUplift] Loaded asset version ' + v + ' – expecting NEW grid (no .cartuplift-grid-overlay elements).');
+    }
+    // Runtime self-heal: remove legacy overlay nodes if stale HTML rendered by cached markup
+    function selfHealGrid(){
+      try {
+        const layout = (window.CartUpliftSettings && window.CartUpliftSettings.recommendationLayout) || '';
+        // Accept both new naming (grid) and internal normalized value
+        if (layout === 'grid') {
+          const stale = document.querySelectorAll('.cartuplift-grid-overlay');
+          if (stale.length) {
+            console.warn('[CartUplift] Removing stale grid overlay nodes (cache mismatch fix). Count:', stale.length);
+            stale.forEach(n=> n.remove());
+          }
+        }
+      } catch(_) {}
+    }
+    document.addEventListener('DOMContentLoaded', ()=> setTimeout(selfHealGrid, 800));
+    document.addEventListener('cartuplift:opened', selfHealGrid);
+  })();
+
   // Safe analytics shim (no-op if not provided by host)
   const CartAnalytics = (window.CartAnalytics && typeof window.CartAnalytics.trackEvent === 'function')
     ? window.CartAnalytics
@@ -42,6 +67,7 @@
       this.settings.enableDiscountCode = this.settings.enableDiscountCode !== false; // DEFAULT TO TRUE
       this.settings.enableExpressCheckout = this.settings.enableExpressCheckout !== false; // DEFAULT TO TRUE
       this.settings.autoOpenCart = this.settings.autoOpenCart !== false;
+      this.settings.enableTitleCaps = Boolean(this.settings.enableTitleCaps);
       
       // Set default gift notice text if not provided
       this.settings.giftNoticeText = this.settings.giftNoticeText || 'Free gift added: {{product}} (worth {{amount}})';
@@ -101,6 +127,17 @@
       document.addEventListener('cartuplift:settings:updated', this._settingsUpdateHandler);
       
       this.initPromise = this.init();
+    }
+
+    // Basic HTML escape for safe text insertion
+    escapeHtml(str) {
+      if (str === undefined || str === null) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     async init() {
@@ -809,6 +846,8 @@
       const popup = container.querySelector('#cartuplift-cart-popup');
       if (popup) {
         popup.innerHTML = this.getDrawerHTML();
+        // Apply title caps data attribute if enabled
+        popup.setAttribute('data-cartuplift-title-caps', this.settings.enableTitleCaps ? 'true' : 'false');
       }
       
       this.attachDrawerEvents();
@@ -906,7 +945,8 @@
               ${this.settings.enableAddons ? this.getAddonsHTML() : ''}
               ${shouldShowRecommendations ? this.getRecommendationsHTML() : ''}
               ${(() => {
-                return this.settings.enableDiscountCode || this.settings.enableNotes ? this.getDiscountHTML() : '';
+                if (!(this.settings.enableDiscountCode || this.settings.enableNotes)) return '';
+                return this.getInlineLinksHTML();
               })()}
             </div>
           </div>
@@ -1656,7 +1696,7 @@
                   <div class="cartuplift-product-actions">
                     <div class="cartuplift-recommendation-price">${this.formatMoney(product.priceCents || 0)}</div>
                     <button class="cartuplift-add-recommendation" data-product-id="${product.id}" data-variant-id="${product.variant_id}">
-                      ${this.getCartIconSVG()}<span>${this.settings.addButtonText || 'Add'}</span>
+                      ${this.settings.addButtonText || 'Add'}
                     </button>
                   </div>
                 </div>
@@ -1665,32 +1705,8 @@
           </div>
         `;
       } else if (layout === 'grid') {
-        // Grid layout - special grid-based display
-        const maxProducts = this.settings.maxRecommendations || 8;
-        const gridProducts = this.recommendations.slice(0, maxProducts);
-        // Adjust to multiples of 4 for clean grid
-        const adjustedCount = Math.min(gridProducts.length, Math.ceil(gridProducts.length / 4) * 4);
-        const productsToShow = gridProducts.slice(0, adjustedCount);
-        const gridHtml = `
-          <div class="cartuplift-grid-container" data-original-title="${(this.settings.recommendationsTitle || 'You might also like').replace(/"/g,'&quot;')}">
-            ${productsToShow.map(product => `
-              <div class="cartuplift-grid-item" data-product-id="${product.id}" data-variant-id="${product.variant_id}" data-title="${product.title.replace(/"/g,'&quot;')}" data-price="${this.formatMoney(product.priceCents || 0)}">
-                <div class="cartuplift-grid-image">
-                  <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" decoding="async" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
-                </div>
-                <div class="cartuplift-grid-hover">
-                  <button class="cartuplift-grid-add-btn" data-variant-id="${product.variant_id}" aria-label="Add ${product.title}">
-                    ${this.getCartIconSVG()}<span>${this.settings.addButtonText || 'Add'}</span>
-                  </button>
-                </div>
-              </div>`).join('')}
-          </div>
-        `;
-        
-        // Schedule hover handlers to be attached after DOM update
-        setTimeout(() => this.attachGridHoverHandlers(), 10);
-        
-        return gridHtml;
+        // Dynamic Grid Layout - 6 items (2 rows) or 3 items (1 row) based on available products
+        return this.generateDynamicGrid();
       } else {
         return this.recommendations.map(product => `
           <div class="cartuplift-recommendation-item">
@@ -1705,6 +1721,138 @@
           </div>
         `).join('');
       }
+    }
+
+    generateDynamicGrid() {
+      if (!this.recommendations || this.recommendations.length === 0) {
+        return '';
+      }
+
+      // Check if mobile
+      const isMobile = window.innerWidth <= 768;
+      
+      // Determine grid mode: mobile gets more items in scrollable row
+      const maxRecommendations = this.settings.maxRecommendations || 12;
+      const availableProducts = Math.min(this.recommendations.length, maxRecommendations);
+      
+      let visibleCount, isCollapsed;
+      
+      if (isMobile) {
+        // Mobile: Show up to 8 items in scrollable row (2.3 visible at once)
+        visibleCount = Math.min(8, availableProducts);
+        isCollapsed = false; // Mobile always uses single row
+      } else {
+        // Desktop: collapsed (≤3 items) or standard (6 items)
+        isCollapsed = availableProducts <= 3 || maxRecommendations <= 3;
+        visibleCount = isCollapsed ? Math.min(3, availableProducts) : Math.min(6, availableProducts);
+      }
+      const productsToShow = this.recommendations.slice(0, visibleCount);
+      
+      // Store the full recommendation pool for dynamic swapping
+      this._recommendationPool = this.recommendations.slice(0, maxRecommendations);
+      this._visibleRecommendations = [...productsToShow];
+      this._nextRecommendationIndex = visibleCount;
+      
+      const gridHtml = `
+        <div class="cartuplift-grid-container${isCollapsed ? ' collapsed' : ''}" 
+             data-original-title="${(this.settings.recommendationsTitle || 'You might also like').replace(/"/g,'&quot;')}"
+             data-mode="${isCollapsed ? 'collapsed' : 'standard'}"
+             data-mobile="${isMobile}"
+             data-cartuplift-title-caps="${this.settings.enableTitleCaps ? 'true' : 'false'}">
+          ${productsToShow.map((product, index) => `
+            <div class="cartuplift-grid-item" 
+                 data-product-id="${product.id}" 
+                 data-variant-id="${product.variant_id}" 
+                 data-title="${product.title.replace(/"/g,'&quot;')}" 
+                 data-price="${this.formatMoney(product.priceCents || 0)}"
+                 data-grid-index="${index}">
+              <div class="cartuplift-grid-image">
+                <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" 
+                     alt="${product.title}" 
+                     loading="lazy" 
+                     decoding="async" 
+                     onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
+              </div>
+              <div class="cartuplift-grid-hover">
+                <button class="cartuplift-grid-add-btn" 
+                        data-variant-id="${product.variant_id}" 
+                        data-grid-index="${index}"
+                        aria-label="Add ${product.title}">
+                  ${this.getCartIconSVG()}
+                </button>
+              </div>
+            </div>`).join('')}
+        </div>
+      `;
+      
+        // Schedule hover handlers and dynamic functionality
+        setTimeout(() => {
+          this.attachGridHoverHandlers();
+          this.setupDynamicGridHandlers();
+          
+          // Setup mobile scroll if needed
+          if (isMobile) {
+            this.setupMobileGridScroll();
+          }
+        }, 10);      return gridHtml;
+    }
+
+    setupDynamicGridHandlers() {
+      // This will be called when items are added/removed from cart
+      // to swap in new recommendations dynamically
+    }
+
+    swapInNextRecommendation(removedIndex) {
+      // Bring in the next available product when one is added to cart
+      if (this._nextRecommendationIndex < this._recommendationPool.length) {
+        const nextProduct = this._recommendationPool[this._nextRecommendationIndex];
+        this._visibleRecommendations[removedIndex] = nextProduct;
+        this._nextRecommendationIndex++;
+        
+        // Update the DOM
+        this.updateGridItem(removedIndex, nextProduct);
+      }
+    }
+
+    revertRecommendation(productToRevert, targetIndex) {
+      // When item is removed from cart, put it back in the grid
+      if (targetIndex < this._visibleRecommendations.length) {
+        this._visibleRecommendations[targetIndex] = productToRevert;
+        this.updateGridItem(targetIndex, productToRevert);
+      }
+    }
+
+    updateGridItem(index, product) {
+      const gridItem = document.querySelector(`.cartuplift-grid-item[data-grid-index="${index}"]`);
+      if (gridItem) {
+        gridItem.dataset.productId = product.id;
+        gridItem.dataset.variantId = product.variant_id;
+        gridItem.dataset.title = product.title.replace(/"/g,'&quot;');
+        gridItem.dataset.price = this.formatMoney(product.priceCents || 0);
+        
+        const img = gridItem.querySelector('img');
+        if (img) {
+          img.src = product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png';
+          img.alt = product.title;
+        }
+        
+        const button = gridItem.querySelector('.cartuplift-grid-add-btn');
+        if (button) {
+          button.dataset.variantId = product.variant_id;
+          button.setAttribute('aria-label', `Add ${product.title}`);
+        }
+      }
+    }
+
+    setupMobileGridScroll() {
+      const gridContainer = document.querySelector('.cartuplift-grid-container');
+      if (!gridContainer) return;
+      
+      // Enable smooth scrolling on mobile
+      gridContainer.style.scrollBehavior = 'smooth';
+      
+      // Optional: Add touch momentum scrolling for iOS
+      gridContainer.style.webkitOverflowScrolling = 'touch';
     }
 
   generateVariantSelector(product) {
@@ -1808,11 +1956,11 @@
       const icon = (this.settings.cartIcon || 'cart');
       switch(icon) {
         case 'bag':
-          return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V7a6 6 0 0 1 12 0v1"/><path d="M6 8h12l1 13H5L6 8Z"/></svg>`;
+          return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V7a6 6 0 0 1 12 0v1"/><path d="M6 8h12l1 13H5L6 8Z"/></svg>`;
         case 'basket':
-          return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14l-1.5 8h-11L5 11Z"/><path d="M9 11V7a3 3 0 0 1 6 0v4"/></svg>`;
+          return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14l-1.5 8h-11L5 11Z"/><path d="M9 11V7a3 3 0 0 1 6 0v4"/></svg>`;
         default:
-          return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6h15l-1.5 12.5a2 2 0 0 1-2 1.5H8a2 2 0 0 1-2-1.5L4.5 6H20"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>`;
+          return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6h15l-1.5 12.5a2 2 0 0 1-2 1.5H8a2 2 0 0 1-2-1.5L4.5 6H20"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>`;
       }
     }
 
@@ -2070,36 +2218,26 @@
       `;
     }
 
-    getDiscountHTML() {
-      // Build action text based on enabled features
-      const enabledFeatures = [];
-      if (this.settings.enableDiscountCode) enabledFeatures.push('discount codes');
-      if (this.settings.enableNotes) enabledFeatures.push('notes');
-      if (this.settings.enableGiftMessage) enabledFeatures.push('gift messages');
-      if (this.settings.enableSpecialRequests) enabledFeatures.push('special requests');
-      if (this.settings.enableDeliveryInstructions) enabledFeatures.push('delivery instructions');
-      if (this.settings.enableGiftWrapping) enabledFeatures.push('gift wrapping');
+    getInlineLinksHTML() {
+      const promoText = this.settings.discountLinkText || '+ Got a promotion code?';
+      const notesText = this.settings.notesLinkText || '+ Add order notes';
+      const links = [];
       
-      let actionText = this.settings.actionText;
-      if (!actionText && enabledFeatures.length > 0) {
-        if (enabledFeatures.length === 1) {
-          actionText = `Add ${enabledFeatures[0]}`;
-        } else if (enabledFeatures.length === 2) {
-          actionText = `Add ${enabledFeatures.join(' and ')}`;
-        } else {
-          actionText = `Add ${enabledFeatures.slice(0, -1).join(', ')} and ${enabledFeatures.slice(-1)}`;
-        }
-      } else if (!actionText) {
-        actionText = 'Add extras to your order';
+      if (this.settings.enableDiscountCode) {
+        // Remove + if present and add tag SVG icon
+        const cleanPromoText = promoText.replace(/^\+\s*/, '');
+        const promoIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6Z" />
+        </svg>`;
+        links.push(`<span class="cartuplift-inline-link" onclick="window.cartUpliftDrawer.openDiscountModal()">${promoIcon}${this.escapeHtml(cleanPromoText)}</span>`);
       }
       
-      return `
-        <div class="cartuplift-action-section">
-          <button class="cartuplift-action-button" onclick="window.cartUpliftDrawer.openCustomModal()">
-            ${actionText}
-          </button>
-        </div>
-      `;
+      if (this.settings.enableNotes) {
+        links.push(`<span class="cartuplift-inline-link" onclick="window.cartUpliftDrawer.openNotesModal()">${this.escapeHtml(notesText)}</span>`);
+      }
+      
+      return `<div class="cartuplift-inline-links">${links.join('<span class="cartuplift-inline-sep">•</span>')}</div>`;
     }
 
     getNotesHTML() {
@@ -2110,7 +2248,7 @@
       `;
     }
 
-    openCustomModal() {
+  openCustomModal() {
       // Always regenerate modal content to reflect current settings
       let modal = document.getElementById('cartuplift-custom-modal');
       if (modal) {
@@ -2133,8 +2271,8 @@
           <div class="cartuplift-modal-body">
       `;
       
-      // Discount/Voucher Code Section - with immediate verification
-      if (this.settings.enableDiscountCode) {
+  // Discount/Voucher Code Section - with immediate verification
+  if (this.settings.enableDiscountCode) {
         const currentCode = (this.cart && this.cart.attributes && this.cart.attributes['discount_code']) ? String(this.cart.attributes['discount_code']) : '';
         const currentSummary = (this.cart && this.cart.attributes && this.cart.attributes['discount_summary']) ? String(this.cart.attributes['discount_summary']) : '';
         const discountTitle = this.settings.discountSectionTitle || 'Discount Code';
@@ -2160,8 +2298,8 @@
         `;
       }
       
-      // Order Notes Section
-      if (this.settings.enableNotes) {
+  // Order Notes Section
+  if (this.settings.enableNotes) {
         const notesTitle = this.settings.notesSectionTitle || 'Order Notes';
         const notesPlaceholder = this.settings.notesPlaceholder || 'Add special instructions for your order...';
         modalContent += `
@@ -2220,6 +2358,20 @@
         enableNotes: this.settings.enableNotes,
         enableGiftMessage: this.settings.enableGiftMessage
       });
+    }
+
+    openDiscountModal() {
+      const prev = { enableDiscountCode: this.settings.enableDiscountCode, enableNotes: this.settings.enableNotes, enableGiftMessage: this.settings.enableGiftMessage };
+      this.settings.enableDiscountCode = true; this.settings.enableNotes = false; this.settings.enableGiftMessage = false;
+      this.openCustomModal();
+      this.settings.enableDiscountCode = prev.enableDiscountCode; this.settings.enableNotes = prev.enableNotes; this.settings.enableGiftMessage = prev.enableGiftMessage;
+    }
+
+    openNotesModal() {
+      const prev = { enableDiscountCode: this.settings.enableDiscountCode, enableNotes: this.settings.enableNotes, enableGiftMessage: this.settings.enableGiftMessage };
+      this.settings.enableDiscountCode = false; this.settings.enableNotes = true; this.settings.enableGiftMessage = false;
+      this.openCustomModal();
+      this.settings.enableDiscountCode = prev.enableDiscountCode; this.settings.enableNotes = prev.enableNotes; this.settings.enableGiftMessage = prev.enableGiftMessage;
     }
 
     closeCustomModal() {
@@ -2694,15 +2846,24 @@
           // Title is no longer needed for this inline add flow (hover reveals title visually)
           
           // Track product click
-        } else if (e.target.classList.contains('cartuplift-grid-add-btn')) {
+        } else if (e.target.classList.contains('cartuplift-grid-add-btn') || e.target.closest('.cartuplift-grid-add-btn')) {
           e.preventDefault();
           e.stopPropagation();
-          const variantId = e.target.dataset.variantId;
-          const productTitle = e.target.dataset.productTitle || `Product ${variantId}`;
+          const button = e.target.classList.contains('cartuplift-grid-add-btn') ? e.target : e.target.closest('.cartuplift-grid-add-btn');
+          const variantId = button.dataset.variantId;
+          const gridIndex = button.dataset.gridIndex;
+          const productTitle = button.dataset.productTitle || `Product ${variantId}`;
           
           // Track grid button click and add to cart
           if (variantId) {
             this.addToCart(variantId, 1, productTitle);
+            
+            // Dynamic grid: swap in next recommendation
+            if (gridIndex !== undefined) {
+              setTimeout(() => {
+                this.swapInNextRecommendation(parseInt(gridIndex));
+              }, 500); // Small delay to let add animation complete
+            }
           }
           if (this.settings.enableAnalytics) CartAnalytics.trackEvent('product_click', {
             productId: variantId,
@@ -4390,14 +4551,18 @@
         
         // Fallback if no recommendations found
         if (recommendations.length === 0) {
-          return await this.getPopularProducts();
+          recommendations = await this.getPopularProducts();
         }
-        
-        return this.deduplicateAndScore(recommendations);
+
+        // Dedupe and top-up to desired count if needed
+        const unique = this.deduplicateAndScore(recommendations);
+        return await this.ensureMinCount(unique);
         
       } catch (error) {
         console.error('🤖 Smart recommendations failed:', error);
-        return await this.getShopifyRecommendations();
+        const shopifyRecs = await this.getShopifyRecommendations();
+        const unique = this.deduplicateAndScore(shopifyRecs);
+        return await this.ensureMinCount(unique);
       }
     }
 
@@ -4624,30 +4789,98 @@
         // Get the user's desired recommendation count to use in searches
         const desired = Number(this.cartUplift.settings.maxRecommendations);
         const searchLimit = Math.max(isFinite(desired) && desired > 0 ? desired : 4, 3);
-        
-        // Try Shopify's search suggest API first
+        const results = [];
+
+        // Try Shopify's search suggest API first (fast), then enrich missing variant IDs
         const response = await fetch(`/search/suggest.json?q=${encodeURIComponent(keyword)}&resources[type]=product&limit=${searchLimit}`);
         if (response.ok) {
           const data = await response.json();
           const products = data.resources?.results?.products || [];
-          return products.map(p => this.formatProduct(p)).filter(Boolean);
+          try { console.debug('[CartUplift][Suggest]', keyword, { rawCount: products.length, sample: products.slice(0,2) }); } catch(_){ }
+          const enriched = await this.enrichProductsWithVariants(products, searchLimit);
+          try { console.debug('[CartUplift][Suggest Enriched]', keyword, { enrichedCount: enriched.length }); } catch(_){ }
+          results.push(...enriched);
         }
-        
-        // Fallback to general products with keyword filtering
-        const fallbackResponse = await fetch('/products.json?limit=50');
-        if (fallbackResponse.ok) {
-          const data = await fallbackResponse.json();
-          const filtered = (data.products || []).filter(p => 
-            p.title.toLowerCase().includes(keyword.toLowerCase()) ||
-            p.product_type?.toLowerCase().includes(keyword.toLowerCase()) ||
-            p.tags?.some(tag => tag.toLowerCase().includes(keyword.toLowerCase()))
-          );
-          return filtered.slice(0, searchLimit).map(p => this.formatProduct(p)).filter(Boolean);
+
+        // If still not enough, fallback to general products with keyword filtering (has variants)
+        if (results.length < searchLimit) {
+          const fallbackResponse = await fetch('/products.json?limit=250');
+          if (fallbackResponse.ok) {
+            const data = await fallbackResponse.json();
+            const filtered = (data.products || []).filter(p => 
+              p.title.toLowerCase().includes(keyword.toLowerCase()) ||
+              p.product_type?.toLowerCase().includes(keyword.toLowerCase()) ||
+              p.tags?.some(tag => tag.toLowerCase().includes(keyword.toLowerCase()))
+            );
+            const formatted = filtered.map(p => this.formatProduct(p)).filter(Boolean);
+            try { console.debug('[CartUplift][products.json]', keyword, { filteredCount: formatted.length }); } catch(_){ }
+            // Deduplicate by product id, preserving existing results order
+            const seen = new Set(results.map(r => r.id));
+            for (const f of formatted) {
+              if (!seen.has(f.id)) {
+                results.push(f);
+                seen.add(f.id);
+                if (results.length >= searchLimit) break;
+              }
+            }
+          }
         }
+
+        return results.slice(0, searchLimit);
       } catch (error) {
         console.error(`🤖 Search failed for ${keyword}:`, error);
       }
       return [];
+    }
+
+    // Enrich a list of lightweight products (e.g., from search suggest) with full variant info
+    async enrichProductsWithVariants(lightProducts, limit = 8) {
+      const out = [];
+      if (!Array.isArray(lightProducts) || lightProducts.length === 0) return out;
+      const wanted = Math.min(limit, lightProducts.length);
+      // Helper to extract handle from product object or URL
+      const getHandle = (p) => {
+        if (p.handle) return p.handle;
+        if (p.url) {
+          const m = p.url.match(/\/products\/([^/?#]+)/);
+          if (m) return m[1];
+        }
+        return null;
+      };
+      for (let i = 0; i < lightProducts.length && out.length < wanted; i++) {
+        const p = lightProducts[i];
+        // If it already has a variant id, format directly
+        if (p.variants && p.variants[0] && p.variants[0].id) {
+          const fp = this.formatProduct(p);
+          if (fp) out.push(fp);
+          continue;
+        }
+        const handle = getHandle(p);
+        if (!handle) continue;
+        try {
+          const res = await fetch(`/products/${handle}.js`);
+          if (res.ok) {
+            const full = await res.json();
+            const fp = this.formatProduct(full);
+            if (fp) out.push(fp);
+          }
+        } catch (_) {}
+      }
+      return out;
+    }
+
+    // Ensure we have at least the desired number of recommendations by topping up
+    async ensureMinCount(recommendations) {
+      try {
+        const desired = Number(this.cartUplift.settings.maxRecommendations);
+        const minCount = Math.max(isFinite(desired) && desired > 0 ? desired : 4, 4);
+        if (recommendations.length >= minCount) return recommendations;
+        const topUp = await this.getPopularProducts();
+        const deduped = this.deduplicateAndScore([...recommendations, ...topUp]);
+        return deduped.slice(0, Math.max(minCount, deduped.length));
+      } catch (_) {
+        return recommendations;
+      }
     }
 
     async getProductsInPriceRange(range) {
@@ -4742,33 +4975,53 @@
     }
 
     formatProduct(product) {
-      const basePrice = product.variants?.[0]?.price || product.price || 0;
-      
-      // Get the first valid variant ID - critical for preventing 422 errors
+      // Accept both product-shaped and variant-shaped objects
+      let basePrice = product?.variants?.[0]?.price || product?.price || 0;
       let variantId = null;
-      if (product.variants && product.variants.length > 0) {
+
+      // Case 1: Full product object with variants
+      if (product && Array.isArray(product.variants) && product.variants.length > 0) {
         const firstVariant = product.variants[0];
-        // Ensure we have a valid variant ID
         if (firstVariant && firstVariant.id) {
           variantId = firstVariant.id;
         }
       }
-      
-      // If no valid variant ID found, exclude this product to prevent errors
+
+      // Case 2: Variant-shaped object (no variants array), use its id or variant_id
       if (!variantId) {
-        console.warn('🚨 Product has no valid variant ID, excluding:', product.title, product.id);
+        if (product && (product.variant_id || (product.id && (product.product_id || product.product || product.product_title)))) {
+          variantId = product.variant_id || product.id;
+          // If price is on the variant, prefer it
+          if (!basePrice && (product.price || product.final_price)) {
+            basePrice = product.price || product.final_price;
+          }
+        }
+      }
+
+      // Still no variant? Log and skip to avoid 422
+      if (!variantId) {
+        try {
+          console.warn('🚨 Product has no valid variant ID, excluding:', {
+            id: product?.id,
+            title: product?.title || product?.product_title,
+            handle: product?.handle,
+            url: product?.url,
+            hasVariantsArray: Array.isArray(product?.variants),
+            variantsLen: Array.isArray(product?.variants) ? product.variants.length : 0
+          });
+        } catch (_) {}
         return null;
       }
-      
+
       return {
         id: product.id,
-        title: product.title,
+        title: product.title || product.product_title || 'Untitled',
         // Convert price to cents for consistent formatting
         priceCents: basePrice ? Math.round(parseFloat(basePrice) * 100) : 0,
-        image: product.featured_image || product.image || product.images?.[0]?.src || 
+        image: product.featured_image?.src || product.featured_image || product.image || product.images?.[0]?.src || 
                 product.media?.[0]?.preview_image?.src || 'https://via.placeholder.com/150',
         variant_id: variantId,
-        url: product.url || `/products/${product.handle}`,
+        url: product.url || (product.handle ? `/products/${product.handle}` : '#'),
         variants: (product.variants || []).map(v => ({
           ...v,
           price_cents: v.price ? Math.round(parseFloat(v.price) * 100) : 0
