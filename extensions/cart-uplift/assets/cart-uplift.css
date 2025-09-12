@@ -1025,6 +1025,10 @@ body.cartuplift-no-scroll {
 /* In carousel (row) align selectors to bottom to match Add button */
 .cartuplift-recommendations-row .cartuplift-product-variation {
   margin-top: auto;
+  /* Stack selects vertically in carousel for two options (Color + Size) */
+  flex-direction: column;
+  align-items: flex-start;
+  flex-wrap: nowrap;
 }
 
 /* Hide inline labels to save space and ensure color is visible */
@@ -1055,6 +1059,22 @@ body.cartuplift-no-scroll {
   background-repeat: no-repeat;
   background-position: right 8px center;
   background-size: 8px 5px;
+}
+
+/* Uniform control sizes on carousel (desktop) */
+@media (min-width: 769px) {
+  .cartuplift-recommendations-row .cartuplift-size-dropdown {
+    width: 140px;
+    max-width: 140px;
+  }
+}
+
+/* On mobile, take full width for better usability while still uniform */
+@media (max-width: 768px) {
+  .cartuplift-recommendations-row .cartuplift-size-dropdown {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 .cartuplift-size-dropdown:focus {
