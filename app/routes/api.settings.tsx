@@ -1,13 +1,12 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { getSettings, saveSettings, getDefaultSettings } from "../models/settings.server";
+import { authenticate } from "../shopify.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    console.log('🔧 API Settings called:', request.url);
-    
-    // Get shop from request (you might need to extract this from headers or params)
-    const url = new URL(request.url);
-    const shop = url.searchParams.get('shop') || 'test-lab-101.myshopify.com'; // Use default for testing
+  console.log('🔧 API Settings (admin) called:', request.url);
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
     
     console.log('🔧 Loading settings for shop:', shop);
     
@@ -57,8 +56,8 @@ export async function action({ request }: LoaderFunctionArgs) {
   }
 
   try {
-    const url = new URL(request.url);
-    const shop = url.searchParams.get('shop') || 'default';
+    const { session } = await authenticate.admin(request);
+    const shop = session.shop;
     
     const contentType = request.headers.get('content-type');
     let settings;
@@ -71,7 +70,7 @@ export async function action({ request }: LoaderFunctionArgs) {
       settings = Object.fromEntries(formData);
     }
     
-    const savedSettings = await saveSettings(shop, settings);
+  const savedSettings = await saveSettings(shop, settings as any);
     
     return json({ success: true, settings: savedSettings });
   } catch (error) {
