@@ -466,6 +466,17 @@
         await this.refreshSettingsFromAPI();
       };
       
+      // Add method to debug current settings
+      window.cartUpliftDebugSettings = () => {
+        console.log('🔧 CartUplift: Current settings:', this.settings);
+        console.log('🔧 CartUplift: Window CartUpliftSettings:', window.CartUpliftSettings);
+        console.log('🔧 CartUplift: Shop detection:', {
+          CartUpliftShop: window.CartUpliftShop,
+          ShopifyShop: window.Shopify?.shop,
+          hostname: window.location.hostname
+        });
+      };
+      
       // Add method to soft refresh recommendations (force cart re-sync)
       window.cartUpliftSoftRefresh = async () => {
         await this.fetchCart();
@@ -599,14 +610,32 @@
             
             this.updateDrawerContent();
             console.log('🔧 CartUplift: Settings applied successfully');
+            return true;
           } else {
             console.warn('🔧 CartUplift: Failed to load settings:', response.status, response.statusText);
+            
+            // Try alternative API endpoint
+            const altApiUrl = `https://cartuplift.vercel.app/apps/cart-uplift/api/settings?shop=${encodeURIComponent(shopDomain)}`;
+            console.log('🔧 CartUplift: Trying alternative API endpoint:', altApiUrl);
+            
+            const altResponse = await fetch(altApiUrl);
+            if (altResponse.ok) {
+              const newSettings = await altResponse.json();
+              console.log('🔧 CartUplift: Settings loaded from alternative endpoint:', newSettings);
+              
+              this.settings = Object.assign(this.settings, newSettings);
+              window.CartUpliftSettings = Object.assign(window.CartUpliftSettings || {}, newSettings);
+              this.updateDrawerContent();
+              return true;
+            }
           }
         } else {
           console.warn('🔧 CartUplift: No shop domain found for settings API');
         }
+        return false;
       } catch (error) {
         console.error('🔧 CartUplift: Error refreshing settings:', error);
+        return false;
       }
     }
 
