@@ -3,7 +3,7 @@
 
   // Version sentinel & live verification (cache-bust expectation)
   (function(){
-  const v = 'grid-2025-09-12-3';
+  const v = 'grid-2025-09-12-5-swatch-js';
     if (window.CART_UPLIFT_ASSET_VERSION !== v) {
       window.CART_UPLIFT_ASSET_VERSION = v;
       console.log('[CartUplift] Loaded asset version ' + v + ' – expecting NEW grid (no .cartuplift-grid-overlay elements).');
@@ -1764,7 +1764,7 @@
   const layoutRaw = this.settings.recommendationLayout || 'column';
       const layout = layoutMap[layoutRaw] || layoutRaw;
       
-      if (layout === 'row') {
+  if (layout === 'row') {
         // Only return the scroll track; controls are rendered outside the scroll container
         return `
           <div class="cartuplift-recommendations-track">
@@ -1774,7 +1774,7 @@
                   <div class="cartuplift-product-image">
                     <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
                   </div>
-                  <div class="cartuplift-product-info">${this.generateVariantSelector(product)}</div>
+      <div class="cartuplift-product-info">${this.generateVariantSelector(product)}${this.generateVariantSwatches(product, 'row')}</div>
                   <div class="cartuplift-product-actions">
                     <div class="cartuplift-recommendation-price">${this.formatMoney(product.priceCents || 0)}</div>
                     <button class="cartuplift-add-recommendation" data-product-id="${product.id}" data-variant-id="${product.variant_id}">
@@ -1835,7 +1835,7 @@
       this._visibleRecommendations = [...productsToShow];
       this._nextRecommendationIndex = visibleCount;
       
-      const gridHtml = `
+  const gridHtml = `
         <div class="cartuplift-grid-container${isCollapsed ? ' collapsed' : ''}" 
              data-original-title="${(this.settings.recommendationsTitle || 'You might also like').replace(/"/g,'&quot;')}"
              data-mode="${isCollapsed ? 'collapsed' : 'standard'}"
@@ -1855,11 +1855,13 @@
                      decoding="async" 
                      onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
               </div>
-              <div class="cartuplift-grid-hover">
-                <button class="cartuplift-grid-add-btn" 
-                        data-variant-id="${product.variant_id}" 
-                        data-grid-index="${index}"
-                        aria-label="Add ${product.title}">
+         <div class="cartuplift-grid-hover">
+    ${this.generateVariantSwatches(product, 'grid')}
+     <button class="cartuplift-grid-add-btn" 
+       data-variant-id="${product.variant_id}" 
+       data-grid-index="${index}"
+       data-product-title="${this.escapeHtml(product.title)}"
+       aria-label="Add ${this.escapeHtml(product.title)}">
                   ${this.getCartIconSVG()}
                 </button>
               </div>
@@ -1921,11 +1923,15 @@
           img.alt = product.title;
         }
         
-        const button = gridItem.querySelector('.cartuplift-grid-add-btn');
-        if (button) {
-          button.dataset.variantId = product.variant_id;
-          button.setAttribute('aria-label', `Add ${product.title}`);
+        const hover = gridItem.querySelector('.cartuplift-grid-hover');
+        if (hover) {
+          hover.innerHTML = `
+            ${this.generateVariantSwatches(product, 'grid')}
+            <button class="cartuplift-grid-add-btn" data-variant-id="${product.variant_id}" data-grid-index="${index}" data-product-title="${this.escapeHtml(product.title)}" aria-label="Add ${this.escapeHtml(product.title)}">${this.getCartIconSVG()}</button>
+          `;
         }
+        const titleEl = gridItem.querySelector('.cartuplift-grid-title');
+        if (titleEl) titleEl.textContent = this.escapeHtml(product.title);
       }
     }
 
@@ -1951,12 +1957,13 @@
           }
           return variant.available;
         });
+        const selectedId = product.variant_id;
         
         return `
           <div class="cartuplift-product-variation">
             <select class="cartuplift-size-dropdown" data-product-id="${product.id}">
               ${availableVariants.map((variant, index) => `
-                <option value="${variant.id}" data-price-cents="${variant.price_cents}" ${index === 0 ? 'selected' : ''}>
+                <option value="${variant.id}" data-price-cents="${variant.price_cents}" ${(String(selectedId) === String(variant.id) || (!selectedId && index === 0)) ? 'selected' : ''}>
                   ${variant.title}
                 </option>
               `).join('')}
@@ -1967,6 +1974,92 @@
         // Simple product or single variant - hide selector completely
         return `<div class="cartuplift-product-variation hidden"></div>`;
       }
+    }
+
+    // Build circular swatch UI for color-like options. Non-blocking; falls back to nothing if no color options.
+    generateVariantSwatches(product, context = 'row') {
+      try {
+        const options = product?.options || [];
+        // Find the first color-like option index/name
+        let colorIndex = -1;
+        let colorName = '';
+        options.forEach((opt, idx) => {
+          const n = String(opt?.name || '').toLowerCase();
+          if (colorIndex === -1 && (n.includes('color') || n.includes('colour'))) {
+            colorIndex = idx;
+            colorName = opt.name || 'Color';
+          }
+        });
+        if (colorIndex === -1) return '';
+
+        // Build value -> variant map for quick lookup of available variants of that color
+        const values = new Map();
+        (product.variants || []).forEach(v => {
+          if (!v || v.available === false) return;
+          const opts = v.options || v.option_values || [];
+          const val = Array.isArray(opts) ? opts[colorIndex] : (v[`option${colorIndex+1}`] || '');
+          const value = String(val || '').trim();
+          if (!value) return;
+          if (!values.has(value)) values.set(value, []);
+          values.get(value).push(v);
+        });
+        if (values.size === 0) return '';
+
+        // Pick initial selected color based on current selected variant id
+        const selectedVariantId = product.variant_id;
+        let selectedColor = '';
+        if (selectedVariantId) {
+          const sv = (product.variants || []).find(v => String(v.id) === String(selectedVariantId));
+          if (sv) {
+            const opts = sv.options || sv.option_values || [];
+            selectedColor = Array.isArray(opts) ? String(opts[colorIndex] || '') : String(sv[`option${colorIndex+1}`] || '');
+          }
+        }
+
+        const swatches = Array.from(values.keys()).slice(0, 8).map(val => {
+          const color = this.computeSwatchColor(val);
+          const isWhite = /^(white|off\s*white|ivory)$/i.test(val);
+          const isSelected = selectedColor && String(selectedColor).toLowerCase() === String(val).toLowerCase();
+          const initial = (String(val).trim()[0] || '').toUpperCase();
+          return `
+            <button type="button" class="cartuplift-variant-swatch${isWhite ? ' is-white' : ''}" 
+                    data-role="swatch" data-product-id="${product.id}" data-option-index="${colorIndex}"
+                    data-option-name="${this.escapeHtml(colorName)}" data-option-value="${this.escapeHtml(val)}"
+                    aria-label="${this.escapeHtml(colorName)}: ${this.escapeHtml(val)}"
+                    aria-selected="${isSelected ? 'true' : 'false'}"
+                    style="${color ? `background:${color};` : ''}">
+              ${color ? '' : `<span class="cartuplift-swatch-initial">${initial}</span>`}
+            </button>`;
+        }).join('');
+
+        return `<div class="cartuplift-variant-swatch-group" data-product-id="${product.id}" data-context="${context}">${swatches}</div>`;
+      } catch (_) {
+        return '';
+      }
+    }
+
+    // Heuristic mapping from color string to CSS color
+    computeSwatchColor(value) {
+      const v = String(value || '').trim().toLowerCase();
+      if (!v) return '';
+      const named = {
+        black: '#000', white: '#fff', ivory: '#fffff0', beige: '#f5f5dc', cream: '#fffdd0', offwhite: '#f8f8f8',
+        grey: '#808080', gray: '#808080', charcoal: '#36454f', silver: '#c0c0c0',
+        red: '#ef4444', maroon: '#800000', burgundy: '#800020',
+        pink: '#f472b6', blush: '#f4c2c2', rose: '#e11d48',
+        orange: '#fb923c', coral: '#ff7f50', peach: '#ffdab9',
+        yellow: '#facc15', gold: '#d4af37', mustard: '#e1ad01',
+        green: '#22c55e', olive: '#556b2f', mint: '#98ff98', teal: '#14b8a6',
+        blue: '#3b82f6', navy: '#001f3f', sky: '#38bdf8', cobalt: '#0047ab',
+        purple: '#a855f7', violet: '#8b5cf6', lavender: '#e6e6fa', lilac: '#c8a2c8',
+        brown: '#8b4513', tan: '#d2b48c', chocolate: '#7b3f00'
+      };
+      if (named[v]) return named[v];
+      // Try to parse hex codes (#fff or #ffffff or with alpha)
+      if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v)) return v;
+      // Try rgb/rgba/hsl/hsla
+      if (/^(rgb|rgba|hsl|hsla)\(/.test(v)) return v;
+      return '';
     }
 
   refreshRecommendationLayout() {
@@ -2968,7 +3061,7 @@
           });
           
           this.addToCart(variantId, 1);
-        } else if (
+  } else if (
           e.target.classList.contains('cartuplift-recommendations-toggle') ||
           e.target.closest('.cartuplift-recommendations-toggle')
         ) {
@@ -3036,7 +3129,7 @@
               this.updateDots(scrollContainer);
             }, 100);
           }
-        } else if (e.target.classList.contains('cartuplift-carousel-dot')) {
+  } else if (e.target.classList.contains('cartuplift-carousel-dot')) {
           // Handle dot navigation
           const dot = e.target;
           const index = parseInt(dot.dataset.index);
@@ -3051,6 +3144,58 @@
             dots.forEach((d, i) => {
               d.classList.toggle('active', i === index);
             });
+          }
+        } else if (e.target.matches && (e.target.matches('.cartuplift-variant-swatch') || e.target.closest('.cartuplift-variant-swatch'))) {
+          // Handle swatch selection
+          const swatch = e.target.closest('.cartuplift-variant-swatch');
+          if (!swatch) return;
+          const productId = swatch.dataset.productId;
+          const optionIndex = parseInt(swatch.dataset.optionIndex);
+          const optionValue = swatch.dataset.optionValue;
+          if (!productId || isNaN(optionIndex)) return;
+
+          // Find the relevant product in current recommendations
+          const product = (this.recommendations || []).find(p => String(p.id) === String(productId));
+          if (!product || !Array.isArray(product.variants)) return;
+
+          // Choose a variant matching the swatch's value at optionIndex
+          const match = product.variants.find(v => {
+            const opts = v.options || v.option_values || [];
+            const val = Array.isArray(opts) ? opts[optionIndex] : (v[`option${optionIndex+1}`] || '');
+            return String(val).toLowerCase() === String(optionValue).toLowerCase();
+          });
+          if (!match) return;
+          product.variant_id = match.id; // update selected variant on the product object
+          product.priceCents = match.price_cents || product.priceCents;
+
+          // Update UI depending on context
+          const group = swatch.closest('.cartuplift-variant-swatch-group');
+          const context = group?.dataset?.context || 'row';
+          // Update selected state within the group
+          if (group) {
+            group.querySelectorAll('.cartuplift-variant-swatch').forEach(btn => {
+              const selected = String(btn.dataset.optionValue).toLowerCase() === String(optionValue).toLowerCase();
+              btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+            });
+          }
+
+          if (context === 'row') {
+            const card = swatch.closest('.cartuplift-recommendation-card');
+            if (card) {
+              const addBtn = card.querySelector('.cartuplift-add-recommendation');
+              if (addBtn) addBtn.dataset.variantId = match.id;
+              const priceEl = card.querySelector('.cartuplift-recommendation-price');
+              if (priceEl && match.price_cents) priceEl.textContent = this.formatMoney(parseInt(match.price_cents));
+              // If a dropdown exists, sync it
+              const select = card.querySelector('.cartuplift-size-dropdown');
+              if (select) select.value = match.id;
+            }
+          } else if (context === 'grid') {
+            const gridItem = swatch.closest('.cartuplift-grid-item');
+            if (gridItem) {
+              const addBtn = gridItem.querySelector('.cartuplift-grid-add-btn');
+              if (addBtn) addBtn.dataset.variantId = match.id;
+            }
           }
         }
       });
@@ -4574,13 +4719,28 @@
 
     // Helper: build clean variant/options markup skipping default noise
     getVariantOptionsHTML(item) {
+      const renderPart = (name, value) => {
+        const nameLower = String(name || '').trim().toLowerCase();
+        const valueStr = String(value || '').trim();
+        if (!valueStr) return '';
+        const isColor = nameLower.includes('color') || nameLower.includes('colour');
+        let swatch = '';
+        if (isColor) {
+          const color = this.computeSwatchColor(valueStr);
+          const isWhite = /^(white|off\s*white|ivory)$/i.test(valueStr);
+          if (color) {
+            swatch = `<span class="cartuplift-item-swatch-dot${isWhite ? ' is-white' : ''}" style="background:${color}"></span>`;
+          }
+        }
+        return `<div class="cartuplift-item-variant">${swatch}${name}: ${this.escapeHtml(valueStr)}</div>`;
+      };
       // Prefer structured options_with_values when available
       if (item.variant_title && item.options_with_values && Array.isArray(item.options_with_values)) {
         const parts = item.options_with_values
           .filter(opt => opt && typeof opt.name === 'string' && typeof opt.value === 'string')
           .filter(opt => opt.name.trim().toLowerCase() !== 'title')
           .filter(opt => opt.value.trim().toLowerCase() !== 'default title')
-          .map(opt => `<div class="cartuplift-item-variant">${opt.name}: ${opt.value}</div>`);
+          .map(opt => renderPart(opt.name, opt.value));
         return parts.join('');
       }
 
@@ -4593,7 +4753,7 @@
           const nameLower = String(optName).trim().toLowerCase();
           const valueLower = String(optValue).trim().toLowerCase();
           if (nameLower === 'title' || valueLower === 'default title') return; // skip noise
-          variants.push(`<div class="cartuplift-item-variant">${optName}: ${optValue}</div>`);
+          variants.push(renderPart(optName, optValue));
         });
       }
 

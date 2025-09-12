@@ -900,6 +900,18 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-carousel-dot {
+.cartuplift-item-variant .cartuplift-item-swatch-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: -1px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+}
+.cartuplift-item-variant .cartuplift-item-swatch-dot.is-white {
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
+}
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -2630,4 +2642,85 @@ body.cartuplift-no-scroll {
 [data-cartuplift-title-caps="true"] .cartuplift-recommendation-info h4,
 [data-cartuplift-title-caps="true"] .cartuplift-grid-item h4 {
   text-transform: uppercase !important;
+}
+
+/* ========================================
+   Variant Swatches (Cart + Recommendations)
+   ======================================== */
+.cartuplift-variant-swatch-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  margin-bottom: 6px;
+}
+
+.cartuplift-variant-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid #d1d5db; /* light gray */
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.02) inset;
+  cursor: pointer;
+  background: #f9fafb;
+  position: relative;
+}
+
+.cartuplift-variant-swatch[aria-selected="true"],
+.cartuplift-variant-swatch.selected {
+  outline: 2px solid #000;
+  outline-offset: 1px;
+  border-color: #000;
+}
+
+/* Ensure white swatches are visible */
+.cartuplift-variant-swatch.is-white {
+  border-color: #c7c7c7;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.05) inset;
+  background: #fff;
+}
+
+/* Tiny initial when color unknown */
+.cartuplift-variant-swatch .cartuplift-swatch-initial {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  line-height: 1;
+  color: #111;
+}
+
+/* Cart line item variant display with swatch */
+.cartuplift-item-variant {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cartuplift-item-variant .cartuplift-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid #d1d5db;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.cartuplift-item-variant .cartuplift-swatch.is-white {
+  border-color: #c7c7c7;
+  background: #fff;
+}
+
+/* Compact spacing for recommendation cards */
+.cartuplift-recommendation-card .cartuplift-variant-swatch-group {
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+/* Grid hover: place swatches above add button */
+.cartuplift-grid-hover .cartuplift-variant-swatch-group {
+  margin-bottom: 10px;
 }
