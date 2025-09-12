@@ -13,5 +13,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     await db.session.deleteMany({ where: { shop } });
   }
 
+  // Remove stored shop data for hygiene (settings and optional analytics)
+  try {
+    await db.settings.deleteMany({ where: { shop } });
+    await (db as any).cartEvent?.deleteMany?.({ where: { shop } }).catch(() => {});
+  } catch (e) {
+    // ignore to ensure webhook 200s
+  }
+
   return new Response();
 };

@@ -1,5 +1,5 @@
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
-import { getSettings, saveSettings, getDefaultSettings } from "../models/settings.server";
+import { getSettings, saveSettings } from "../models/settings.server";
 import { authenticate, unauthenticated } from "../shopify.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -9,10 +9,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Handle /apps/proxy/api/settings
   if (path.includes('/api/settings')) {
     try {
-      const shop = url.searchParams.get('shop')
-        || request.headers.get('X-Shopify-Shop-Domain')
-        || request.headers.get('x-shopify-shop-domain')
-        || 'unknown-shop.myshopify.com';
+      // Require a valid App Proxy signature and derive the shop from the verified session
+      const { session } = await authenticate.public.appProxy(request);
+      const shop = session?.shop;
+      if (!shop) {
+        return json({ error: 'Unauthorized' }, { status: 401 });
+      }
 
       const settings = await getSettings(shop);
       // Normalize layout to theme values
@@ -30,7 +32,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const normalized = {
         source: 'db',
         ...settings,
-  enableRecommendationTitleCaps: (settings as any).enableRecommendationTitleCaps ?? (settings as any).enableTitleCaps ?? false,
+        enableRecommendationTitleCaps: (settings as any).enableRecommendationTitleCaps ?? (settings as any).enableTitleCaps ?? false,
         recommendationLayout: layoutMap[settings.recommendationLayout] || settings.recommendationLayout,
       };
 
@@ -43,29 +45,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       });
     } catch (error) {
       console.error("Settings API error:", error);
-      // Fail open: return default settings so storefront keeps working
-      const defaults = getDefaultSettings();
-      const layoutMap: Record<string, string> = {
-        horizontal: 'row',
-        row: 'row',
-        carousel: 'row',
-        vertical: 'column',
-        column: 'column',
-        list: 'column',
-        grid: 'grid'
-      };
-      const normalized = {
-        source: 'defaults',
-        ...defaults,
-        recommendationLayout: layoutMap[defaults.recommendationLayout] || defaults.recommendationLayout,
-      };
-      return json(normalized, {
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        },
-      });
+      // Unauthorized or invalid signature
+      return json({ error: 'Unauthorized' }, { status: 401 });
     }
   }
 
@@ -96,20 +77,18 @@ export async function action({ request }: ActionFunctionArgs) {
   try {
     // Heartbeat from theme embed to mark installed/enabled
     if (path.includes('/api/embed-heartbeat')) {
-      const contentType = request.headers.get('content-type') || '';
-      const payload = contentType.includes('application/json') ? await request.json() : Object.fromEntries(await request.formData());
-      const shop = String((payload as any).shop || '')
-        || request.headers.get('X-Shopify-Shop-Domain')
-        || request.headers.get('x-shopify-shop-domain')
-        || new URL(request.url).searchParams.get('shop')
-        || '';
-
-      if (!shop) {
-        return json({ success: false, error: 'Missing shop' }, { status: 400, headers: { "Access-Control-Allow-Origin": "*" } });
+      // Verify App Proxy signature and derive shop
+      let shop: string | undefined;
+      try {
+        const { session } = await authenticate.public.appProxy(request);
+        shop = session?.shop;
+      } catch (e) {
+        console.warn('App proxy heartbeat auth failed:', e);
+        return json({ success: false, error: 'Unauthorized' }, { status: 401 });
       }
 
       const now = new Date().toISOString();
-      await saveSettings(shop, { themeEmbedEnabled: true, themeEmbedLastSeen: now });
+      await saveSettings(shop!, { themeEmbedEnabled: true, themeEmbedLastSeen: now });
       return json({ success: true }, {
         headers: {
           "Access-Control-Allow-Origin": "*",
@@ -256,7 +235,13 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     if (path.includes('/api/cart-tracking')) {
-      // Accept storefront tracking posts (form-urlencoded) - tracking disabled in production
+      // Require valid app proxy signature, but treat as best-effort
+      try {
+        await authenticate.public.appProxy(request);
+      } catch (e) {
+        return json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      }
+      // Accept storefront tracking posts (form-urlencoded) - best-effort
       return json({ success: true }, {
         headers: {
           "Access-Control-Allow-Origin": "*",
@@ -267,15 +252,8 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     if (path.includes('/api/settings')) {
-      // Optional: allow saving via proxy (not used by storefront)
-      const contentType = request.headers.get('content-type') || '';
-      const url = new URL(request.url);
-      const shop = url.searchParams.get('shop') || '';
-      const payload = contentType.includes('application/json')
-        ? await request.json()
-        : Object.fromEntries(await request.formData());
-      const saved = await saveSettings(shop, payload as any);
-      return json({ success: true, settings: saved });
+      // Do not allow saving settings via public proxy
+      return json({ error: 'Method not allowed' }, { status: 405 });
     }
 
     return json({ ok: true });
