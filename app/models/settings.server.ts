@@ -153,9 +153,9 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
     const validFields: (keyof SettingsData)[] = [
       'enableApp', 'enableStickyCart', 'showOnlyOnCartPage', 'autoOpenCart', 'enableFreeShipping', 'freeShippingThreshold',
       'enableRecommendations', 'enableAddons', 'enableDiscountCode', 'enableNotes', 'enableExpressCheckout', 'enableAnalytics', 'enableGiftGating',
+      'enableTitleCaps', 'enableRecommendationTitleCaps',
       'cartPosition', 'cartIcon', 'freeShippingText', 'freeShippingAchievedText', 'recommendationsTitle', 'actionText',
-      'addButtonText', 'checkoutButtonText', 'applyButtonText',
-      // Note: discountLinkText and notesLinkText are not in production schema; do not persist them to avoid 500s
+      'addButtonText', 'checkoutButtonText', 'applyButtonText', 'discountLinkText', 'notesLinkText',
       'backgroundColor', 'textColor', 'buttonColor', 'buttonTextColor', 'recommendationsBackgroundColor', 'shippingBarBackgroundColor', 'shippingBarColor', 'recommendationLayout', 'maxRecommendations',
       'complementDetectionMode', 'manualRecommendationProducts', 'progressBarMode', 'giftProgressStyle', 'giftThresholds',
       'themeEmbedEnabled', 'themeEmbedLastSeen'
