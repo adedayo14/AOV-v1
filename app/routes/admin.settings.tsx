@@ -92,7 +92,6 @@ export const action = withAuthAction(async ({ request, auth }) => {
     actionText: String(settings.actionText) || "Add discount code",
     addButtonText: String(settings.addButtonText) || "Add",
     checkoutButtonText: String(settings.checkoutButtonText) || "CHECKOUT",
-    applyButtonText: String(settings.applyButtonText) || "Apply",
     discountLinkText: String(settings.discountLinkText) || "+ Got a promotion code?",
     notesLinkText: String(settings.notesLinkText) || "+ Add order notes",
     backgroundColor: String(settings.backgroundColor) || "#ffffff",
@@ -3663,17 +3662,6 @@ export default function SettingsPage() {
                     onChange={(value) => updateSetting("enableDiscountCode", value)}
                     helpText="Allow customers to apply discount codes in cart"
                   />
-                  
-                  {formSettings.enableDiscountCode && (
-                    <TextField
-                      label="Apply Button Text"
-                      value={formSettings.applyButtonText || 'Apply'}
-                      onChange={(value) => updateSetting("applyButtonText", value)}
-                      helpText="Text for discount code apply button"
-                      placeholder="Apply"
-                      autoComplete="off"
-                    />
-                  )}
                   
                   <Checkbox
                     label="Enable Order Notes"
