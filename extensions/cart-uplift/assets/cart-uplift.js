@@ -3,7 +3,7 @@
 
   // Version sentinel & live verification (cache-bust expectation)
   (function(){
-  const v = 'grid-2025-09-12-1';
+  const v = 'grid-2025-09-12-2';
     if (window.CART_UPLIFT_ASSET_VERSION !== v) {
       window.CART_UPLIFT_ASSET_VERSION = v;
       console.log('[CartUplift] Loaded asset version ' + v + ' – expecting NEW grid (no .cartuplift-grid-overlay elements).');
@@ -1598,7 +1598,8 @@
         </div>`;
 
       const html = `
-        <div class="cartuplift-recommendations cartuplift-recommendations-${layout}${layout === 'row' ? ' cartuplift-recommendations-row' : ''}${layout === 'grid' ? ' cartuplift-recommendations-grid' : ''}">
+        <div class="cartuplift-recommendations cartuplift-recommendations-${layout}${layout === 'row' ? ' cartuplift-recommendations-row' : ''}${layout === 'grid' ? ' cartuplift-recommendations-grid' : ''}"
+             data-cartuplift-title-caps="${this.settings.enableTitleCaps ? 'true' : 'false'}">
           <div class="cartuplift-recommendations-header">
             <h3 class="cartuplift-recommendations-title">${title}</h3>
             <button class="cartuplift-recommendations-toggle" data-toggle="recommendations" aria-expanded="true" aria-controls="cartuplift-recommendations-content" aria-label="Toggle recommendations">
@@ -1618,7 +1619,7 @@
 
     /** Update recommendations title & layout after settings injected later (e.g. upsell embed loads after main) */
     updateRecommendationsSection() {
-      const section = document.querySelector('.cartuplift-recommendations');
+  const section = document.querySelector('.cartuplift-recommendations');
       if (!section) {
         // If section doesn't exist but should, recreate the entire drawer
         if (this.settings.enableRecommendations && this._recommendationsLoaded && this.recommendations.length > 0) {
@@ -1633,6 +1634,8 @@
       const layoutRaw = this.settings.recommendationLayout || 'column';
       const layout = layoutMap[layoutRaw] || layoutRaw;
   section.className = `cartuplift-recommendations cartuplift-recommendations-${layout}${layout === 'row' ? ' cartuplift-recommendations-row' : ''}${layout === 'grid' ? ' cartuplift-recommendations-grid' : ''}`;
+      // Ensure title caps data attribute stays in sync
+      section.setAttribute('data-cartuplift-title-caps', this.settings.enableTitleCaps ? 'true' : 'false');
       
       // Update title
       const titleEl = section.querySelector('.cartuplift-recommendations-title');

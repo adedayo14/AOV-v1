@@ -2633,6 +2633,7 @@ body.cartuplift-no-scroll {
 /* Title Caps Setting - Apply when enabled */
 [data-cartuplift-title-caps="true"] .cartuplift-item-title,
 [data-cartuplift-title-caps="true"] .cartuplift-item-title a,
+[data-cartuplift-title-caps="true"] .cartuplift-recommendations-title,
 [data-cartuplift-title-caps="true"] .cartuplift-recommendation-card h4,
 [data-cartuplift-title-caps="true"] .cartuplift-recommendation-item h4,
 [data-cartuplift-title-caps="true"] .cartuplift-recommendation-info h4,
