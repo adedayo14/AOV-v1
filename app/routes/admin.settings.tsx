@@ -2468,6 +2468,44 @@ export default function SettingsPage() {
             padding-right: 16px !important;
           }
 
+          /* Inline Links Styles */
+          .cartuplift-inline-links {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: #666;
+          }
+
+          .cartuplift-inline-link {
+            display: flex;
+            align-items: center;
+            color: #007bff;
+            cursor: pointer;
+            text-decoration: none;
+            transition: color 0.2s ease;
+          }
+
+          .cartuplift-inline-link:hover {
+            color: #0056b3;
+            text-decoration: underline;
+          }
+
+          .cartuplift-inline-link svg {
+            width: 14px;
+            height: 14px;
+            margin-right: 4px;
+            flex-shrink: 0;
+          }
+
+          .cartuplift-inline-sep {
+            color: #ccc;
+            font-weight: bold;
+            margin: 0 4px;
+          }
+
           /* Gift Progress Bars Styles */
           .cartuplift-gift-progress-container {
             padding: 0 16px 8px;
@@ -4355,12 +4393,28 @@ export default function SettingsPage() {
                     </Modal>
                   )}
 
-                  {/* Discount & Notes Section - Collapsed Button Like Real Cart */}
+                  {/* Discount & Notes Section - Inline Links Style Like Real Cart */}
                   {(formSettings.enableDiscountCode || formSettings.enableNotes) && (
                     <div className="cartuplift-discount-section">
-                      <button className="cartuplift-rainbow-card-button" type="button">
-                        {formSettings.actionText || 'Add discount codes and notes'}
-                      </button>
+                      <div className="cartuplift-inline-links">
+                        {formSettings.enableDiscountCode && (
+                          <span className="cartuplift-inline-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6Z" />
+                            </svg>
+                            {(formSettings.discountLinkText || '+ Got a promotion code?').replace(/^\+\s*/, '')}
+                          </span>
+                        )}
+                        {formSettings.enableDiscountCode && formSettings.enableNotes && (
+                          <span className="cartuplift-inline-sep">•</span>
+                        )}
+                        {formSettings.enableNotes && (
+                          <span className="cartuplift-inline-link">
+                            {formSettings.notesLinkText || '+ Add order notes'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
