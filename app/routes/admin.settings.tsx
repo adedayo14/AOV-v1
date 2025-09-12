@@ -3687,6 +3687,13 @@ export default function SettingsPage() {
                     onChange={(value) => updateSetting("enableNotes", value)}
                     helpText="Let customers add special instructions"
                   />
+                  
+                  <Checkbox
+                    label="Enable Express Checkout"
+                    checked={formSettings.enableExpressCheckout}
+                    onChange={(value) => updateSetting("enableExpressCheckout", value)}
+                    helpText="Show PayPal and Shop Pay buttons for faster checkout"
+                  />
 
                   {formSettings.enableDiscountCode && (
                     <TextField
