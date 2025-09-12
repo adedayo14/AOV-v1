@@ -9,7 +9,22 @@ function migrateRecommendationLayout(oldLayout: string): string {
     'column': 'list',
   };
   
-  return migrationMap[oldLayout] || oldLayout;
+  const newLayout = migrationMap[oldLayout] || oldLayout;
+  
+  // For production compatibility: if the target layout doesn't exist in production schema, 
+  // map back to production-safe values
+  const isDevelopment = process.env.DATABASE_URL?.includes('sqlite') || !process.env.DATABASE_DATABASE_URL;
+  if (!isDevelopment) {
+    // Production schema only supports: horizontal, vertical
+    const productionMap: { [key: string]: string } = {
+      'carousel': 'horizontal',
+      'list': 'vertical',
+      'grid': 'horizontal'
+    };
+    return productionMap[newLayout] || newLayout;
+  }
+  
+  return newLayout;
 }
 
 export interface SettingsData {
@@ -149,17 +164,19 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       throw new Error('Database connection failed: ' + connectError.message);
     }
     
-    // Filter to only include valid SettingsData fields
+    // Filter to only include valid SettingsData fields that exist in BOTH dev and production schemas
     const validFields: (keyof SettingsData)[] = [
       'enableApp', 'enableStickyCart', 'showOnlyOnCartPage', 'autoOpenCart', 'enableFreeShipping', 'freeShippingThreshold',
       'enableRecommendations', 'enableAddons', 'enableDiscountCode', 'enableNotes', 'enableExpressCheckout', 'enableAnalytics', 'enableGiftGating',
-      'enableTitleCaps', 'enableRecommendationTitleCaps',
       'cartPosition', 'cartIcon', 'freeShippingText', 'freeShippingAchievedText', 'recommendationsTitle', 'actionText',
-      'addButtonText', 'checkoutButtonText', 'applyButtonText', 'discountLinkText', 'notesLinkText',
+      'addButtonText', 'checkoutButtonText', 'applyButtonText',
       'backgroundColor', 'textColor', 'buttonColor', 'buttonTextColor', 'recommendationsBackgroundColor', 'shippingBarBackgroundColor', 'shippingBarColor', 'recommendationLayout', 'maxRecommendations',
       'complementDetectionMode', 'manualRecommendationProducts', 'progressBarMode', 'giftProgressStyle', 'giftThresholds',
       'themeEmbedEnabled', 'themeEmbedLastSeen'
     ];
+    
+    // Production-only fields (exclude in production environment)
+    const devOnlyFields = ['enableTitleCaps', 'enableRecommendationTitleCaps', 'discountLinkText', 'notesLinkText'];
     
     const filteredData: Partial<SettingsData> = {};
     for (const field of validFields) {
@@ -168,16 +185,18 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       }
     }
     
-    // Only include enableTitleCaps if it exists in the request and we can handle it
-    if ('enableTitleCaps' in settingsData && settingsData.enableTitleCaps !== undefined) {
-      console.log('🔧 Including enableTitleCaps in save operation');
-      (filteredData as any).enableTitleCaps = settingsData.enableTitleCaps;
-    }
+    // Only include dev-only fields if we're in development (detect by database URL)
+    const isDevelopment = process.env.DATABASE_URL?.includes('sqlite') || !process.env.DATABASE_DATABASE_URL;
     
-    // Only include enableRecommendationTitleCaps if it exists in the request and we can handle it
-    if ('enableRecommendationTitleCaps' in settingsData && settingsData.enableRecommendationTitleCaps !== undefined) {
-      console.log('🔧 Including enableRecommendationTitleCaps in save operation');
-      (filteredData as any).enableRecommendationTitleCaps = settingsData.enableRecommendationTitleCaps;
+    if (isDevelopment) {
+      for (const field of devOnlyFields) {
+        if (field in settingsData && settingsData[field] !== undefined) {
+          console.log(`🔧 Including dev-only field ${field} in save operation`);
+          (filteredData as any)[field] = settingsData[field];
+        }
+      }
+    } else {
+      console.log('🔧 Production mode: excluding dev-only fields:', devOnlyFields);
     }
     
     console.log('🔧 filteredData after processing:', filteredData);
