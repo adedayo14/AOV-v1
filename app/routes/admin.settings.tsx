@@ -1130,36 +1130,36 @@ export default function SettingsPage() {
           }
 
           .cartuplift-footer {
-            padding: 12px 16px;
+            border-top: 1px solid #eee;
+            padding: 14px 16px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
             background: ${formSettings.backgroundColor || '#ffffff'};
-            border-top: 1px solid #e1e3e5;
             flex-shrink: 0;
           }
 
           .cartuplift-subtotal {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            justify-content: space-between;
             font-size: 14px;
-            font-weight: 500;
+            font-weight: 600;
             color: ${formSettings.textColor || '#333'};
           }
 
           .cartuplift-checkout-btn {
             width: 100%;
-            padding: 14px 16px;
             background: ${resolveColor(formSettings.buttonColor, '#333')};
             color: ${resolveColor(formSettings.buttonTextColor, 'white')};
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 600;
+            border: 0;
+            border-radius: 8px;
+            font-weight: 700;
+            height: 44px;
             cursor: pointer;
-            text-transform: uppercase;
+            font-size: 14px;
             letter-spacing: 0.5px;
             transition: background 0.2s ease;
-            margin-bottom: 12px;
           }
 
           .cartuplift-checkout-btn:hover {
@@ -1170,19 +1170,21 @@ export default function SettingsPage() {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 8px;
-            margin-top: 12px;
           }
 
           .cartuplift-paypal-btn,
           .cartuplift-shoppay-btn {
             border: 0;
             border-radius: 8px;
-            height: 40px;
+            height: 44px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.2s ease;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 0 12px;
           }
 
           .cartuplift-paypal-btn {
@@ -1208,7 +1210,7 @@ export default function SettingsPage() {
           }
 
           .cartuplift-paypal-logo {
-            height: 18px;
+            height: 20px;
           }
             border: 1px solid #ddd;
             border-radius: 3px;
