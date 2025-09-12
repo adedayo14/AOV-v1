@@ -17,6 +17,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const normalized = {
       source: 'db',
       ...settings,
+    // Ensure storefront has a caps flag for grid/header even if prod mirrors the global toggle
+    enableRecommendationTitleCaps: (settings as any).enableRecommendationTitleCaps ?? (settings as any).enableTitleCaps ?? false,
       recommendationLayout: layoutMap[settings.recommendationLayout] || settings.recommendationLayout,
     };
     

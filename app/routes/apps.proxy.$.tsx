@@ -30,6 +30,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const normalized = {
         source: 'db',
         ...settings,
+  enableRecommendationTitleCaps: (settings as any).enableRecommendationTitleCaps ?? (settings as any).enableTitleCaps ?? false,
         recommendationLayout: layoutMap[settings.recommendationLayout] || settings.recommendationLayout,
       };
 

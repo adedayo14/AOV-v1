@@ -86,6 +86,15 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       return getDefaultSettings();
     }
 
+    // Determine environment (dev uses SQLite)
+    const isDevelopment = process.env.DATABASE_URL?.includes('sqlite') || !process.env.DATABASE_DATABASE_URL;
+
+    // In production, mirror grid-caps to global caps (DB lacks a separate column)
+    const enableTitleCapsVal = (settings as any).enableTitleCaps ?? false;
+    const enableRecommendationTitleCapsVal = isDevelopment
+      ? (settings as any).enableRecommendationTitleCaps ?? false
+      : enableTitleCapsVal;
+
     return {
       enableApp: settings.enableApp,
       enableStickyCart: settings.enableStickyCart,
@@ -99,8 +108,8 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       enableNotes: settings.enableNotes,
       enableExpressCheckout: settings.enableExpressCheckout,
       enableAnalytics: settings.enableAnalytics,
-      enableTitleCaps: (settings as any).enableTitleCaps ?? false,
-      enableRecommendationTitleCaps: (settings as any).enableRecommendationTitleCaps ?? false,
+  enableTitleCaps: enableTitleCapsVal,
+  enableRecommendationTitleCaps: enableRecommendationTitleCapsVal,
       cartPosition: settings.cartPosition,
       cartIcon: settings.cartIcon,
       freeShippingText: settings.freeShippingText,
@@ -188,6 +197,10 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       }
     } else {
       console.log('🔧 Production mode: excluding dev-only fields:', devOnlyFields);
+      // Mirror grid caps into global caps if provided via UI toggle
+      if (settingsData.enableRecommendationTitleCaps !== undefined) {
+        (filteredData as any).enableTitleCaps = Boolean(settingsData.enableRecommendationTitleCaps);
+      }
     }
     
     console.log('🔧 filteredData after processing:', filteredData);
