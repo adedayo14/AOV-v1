@@ -1167,42 +1167,38 @@ export default function SettingsPage() {
           }
 
           .cartuplift-express-checkout {
-            display: flex;
-            flex-direction: row;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 8px;
             margin-top: 12px;
           }
 
           .cartuplift-paypal-btn,
           .cartuplift-shoppay-btn {
-            flex: 1;
-            padding: 14px 20px;
-            border: none;
+            border: 0;
             border-radius: 8px;
+            height: 40px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.2s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 48px;
+            transition: all 0.2s ease;
           }
 
           .cartuplift-paypal-btn {
-            background: #0070ba;
-            color: white;
+            background: #FFC439;
           }
 
           .cartuplift-paypal-btn:hover {
-            background: #005ea6;
+            background: #e6b033;
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 112, 186, 0.3);
+            box-shadow: 0 4px 12px rgba(255, 196, 57, 0.3);
           }
 
           .cartuplift-shoppay-btn {
             background: #5a31f4;
-            color: white;
+            color: #fff;
+            font-weight: 700;
           }
 
           .cartuplift-shoppay-btn:hover {
@@ -1212,11 +1208,7 @@ export default function SettingsPage() {
           }
 
           .cartuplift-paypal-logo {
-            height: 20px;
-          }
-
-          .cartuplift-shoppay-text {
-            margin-left: 8px;
+            height: 18px;
           }
             border: 1px solid #ddd;
             border-radius: 3px;
@@ -4456,27 +4448,10 @@ export default function SettingsPage() {
                   {formSettings.enableExpressCheckout && (
                     <div className="cartuplift-express-checkout">
                       <button className="cartuplift-paypal-btn" title="Pay with PayPal">
-                        <svg width="100" height="24" viewBox="0 0 100 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <g>
-                            <path d="M12.017 0L8.835 19.24h4.415l0.764-4.838h2.62c4.887 0 8.174-2.366 8.944-7.244 0.646-4.085-0.281-7.158-4.487-7.158H12.017zM16.504 6.855c-0.292 1.847-1.666 1.847-3.013 1.847h-0.766l0.536-3.396h0.93c1.347 0 2.619 0 2.313 1.549z" fill="#0070ba"/>
-                            <path d="M35.67 6.855c-0.292 1.847-1.666 1.847-3.013 1.847h-0.766l0.536-3.396h0.93c1.347 0 2.619 0 2.313 1.549zM31.183 0L28 19.24h4.415l0.764-4.838h2.62c4.887 0 8.174-2.366 8.944-7.244C44.389 3.073 43.462 0 39.256 0H31.183z" fill="#003087"/>
-                            <path d="M55.043 19.24L58.226 0h4.415L59.458 19.24h-4.415z" fill="#0070ba"/>
-                            <path d="M75.111 0h-4.415L67.514 19.24h4.415l0.696-4.415h2.831c1.042 0 1.937-0.652 2.166-1.633l1.389-8.792c0.521-3.302-1.563-4.4-3.9-4.4zM73.771 8.702h-1.75l0.465-2.946h1.75c0.695 0 1.042 0.347 0.903 1.042-0.139 0.695-0.673 1.904-1.368 1.904z" fill="#003087"/>
-                            <path d="M94.597 0h-4.415L87 19.24h4.415l0.696-4.415h2.831c1.042 0 1.937-0.652 2.166-1.633l1.389-8.792C98.018 1.098 95.934 0 93.597 0zM93.257 8.702h-1.75l0.465-2.946h1.75c0.695 0 1.042 0.347 0.903 1.042-0.139 0.695-0.673 1.904-1.368 1.904z" fill="#0070ba"/>
-                          </g>
-                        </svg>
+                        <img src="https://www.paypalobjects.com/webstatic/en_US/i/buttons/PP_logo_h_100x26.png" alt="PayPal" className="cartuplift-paypal-logo" />
                       </button>
                       <button className="cartuplift-shoppay-btn" title="Pay with Shop Pay">
-                        <svg width="61" height="20" viewBox="0 0 61 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <g>
-                            <path d="M8.462 4.946c-.67 0-1.214.544-1.214 1.214v2.427c0 .67.544 1.214 1.214 1.214s1.214-.544 1.214-1.214V6.16c0-.67-.544-1.214-1.214-1.214zm4.855 0c-.67 0-1.214.544-1.214 1.214v2.427c0 .67.544 1.214 1.214 1.214s1.214-.544 1.214-1.214V6.16c0-.67-.544-1.214-1.214-1.214zm4.855 0c-.67 0-1.214.544-1.214 1.214v2.427c0 .67.544 1.214 1.214 1.214s1.214-.544 1.214-1.214V6.16c0-.67-.544-1.214-1.214-1.214z" fill="white"/>
-                            <path d="M30.384 11.54c-1.24 0-2.256.816-2.256 2.056 0 1.24.816 2.056 2.256 2.056s2.256-.816 2.256-2.056c0-1.24-.816-2.056-2.256-2.056zm0 3.484c-.84 0-1.428-.588-1.428-1.428s.588-1.428 1.428-1.428 1.428.588 1.428 1.428-.588 1.428-1.428 1.428z" fill="white"/>
-                            <path d="M38.752 11.54c-1.24 0-2.256.816-2.256 2.056 0 1.24.816 2.056 2.256 2.056s2.256-.816 2.256-2.056c0-1.24-.816-2.056-2.256-2.056zm0 3.484c-.84 0-1.428-.588-1.428-1.428s.588-1.428 1.428-1.428 1.428.588 1.428 1.428-.588 1.428-1.428 1.428z" fill="white"/>
-                            <path d="M49.12 11.54c-1.24 0-2.256.816-2.256 2.056 0 1.24.816 2.056 2.256 2.056s2.256-.816 2.256-2.056c0-1.24-.816-2.056-2.256-2.056zm0 3.484c-.84 0-1.428-.588-1.428-1.428s.588-1.428 1.428-1.428 1.428.588 1.428 1.428-.588 1.428-1.428 1.428z" fill="white"/>
-                            <path d="M58.596 11.7h-1.632v4.944h1.632v-2.472c0-.84.588-1.428 1.428-1.428h.944V11.7h-.944c-.84 0-1.428.588-1.428 1.428V11.7z" fill="white"/>
-                          </g>
-                        </svg>
-                        <span className="cartuplift-shoppay-text">Pay</span>
+                        Shop Pay
                       </button>
                     </div>
                   )}
