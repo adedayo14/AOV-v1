@@ -1184,41 +1184,36 @@ body.cartuplift-no-scroll {
   margin: 0; /* Remove any margins */
 }
 
-/* --- Dynamic Grid: 2 rows (standard) or 1 row (collapsed) --- */
+/* --- Desktop Grid: single row, compact height, 4 items per row --- */
 .cartuplift-grid-container {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* Always 3 columns */
-  grid-template-rows: repeat(2, 156px); /* Default: 2 rows for 6 items */
+  grid-template-columns: repeat(4, 1fr); /* Show 4 per row on desktop */
+  grid-template-rows: 140px; /* Single row, aligns with carousel footprint */
   gap: 0;
   width: 100%;
   background: var(--cartuplift-recommendations-bg);
   border: none;
   border-radius: 0;
   overflow: visible; /* Allow borders to show properly */
-  margin: 0 0 16px 0; /* Add 16px bottom margin for spacing under cards */
+  margin: 0 0 12px 0; /* Slightly tighter spacing under grid */
   transition: grid-template-rows 0.3s ease; /* Smooth transition */
   padding: 0; /* Ensure no padding cuts off borders */
 }
 
-/* Collapsed state: 1 row only (3 items max) */
+/* Force single-row height even if a class toggles collapsed/expanded */
 .cartuplift-grid-container.collapsed {
-  grid-template-rows: 156px; /* Single row */
+  grid-template-rows: 140px;
 }
 
-/* Hide items beyond the visible limit */
-.cartuplift-grid-container.collapsed > .cartuplift-grid-item:nth-child(n+4) { 
-  display: none !important; 
-}
-
-/* Standard state: limit to 6 items */
-.cartuplift-grid-container:not(.collapsed) > .cartuplift-grid-item:nth-child(n+7) { 
-  display: none !important; 
+/* Desktop: Only show first 4 items to keep height consistent */
+.cartuplift-grid-container > .cartuplift-grid-item:nth-child(n+5) {
+  display: none !important;
 }
 
 .cartuplift-grid-item {
   position: relative;
   width: 100%; /* Full width of column */
-  height: 156px; /* Increased height to match grid-auto-rows */
+  height: 140px; /* Match single-row height */
   cursor: pointer;
   overflow: visible; /* Allow border to show fully */
   background: var(--cartuplift-recommendations-bg); /* Use selected section background */
@@ -1232,11 +1227,7 @@ body.cartuplift-no-scroll {
   margin: 0; /* Ensure no margin cuts off borders */
 }
 
-/* Remove right border from last column items (every 3rd item) */
-.cartuplift-grid-item:nth-child(3n) {
-  border-right: 0.5px solid transparent; /* Keep transparent, will show on hover */
-  margin-right: 0; /* Ensure no right margin */
-}
+/* No per-column border overrides needed for 4-column grid */
 
 /* Show full thin black outline on hover with improved visibility */
 .cartuplift-grid-item:hover {
