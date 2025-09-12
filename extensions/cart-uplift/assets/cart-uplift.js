@@ -31,6 +31,28 @@
     ? window.CartAnalytics
     : { trackEvent: () => {} };
 
+  // Normalize a price value to integer cents across mixed Shopify endpoints
+  // Accepts:
+  // - number 1400 => cents already
+  // - string "14.00" => major units, convert to 1400
+  // - string "1400" => assume cents
+  function normalizePriceToCents(val) {
+    if (val === null || val === undefined) return 0;
+    if (typeof val === 'number') {
+      // Most numeric values from /products.js are already cents
+      return Math.round(val);
+    }
+    const s = String(val).trim();
+    if (!s) return 0;
+    if (s.includes('.')) {
+      const n = parseFloat(s);
+      return isFinite(n) ? Math.round(n * 100) : 0;
+    }
+    // No decimal point => assume cents
+    const n = parseInt(s, 10);
+    return isFinite(n) ? n : 0;
+  }
+
   // Main drawer controller
   class CartUpliftDrawer {
     constructor(settings) {
@@ -1776,7 +1798,7 @@
                   </div>
       <div class="cartuplift-product-info">${this.generateVariantSelector(product)}</div>
                   <div class="cartuplift-product-actions">
-                    <div class="cartuplift-recommendation-price">${this.formatMoney(product.priceCents || 0)}</div>
+                    <div class="cartuplift-recommendation-price">${this.formatMoney(normalizePriceToCents(product.priceCents || 0))}</div>
                     <button class="cartuplift-add-recommendation" data-product-id="${product.id}" data-variant-id="${product.variant_id}">
                       ${this.settings.addButtonText || 'Add'}
                     </button>
@@ -1796,7 +1818,8 @@
             <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
             <div class="cartuplift-recommendation-info">
               <h4><a href="${product.url}" class="cartuplift-product-link">${product.title}</a></h4>
-              <div class="cartuplift-recommendation-price">${this.formatMoney(product.priceCents || 0)}</div>
+              <div class="cartuplift-recommendation-price">${this.formatMoney(normalizePriceToCents(product.priceCents || 0))}</div>
+              ${this.renderOptionText(product)}
             </div>
             <button class="cartuplift-add-recommendation-circle" data-variant-id="${product.variant_id}">
               +
@@ -1847,7 +1870,7 @@
                  data-product-id="${product.id}" 
                  data-variant-id="${product.variant_id}" 
                  data-title="${product.title.replace(/"/g,'&quot;')}" 
-                 data-price="${this.formatMoney(product.priceCents || 0)}"
+                 data-price="${this.formatMoney(normalizePriceToCents(product.priceCents || 0))}"
                  data-grid-index="${index}">
               <div class="cartuplift-grid-image">
                 <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" 
@@ -1867,6 +1890,7 @@
               </div>
               <div class="cartuplift-grid-info">
                 <h4 class="cartuplift-grid-title">${this.escapeHtml(product.title)}</h4>
+                ${this.generateVariantSelector(product)}
               </div>
             </div>`).join('')}
         </div>
@@ -1915,7 +1939,7 @@
         gridItem.dataset.productId = product.id;
         gridItem.dataset.variantId = product.variant_id;
         gridItem.dataset.title = product.title.replace(/"/g,'&quot;');
-        gridItem.dataset.price = this.formatMoney(product.priceCents || 0);
+  gridItem.dataset.price = this.formatMoney(normalizePriceToCents(product.priceCents || 0));
         
         const img = gridItem.querySelector('img');
         if (img) {
@@ -2053,6 +2077,26 @@
       // Try rgb/rgba/hsl/hsla
       if (/^(rgb|rgba|hsl|hsla)\(/.test(v)) return v;
       return '';
+    }
+
+    // Render option text lines like "Color: Navy" and "Size: M" if present
+    renderOptionText(product) {
+      try {
+        const options = Array.isArray(product.options) ? product.options : [];
+        if (!options.length) return '';
+        const lines = [];
+        for (const opt of options) {
+          const name = (opt?.name || '').trim();
+          if (!name) continue;
+          const values = Array.isArray(opt?.values) ? opt.values : [];
+          const val = values[0] || '';
+          if (!val) continue;
+          lines.push(`<div class="cartuplift-recommendation-option">${this.escapeHtml(name)}: ${this.escapeHtml(val)}</div>`);
+        }
+        return lines.length ? `<div class="cartuplift-recommendation-options">${lines.join('')}</div>` : '';
+      } catch (_) {
+        return '';
+      }
     }
 
   refreshRecommendationLayout() {
@@ -2329,25 +2373,25 @@
     }
 
     handleVariantChange(select) {
-      const card = select.closest('.cartuplift-recommendation-card');
-      if (!card) return;
-      
       const variantId = select.value;
-  const selectedOption = select.options[select.selectedIndex];
-  const priceCents = selectedOption.dataset.priceCents;
-      
-      // Update add button with selected variant
-      const addBtn = card.querySelector('.cartuplift-add-recommendation');
-      if (addBtn && variantId) {
-        addBtn.dataset.variantId = variantId;
-      }
-      
-      // Update price display if available
-    if (priceCents) {
+      const selectedOption = select.options[select.selectedIndex];
+      const priceCents = normalizePriceToCents(selectedOption.dataset.priceCents);
+
+      // Context: row card
+      const card = select.closest('.cartuplift-recommendation-card');
+      if (card) {
+        const addBtn = card.querySelector('.cartuplift-add-recommendation');
+        if (addBtn && variantId) addBtn.dataset.variantId = variantId;
         const priceElement = card.querySelector('.cartuplift-recommendation-price');
-        if (priceElement) {
-      priceElement.textContent = this.formatMoney(parseInt(priceCents));
-        }
+        if (priceElement && priceCents) priceElement.textContent = this.formatMoney(priceCents);
+      }
+
+      // Context: grid tile
+      const gridItem = select.closest('.cartuplift-grid-item');
+      if (gridItem) {
+        const addBtn = gridItem.querySelector('.cartuplift-grid-add-btn');
+        if (addBtn && variantId) addBtn.dataset.variantId = variantId;
+        gridItem.dataset.price = this.formatMoney(priceCents);
       }
     }
 
@@ -3371,9 +3415,7 @@
           title: product.title,
           // Shopify /products.json returns price as a decimal string in major units (e.g., "14.00" for £14)
           // We need to convert to cents for consistent formatting
-          priceCents: (product.variants && product.variants[0] && product.variants[0].price)
-            ? Math.round(parseFloat(product.variants[0].price) * 100)
-            : 0,
+          priceCents: normalizePriceToCents(product.variants && product.variants[0] && product.variants[0].price),
           image: product.images && product.images[0] ? product.images[0].src || product.images[0] : 
                  product.featured_image || 'https://via.placeholder.com/150x150?text=No+Image',
           variant_id: product.variants && product.variants[0] ? product.variants[0].id : null,
@@ -5298,14 +5340,14 @@
         id: product.id,
         title: product.title || product.product_title || 'Untitled',
         // Convert price to cents for consistent formatting
-        priceCents: basePrice ? Math.round(parseFloat(basePrice) * 100) : 0,
+        priceCents: normalizePriceToCents(basePrice),
         image: product.featured_image?.src || product.featured_image || product.image || product.images?.[0]?.src || 
                 product.media?.[0]?.preview_image?.src || 'https://via.placeholder.com/150',
         variant_id: variantId,
         url: product.url || (product.handle ? `/products/${product.handle}` : '#'),
         variants: (product.variants || []).map(v => ({
           ...v,
-          price_cents: v.price ? Math.round(parseFloat(v.price) * 100) : 0
+          price_cents: normalizePriceToCents(v.price)
         })),
         options: product.options || []
       };
