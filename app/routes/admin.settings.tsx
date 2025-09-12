@@ -1134,7 +1134,7 @@ export default function SettingsPage() {
             padding: 14px 16px 16px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 6px;
             background: ${formSettings.backgroundColor || '#ffffff'};
             flex-shrink: 0;
           }
@@ -1192,7 +1192,7 @@ export default function SettingsPage() {
           }
 
           .cartuplift-paypal-btn:hover {
-            background: #e6b033;
+            background: #FFD700;
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(255, 196, 57, 0.3);
           }
@@ -1210,7 +1210,7 @@ export default function SettingsPage() {
           }
 
           .cartuplift-paypal-logo {
-            height: 20px;
+            height: 24px;
           }
             border: 1px solid #ddd;
             border-radius: 3px;
