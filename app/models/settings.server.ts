@@ -10,20 +10,7 @@ function migrateRecommendationLayout(oldLayout: string): string {
   };
   
   const newLayout = migrationMap[oldLayout] || oldLayout;
-  
-  // For production compatibility: if the target layout doesn't exist in production schema, 
-  // map back to production-safe values
-  const isDevelopment = process.env.DATABASE_URL?.includes('sqlite') || !process.env.DATABASE_DATABASE_URL;
-  if (!isDevelopment) {
-    // Production schema only supports: horizontal, vertical
-    const productionMap: { [key: string]: string } = {
-      'carousel': 'horizontal',
-      'list': 'vertical',
-      'grid': 'horizontal'
-    };
-    return productionMap[newLayout] || newLayout;
-  }
-  
+
   return newLayout;
 }
 
@@ -175,13 +162,15 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       'themeEmbedEnabled', 'themeEmbedLastSeen'
     ];
     
-    // Production-only fields (exclude in production environment)
-    const devOnlyFields = ['enableTitleCaps', 'enableRecommendationTitleCaps', 'discountLinkText', 'notesLinkText'];
+  // Production-only fields (exclude in production environment)
+  const devOnlyFields: (keyof SettingsData)[] = ['enableTitleCaps', 'enableRecommendationTitleCaps', 'discountLinkText', 'notesLinkText'];
     
     const filteredData: Partial<SettingsData> = {};
     for (const field of validFields) {
-      if (field in settingsData && settingsData[field] !== undefined) {
-        (filteredData as any)[field] = settingsData[field];
+      const key = field as keyof SettingsData;
+      const val = settingsData[key];
+      if (val !== undefined) {
+        (filteredData as any)[key] = val;
       }
     }
     
@@ -190,9 +179,11 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
     
     if (isDevelopment) {
       for (const field of devOnlyFields) {
-        if (field in settingsData && settingsData[field] !== undefined) {
-          console.log(`🔧 Including dev-only field ${field} in save operation`);
-          (filteredData as any)[field] = settingsData[field];
+        const key = field as keyof SettingsData;
+        const val = settingsData[key as keyof SettingsData];
+        if (val !== undefined) {
+          console.log(`🔧 Including dev-only field ${String(field)} in save operation`);
+          (filteredData as any)[key] = val;
         }
       }
     } else {

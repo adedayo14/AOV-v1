@@ -1731,28 +1731,27 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-paypal-btn {
-  background: #0070ba;
-  border-color: #0070ba;
+  background: #ffc439; /* PayPal Yellow */
+  border-color: #ffc439;
 }
 
 .cartuplift-paypal-btn:hover {
-  background: #005ea6;
-  border-color: #005ea6;
+  background: #f4b400; /* Darker on hover */
+  border-color: #f4b400;
 }
 
-.cartuplift-paypal-btn svg {
-  height: 20px;
-  width: auto;
-  max-width: 80px;
-  display: block;
+.cartuplift-paypal-label {
+  font-weight: 700;
+  color: #111;
 }
 
 .cartuplift-shoppay-btn {
   background: #5a31f4;
   color: white;
   border-color: #5a31f4;
-  font-weight: 600;
+  font-weight: 700; /* Make text bold */
 }
+.cartuplift-shoppay-label { color: #fff; font-weight: inherit; }
 
 .cartuplift-shoppay-btn:hover {
   background: #4c28d4;

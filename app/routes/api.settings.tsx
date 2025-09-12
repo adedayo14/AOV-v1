@@ -13,7 +13,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     
   const settings = await getSettings(shop);
     // Normalize layout for theme (row/column expected in CSS/JS)
-    const layoutMap: Record<string, string> = { horizontal: 'row', vertical: 'column', grid: 'row' };
+  const layoutMap: Record<string, string> = { horizontal: 'row', vertical: 'column', grid: 'grid' };
     const normalized = {
       source: 'db',
       ...settings,
@@ -33,7 +33,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     console.error("Settings API error:", error);
     // Fail open: serve defaults so preview and storefront keep working
     const defaults = getDefaultSettings();
-    const layoutMap: Record<string, string> = { horizontal: 'row', vertical: 'column', grid: 'row' };
+  const layoutMap: Record<string, string> = { horizontal: 'row', vertical: 'column', grid: 'grid' };
     const normalized = {
       source: 'defaults',
       ...defaults,

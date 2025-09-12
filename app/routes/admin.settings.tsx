@@ -1209,9 +1209,7 @@ export default function SettingsPage() {
             box-shadow: 0 4px 12px rgba(90, 49, 244, 0.3);
           }
 
-          .cartuplift-paypal-logo {
-            height: 24px;
-          }
+          .cartuplift-paypal-label { font-weight: 700; color: #111; }
             border: 1px solid #ddd;
             border-radius: 3px;
             background: white;
@@ -4457,18 +4455,7 @@ export default function SettingsPage() {
                   {formSettings.enableExpressCheckout && (
                     <div className="cartuplift-express-checkout">
                       <button className="cartuplift-paypal-btn" title="Pay with PayPal">
-                        <svg width="100" height="24" viewBox="0 0 100 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <g>
-                            <path d="M12.017 0L4.15 21.5H0.916L6.725 0H12.017Z" fill="#253B80"/>
-                            <path d="M13.76 0C16.757 0 18.773 1.216 19.35 3.624C19.777 5.362 19.234 7.642 17.858 9.378C16.278 11.366 13.863 12.158 11.068 12.158H8.736L7.468 16.912H11.322L10.432 21.5H3.334L8.736 0H13.76Z" fill="#253B80"/>
-                            <path d="M26.056 0L20.654 21.5H17.42L22.822 0H26.056Z" fill="#179BD7"/>
-                            <path d="M27.799 0C30.796 0 32.812 1.216 33.389 3.624C33.816 5.362 33.273 7.642 31.897 9.378C30.317 11.366 27.902 12.158 25.107 12.158H22.775L21.507 16.912H25.361L24.471 21.5H17.373L22.775 0H27.799Z" fill="#179BD7"/>
-                            <path d="M39.711 15.5C41.103 15.5 42.273 14.33 42.273 12.938C42.273 11.546 41.103 10.376 39.711 10.376C38.319 10.376 37.149 11.546 37.149 12.938C37.149 14.33 38.319 15.5 39.711 15.5Z" fill="#253B80"/>
-                            <path d="M49.738 0C53.958 0 56.615 2.078 56.615 5.548C56.615 10.142 52.754 12.896 47.502 12.896H44.756L43.298 18.526H48.004L47.114 21.5H38.786L44.756 0H49.738Z" fill="#179BD7"/>
-                            <path d="M68.736 12.896C65.741 12.896 63.725 11.68 63.148 9.272C62.721 7.534 63.264 5.254 64.64 3.518C66.22 1.53 68.635 0.738 71.43 0.738H73.762L75.03 4.026H71.176L72.066 0.738H75.3L73.762 4.026C76.759 4.026 78.775 5.242 79.352 7.65C79.779 9.388 79.236 11.668 77.86 13.404C76.28 15.392 73.865 16.184 71.07 16.184H68.738L70.006 12.896H68.736Z" fill="#253B80"/>
-                            <path d="M87.273 21.5L82.871 0H86.105L89.627 18.026L95.436 0H98.67L93.268 21.5H87.273Z" fill="#179BD7"/>
-                          </g>
-                        </svg>
+                        <span className="cartuplift-paypal-label">PayPal</span>
                       </button>
                       <button className="cartuplift-shoppay-btn" title="Pay with Shop Pay">
                         Shop Pay
