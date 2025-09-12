@@ -3,7 +3,7 @@
 
   // Version sentinel & live verification (cache-bust expectation)
   (function(){
-  const v = 'grid-2025-09-12-5-swatch-js';
+  const v = 'grid-2025-09-12-6-swatch-robust';
     if (window.CART_UPLIFT_ASSET_VERSION !== v) {
       window.CART_UPLIFT_ASSET_VERSION = v;
       console.log('[CartUplift] Loaded asset version ' + v + ' – expecting NEW grid (no .cartuplift-grid-overlay elements).');
@@ -2016,6 +2016,45 @@
             colorName = opt.name || 'Color';
           }
         });
+        // Fallback heuristic: infer color slot from variant values when no labeled color option exists
+        if (colorIndex === -1) {
+          const variants = Array.isArray(product.variants) ? product.variants : [];
+          if (variants.length) {
+            // Determine how many option slots exist across variants
+            let slotCount = 0;
+            variants.forEach(v => {
+              const opts = v.options || v.option_values || [];
+              if (Array.isArray(opts)) {
+                slotCount = Math.max(slotCount, opts.length);
+              } else {
+                // Fallback to option1/2/3
+                const count = [v.option1, v.option2, v.option3].filter(Boolean).length;
+                slotCount = Math.max(slotCount, count);
+              }
+            });
+            slotCount = Math.max(slotCount, options.length || 0) || 1;
+            const slotScores = new Array(slotCount).fill(0);
+            for (let i = 0; i < slotCount; i++) {
+              const seen = new Set();
+              for (let v of variants.slice(0, Math.min(variants.length, 20))) {
+                const opts = v.options || v.option_values || [];
+                const val = Array.isArray(opts) ? opts[i] : (v[`option${i+1}`] || '');
+                const s = String(val || '').trim();
+                if (!s) continue;
+                const sl = s.toLowerCase();
+                if (/^(black|white|ivory|beige|cream|off\s*white|grey|gray|charcoal|silver|red|maroon|burgundy|pink|blush|rose|orange|coral|peach|yellow|gold|mustard|green|olive|mint|teal|blue|navy|sky|cobalt|purple|violet|lavender|lilac|brown|tan|chocolate)$/i.test(sl)) slotScores[i] += 3;
+                if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(sl)) slotScores[i] += 3;
+                if (/^(rgb|rgba|hsl|hsla)\(/.test(sl)) slotScores[i] += 2;
+                if (!seen.has(sl)) { seen.add(sl); slotScores[i] += 0.5; }
+              }
+            }
+            const bestIndex = slotScores.indexOf(Math.max(...slotScores));
+            if (slotScores[bestIndex] > 0) {
+              colorIndex = bestIndex;
+              colorName = options[bestIndex]?.name || 'Color';
+            }
+          }
+        }
         if (colorIndex === -1) return '';
 
         // Build value -> variant map for quick lookup of available variants of that color
@@ -3287,114 +3326,58 @@
     }
 
     async addToCart(variantId, quantity = 1) {
-      // Prevent multiple rapid clicks
-      if (this._addToCartBusy) {
-        return;
-      }
-      
+      if (this._addToCartBusy) return;
       this._addToCartBusy = true;
-      
+
+      const buttons = document.querySelectorAll(`[data-variant-id="${variantId}"]`);
+      buttons.forEach(button => {
+        button.disabled = true;
+        button.style.opacity = '0.6';
+        button.style.transform = 'scale(0.95)';
+      });
+
       try {
-        // Validate variant ID first
         if (!variantId || variantId === 'undefined' || variantId === 'null') {
-          console.error('🛒 Invalid variant ID:', variantId);
-          this._addToCartBusy = false;
-          return;
+          throw new Error(`Invalid variant ID: ${variantId}`);
         }
-        
-        // Disable the button temporarily with better UX
-        const buttons = document.querySelectorAll(`[data-variant-id="${variantId}"]`);
-        buttons.forEach(button => {
-          button.disabled = true;
-          button.style.opacity = '0.6';
-          button.style.transform = 'scale(0.95)';
-          // Keep the + sign, just make it look pressed
-        });
-        
-        // Add delay to prevent rate limiting (invisible to user)
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        const formData = new FormData();
-        formData.append('id', variantId);
-        formData.append('quantity', quantity);
 
         const response = await fetch('/cart/add.js', {
           method: 'POST',
-          body: formData
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          body: JSON.stringify({ id: variantId, quantity: Number(quantity) || 1 }),
         });
 
         if (response.ok) {
-          // Reset button state immediately on success with success animation
-          buttons.forEach(button => {
-            button.disabled = false;
-            button.style.opacity = '1';
-            button.style.transform = 'scale(1)';
-            button.style.background = '#22c55e'; // Green success flash
-            setTimeout(() => {
-              button.style.background = '';
-            }, 300);
-          });
-          
-          // Re-filter so added item disappears from recommendations
-          this.debouncedUpdateRecommendations();
-          
           await this.fetchCart();
-          // Fetch will also recompute recommendations
           this.updateDrawerContent();
-          
-          // Update recommendations display if drawer is open
-          if (this.isOpen) {
-            const recommendationsContent = document.getElementById('cartuplift-recommendations-content');
-            if (recommendationsContent) {
-              recommendationsContent.innerHTML = this.getRecommendationItems();
-            }
-          }
         } else if (response.status === 429) {
-          console.error('🛒 Rate limited, retrying with longer delay...');
-          // Silently retry after longer delay - no user feedback
-          buttons.forEach(button => {
-            button.disabled = false;
-            button.style.opacity = '1';
-            button.style.transform = 'scale(1)';
-          });
-          // Don't show rate limit message to user
+          // Rate limited; just re-enable buttons
+          console.warn('🛒 Rate limited while adding to cart.');
         } else if (response.status === 422) {
-          console.error('🛒 Variant not found (422 error) for variant ID:', variantId);
-          // For 422 errors, remove the invalid recommendation to prevent future errors
+          console.error('🛒 Variant not found (422) for variant ID:', variantId);
           this.removeInvalidRecommendation(variantId);
-          buttons.forEach(button => {
-            button.disabled = false;
-            button.style.opacity = '1';
-            button.style.transform = 'scale(1)';
-            button.style.display = 'none'; // Hide invalid items
-          });
+          buttons.forEach(button => { button.style.display = 'none'; });
         } else {
           console.error('🛒 Error adding to cart:', response.status, response.statusText);
-          // Re-enable buttons on error with subtle shake
-          buttons.forEach(button => {
-            button.disabled = false;
-            button.style.opacity = '1';
-            button.style.transform = 'scale(1)';
-            button.style.animation = 'shake 0.3s ease-in-out';
-            setTimeout(() => {
-              button.style.animation = '';
-            }, 300);
-          });
+          throw new Error('Add to cart failed');
         }
       } catch (error) {
         console.error('🛒 Error adding to cart:', error);
-        // Re-enable buttons on error
-        const buttons = document.querySelectorAll(`[data-variant-id="${variantId}"]`);
+        // Subtle shake feedback
+        buttons.forEach(button => {
+          button.style.animation = 'shake 0.3s ease-in-out';
+          setTimeout(() => { button.style.animation = ''; }, 300);
+        });
+      } finally {
         buttons.forEach(button => {
           button.disabled = false;
           button.style.opacity = '1';
           button.style.transform = 'scale(1)';
         });
-      } finally {
-        // Always reset the busy flag after a shorter delay
-        setTimeout(() => {
-          this._addToCartBusy = false;
-        }, 500);
+        setTimeout(() => { this._addToCartBusy = false; }, 300);
       }
     }
 
@@ -4757,6 +4740,10 @@
           if (color) {
             swatch = `<span class="cartuplift-item-swatch-dot${isWhite ? ' is-white' : ''}" style="background:${color}"></span>`;
           }
+        }
+        // If this is the color option and we have a swatch, don't duplicate text
+        if (isColor && swatch) {
+          return `<div class="cartuplift-item-variant">${swatch}</div>`;
         }
         return `<div class="cartuplift-item-variant">${swatch}${name}: ${this.escapeHtml(valueStr)}</div>`;
       };
