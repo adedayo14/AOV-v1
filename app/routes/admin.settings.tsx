@@ -93,6 +93,8 @@ export const action = withAuthAction(async ({ request, auth }) => {
     addButtonText: String(settings.addButtonText) || "Add",
     checkoutButtonText: String(settings.checkoutButtonText) || "CHECKOUT",
     applyButtonText: String(settings.applyButtonText) || "Apply",
+    discountLinkText: String(settings.discountLinkText) || "+ Got a promotion code?",
+    notesLinkText: String(settings.notesLinkText) || "+ Add order notes",
     backgroundColor: String(settings.backgroundColor) || "#ffffff",
     textColor: String(settings.textColor) || "#1A1A1A",
     buttonColor: String(settings.buttonColor) || "#000000",
@@ -3687,6 +3689,28 @@ export default function SettingsPage() {
                       onChange={(value) => updateSetting("actionText", value)}
                       placeholder="Add discount codes and notes"
                       helpText="Text shown on the button that opens the discount/notes modal"
+                      autoComplete="off"
+                    />
+                  )}
+
+                  {formSettings.enableDiscountCode && (
+                    <TextField
+                      label="Discount Link Text"
+                      value={formSettings.discountLinkText || ""}
+                      onChange={(value) => updateSetting("discountLinkText", value)}
+                      placeholder="+ Got a promotion code?"
+                      helpText="Text shown for the discount code link"
+                      autoComplete="off"
+                    />
+                  )}
+
+                  {formSettings.enableNotes && (
+                    <TextField
+                      label="Notes Link Text"
+                      value={formSettings.notesLinkText || ""}
+                      onChange={(value) => updateSetting("notesLinkText", value)}
+                      placeholder="+ Add order notes"
+                      helpText="Text shown for the order notes link"
                       autoComplete="off"
                     />
                   )}
