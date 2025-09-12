@@ -2733,3 +2733,8 @@ body.cartuplift-no-scroll {
 .cartuplift-grid-hover .cartuplift-variant-swatch-group {
   margin-bottom: 10px;
 }
+
+/* Column/list items: left align swatches for consistency */
+.cartuplift-recommendation-item .cartuplift-variant-swatch-group {
+  justify-content: flex-start;
+}

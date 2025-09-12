@@ -3,7 +3,7 @@
 
   // Version sentinel & live verification (cache-bust expectation)
   (function(){
-  const v = 'grid-2025-09-12-6-swatch-robust';
+  const v = 'grid-2025-09-12-7-swatch-column-cart-text';
     if (window.CART_UPLIFT_ASSET_VERSION !== v) {
       window.CART_UPLIFT_ASSET_VERSION = v;
       console.log('[CartUplift] Loaded asset version ' + v + ' – expecting NEW grid (no .cartuplift-grid-overlay elements).');
@@ -1790,6 +1790,7 @@
         // Dynamic Grid Layout - 6 items (2 rows) or 3 items (1 row) based on available products
         return this.generateDynamicGrid();
       } else {
+        // Column/List layout: include swatches under the info so users can pick colors
         return this.recommendations.map(product => `
           <div class="cartuplift-recommendation-item">
             <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
@@ -1797,6 +1798,7 @@
               <h4><a href="${product.url}" class="cartuplift-product-link">${product.title}</a></h4>
               <div class="cartuplift-recommendation-price">${this.formatMoney(product.priceCents || 0)}</div>
             </div>
+            ${this.generateVariantSwatches(product, 'column')}
             <button class="cartuplift-add-recommendation-circle" data-variant-id="${product.variant_id}">
               +
             </button>
@@ -3313,6 +3315,14 @@
               const addBtn = gridItem.querySelector('.cartuplift-grid-add-btn');
               if (addBtn) addBtn.dataset.variantId = match.id;
             }
+          } else if (context === 'column') {
+            const item = swatch.closest('.cartuplift-recommendation-item');
+            if (item) {
+              const addBtn = item.querySelector('.cartuplift-add-recommendation-circle');
+              if (addBtn) addBtn.dataset.variantId = match.id;
+              const priceEl = item.querySelector('.cartuplift-recommendation-price');
+              if (priceEl && match.price_cents) priceEl.textContent = this.formatMoney(parseInt(match.price_cents));
+            }
           }
         }
       });
@@ -4785,19 +4795,9 @@
         const valueStr = String(value || '').trim();
         if (!valueStr) return '';
         const isColor = nameLower.includes('color') || nameLower.includes('colour');
-        let swatch = '';
-        if (isColor) {
-          const color = this.computeSwatchColor(valueStr);
-          const isWhite = /^(white|off\s*white|ivory)$/i.test(valueStr);
-          if (color) {
-            swatch = `<span class="cartuplift-item-swatch-dot${isWhite ? ' is-white' : ''}" style="background:${color}"></span>`;
-          }
-        }
-        // If this is the color option and we have a swatch, don't duplicate text
-        if (isColor && swatch) {
-          return `<div class="cartuplift-item-variant">${swatch}</div>`;
-        }
-        return `<div class="cartuplift-item-variant">${swatch}${name}: ${this.escapeHtml(valueStr)}</div>`;
+        // Always render text for color in cart (no swatch dot)
+        const label = isColor ? (name || 'Color') : name;
+        return `<div class="cartuplift-item-variant">${label}: ${this.escapeHtml(valueStr)}</div>`;
       };
       // Prefer structured options_with_values when available
       if (item.variant_title && item.options_with_values && Array.isArray(item.options_with_values)) {
@@ -4832,7 +4832,7 @@
 
       if (variants.length) return variants.join('');
 
-      // Last resort: parse variant_title to render color swatch (and avoid duplicate color text)
+      // Last resort: parse variant_title to extract color (show as text) and other parts
       if (item.variant_title) {
         const vt = String(item.variant_title).trim();
         const vtLower = vt.toLowerCase();
@@ -4850,12 +4850,9 @@
           const colorPart = parts.find(looksColor);
           const others = parts.filter(p => p !== colorPart);
           if (colorPart) {
-            const color = this.computeSwatchColor(colorPart);
-            const isWhite = /^(white|off\s*white|ivory)$/i.test(colorPart);
-            const sw = color ? `<span class="cartuplift-item-swatch-dot${isWhite ? ' is-white' : ''}" style="background:${color}"></span>` : '';
-            // Return swatch alone for color, and any other parts as simple text chips
+            const colorHtml = `<div class="cartuplift-item-variant">Color: ${this.escapeHtml(colorPart)}</div>`;
             const otherHtml = others.length ? others.map(o => `<div class="cartuplift-item-variant">${this.escapeHtml(o)}</div>`).join('') : '';
-            return `${sw ? '<div class="cartuplift-item-variant">' + sw + '</div>' : ''}${otherHtml}` || `<div class="cartuplift-item-variant">${vt}</div>`;
+            return `${colorHtml}${otherHtml}` || `<div class="cartuplift-item-variant">${vt}</div>`;
           }
           // No color detected, fallback to showing entire title once
           return `<div class="cartuplift-item-variant">${vt}</div>`;
