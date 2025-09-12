@@ -1956,6 +1956,31 @@
           const n = String(opt?.name || '').toLowerCase();
           if (colorIndex === -1 && (n.includes('color') || n.includes('colour'))) colorIndex = idx;
         });
+        // Try value-based detection and size heuristic
+        if (colorIndex === -1 && Array.isArray(opts) && opts.length) {
+          const looksColor = (val) => {
+            const s = String(val || '').trim().toLowerCase();
+            if (!s) return false;
+            return /^(black|white|ivory|beige|cream|off\s*white|grey|gray|charcoal|silver|red|maroon|burgundy|pink|blush|rose|orange|coral|peach|yellow|gold|mustard|green|olive|mint|teal|blue|navy|sky|cobalt|purple|violet|lavender|lilac|brown|tan|chocolate)$/i.test(s)
+              || /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s)
+              || /^(rgb|rgba|hsl|hsla)\(/.test(s);
+          };
+          opts.forEach((opt, idx) => {
+            if (colorIndex !== -1) return;
+            const vals = Array.isArray(opt?.values) ? opt.values : [];
+            const colorishCount = vals.slice(0, 20).filter(looksColor).length;
+            if (colorishCount >= Math.min(2, vals.length)) {
+              colorIndex = idx;
+            }
+          });
+          if (colorIndex === -1 && opts.length === 2) {
+            const isSize = (n) => /size|shoe\s*size|waist|length|width|dimension|eu|us|uk|cm|mm|xl|xxl|xs/i.test(n);
+            const n0 = String(opts[0]?.name || '').toLowerCase();
+            const n1 = String(opts[1]?.name || '').toLowerCase();
+            if (isSize(n0) && !isSize(n1)) colorIndex = 1;
+            else if (isSize(n1) && !isSize(n0)) colorIndex = 0;
+          }
+        }
         // If only color option exists, we don't need a dropdown (swatches cover it)
         const onlyColor = colorIndex !== -1 && opts.length === 1;
         if (onlyColor) {
@@ -2016,6 +2041,33 @@
             colorName = opt.name || 'Color';
           }
         });
+        // Value-based detection on option values
+        if (colorIndex === -1 && Array.isArray(options) && options.length) {
+          const looksColor = (val) => {
+            const s = String(val || '').trim().toLowerCase();
+            if (!s) return false;
+            return /^(black|white|ivory|beige|cream|off\s*white|grey|gray|charcoal|silver|red|maroon|burgundy|pink|blush|rose|orange|coral|peach|yellow|gold|mustard|green|olive|mint|teal|blue|navy|sky|cobalt|purple|violet|lavender|lilac|brown|tan|chocolate)$/i.test(s)
+              || /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s)
+              || /^(rgb|rgba|hsl|hsla)\(/.test(s);
+          };
+          options.forEach((opt, idx) => {
+            if (colorIndex !== -1) return;
+            const vals = Array.isArray(opt?.values) ? opt.values : [];
+            const colorishCount = vals.slice(0, 20).filter(looksColor).length;
+            if (colorishCount >= Math.min(2, vals.length)) {
+              colorIndex = idx;
+              colorName = opt.name || 'Color';
+            }
+          });
+        }
+        // If exactly two options and one looks like size, pick the other as color
+        if (colorIndex === -1 && Array.isArray(options) && options.length === 2) {
+          const isSize = (n) => /size|shoe\s*size|waist|length|width|dimension|eu|us|uk|cm|mm|xl|xxl|xs/i.test(n);
+          const n0 = String(options[0]?.name || '').toLowerCase();
+          const n1 = String(options[1]?.name || '').toLowerCase();
+          if (isSize(n0) && !isSize(n1)) { colorIndex = 1; colorName = options[1].name || 'Color'; }
+          else if (isSize(n1) && !isSize(n0)) { colorIndex = 0; colorName = options[0].name || 'Color'; }
+        }
         // Fallback heuristic: infer color slot from variant values when no labeled color option exists
         if (colorIndex === -1) {
           const variants = Array.isArray(product.variants) ? product.variants : [];
