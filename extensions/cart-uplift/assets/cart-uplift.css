@@ -2669,9 +2669,9 @@ body.cartuplift-no-scroll {
 
 .cartuplift-variant-swatch[aria-selected="true"],
 .cartuplift-variant-swatch.selected {
-  outline: 2px solid #000;
-  outline-offset: 1px;
-  border-color: #000;
+  /* Subtle selection ring without heavy outlines */
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.55);
+  border-color: transparent;
 }
 
 /* Ensure white swatches are visible */

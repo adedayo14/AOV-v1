@@ -1949,6 +1949,18 @@
   generateVariantSelector(product) {
       // If product has variants with multiple meaningful options, generate a proper selector
       if (product.variants && product.variants.length > 1) {
+        const opts = Array.isArray(product.options) ? product.options : [];
+        // detect color index, if present
+        let colorIndex = -1;
+        opts.forEach((opt, idx) => {
+          const n = String(opt?.name || '').toLowerCase();
+          if (colorIndex === -1 && (n.includes('color') || n.includes('colour'))) colorIndex = idx;
+        });
+        // If only color option exists, we don't need a dropdown (swatches cover it)
+        const onlyColor = colorIndex !== -1 && opts.length === 1;
+        if (onlyColor) {
+          return `<div class="cartuplift-product-variation hidden"></div>`;
+        }
         // Find the first available variant to set as selected
         let firstAvailableIndex = -1;
         const availableVariants = product.variants.filter((variant, index) => {
@@ -1958,13 +1970,27 @@
           return variant.available;
         });
         const selectedId = product.variant_id;
+        // Helper: build label excluding the color option
+        const buildLabel = (variant) => {
+          if (colorIndex === -1) return variant.title;
+          const arr = variant.options || variant.option_values || [];
+          const values = Array.isArray(arr) && arr.length
+            ? arr
+            : [variant.option1, variant.option2, variant.option3].filter(Boolean);
+          const parts = values.map((v, idx) => ({ v, idx }))
+            .filter(p => p.idx !== colorIndex)
+            .map(p => String(p.v || '').trim())
+            .filter(Boolean);
+          const result = parts.join(' / ');
+          return result || variant.title;
+        };
         
         return `
           <div class="cartuplift-product-variation">
             <select class="cartuplift-size-dropdown" data-product-id="${product.id}">
               ${availableVariants.map((variant, index) => `
                 <option value="${variant.id}" data-price-cents="${variant.price_cents}" ${(String(selectedId) === String(variant.id) || (!selectedId && index === 0)) ? 'selected' : ''}>
-                  ${variant.title}
+                  ${buildLabel(variant)}
                 </option>
               `).join('')}
             </select>
