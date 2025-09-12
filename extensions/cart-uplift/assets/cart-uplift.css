@@ -531,6 +531,14 @@ body.cartuplift-no-scroll {
   text-overflow: ellipsis;
   /* Consistent height whether variants exist or not */
   min-height: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Ensure cart text is left-aligned regardless of theme */
+.cartuplift-item-info {
+  text-align: left !important;
 }
 
 /* Quantity Selector - 32px height, 100px min-width */
@@ -899,7 +907,6 @@ body.cartuplift-no-scroll {
   z-index: 10;
 }
 
-.cartuplift-carousel-dot {
 .cartuplift-item-variant .cartuplift-item-swatch-dot {
   display: inline-block;
   width: 10px;
@@ -912,6 +919,8 @@ body.cartuplift-no-scroll {
 .cartuplift-item-variant .cartuplift-item-swatch-dot.is-white {
   box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
 }
+
+.cartuplift-carousel-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;

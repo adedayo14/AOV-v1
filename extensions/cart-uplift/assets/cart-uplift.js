@@ -2160,7 +2160,7 @@
       const v = String(value || '').trim().toLowerCase();
       if (!v) return '';
       const named = {
-        black: '#000', white: '#fff', ivory: '#fffff0', beige: '#f5f5dc', cream: '#fffdd0', offwhite: '#f8f8f8',
+  black: '#000', white: '#fff', ivory: '#fffff0', beige: '#f5f5dc', cream: '#fffdd0', offwhite: '#f8f8f8', 'off white': '#f8f8f8',
         grey: '#808080', gray: '#808080', charcoal: '#36454f', silver: '#c0c0c0',
         red: '#ef4444', maroon: '#800000', burgundy: '#800020',
         pink: '#f472b6', blush: '#f4c2c2', rose: '#e11d48',
@@ -4832,12 +4832,32 @@
 
       if (variants.length) return variants.join('');
 
-      // Last resort: show variant_title only if meaningful and not duplicating product title
+      // Last resort: parse variant_title to render color swatch (and avoid duplicate color text)
       if (item.variant_title) {
         const vt = String(item.variant_title).trim();
         const vtLower = vt.toLowerCase();
         const ptLower = String(item.product_title || '').trim().toLowerCase();
         if (vtLower && vtLower !== 'default title' && vtLower !== 'title' && vtLower !== ptLower) {
+          // Split by common separators and look for a color-like value
+          const parts = vt.split(/\s*\/\s*|,\s*/).map(p => p.trim()).filter(Boolean);
+          const looksColor = (s) => {
+            const v = String(s || '').trim().toLowerCase();
+            if (!v) return false;
+            return /^(black|white|ivory|beige|cream|off\s*white|grey|gray|charcoal|silver|red|maroon|burgundy|pink|blush|rose|orange|coral|peach|yellow|gold|mustard|green|olive|mint|teal|blue|navy|sky|cobalt|purple|violet|lavender|lilac|brown|tan|chocolate)$/i.test(v)
+              || /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v)
+              || /^(rgb|rgba|hsl|hsla)\(/.test(v);
+          };
+          const colorPart = parts.find(looksColor);
+          const others = parts.filter(p => p !== colorPart);
+          if (colorPart) {
+            const color = this.computeSwatchColor(colorPart);
+            const isWhite = /^(white|off\s*white|ivory)$/i.test(colorPart);
+            const sw = color ? `<span class="cartuplift-item-swatch-dot${isWhite ? ' is-white' : ''}" style="background:${color}"></span>` : '';
+            // Return swatch alone for color, and any other parts as simple text chips
+            const otherHtml = others.length ? others.map(o => `<div class="cartuplift-item-variant">${this.escapeHtml(o)}</div>`).join('') : '';
+            return `${sw ? '<div class="cartuplift-item-variant">' + sw + '</div>' : ''}${otherHtml}` || `<div class="cartuplift-item-variant">${vt}</div>`;
+          }
+          // No color detected, fallback to showing entire title once
           return `<div class="cartuplift-item-variant">${vt}</div>`;
         }
       }
