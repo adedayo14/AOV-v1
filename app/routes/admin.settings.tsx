@@ -111,6 +111,7 @@ export const action = withAuthAction(async ({ request, auth }) => {
     giftNoticeText: String(settings.giftNoticeText) || "Free gift added: {{product}} (worth {{amount}})",
     giftPriceText: String(settings.giftPriceText) || "FREE",
     enableTitleCaps: settings.enableTitleCaps === 'true',
+    enableRecommendationTitleCaps: settings.enableRecommendationTitleCaps === 'true',
   };
   
   try {
@@ -2336,7 +2337,11 @@ export default function SettingsPage() {
             background: rgba(0,0,0,0.1);
             padding: 2px 4px;
             border-radius: 3px;
+          }
+
+          .is-grid-caps .cartuplift-grid-item h5 {
             text-transform: uppercase;
+          }
             letter-spacing: 0.5px;
           }
           
@@ -3567,6 +3572,13 @@ export default function SettingsPage() {
                       autoComplete="off"
                     />
                     
+                    <Checkbox
+                      label="Show Grid Titles in Caps"
+                      checked={formSettings.enableRecommendationTitleCaps || false}
+                      onChange={(value) => updateSetting("enableRecommendationTitleCaps", value)}
+                      helpText="Display product titles in UPPERCASE specifically for grid layout recommendations"
+                    />
+                    
                     <Select
                       label="Recommendation Mode (AI vs. Manual)"
                       options={complementDetectionModeOptions}
@@ -3648,7 +3660,7 @@ export default function SettingsPage() {
 
         {/* Preview Column - Right Side */}
         <div className="cartuplift-preview-column" ref={previewRef}>
-          <div className={`cartuplift-preview-container ${formSettings.enableTitleCaps ? 'is-title-caps' : ''}`}>
+          <div className={`cartuplift-preview-container ${formSettings.enableTitleCaps ? 'is-title-caps' : ''} ${formSettings.enableRecommendationTitleCaps ? 'is-grid-caps' : ''}`}>
             {/* Header */}
             <div className="cartuplift-preview-header">
                   <h2 className="cartuplift-cart-title">CART (5)</h2>

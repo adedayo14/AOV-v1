@@ -29,6 +29,7 @@ export interface SettingsData {
   enableExpressCheckout: boolean;
   enableAnalytics: boolean;
   enableTitleCaps: boolean;
+  enableRecommendationTitleCaps: boolean;
   
   // Cart Behavior & Position
   cartPosition: string;
@@ -97,6 +98,7 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       enableExpressCheckout: settings.enableExpressCheckout,
       enableAnalytics: settings.enableAnalytics,
       enableTitleCaps: (settings as any).enableTitleCaps ?? false,
+      enableRecommendationTitleCaps: (settings as any).enableRecommendationTitleCaps ?? false,
       cartPosition: settings.cartPosition,
       cartIcon: settings.cartIcon,
       freeShippingText: settings.freeShippingText,
@@ -172,6 +174,12 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       (filteredData as any).enableTitleCaps = settingsData.enableTitleCaps;
     }
     
+    // Only include enableRecommendationTitleCaps if it exists in the request and we can handle it
+    if ('enableRecommendationTitleCaps' in settingsData && settingsData.enableRecommendationTitleCaps !== undefined) {
+      console.log('🔧 Including enableRecommendationTitleCaps in save operation');
+      (filteredData as any).enableRecommendationTitleCaps = settingsData.enableRecommendationTitleCaps;
+    }
+    
     console.log('🔧 filteredData after processing:', filteredData);
     
     // Migrate recommendation layout values if present
@@ -231,6 +239,12 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
             attempt++;
             continue;
           }
+          // Also try removing enableRecommendationTitleCaps if that's the issue
+          if (msg.includes('column') && 'enableRecommendationTitleCaps' in dataForSave) {
+            delete dataForSave.enableRecommendationTitleCaps;
+            attempt++;
+            continue;
+          }
           throw new Error('Database save failed: ' + msg);
         }
 
@@ -263,6 +277,7 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       enableExpressCheckout: settings.enableExpressCheckout,
       enableAnalytics: settings.enableAnalytics,
       enableTitleCaps: (settings as any).enableTitleCaps ?? false,
+      enableRecommendationTitleCaps: (settings as any).enableRecommendationTitleCaps ?? false,
       cartPosition: settings.cartPosition,
       cartIcon: settings.cartIcon,
       freeShippingText: settings.freeShippingText,
@@ -319,6 +334,7 @@ export function getDefaultSettings(): SettingsData {
     enableExpressCheckout: true,
   enableAnalytics: false,
     enableTitleCaps: false,
+    enableRecommendationTitleCaps: false,
     
     // Cart Behavior & Position
     cartPosition: "bottom-right",
