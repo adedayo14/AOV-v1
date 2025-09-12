@@ -68,6 +68,8 @@
       this.settings.enableExpressCheckout = this.settings.enableExpressCheckout !== false; // DEFAULT TO TRUE
       this.settings.autoOpenCart = this.settings.autoOpenCart !== false;
       this.settings.enableTitleCaps = Boolean(this.settings.enableTitleCaps);
+  // Treat recommendation-specific caps as alias of global caps when not explicitly provided
+  this.settings.enableRecommendationTitleCaps = Boolean(this.settings.enableRecommendationTitleCaps || this.settings.enableTitleCaps);
       
       // Set default gift notice text if not provided
       this.settings.giftNoticeText = this.settings.giftNoticeText || 'Free gift added: {{product}} (worth {{amount}})';
@@ -1566,7 +1568,9 @@
   const layoutMap = { horizontal: 'row', row: 'row', carousel: 'row', vertical: 'column', column: 'column', list: 'column', grid: 'grid' };
       const layoutRaw = this.settings.recommendationLayout || 'column';
       const layout = layoutMap[layoutRaw] || layoutRaw;
-      const title = (this.settings.recommendationsTitle || 'You might also like');
+  const capsEnabled = !!(this.settings.enableTitleCaps || this.settings.enableRecommendationTitleCaps);
+  const rawTitle = (this.settings.recommendationsTitle || 'You might also like');
+  const title = capsEnabled ? String(rawTitle).toUpperCase() : rawTitle;
       
       console.log('🔧 CartUplift: Rendering recommendations with layout:', {
         raw: layoutRaw,
@@ -1640,7 +1644,11 @@
       // Update title
       const titleEl = section.querySelector('.cartuplift-recommendations-title');
       if (titleEl) {
-        titleEl.textContent = (this.settings.recommendationsTitle || 'You might also like');
+        const capsEnabled = !!(this.settings.enableTitleCaps || this.settings.enableRecommendationTitleCaps);
+        const t = (this.settings.recommendationsTitle || 'You might also like');
+        titleEl.textContent = capsEnabled ? String(t).toUpperCase() : t;
+        // JS fallback to enforce caps regardless of CSS load order
+        titleEl.style.textTransform = capsEnabled ? 'uppercase' : '';
       }
       
       // Update content
@@ -1855,6 +1863,9 @@
                   ${this.getCartIconSVG()}
                 </button>
               </div>
+              <div class="cartuplift-grid-info">
+                <h4 class="cartuplift-grid-title">${this.escapeHtml(product.title)}</h4>
+              </div>
             </div>`).join('')}
         </div>
       `;
@@ -2045,21 +2056,28 @@
       if (!headerTitleEl) return;
       const original = container.getAttribute('data-original-title') || headerTitleEl.textContent;
       this._originalRecommendationsTitle = original;
+      const capsEnabled = !!(this.settings.enableTitleCaps || this.settings.enableRecommendationTitleCaps);
+      // Ensure style is applied immediately
+      try { headerTitleEl.style.textTransform = capsEnabled ? 'uppercase' : ''; } catch(_) {}
       container.querySelectorAll('.cartuplift-grid-item').forEach(item => {
         item.addEventListener('mouseenter', () => {
           const t = item.getAttribute('data-title');
-          if (t && headerTitleEl) headerTitleEl.textContent = t;
+          if (t && headerTitleEl) headerTitleEl.textContent = capsEnabled ? String(t).toUpperCase() : t;
         });
         item.addEventListener('mouseleave', (e) => {
           // Only restore if moving outside the item (not to a child)
           if (!container.matches(':hover') && headerTitleEl) {
-            headerTitleEl.textContent = this._originalRecommendationsTitle;
+            const t = this._originalRecommendationsTitle;
+            headerTitleEl.textContent = capsEnabled ? String(t).toUpperCase() : t;
           }
         });
       });
       // Restore when leaving entire grid
       container.addEventListener('mouseleave', () => {
-        if (headerTitleEl) headerTitleEl.textContent = this._originalRecommendationsTitle;
+        if (headerTitleEl) {
+          const t = this._originalRecommendationsTitle;
+          headerTitleEl.textContent = capsEnabled ? String(t).toUpperCase() : t;
+        }
       });
     }
 
