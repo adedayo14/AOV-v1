@@ -391,7 +391,10 @@
 
     async setup() {
       
-      // Fetch initial cart data FIRST
+      // Refresh settings from API FIRST to get latest configuration
+      await this.refreshSettingsFromAPI();
+      
+      // Fetch initial cart data
       await this.fetchCart();
       
       // Create cart uplift AFTER cart is fetched
@@ -559,18 +562,51 @@
 
     async refreshSettingsFromAPI() {
       try {
-        const shopDomain = window.CartUpliftShop || window.Shopify?.shop;
+        // Try multiple ways to get the shop domain
+        const shopDomain = window.CartUpliftShop || 
+                          window.Shopify?.shop || 
+                          window.location.hostname ||
+                          document.querySelector('meta[name="shopify-checkout-api-token"]')?.getAttribute('data-shop');
+        
+        console.log('🔧 CartUplift: Refreshing settings for shop:', shopDomain);
+        console.log('🔧 CartUplift: Available shop sources:', {
+          CartUpliftShop: window.CartUpliftShop,
+          ShopifyShop: window.Shopify?.shop,
+          hostname: window.location.hostname
+        });
+        
         if (shopDomain) {
           const apiUrl = `/apps/cart-uplift/api/settings?shop=${encodeURIComponent(shopDomain)}`;
+          console.log('🔧 CartUplift: Fetching settings from:', apiUrl);
+          
           const response = await fetch(apiUrl);
+          console.log('🔧 CartUplift: Settings API response status:', response.status);
+          
           if (response.ok) {
             const newSettings = await response.json();
+            console.log('🔧 CartUplift: Settings loaded:', newSettings);
+            
+            // Store the old layout for comparison
+            const oldLayout = this.settings.recommendationLayout;
+            
             this.settings = Object.assign(this.settings, newSettings);
             window.CartUpliftSettings = Object.assign(window.CartUpliftSettings || {}, newSettings);
+            
+            // Log layout change if it happened
+            if (oldLayout !== this.settings.recommendationLayout) {
+              console.log('🔧 CartUplift: Layout changed from', oldLayout, 'to', this.settings.recommendationLayout);
+            }
+            
             this.updateDrawerContent();
+            console.log('🔧 CartUplift: Settings applied successfully');
+          } else {
+            console.warn('🔧 CartUplift: Failed to load settings:', response.status, response.statusText);
           }
+        } else {
+          console.warn('🔧 CartUplift: No shop domain found for settings API');
         }
       } catch (error) {
+        console.error('🔧 CartUplift: Error refreshing settings:', error);
       }
     }
 
@@ -1502,6 +1538,12 @@
       const layoutRaw = this.settings.recommendationLayout || 'column';
       const layout = layoutMap[layoutRaw] || layoutRaw;
       const title = (this.settings.recommendationsTitle || 'You might also like');
+      
+      console.log('🔧 CartUplift: Rendering recommendations with layout:', {
+        raw: layoutRaw,
+        mapped: layout,
+        allSettings: this.settings
+      });
           
       // For row layout, render controls outside the scroll container so they don't scroll
       const controlsHTML = `
