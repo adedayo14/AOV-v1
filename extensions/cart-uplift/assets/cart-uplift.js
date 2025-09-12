@@ -3,7 +3,7 @@
 
   // Version sentinel & live verification (cache-bust expectation)
   (function(){
-  const v = 'grid-2025-09-12-8-no-recs-swatches';
+  const v = 'grid-2025-09-12-10-row-color-size-aligned';
     if (window.CART_UPLIFT_ASSET_VERSION !== v) {
       window.CART_UPLIFT_ASSET_VERSION = v;
       console.log('[CartUplift] Loaded asset version ' + v + ' – expecting NEW grid (no .cartuplift-grid-overlay elements).');
@@ -1796,7 +1796,10 @@
                   <div class="cartuplift-product-image">
                     <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
                   </div>
-      <div class="cartuplift-product-info">${this.generateVariantSelector(product)}</div>
+      <div class="cartuplift-product-info">
+        <h4><a href="${product.url}" class="cartuplift-product-link">${product.title}</a></h4>
+        ${this.generateVariantSelector(product)}
+      </div>
                   <div class="cartuplift-product-actions">
                     <div class="cartuplift-recommendation-price">${this.formatMoney(normalizePriceToCents(product.priceCents || 0))}</div>
                     <button class="cartuplift-add-recommendation" data-product-id="${product.id}" data-variant-id="${product.variant_id}">

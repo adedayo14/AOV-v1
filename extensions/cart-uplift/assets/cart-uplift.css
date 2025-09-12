@@ -995,6 +995,7 @@ body.cartuplift-no-scroll {
   min-width: 0;
   padding-top: 0; /* remove extra top padding */
   height: 100%; /* Allow pushing variation to the bottom */
+  justify-content: space-between; /* Align bottom of info with bottom of actions */
 }
 
 .cartuplift-recommendation-card h4 {
@@ -1013,9 +1014,22 @@ body.cartuplift-no-scroll {
   text-transform: none !important;
 }
 
-/* Variation selector - only show if product has multiple variants */
+/* Variation selector - layout */
 .cartuplift-product-variation {
-  margin-top: 4px; /* Move up from auto to position higher */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* In carousel (row) align selectors to bottom to match Add button */
+.cartuplift-recommendations-row .cartuplift-product-variation {
+  margin-top: auto;
+}
+
+/* Hide inline labels to save space and ensure color is visible */
+.cartuplift-variant-label {
+  display: none !important;
 }
 
 .cartuplift-size-dropdown {
