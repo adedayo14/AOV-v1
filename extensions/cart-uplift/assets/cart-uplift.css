@@ -1717,7 +1717,7 @@ body.cartuplift-no-scroll {
 .cartuplift-paypal-btn,
 .cartuplift-shoppay-btn {
   flex: 1;
-  padding: 8px;
+  padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
   cursor: pointer;
@@ -1726,20 +1726,25 @@ body.cartuplift-no-scroll {
   align-items: center;
   justify-content: center;
   background: white;
-  font-size: 12px;
+  font-size: 14px;
+  min-height: 40px;
 }
 
-.cartuplift-paypal-btn:hover,
-.cartuplift-shoppay-btn:hover {
-  border-color: var(--cartuplift-primary);
+.cartuplift-paypal-btn {
+  background: #0070ba;
+  border-color: #0070ba;
 }
 
-.cartuplift-paypal-btn img {
-  height: 12px;
-  width: auto; /* preserve aspect ratio to avoid stretching */
-  max-width: 60px; /* prevent excessive width */
-  object-fit: contain;
-  display: block; /* ensure proper rendering */
+.cartuplift-paypal-btn:hover {
+  background: #005ea6;
+  border-color: #005ea6;
+}
+
+.cartuplift-paypal-btn svg {
+  height: 20px;
+  width: auto;
+  max-width: 80px;
+  display: block;
 }
 
 .cartuplift-shoppay-btn {
@@ -1747,6 +1752,11 @@ body.cartuplift-no-scroll {
   color: white;
   border-color: #5a31f4;
   font-weight: 600;
+}
+
+.cartuplift-shoppay-btn:hover {
+  background: #4c28d4;
+  border-color: #4c28d4;
 }
 
 /* Gift Modal */

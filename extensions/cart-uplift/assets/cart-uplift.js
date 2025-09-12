@@ -2715,7 +2715,23 @@
     getExpressCheckoutHTML() {
       return `
         <div class="cartuplift-express-checkout">
-          <div class="cartuplift-express-slot"></div>
+          <button class="cartuplift-paypal-btn" onclick="window.cartUpliftDrawer.proceedToPayPal()" title="Pay with PayPal">
+            <svg width="100" height="24" viewBox="0 0 100 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g>
+                <path d="M12.017 0L4.15 21.5H0.916L6.725 0H12.017Z" fill="#253B80"/>
+                <path d="M13.76 0C16.757 0 18.773 1.216 19.35 3.624C19.777 5.362 19.234 7.642 17.858 9.378C16.278 11.366 13.863 12.158 11.068 12.158H8.736L7.468 16.912H11.322L10.432 21.5H3.334L8.736 0H13.76Z" fill="#253B80"/>
+                <path d="M26.056 0L20.654 21.5H17.42L22.822 0H26.056Z" fill="#179BD7"/>
+                <path d="M27.799 0C30.796 0 32.812 1.216 33.389 3.624C33.816 5.362 33.273 7.642 31.897 9.378C30.317 11.366 27.902 12.158 25.107 12.158H22.775L21.507 16.912H25.361L24.471 21.5H17.373L22.775 0H27.799Z" fill="#179BD7"/>
+                <path d="M39.711 15.5C41.103 15.5 42.273 14.33 42.273 12.938C42.273 11.546 41.103 10.376 39.711 10.376C38.319 10.376 37.149 11.546 37.149 12.938C37.149 14.33 38.319 15.5 39.711 15.5Z" fill="#253B80"/>
+                <path d="M49.738 0C53.958 0 56.615 2.078 56.615 5.548C56.615 10.142 52.754 12.896 47.502 12.896H44.756L43.298 18.526H48.004L47.114 21.5H38.786L44.756 0H49.738Z" fill="#179BD7"/>
+                <path d="M68.736 12.896C65.741 12.896 63.725 11.68 63.148 9.272C62.721 7.534 63.264 5.254 64.64 3.518C66.22 1.53 68.635 0.738 71.43 0.738H73.762L75.03 4.026H71.176L72.066 0.738H75.3L73.762 4.026C76.759 4.026 78.775 5.242 79.352 7.65C79.779 9.388 79.236 11.668 77.86 13.404C76.28 15.392 73.865 16.184 71.07 16.184H68.738L70.006 12.896H68.736Z" fill="#253B80"/>
+                <path d="M87.273 21.5L82.871 0H86.105L89.627 18.026L95.436 0H98.67L93.268 21.5H87.273Z" fill="#179BD7"/>
+              </g>
+            </svg>
+          </button>
+          <button class="cartuplift-shoppay-btn" onclick="window.cartUpliftDrawer.proceedToShopPay()" title="Pay with Shop Pay">
+            <span style="font-weight: 500; font-size: 14px;">Shop Pay</span>
+          </button>
         </div>
       `;
     }
@@ -3910,6 +3926,130 @@
       }
     }
 
+    proceedToPayPal() {
+      // Track PayPal checkout start
+      if (this.settings.enableAnalytics) CartAnalytics.trackEvent('paypal_checkout_start', {
+        revenue: this.cart ? this.cart.total_price / 100 : 0
+      });
+
+      // For PayPal, we need to trigger Shopify's built-in PayPal Express Checkout
+      // First, ensure cart is updated with any notes or discount codes
+      this.updateCartForExpressCheckout().then(() => {
+        // Try to find and trigger existing PayPal button if available
+        const existingPayPal = document.querySelector('[data-shopify="payment-button"] iframe[src*="paypal"], .shopify-payment-button iframe[src*="paypal"], [data-testid="paypal"]');
+        if (existingPayPal) {
+          // Try to click the parent button
+          const parentButton = existingPayPal.closest('button');
+          if (parentButton) {
+            parentButton.click();
+            return;
+          }
+        }
+
+        // Alternative: Look for PayPal script and trigger directly
+        if (window.paypal) {
+          // PayPal is loaded, we can use their SDK
+          this.initPayPalButton();
+          return;
+        }
+
+        // Fallback: redirect to checkout 
+        // Shopify will automatically show PayPal Express if enabled
+        window.location.href = '/checkout';
+      });
+    }
+
+    proceedToShopPay() {
+      // Track Shop Pay checkout start
+      if (this.settings.enableAnalytics) CartAnalytics.trackEvent('shoppay_checkout_start', {
+        revenue: this.cart ? this.cart.total_price / 100 : 0
+      });
+
+      // For Shop Pay, trigger Shopify's built-in Shop Pay
+      this.updateCartForExpressCheckout().then(() => {
+        // Try to find and trigger existing Shop Pay button if available
+        const existingShopPay = document.querySelector('[data-shopify="payment-button"] [data-testid="shopify-pay"], .shopify-payment-button [data-testid="shopify-pay"], [aria-label*="Shop Pay"]');
+        if (existingShopPay) {
+          existingShopPay.click();
+          return;
+        }
+
+        // Check if Shop Pay is available via window.ShopifyPay
+        if (window.ShopifyPay) {
+          // Shop Pay is available, try to use it
+          this.initShopPayButton();
+          return;
+        }
+
+        // Fallback: redirect to checkout
+        // Shopify will automatically show Shop Pay if available
+        window.location.href = '/checkout';
+      });
+    }
+
+    initPayPalButton() {
+      // Create a temporary container for PayPal button
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.opacity = '0';
+      document.body.appendChild(tempContainer);
+
+      if (window.paypal && window.paypal.Buttons) {
+        window.paypal.Buttons({
+          createOrder: () => {
+            // Use Shopify's cart for order creation
+            return fetch('/cart.js')
+              .then(res => res.json())
+              .then(cart => {
+                // This would need to integrate with Shopify's PayPal implementation
+                // For now, redirect to checkout
+                window.location.href = '/checkout';
+              });
+          }
+        }).render(tempContainer);
+      }
+    }
+
+    initShopPayButton() {
+      // Shop Pay integration would go here
+      // For now, redirect to checkout where Shop Pay will be available
+      window.location.href = '/checkout';
+    }
+
+    async updateCartForExpressCheckout() {
+      try {
+        const notes = document.getElementById('cartuplift-notes-input');
+        const attrs = this.cart?.attributes || {};
+        
+        let updateData = {};
+        let needsUpdate = false;
+
+        // Add notes if present
+        if (notes && notes.value.trim()) {
+          updateData.note = notes.value.trim();
+          needsUpdate = true;
+        }
+
+        // Ensure discount code is in cart attributes for checkout
+        const discountCode = attrs['discount_code'];
+        if (discountCode) {
+          updateData.attributes = { ...attrs };
+          needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+          await fetch('/cart/update.js', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updateData)
+          });
+        }
+      } catch (error) {
+        console.warn('Failed to update cart for express checkout:', error);
+      }
+    }
+
     // Add early interceptors to prevent theme notifications
     installEarlyInterceptors() {
       
@@ -4027,9 +4167,10 @@
       });
 
   // Defer mounting until Shopify actually injects buttons; avoid probing too early
-  this.observePaymentButtons();
+  // Note: We now use direct button implementation instead of cloning Shopify buttons
+  // this.observePaymentButtons();
   // Single, late warning if nothing shows up (no repeated probing)
-  setTimeout(() => this.warnIfNoPaymentButtons(), 8000);
+  // setTimeout(() => this.warnIfNoPaymentButtons(), 8000);
     }
 
     // Observe the hidden probe for when Shopify injects express checkout buttons
