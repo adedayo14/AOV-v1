@@ -3,7 +3,7 @@
 
   // Version sentinel & live verification (cache-bust expectation)
   (function(){
-  const v = 'grid-2025-09-12-7-swatch-column-cart-text';
+  const v = 'grid-2025-09-12-8-no-recs-swatches';
     if (window.CART_UPLIFT_ASSET_VERSION !== v) {
       window.CART_UPLIFT_ASSET_VERSION = v;
       console.log('[CartUplift] Loaded asset version ' + v + ' – expecting NEW grid (no .cartuplift-grid-overlay elements).');
@@ -1764,7 +1764,7 @@
   const layoutRaw = this.settings.recommendationLayout || 'column';
       const layout = layoutMap[layoutRaw] || layoutRaw;
       
-  if (layout === 'row') {
+      if (layout === 'row') {
         // Only return the scroll track; controls are rendered outside the scroll container
         return `
           <div class="cartuplift-recommendations-track">
@@ -1774,7 +1774,7 @@
                   <div class="cartuplift-product-image">
                     <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
                   </div>
-      <div class="cartuplift-product-info">${this.generateVariantSelector(product)}${this.generateVariantSwatches(product, 'row')}</div>
+      <div class="cartuplift-product-info">${this.generateVariantSelector(product)}</div>
                   <div class="cartuplift-product-actions">
                     <div class="cartuplift-recommendation-price">${this.formatMoney(product.priceCents || 0)}</div>
                     <button class="cartuplift-add-recommendation" data-product-id="${product.id}" data-variant-id="${product.variant_id}">
@@ -1798,7 +1798,6 @@
               <h4><a href="${product.url}" class="cartuplift-product-link">${product.title}</a></h4>
               <div class="cartuplift-recommendation-price">${this.formatMoney(product.priceCents || 0)}</div>
             </div>
-            ${this.generateVariantSwatches(product, 'column')}
             <button class="cartuplift-add-recommendation-circle" data-variant-id="${product.variant_id}">
               +
             </button>
@@ -1858,7 +1857,6 @@
                      onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
               </div>
          <div class="cartuplift-grid-hover">
-    ${this.generateVariantSwatches(product, 'grid')}
      <button class="cartuplift-grid-add-btn" 
        data-variant-id="${product.variant_id}" 
        data-grid-index="${index}"
@@ -1928,7 +1926,6 @@
         const hover = gridItem.querySelector('.cartuplift-grid-hover');
         if (hover) {
           hover.innerHTML = `
-            ${this.generateVariantSwatches(product, 'grid')}
             <button class="cartuplift-grid-add-btn" data-variant-id="${product.variant_id}" data-grid-index="${index}" data-product-title="${this.escapeHtml(product.title)}" aria-label="Add ${this.escapeHtml(product.title)}">${this.getCartIconSVG()}</button>
           `;
         }
@@ -2029,132 +2026,9 @@
       }
     }
 
-    // Build circular swatch UI for color-like options. Non-blocking; falls back to nothing if no color options.
+    // Swatches disabled for recommendations – no markup generated
     generateVariantSwatches(product, context = 'row') {
-      try {
-        const options = product?.options || [];
-        // Find the first color-like option index/name
-        let colorIndex = -1;
-        let colorName = '';
-        options.forEach((opt, idx) => {
-          const n = String(opt?.name || '').toLowerCase();
-          if (colorIndex === -1 && (n.includes('color') || n.includes('colour'))) {
-            colorIndex = idx;
-            colorName = opt.name || 'Color';
-          }
-        });
-        // Value-based detection on option values
-        if (colorIndex === -1 && Array.isArray(options) && options.length) {
-          const looksColor = (val) => {
-            const s = String(val || '').trim().toLowerCase();
-            if (!s) return false;
-            return /^(black|white|ivory|beige|cream|off\s*white|grey|gray|charcoal|silver|red|maroon|burgundy|pink|blush|rose|orange|coral|peach|yellow|gold|mustard|green|olive|mint|teal|blue|navy|sky|cobalt|purple|violet|lavender|lilac|brown|tan|chocolate)$/i.test(s)
-              || /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s)
-              || /^(rgb|rgba|hsl|hsla)\(/.test(s);
-          };
-          options.forEach((opt, idx) => {
-            if (colorIndex !== -1) return;
-            const vals = Array.isArray(opt?.values) ? opt.values : [];
-            const colorishCount = vals.slice(0, 20).filter(looksColor).length;
-            if (colorishCount >= Math.min(2, vals.length)) {
-              colorIndex = idx;
-              colorName = opt.name || 'Color';
-            }
-          });
-        }
-        // If exactly two options and one looks like size, pick the other as color
-        if (colorIndex === -1 && Array.isArray(options) && options.length === 2) {
-          const isSize = (n) => /size|shoe\s*size|waist|length|width|dimension|eu|us|uk|cm|mm|xl|xxl|xs/i.test(n);
-          const n0 = String(options[0]?.name || '').toLowerCase();
-          const n1 = String(options[1]?.name || '').toLowerCase();
-          if (isSize(n0) && !isSize(n1)) { colorIndex = 1; colorName = options[1].name || 'Color'; }
-          else if (isSize(n1) && !isSize(n0)) { colorIndex = 0; colorName = options[0].name || 'Color'; }
-        }
-        // Fallback heuristic: infer color slot from variant values when no labeled color option exists
-        if (colorIndex === -1) {
-          const variants = Array.isArray(product.variants) ? product.variants : [];
-          if (variants.length) {
-            // Determine how many option slots exist across variants
-            let slotCount = 0;
-            variants.forEach(v => {
-              const opts = v.options || v.option_values || [];
-              if (Array.isArray(opts)) {
-                slotCount = Math.max(slotCount, opts.length);
-              } else {
-                // Fallback to option1/2/3
-                const count = [v.option1, v.option2, v.option3].filter(Boolean).length;
-                slotCount = Math.max(slotCount, count);
-              }
-            });
-            slotCount = Math.max(slotCount, options.length || 0) || 1;
-            const slotScores = new Array(slotCount).fill(0);
-            for (let i = 0; i < slotCount; i++) {
-              const seen = new Set();
-              for (let v of variants.slice(0, Math.min(variants.length, 20))) {
-                const opts = v.options || v.option_values || [];
-                const val = Array.isArray(opts) ? opts[i] : (v[`option${i+1}`] || '');
-                const s = String(val || '').trim();
-                if (!s) continue;
-                const sl = s.toLowerCase();
-                if (/^(black|white|ivory|beige|cream|off\s*white|grey|gray|charcoal|silver|red|maroon|burgundy|pink|blush|rose|orange|coral|peach|yellow|gold|mustard|green|olive|mint|teal|blue|navy|sky|cobalt|purple|violet|lavender|lilac|brown|tan|chocolate)$/i.test(sl)) slotScores[i] += 3;
-                if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(sl)) slotScores[i] += 3;
-                if (/^(rgb|rgba|hsl|hsla)\(/.test(sl)) slotScores[i] += 2;
-                if (!seen.has(sl)) { seen.add(sl); slotScores[i] += 0.5; }
-              }
-            }
-            const bestIndex = slotScores.indexOf(Math.max(...slotScores));
-            if (slotScores[bestIndex] > 0) {
-              colorIndex = bestIndex;
-              colorName = options[bestIndex]?.name || 'Color';
-            }
-          }
-        }
-        if (colorIndex === -1) return '';
-
-        // Build value -> variant map for quick lookup of available variants of that color
-        const values = new Map();
-        (product.variants || []).forEach(v => {
-          if (!v || v.available === false) return;
-          const opts = v.options || v.option_values || [];
-          const val = Array.isArray(opts) ? opts[colorIndex] : (v[`option${colorIndex+1}`] || '');
-          const value = String(val || '').trim();
-          if (!value) return;
-          if (!values.has(value)) values.set(value, []);
-          values.get(value).push(v);
-        });
-        if (values.size === 0) return '';
-
-        // Pick initial selected color based on current selected variant id
-        const selectedVariantId = product.variant_id;
-        let selectedColor = '';
-        if (selectedVariantId) {
-          const sv = (product.variants || []).find(v => String(v.id) === String(selectedVariantId));
-          if (sv) {
-            const opts = sv.options || sv.option_values || [];
-            selectedColor = Array.isArray(opts) ? String(opts[colorIndex] || '') : String(sv[`option${colorIndex+1}`] || '');
-          }
-        }
-
-        const swatches = Array.from(values.keys()).slice(0, 8).map(val => {
-          const color = this.computeSwatchColor(val);
-          const isWhite = /^(white|off\s*white|ivory)$/i.test(val);
-          const isSelected = selectedColor && String(selectedColor).toLowerCase() === String(val).toLowerCase();
-          const initial = (String(val).trim()[0] || '').toUpperCase();
-          return `
-            <button type="button" class="cartuplift-variant-swatch${isWhite ? ' is-white' : ''}" 
-                    data-role="swatch" data-product-id="${product.id}" data-option-index="${colorIndex}"
-                    data-option-name="${this.escapeHtml(colorName)}" data-option-value="${this.escapeHtml(val)}"
-                    aria-label="${this.escapeHtml(colorName)}: ${this.escapeHtml(val)}"
-                    aria-selected="${isSelected ? 'true' : 'false'}"
-                    style="${color ? `background:${color};` : ''}">
-              ${color ? '' : `<span class="cartuplift-swatch-initial">${initial}</span>`}
-            </button>`;
-        }).join('');
-
-        return `<div class="cartuplift-variant-swatch-group" data-product-id="${product.id}" data-context="${context}">${swatches}</div>`;
-      } catch (_) {
-        return '';
-      }
+      return '';
     }
 
     // Heuristic mapping from color string to CSS color
@@ -3265,65 +3139,8 @@
             });
           }
         } else if (e.target.matches && (e.target.matches('.cartuplift-variant-swatch') || e.target.closest('.cartuplift-variant-swatch'))) {
-          // Handle swatch selection
-          const swatch = e.target.closest('.cartuplift-variant-swatch');
-          if (!swatch) return;
-          const productId = swatch.dataset.productId;
-          const optionIndex = parseInt(swatch.dataset.optionIndex);
-          const optionValue = swatch.dataset.optionValue;
-          if (!productId || isNaN(optionIndex)) return;
-
-          // Find the relevant product in current recommendations
-          const product = (this.recommendations || []).find(p => String(p.id) === String(productId));
-          if (!product || !Array.isArray(product.variants)) return;
-
-          // Choose a variant matching the swatch's value at optionIndex
-          const match = product.variants.find(v => {
-            const opts = v.options || v.option_values || [];
-            const val = Array.isArray(opts) ? opts[optionIndex] : (v[`option${optionIndex+1}`] || '');
-            return String(val).toLowerCase() === String(optionValue).toLowerCase();
-          });
-          if (!match) return;
-          product.variant_id = match.id; // update selected variant on the product object
-          product.priceCents = match.price_cents || product.priceCents;
-
-          // Update UI depending on context
-          const group = swatch.closest('.cartuplift-variant-swatch-group');
-          const context = group?.dataset?.context || 'row';
-          // Update selected state within the group
-          if (group) {
-            group.querySelectorAll('.cartuplift-variant-swatch').forEach(btn => {
-              const selected = String(btn.dataset.optionValue).toLowerCase() === String(optionValue).toLowerCase();
-              btn.setAttribute('aria-selected', selected ? 'true' : 'false');
-            });
-          }
-
-          if (context === 'row') {
-            const card = swatch.closest('.cartuplift-recommendation-card');
-            if (card) {
-              const addBtn = card.querySelector('.cartuplift-add-recommendation');
-              if (addBtn) addBtn.dataset.variantId = match.id;
-              const priceEl = card.querySelector('.cartuplift-recommendation-price');
-              if (priceEl && match.price_cents) priceEl.textContent = this.formatMoney(parseInt(match.price_cents));
-              // If a dropdown exists, sync it
-              const select = card.querySelector('.cartuplift-size-dropdown');
-              if (select) select.value = match.id;
-            }
-          } else if (context === 'grid') {
-            const gridItem = swatch.closest('.cartuplift-grid-item');
-            if (gridItem) {
-              const addBtn = gridItem.querySelector('.cartuplift-grid-add-btn');
-              if (addBtn) addBtn.dataset.variantId = match.id;
-            }
-          } else if (context === 'column') {
-            const item = swatch.closest('.cartuplift-recommendation-item');
-            if (item) {
-              const addBtn = item.querySelector('.cartuplift-add-recommendation-circle');
-              if (addBtn) addBtn.dataset.variantId = match.id;
-              const priceEl = item.querySelector('.cartuplift-recommendation-price');
-              if (priceEl && match.price_cents) priceEl.textContent = this.formatMoney(parseInt(match.price_cents));
-            }
-          }
+          // Swatches are disabled in recommendations for now to avoid pricing inconsistencies
+          return;
         }
       });
 
