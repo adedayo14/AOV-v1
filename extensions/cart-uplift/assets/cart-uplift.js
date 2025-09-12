@@ -1824,9 +1824,9 @@
         visibleCount = Math.min(8, availableProducts);
         isCollapsed = false; // Mobile always uses single row
       } else {
-        // Desktop: collapsed (≤3 items) or standard (6 items)
-        isCollapsed = availableProducts <= 3 || maxRecommendations <= 3;
-        visibleCount = isCollapsed ? Math.min(3, availableProducts) : Math.min(6, availableProducts);
+        // Desktop: single compact row with 4 items
+        isCollapsed = false;
+        visibleCount = Math.min(4, availableProducts);
       }
       const productsToShow = this.recommendations.slice(0, visibleCount);
       
