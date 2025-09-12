@@ -1,11 +1,11 @@
-// Prisma schema - SQLite for local development
+// Production Prisma schema for PostgreSQL
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.sqlite"
+  provider = "postgresql"
+  url      = env("DATABASE_DATABASE_URL")
 }
 
 model Session {
@@ -24,8 +24,6 @@ model Session {
   locale        String?
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
-
-  @@map("Session")
 }
 
 model Settings {
@@ -38,7 +36,7 @@ model Settings {
   showOnlyOnCartPage      Boolean  @default(false)
   autoOpenCart            Boolean  @default(true)
   enableFreeShipping      Boolean  @default(false)
-  freeShippingThreshold   Float    @default(100)
+  freeShippingThreshold   Float    @default(0)
   
   // Advanced Features
   enableRecommendations   Boolean  @default(false)
@@ -48,24 +46,19 @@ model Settings {
   enableExpressCheckout   Boolean  @default(true)
   enableAnalytics         Boolean  @default(false)
   enableTitleCaps         Boolean  @default(false)
-  enableRecommendationTitleCaps Boolean @default(false)
   
   // Cart Behavior & Position
   cartPosition            String   @default("bottom-right")
   cartIcon                String   @default("cart")
   
   // Messages & Text
-  freeShippingText        String   @default("You're {{ amount }} away from free shipping!")
+  freeShippingText        String   @default("You're {amount} away from free shipping!")
   freeShippingAchievedText String  @default("🎉 Congratulations! You've unlocked free shipping!")
   recommendationsTitle    String   @default("You might also like")
   actionText              String   @default("Add discount code")
   addButtonText           String   @default("Add")
   checkoutButtonText      String   @default("CHECKOUT")
   applyButtonText         String   @default("Apply")
-  // Inline link texts (storefront)
-  discountLinkText        String   @default("+ Got a promotion code?")
-  notesLinkText           String   @default("+ Add order notes")
-  
   
   // Appearance
   backgroundColor         String   @default("#ffffff")
@@ -76,29 +69,17 @@ model Settings {
   shippingBarBackgroundColor String @default("#f0f0f0")
   shippingBarColor        String   @default("#121212")
   
-  // Layout and Recommendations - IMPORTANT: Default is "carousel"
-  recommendationLayout    String   @default("carousel")
-  maxRecommendations      Int      @default(4)
+  // Recommendation Settings
+  recommendationLayout    String   @default("horizontal")
+  maxRecommendations      Int      @default(6)
   complementDetectionMode String   @default("automatic")
   manualRecommendationProducts String @default("")
   
-  // Sticky Cart Settings
-  stickyCartShowIcon           Boolean @default(true)
-  stickyCartShowCount          Boolean @default(true)
-  stickyCartShowTotal          Boolean @default(true)
-  stickyCartBackgroundColor    String  @default("#000000")
-  stickyCartTextColor          String  @default("#ffffff")
-  stickyCartCountBadgeColor    String  @default("#ff4444")
-  stickyCartCountBadgeTextColor String @default("#ffffff")
-  stickyCartBorderRadius       Int     @default(25)
-  
   // Progress Bar System
-  progressBarMode         String   @default("free-shipping")
+  progressBarMode         String   @default("free-shipping") // "free-shipping", "gift-gating", "combined"
   enableGiftGating        Boolean  @default(false)
-  giftProgressStyle       String   @default("single-next")
-  giftThresholds          String   @default("[]")
-  giftNoticeText          String   @default("Free gift added: {{product}} (worth {{amount}})")
-  giftPriceText           String   @default("FREE")
+  giftProgressStyle       String   @default("single-next") // "stacked", "single-multi", "single-next"
+  giftThresholds          String   @default("[]") // JSON array of gift thresholds
 
   // Theme App Embed Status
   themeEmbedEnabled       Boolean  @default(false)
@@ -106,6 +87,4 @@ model Settings {
   
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
-
-  @@map("Settings")
 }
