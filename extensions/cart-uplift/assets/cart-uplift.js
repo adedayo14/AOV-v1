@@ -1819,7 +1819,6 @@
             <div class="cartuplift-recommendation-info">
               <h4><a href="${product.url}" class="cartuplift-product-link">${product.title}</a></h4>
               <div class="cartuplift-recommendation-price">${this.formatMoney(normalizePriceToCents(product.priceCents || 0))}</div>
-              ${this.renderOptionText(product)}
             </div>
             <button class="cartuplift-add-recommendation-circle" data-variant-id="${product.variant_id}">
               +
@@ -2004,11 +2003,8 @@
             else if (isSize(n1) && !isSize(n0)) colorIndex = 0;
           }
         }
-        // If only color option exists, we don't need a dropdown (swatches cover it)
-        const onlyColor = colorIndex !== -1 && opts.length === 1;
-        if (onlyColor) {
-          return `<div class="cartuplift-product-variation hidden"></div>`;
-        }
+  // Combine Color + Size into a single selector row for grid; for row/list we still render one dropdown (size/other)
+  const onlyColor = colorIndex !== -1 && opts.length === 1;
         // Find the first available variant to set as selected
         let firstAvailableIndex = -1;
         const availableVariants = product.variants.filter((variant, index) => {
@@ -2018,7 +2014,7 @@
           return variant.available;
         });
         const selectedId = product.variant_id;
-        // Helper: build label excluding the color option
+  // Helper: build label excluding the color option (so size shows alone if color exists)
         const buildLabel = (variant) => {
           if (colorIndex === -1) return variant.title;
           const arr = variant.options || variant.option_values || [];
@@ -2033,17 +2029,45 @@
           return result || variant.title;
         };
         
-        return `
-          <div class="cartuplift-product-variation">
-            <select class="cartuplift-size-dropdown" data-product-id="${product.id}">
-              ${availableVariants.map((variant, index) => `
-                <option value="${variant.id}" data-price-cents="${variant.price_cents}" ${(String(selectedId) === String(variant.id) || (!selectedId && index === 0)) ? 'selected' : ''}>
-                  ${buildLabel(variant)}
-                </option>
-              `).join('')}
-            </select>
-          </div>
-        `;
+        // Build optional color inline select if color is present and no swatches are used
+        let colorSelect = '';
+        if (colorIndex !== -1) {
+          const colorName = opts[colorIndex]?.name || 'Color';
+          const values = Array.from(new Set((product.variants || []).map(v => {
+            const arr = v.options || v.option_values || [];
+            return Array.isArray(arr) ? arr[colorIndex] : (v[`option${colorIndex+1}`] || '');
+          }).filter(Boolean)));
+          if (values.length > 1) {
+            // Compute selected color from selectedId
+            let selectedColor = '';
+            const sv = (product.variants || []).find(v => String(v.id) === String(selectedId)) || availableVariants[0];
+            if (sv) {
+              const arr = sv.options || sv.option_values || [];
+              selectedColor = Array.isArray(arr) ? String(arr[colorIndex] || '') : String(sv[`option${colorIndex+1}`] || '');
+            }
+            colorSelect = `
+              <label class="cartuplift-variant-label">${this.escapeHtml(colorName)}</label>
+              <select class="cartuplift-size-dropdown cartuplift-color-dropdown" data-product-id="${product.id}" data-option-index="${colorIndex}">
+                ${values.map(val => `<option value="${this.escapeHtml(val)}" ${String(val).toLowerCase() === String(selectedColor).toLowerCase() ? 'selected' : ''}>${this.escapeHtml(val)}</option>`).join('')}
+              </select>
+            `;
+          }
+        }
+        const sizeSelect = `
+          <select class="cartuplift-size-dropdown" data-product-id="${product.id}">
+            ${availableVariants.map((variant, index) => `
+              <option value="${variant.id}" data-price-cents="${variant.price_cents}" ${(String(selectedId) === String(variant.id) || (!selectedId && index === 0)) ? 'selected' : ''}>
+                ${buildLabel(variant)}
+              </option>
+            `).join('')}
+          </select>`;
+
+        if (onlyColor) {
+          // Only color exists, use the color dropdown alone
+          return `<div class="cartuplift-product-variation">${colorSelect}</div>`;
+        }
+
+        return `<div class="cartuplift-product-variation">${colorSelect}${sizeSelect}</div>`;
       } else {
         // Simple product or single variant - hide selector completely
         return `<div class="cartuplift-product-variation hidden"></div>`;
@@ -3192,7 +3216,47 @@
       container.addEventListener('change', (e) => {
         const select = e.target;
         if (select && select.classList && select.classList.contains('cartuplift-size-dropdown')) {
-          this.handleVariantChange(select);
+          // If it's a color dropdown, remap to a matching variant and sync paired size dropdown if present
+          if (select.classList.contains('cartuplift-color-dropdown')) {
+            const productId = select.dataset.productId;
+            const optionIndex = parseInt(select.dataset.optionIndex);
+            const chosenColor = select.value;
+            const product = (this.recommendations || []).find(p => String(p.id) === String(productId));
+            if (product && Array.isArray(product.variants)) {
+              // Find a variant that matches the chosen color and current size label (if any)
+              const containerEl = select.closest('.cartuplift-recommendation-card, .cartuplift-grid-item');
+              const sizeSelect = containerEl?.querySelector('.cartuplift-size-dropdown:not(.cartuplift-color-dropdown)');
+              let match = null;
+              if (sizeSelect && sizeSelect.value) {
+                // Try to keep current variant id's size label but switch color
+                const currentVariant = product.variants.find(v => String(v.id) === String(sizeSelect.value));
+                const currentOpts = currentVariant?.options || currentVariant?.option_values || [];
+                const targetSize = Array.isArray(currentOpts) ? currentOpts.find((_, idx) => idx !== optionIndex) : null;
+                match = product.variants.find(v => {
+                  const opts = v.options || v.option_values || [];
+                  const val = Array.isArray(opts) ? opts[optionIndex] : (v[`option${optionIndex+1}`] || '');
+                  const sizeOk = !targetSize || (Array.isArray(opts) && opts.some(o => o === targetSize));
+                  return String(val).toLowerCase() === String(chosenColor).toLowerCase() && sizeOk;
+                }) || product.variants.find(v => {
+                  const opts = v.options || v.option_values || [];
+                  const val = Array.isArray(opts) ? opts[optionIndex] : (v[`option${optionIndex+1}`] || '');
+                  return String(val).toLowerCase() === String(chosenColor).toLowerCase();
+                });
+              } else {
+                match = product.variants.find(v => {
+                  const opts = v.options || v.option_values || [];
+                  const val = Array.isArray(opts) ? opts[optionIndex] : (v[`option${optionIndex+1}`] || '');
+                  return String(val).toLowerCase() === String(chosenColor).toLowerCase();
+                });
+              }
+              if (match) {
+                if (sizeSelect) sizeSelect.value = String(match.id);
+                this.handleVariantChange(sizeSelect || select);
+              }
+            }
+          } else {
+            this.handleVariantChange(select);
+          }
         }
       });
 
