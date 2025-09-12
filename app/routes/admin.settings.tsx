@@ -89,7 +89,6 @@ export const action = withAuthAction(async ({ request, auth }) => {
     freeShippingText: String(settings.freeShippingText) || "You're {{ amount }} away from free shipping!",
     freeShippingAchievedText: String(settings.freeShippingAchievedText) || "🎉 Congratulations! You've unlocked free shipping!",
     recommendationsTitle: String(settings.recommendationsTitle) || "You might also like",
-    actionText: String(settings.actionText) || "Add discount code",
     addButtonText: String(settings.addButtonText) || "Add",
     checkoutButtonText: String(settings.checkoutButtonText) || "CHECKOUT",
     discountLinkText: String(settings.discountLinkText) || "+ Got a promotion code?",
@@ -1169,30 +1168,55 @@ export default function SettingsPage() {
 
           .cartuplift-express-checkout {
             display: flex;
-            gap: 8px;
-            margin-top: 8px;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 12px;
           }
 
           .cartuplift-paypal-btn,
           .cartuplift-shoppay-btn {
-            flex: 1;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            background: white;
+            width: 100%;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 12px;
-            font-weight: 500;
-            transition: background 0.2s ease;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 48px;
           }
 
-          .cartuplift-paypal-btn:hover,
+          .cartuplift-paypal-btn {
+            background: #0070ba;
+            color: white;
+          }
+
+          .cartuplift-paypal-btn:hover {
+            background: #005ea6;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 112, 186, 0.3);
+          }
+
+          .cartuplift-shoppay-btn {
+            background: #5a31f4;
+            color: white;
+          }
+
           .cartuplift-shoppay-btn:hover {
-            background: #f5f5f5;
+            background: #4c2ed8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(90, 49, 244, 0.3);
           }
 
           .cartuplift-paypal-logo {
-            height: 16px;
+            height: 20px;
+          }
+
+          .cartuplift-shoppay-text {
+            margin-left: 8px;
           }
             border: 1px solid #ddd;
             border-radius: 3px;
@@ -3670,17 +3694,6 @@ export default function SettingsPage() {
                     helpText="Let customers add special instructions"
                   />
 
-                  {(formSettings.enableDiscountCode || formSettings.enableNotes) && (
-                    <TextField
-                      label="Action Button Text"
-                      value={formSettings.actionText || ""}
-                      onChange={(value) => updateSetting("actionText", value)}
-                      placeholder="Add discount codes and notes"
-                      helpText="Text shown on the button that opens the discount/notes modal"
-                      autoComplete="off"
-                    />
-                  )}
-
                   {formSettings.enableDiscountCode && (
                     <TextField
                       label="Discount Link Text"
@@ -4442,10 +4455,30 @@ export default function SettingsPage() {
                   
                   {formSettings.enableExpressCheckout && (
                     <div className="cartuplift-express-checkout">
-                      <button className="cartuplift-paypal-btn">
-                        <img src="https://www.paypalobjects.com/webstatic/en_US/i/buttons/PP_logo_h_100x26.png" alt="PayPal" className="cartuplift-paypal-logo" />
+                      <button className="cartuplift-paypal-btn" title="Pay with PayPal">
+                        <svg width="100" height="20" viewBox="0 0 100 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M7.076 18.177L8.336 10.24H11.9c2.9 0 4.9-0.6 5.9-1.8 0.8-1 1.1-2.6 0.8-4.7-0.3-2-1.2-3.4-2.6-4.2C14.676 -1.063 12.576 -0.563 9.776 -0.563H2.676C2.176 -0.563 1.776 -0.163 1.676 0.337L-1.124 17.337c-0.1 0.4 0.2 0.8 0.6 0.8h4.1L4.476 11.84l-0.1 0.6c-0.1 0.4 0.2 0.8 0.6 0.8h2.5c5.2 0 9.3-2.1 10.5-8.2 0.5-2.5 0.2-4.6-1-6.1 1.4 1.6 1.8 4.1 1.2 7.1-1.3 6.7-5.9 8.9-11.7 8.9H4.976z" fill="white"/>
+                          <path d="M35.776 4.837c-1.3-1.4-3.4-2-6.2-2h-8.2c-0.5 0-0.9 0.4-1 0.9L17.376 18.137c-0.1 0.4 0.2 0.8 0.6 0.8h4.5l1.1-7.2-0.03 0.2c0.1-0.5 0.5-0.9 1-0.9h2.1c4.1 0 7.3-1.7 8.2-6.5 0.03-0.2 0.05-0.4 0.07-0.6-0.01 0 -0.01 0 0 0 0.4-2.5-0.03-4.2-1.2-5.6z" fill="white"/>
+                          <path d="M34.376 4.237c-0.2-0.07-0.4-0.13-0.6-0.18-0.2-0.05-0.4-0.1-0.6-0.14-1.1-0.2-2.4-0.3-3.9-0.3h-7.4c-0.15 0-0.3 0.03-0.43 0.08-0.25 0.1-0.45 0.33-0.52 0.62L19.776 11.337l-0.03 0.2c0.1-0.5 0.5-0.9 1-0.9h2.1c4.1 0 7.3-1.7 8.2-6.5 0.03-0.2 0.05-0.4 0.07-0.6 0.4-2.5-0.03-4.2-1.2-5.6z" fill="#003087"/>
+                          <path d="M21.576 4.237c0.07-0.29 0.27-0.52 0.52-0.62 0.13-0.05 0.28-0.08 0.43-0.08h7.4c1.5 0 2.8 0.1 3.9 0.3 0.2 0.04 0.4 0.09 0.6 0.14 0.2 0.05 0.4 0.11 0.6 0.18 0.3 0.09 0.6 0.19 0.8 0.3 1.2-7.6-0.7-11.7-6.4-11.7h-8.2c-0.5 0-0.9 0.4-1 0.9L16.276 8.137l3-18.9z" fill="#009cde"/>
+                          <path d="M52.076 9.137L48.876 18.137h-4.7l3.2-9h4.7z" fill="white"/>
+                          <path d="M70.276 9.137c0 3.6-2.7 6.2-6.5 6.2-1.7 0-3.1-0.5-3.9-1.5-0.8-1-1.1-2.4-0.7-3.9 0.3-1.5 1.2-2.8 2.4-3.6 1.2-0.8 2.6-1.2 4.1-1.2 1.6 0 2.9 0.4 3.7 1.3 0.8 0.9 1.1 2.2 0.9 3.7zm-6.9-2.8c-0.6 0-1.1 0.2-1.5 0.6-0.4 0.4-0.6 0.9-0.7 1.5-0.1 0.6 0 1.1 0.3 1.5 0.3 0.4 0.8 0.6 1.4 0.6 0.6 0 1.1-0.2 1.5-0.6 0.4-0.4 0.6-0.9 0.7-1.5 0.1-0.6 0-1.1-0.3-1.5-0.3-0.4-0.8-0.6-1.4-0.6z" fill="white"/>
+                          <path d="M82.576 15.337c-1.6 0-2.9-0.4-3.7-1.3-0.8-0.9-1.1-2.2-0.9-3.7 0.4-2.6 2.7-4.5 5.5-4.5 1.6 0 2.9 0.4 3.7 1.3 0.8 0.9 1.1 2.2 0.9 3.7-0.4 2.6-2.7 4.5-5.5 4.5zm1.4-7.5c-0.6 0-1.1 0.2-1.5 0.6-0.4 0.4-0.6 0.9-0.7 1.5-0.1 0.6 0 1.1 0.3 1.5 0.3 0.4 0.8 0.6 1.4 0.6 0.6 0 1.1-0.2 1.5-0.6 0.4-0.4 0.6-0.9 0.7-1.5 0.1-0.6 0-1.1-0.3-1.5-0.3-0.4-0.8-0.6-1.4-0.6z" fill="white"/>
+                          <path d="M93.376 9.137L91.576 18.137h-4.2l1.8-9h4.2z" fill="white"/>
+                          <path d="M99.476 9.137L98.576 14.037c-0.1 0.5-0.6 0.9-1.1 0.9h-2.8l-0.4 2.2h-4.2l1.8-9h8.7z" fill="white"/>
+                        </svg>
                       </button>
-                      <button className="cartuplift-shoppay-btn">Shop Pay</button>
+                      <button className="cartuplift-shoppay-btn" title="Pay with Shop Pay">
+                        <svg width="80" height="20" viewBox="0 0 80 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M8.462 1.946c-.67 0-1.214.544-1.214 1.214v2.427c0 .67.544 1.214 1.214 1.214s1.214-.544 1.214-1.214V3.16c0-.67-.544-1.214-1.214-1.214zm4.855 0c-.67 0-1.214.544-1.214 1.214v2.427c0 .67.544 1.214 1.214 1.214s1.214-.544 1.214-1.214V3.16c0-.67-.544-1.214-1.214-1.214zm4.855 0c-.67 0-1.214.544-1.214 1.214v2.427c0 .67.544 1.214 1.214 1.214s1.214-.544 1.214-1.214V3.16c0-.67-.544-1.214-1.214-1.214z" fill="white"/>
+                          <path d="M25.384 8.54c-2.24 0-4.056 1.816-4.056 4.056 0 2.24 1.816 4.056 4.056 4.056s4.056-1.816 4.056-4.056c0-2.24-1.816-4.056-4.056-4.056zm0 6.484c-1.34 0-2.428-1.088-2.428-2.428s1.088-2.428 2.428-2.428 2.428 1.088 2.428 2.428-1.088 2.428-2.428 2.428z" fill="white"/>
+                          <path d="M35.752 8.54c-2.24 0-4.056 1.816-4.056 4.056 0 2.24 1.816 4.056 4.056 4.056s4.056-1.816 4.056-4.056c0-2.24-1.816-4.056-4.056-4.056zm0 6.484c-1.34 0-2.428-1.088-2.428-2.428s1.088-2.428 2.428-2.428 2.428 1.088 2.428 2.428-1.088 2.428-2.428 2.428z" fill="white"/>
+                          <path d="M46.12 8.54c-2.24 0-4.056 1.816-4.056 4.056 0 2.24 1.816 4.056 4.056 4.056s4.056-1.816 4.056-4.056c0-2.24-1.816-4.056-4.056-4.056zm0 6.484c-1.34 0-2.428-1.088-2.428-2.428s1.088-2.428 2.428-2.428 2.428 1.088 2.428 2.428-1.088 2.428-2.428 2.428z" fill="white"/>
+                          <path d="M60.596 8.7h-2.632v7.944h2.632v-3.972c0-1.34 1.088-2.428 2.428-2.428h1.944V8.7h-1.944c-1.34 0-2.428 1.088-2.428 2.428V8.7z" fill="white"/>
+                          <path d="M75.068 8.54c-2.24 0-4.056 1.816-4.056 4.056 0 2.24 1.816 4.056 4.056 4.056s4.056-1.816 4.056-4.056c0-2.24-1.816-4.056-4.056-4.056zm0 6.484c-1.34 0-2.428-1.088-2.428-2.428s1.088-2.428 2.428-2.428 2.428 1.088 2.428 2.428-1.088 2.428-2.428 2.428z" fill="white"/>
+                        </svg>
+                        <span className="cartuplift-shoppay-text">Pay</span>
+                      </button>
                     </div>
                   )}
                 </div>
