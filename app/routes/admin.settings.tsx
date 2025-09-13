@@ -526,8 +526,10 @@ export default function SettingsPage() {
   }, []);
 
   const handleSubmit = () => {
+    console.log('🚀 Form submission - current formSettings:', formSettings);
     const formData = new FormData();
     Object.entries(formSettings).forEach(([key, value]) => {
+      console.log(`📝 Adding to form: ${key} = ${value}`);
       formData.append(key, String(value));
     });
     fetcher.submit(formData, { method: "post" });
