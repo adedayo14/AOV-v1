@@ -5717,6 +5717,24 @@
   window.CartUpliftDrawer = CartUpliftDrawer;
   
   // Auto-initialize if settings exist
+  // Global CartUplift object for theme integration
+  window.CartUplift = {
+    initSmartBundles: function(productId, container) {
+      if (window.cartUpliftBundleRenderer) {
+        window.cartUpliftBundleRenderer.initProductPage(productId, container);
+      } else {
+        console.log('[CartUplift] Bundle renderer not yet loaded, retrying...');
+        setTimeout(() => this.initSmartBundles(productId, container), 500);
+      }
+    },
+    
+    openCart: function() {
+      if (window.cartUpliftDrawer) {
+        window.cartUpliftDrawer.open();
+      }
+    }
+  };
+
   if (window.CartUpliftSettings) {
     window.cartUpliftDrawer = new CartUpliftDrawer(window.CartUpliftSettings);
     

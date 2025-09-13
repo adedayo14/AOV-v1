@@ -1,0 +1,131 @@
+{% comment %}
+Smart Bundles Block - Displays ML-powered product bundles on product pages
+{% endcomment %}
+
+{% if block.settings.enable_smart_bundles %}
+<div class="cart-uplift-smart-bundles" 
+     data-product-id="{{ product.id }}"
+     data-bundle-settings='{{ block.settings | json }}'
+     style="margin: {{ block.settings.margin_top }}px 0 {{ block.settings.margin_bottom }}px 0;">
+  
+  {% comment %} Smart Bundles will be dynamically loaded here {% endcomment %}
+  <div id="smart-bundles-container-{{ product.id }}" class="smart-bundles-loading">
+    <div class="smart-bundles-placeholder" style="text-align: center; padding: 20px; color: #666;">
+      <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles...</p>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.cart-uplift-smart-bundles {
+  width: 100%;
+  max-width: 100%;
+}
+
+.smart-bundles-loading {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.smart-bundles-placeholder {
+  opacity: 0.7;
+}
+
+/* Hide loading when bundles are loaded */
+.smart-bundles-loaded .smart-bundles-placeholder {
+  display: none;
+}
+</style>
+
+<script>
+// Initialize Smart Bundles for this product
+document.addEventListener('DOMContentLoaded', function() {
+  const productId = {{ product.id }};
+  const bundleContainer = document.getElementById('smart-bundles-container-' + productId);
+  
+  if (bundleContainer && typeof window.CartUplift !== 'undefined' && window.CartUplift.initSmartBundles) {
+    window.CartUplift.initSmartBundles(productId, bundleContainer);
+  } else {
+    // Retry after a delay if CartUplift isn't loaded yet
+    setTimeout(function() {
+      if (typeof window.CartUplift !== 'undefined' && window.CartUplift.initSmartBundles) {
+        window.CartUplift.initSmartBundles(productId, bundleContainer);
+      }
+    }, 1000);
+  }
+});
+</script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Smart Bundles",
+  "target": "section",
+  "available_if": "{{ product != blank }}",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_smart_bundles",
+      "label": "Enable Smart Bundles",
+      "default": true,
+      "info": "Show AI-powered product bundles on this product page"
+    },
+    {
+      "type": "text",
+      "id": "bundle_title",
+      "label": "Bundle Title",
+      "default": "Complete your setup",
+      "info": "Title shown above the bundle recommendations"
+    },
+    {
+      "type": "select",
+      "id": "bundle_layout",
+      "label": "Bundle Layout",
+      "options": [
+        {
+          "value": "horizontal",
+          "label": "Horizontal (side by side)"
+        },
+        {
+          "value": "vertical",
+          "label": "Vertical (stacked)"
+        }
+      ],
+      "default": "horizontal"
+    },
+    {
+      "type": "range",
+      "id": "margin_top",
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "unit": "px",
+      "label": "Top margin",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "margin_bottom", 
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "unit": "px",
+      "label": "Bottom margin",
+      "default": 20
+    }
+  ],
+  "presets": [
+    {
+      "name": "Smart Bundles"
+    }
+  ]
+}
+{% endschema %}

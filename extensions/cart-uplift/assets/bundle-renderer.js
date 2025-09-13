@@ -97,6 +97,33 @@ class BundleRenderer {
         }
     }
 
+    // Method for theme block integration
+    async initProductPage(productId, container) {
+        console.log('[BundleRenderer] Theme block integration - productId:', productId, 'container:', container);
+        
+        if (!productId || !container) {
+            console.log('[BundleRenderer] Missing productId or container for theme block');
+            return;
+        }
+
+        try {
+            console.log('[BundleRenderer] Fetching bundles for theme block...');
+            const bundles = await this.fetchBundlesForProduct(productId);
+            console.log('[BundleRenderer] Theme block received bundles:', bundles);
+            
+            if (bundles.length > 0) {
+                console.log('[BundleRenderer] Rendering bundles in theme block container');
+                this.renderBundlesInContainer(bundles, container);
+            } else {
+                console.log('[BundleRenderer] No bundles available, hiding container');
+                container.style.display = 'none';
+            }
+        } catch (error) {
+            console.warn('[BundleRenderer] Failed to load bundles for theme block:', error);
+            container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">Unable to load bundle recommendations</p>';
+        }
+    }
+
     async initCollectionPageBundles() {
         const collectionId = this.getCurrentCollectionId();
         if (!collectionId) return;
@@ -284,6 +311,24 @@ class BundleRenderer {
             insertionPoint.appendChild(bundleElement);
             this.renderedBundles.add(bundle.id);
             console.log('[BundleRenderer] Bundle rendered successfully');
+        });
+    }
+
+    renderBundlesInContainer(bundles, container) {
+        console.log('[BundleRenderer] Rendering bundles in theme block container:', bundles.length);
+        
+        // Clear the container
+        container.innerHTML = '';
+        container.classList.add('smart-bundles-loaded');
+        
+        bundles.forEach((bundle, index) => {
+            if (index > 1) return; // Limit to 2 bundles
+            
+            console.log('[BundleRenderer] Creating bundle element for theme block:', bundle.name);
+            const bundleElement = this.createBundleElement(bundle, 'theme-block');
+            container.appendChild(bundleElement);
+            this.renderedBundles.add(bundle.id);
+            console.log('[BundleRenderer] Bundle rendered in theme block successfully');
         });
     }
 
