@@ -225,7 +225,13 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       'addButtonText', 'checkoutButtonText', 'applyButtonText',
       'backgroundColor', 'textColor', 'buttonColor', 'buttonTextColor', 'recommendationsBackgroundColor', 'shippingBarBackgroundColor', 'shippingBarColor', 'recommendationLayout', 'maxRecommendations',
       'complementDetectionMode', 'manualRecommendationProducts', 'progressBarMode', 'giftProgressStyle', 'giftThresholds',
-      'themeEmbedEnabled', 'themeEmbedLastSeen'
+      'themeEmbedEnabled', 'themeEmbedLastSeen',
+      // ML/Privacy Settings
+      'mlPersonalizationMode', 'enableMLRecommendations', 'mlPrivacyLevel', 'enableAdvancedPersonalization', 'enableBehaviorTracking', 'mlDataRetentionDays',
+      // Smart Bundle Settings
+      'enableSmartBundles', 'bundlesOnProductPages', 'bundlesOnCollectionPages', 'bundlesOnCartPage', 'bundlesOnCheckoutPage', 
+      'defaultBundleDiscount', 'bundleTitleTemplate', 'bundleDiscountPrefix', 'bundleConfidenceThreshold', 'bundleSavingsFormat', 
+      'showIndividualPricesInBundle', 'autoApplyBundleDiscounts'
     ];
     
   // Production-only fields (exclude in production environment)

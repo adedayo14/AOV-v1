@@ -190,6 +190,7 @@ export const action = withAuthAction(async ({ request, auth }) => {
     enableMLRecommendations: settings.enableMLRecommendations === 'true',
     enableBehaviorTracking: settings.enableBehaviorTracking === 'true',
     enableAdvancedPersonalization: settings.enableAdvancedPersonalization === 'true',
+    mlPrivacyLevel: String(settings.mlPrivacyLevel) || 'basic',
     mlDataRetentionDays: String(settings.mlDataRetentionDays) || '30',
     
     // Smart Bundles settings
@@ -373,6 +374,11 @@ export default function SettingsPage() {
   };
 
   const [formSettings, setFormSettings] = useState(validateSettings(settings));
+
+  // Update form settings when loader data changes (important for persistence)
+  useEffect(() => {
+    setFormSettings(validateSettings(settings));
+  }, [settings]);
 
   // Bundle management state
   const [showBundleCreator, setShowBundleCreator] = useState(false);
