@@ -1,6 +1,21 @@
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
 import { getSettings, saveSettings } from "../models/settings.server";
+import db from "../db.server";
 import { authenticate, unauthenticated } from "../shopify.server";
+
+// Lightweight in-memory cache for recommendations (per worker)
+// Keyed by shop + product/cart context + limit; TTL ~60s
+const RECS_TTL_MS = 60 * 1000;
+const recsCache = new Map<string, { ts: number; payload: any }>();
+function getRecsCache(key: string) {
+  const v = recsCache.get(key);
+  if (!v) return undefined;
+  if (Date.now() - v.ts > RECS_TTL_MS) { recsCache.delete(key); return undefined; }
+  return v.payload;
+}
+function setRecsCache(key: string, payload: any) {
+  recsCache.set(key, { ts: Date.now(), payload });
+}
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
@@ -18,6 +33,29 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const productId = url.searchParams.get('product_id') || undefined; // single anchor
       const cartParam = url.searchParams.get('cart') || '';
       const limit = Math.min(8, Math.max(1, parseInt(url.searchParams.get('limit') || '6', 10)));
+
+      // Optional feature gate: if recommendations disabled in settings, return fast empty
+      try {
+        const s = await getSettings(shop);
+        if (!s.enableRecommendations) {
+          return json({ recommendations: [], reason: 'disabled' }, {
+            headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=60', 'X-Recs-Disabled': '1' }
+          });
+        }
+      } catch(_) { /* best-effort settings; continue if unavailable */ }
+
+      // Cache key (shop + anchor + cart + limit)
+      const cacheKey = `shop:${shop}|pid:${productId||''}|cart:${cartParam}|limit:${limit}`;
+      const cached = getRecsCache(cacheKey);
+      if (cached) {
+        return json(cached, {
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=30', // allow short client cache
+            'X-Recs-Cache': 'HIT'
+          },
+        });
+      }
 
       // Very conservative defaults (no settings or DB changes)
       const HALF_LIFE_DAYS = 60; // slightly faster than analytics page (more responsive to trends)
@@ -172,7 +210,51 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const results: Array<{ id:string; title:string; handle:string; image?:string; price:number } > = [];
       const usedHandles = new Set<string>();
       const targetPrice = anchorMedian;
-      for (const [bid, meta] of Object.entries(candidate).sort((a,b)=>b[1].score - a[1].score)) {
+      // Optional CTR-based re-ranking: use TrackingEvent signals when available (best-effort)
+    let ctrById: Record<string, number> = {};
+      try {
+        const tracking = (db as any)?.trackingEvent;
+        if (tracking?.findMany) {
+          const since = new Date(Date.now() - 14 * 86400000); // last 14 days
+      // Limit to the small top candidate set for speed
+      const candIds = topIds;
+          if (candIds.length) {
+            const rows = await tracking.findMany({
+              where: { shop, createdAt: { gte: since }, productId: { in: candIds } },
+              select: { productId: true, event: true },
+            });
+            const counts: Record<string, { imp: number; clk: number }> = {};
+            for (const r of rows) {
+              const pid = r.productId as string | null;
+              if (!pid) continue;
+              const c = counts[pid] || (counts[pid] = { imp: 0, clk: 0 });
+              if (r.event === 'impression') c.imp++;
+              else if (r.event === 'click') c.clk++;
+            }
+            // Smooth CTR to avoid noise; baseline ~5%
+            const alpha = 1, beta = 20; // Laplace smoothing
+            for (const pid of Object.keys(counts)) {
+              const { imp, clk } = counts[pid];
+              const ctr = (clk + alpha) / (imp + beta);
+              ctrById[pid] = ctr; // ~0.0..1.0
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore CTR re-rank issues; falls back to base ordering
+        console.warn('CTR re-rank skipped:', e);
+      }
+
+      // Blend CTR into base score in a conservative way
+      const BASELINE_CTR = 0.05; // 5% baseline
+      const CTR_WEIGHT = 0.35;   // cap influence
+      const scored = Object.entries(candidate).map(([bid, meta]) => {
+        const ctr = ctrById[bid] ?? BASELINE_CTR;
+        const mult = Math.max(0.85, Math.min(1.25, 1 + CTR_WEIGHT * (ctr - BASELINE_CTR)));
+        return [bid, { ...meta, score: meta.score * mult } ] as [string, typeof meta];
+      }).sort((a,b)=>b[1].score - a[1].score);
+
+      for (const [bid, meta] of scored) {
         if (results.length >= limit) break;
         const info = availability[bid];
         if (!info?.inStock) continue;
@@ -186,10 +268,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
         results.push({ id: bid, title: info.title || assoc[bid]?.product?.title || '', handle: info.handle || assoc[bid]?.handle || '', image: info.img || assoc[bid]?.image, price: info.price });
       }
 
-      return json({ recommendations: results }, {
+      const payload = { recommendations: results };
+      // Store in cache for subsequent identical calls
+      setRecsCache(cacheKey, payload);
+
+      return json(payload, {
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Cache-Control': 'public, max-age=60',
+          'X-Recs-Cache': 'MISS'
         },
       });
     } catch (error) {
@@ -428,19 +515,76 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (path.includes('/api/cart-tracking')) {
       // Require valid app proxy signature, but treat as best-effort
+      let shop: string | undefined;
       try {
-        await authenticate.public.appProxy(request);
+        const { session } = await authenticate.public.appProxy(request);
+        shop = session?.shop;
+        if (!shop) throw new Error('No shop');
       } catch (e) {
         return json({ success: false, error: 'Unauthorized' }, { status: 401 });
       }
-      // Accept storefront tracking posts (form-urlencoded) - best-effort
-      return json({ success: true }, {
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
-        },
-      });
+
+      try {
+        // Respect analytics toggle: if disabled, accept but skip persistence
+        try {
+          const s = await getSettings(shop);
+          if (!s.enableAnalytics) {
+            return json({ success: true, skipped: 'analytics_disabled' }, {
+              headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+              },
+            });
+          }
+        } catch(_) { /* if settings fail, proceed to best-effort persist */ }
+
+        const contentType = request.headers.get('content-type') || '';
+        const data = contentType.includes('application/json')
+          ? await request.json()
+          : Object.fromEntries(await request.formData());
+
+        const event = String((data as any).event || (data as any).eventType || '').trim();
+        const productId = (data as any).productId ? String((data as any).productId) : undefined;
+        const productTitle = (data as any).productTitle ? String((data as any).productTitle) : undefined;
+        const priceCentsRaw = (data as any).priceCents ?? (data as any).price_cents;
+        const revenueCentsRaw = (data as any).revenueCents ?? (data as any).revenue_cents;
+        const priceCents = priceCentsRaw != null ? Number(priceCentsRaw) : undefined;
+        const revenueCents = revenueCentsRaw != null ? Number(revenueCentsRaw) : undefined;
+        const sessionId = (data as any).sessionId ? String((data as any).sessionId) : undefined;
+        const reason = (data as any).reason ? String((data as any).reason) : undefined;
+        const slot = (data as any).slot != null ? Number((data as any).slot) : undefined;
+
+        if (!event) {
+          return json({ success: false, error: 'Missing event' }, { status: 400 });
+        }
+
+        // Persist best-effort; don’t fail the request if DB unavailable
+  await (db as any).trackingEvent?.create?.({
+          data: {
+            shop: shop!,
+            event,
+            productId: productId ?? null,
+            productTitle: productTitle ?? null,
+            priceCents: typeof priceCents === 'number' && !isNaN(priceCents) ? priceCents : null,
+            revenueCents: typeof revenueCents === 'number' && !isNaN(revenueCents) ? revenueCents : null,
+            sessionId: sessionId ?? null,
+            reason: reason ?? null,
+            slot: typeof slot === 'number' && isFinite(slot) ? slot : null,
+          }
+  }).catch(() => null);
+
+        return json({ success: true }, {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+        });
+      } catch (e) {
+        console.warn('cart-tracking error:', e);
+        return json({ success: false }, { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
+      }
     }
 
     if (path.includes('/api/settings')) {

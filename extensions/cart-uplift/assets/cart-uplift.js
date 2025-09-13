@@ -31,6 +31,23 @@
     ? window.CartAnalytics
     : { trackEvent: () => {} };
 
+  // Lightweight tracking: best-effort send to App Proxy; non-blocking and fast
+  function cartUpliftBeacon(payload) {
+    try {
+      const shop = window.CartUpliftShop || window.Shopify?.shop || '';
+      const data = Object.assign({ shop }, payload || {});
+      const url = '/apps/cart-uplift/api/cart-tracking';
+      const body = JSON.stringify(data);
+      if (navigator.sendBeacon) {
+        const blob = new Blob([body], { type: 'application/json' });
+        navigator.sendBeacon(url, blob);
+      } else {
+        // Fire-and-forget
+        fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+      }
+    } catch(_) {}
+  }
+
   // Normalize a price value to integer cents across mixed Shopify endpoints
   // Accepts:
   // - number 1400 => cents already
@@ -1788,6 +1805,14 @@
       
       if (layout === 'row') {
         // Only return the scroll track; controls are rendered outside the scroll container
+        // Fire impressions for visible items (once per render)
+        try {
+          if (this.settings.enableAnalytics) {
+            (this.recommendations || []).slice(0, 8).forEach((p, idx) => {
+              cartUpliftBeacon({ event: 'impression', productId: String(p.id||''), productTitle: p.title||'', slot: idx, reason: p.reason||'unknown' });
+            });
+          }
+        } catch(_) {}
         return `
           <div class="cartuplift-recommendations-track">
             ${this.recommendations.map(product => `
@@ -1813,9 +1838,25 @@
         `;
       } else if (layout === 'grid') {
         // Dynamic Grid Layout - 6 items (2 rows) or 3 items (1 row) based on available products
+        // Grid: impressions for the visible set only
+        try {
+          if (this.settings.enableAnalytics) {
+            (this.recommendations || []).slice(0, Math.min(4, (this.settings.maxRecommendations||4))).forEach((p, idx) => {
+              cartUpliftBeacon({ event: 'impression', productId: String(p.id||''), productTitle: p.title||'', slot: idx, reason: p.reason||'unknown' });
+            });
+          }
+        } catch(_) {}
         return this.generateDynamicGrid();
       } else {
         // Column/List layout: include swatches under the info so users can pick colors
+        // Column/list: impressions for the first N
+        try {
+          if (this.settings.enableAnalytics) {
+            (this.recommendations || []).slice(0, Math.min(6, (this.settings.maxRecommendations||6))).forEach((p, idx) => {
+              cartUpliftBeacon({ event: 'impression', productId: String(p.id||''), productTitle: p.title||'', slot: idx, reason: p.reason||'unknown' });
+            });
+          }
+        } catch(_) {}
         return this.recommendations.map(product => `
           <div class="cartuplift-recommendation-item">
             <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
@@ -3051,7 +3092,7 @@
             : e.target.closest('.cartuplift-item-remove-x');
           const line = button.dataset.line;
           this.updateQuantity(line, 0);
-        } else if (e.target.classList.contains('cartuplift-add-recommendation')) {
+  } else if (e.target.classList.contains('cartuplift-add-recommendation')) {
           e.preventDefault();
           e.stopPropagation();
           
@@ -3081,10 +3122,10 @@
           const productTitle = card.querySelector('h4')?.textContent || `Product ${selectedVariantId}`;
           
           // Track product click
-          if (this.settings.enableAnalytics) CartAnalytics.trackEvent('product_click', {
-            productId: selectedVariantId,
-            productTitle: productTitle
-          });
+          if (this.settings.enableAnalytics) {
+            CartAnalytics.trackEvent('product_click', { productId: selectedVariantId, productTitle });
+            cartUpliftBeacon({ event: 'click', productId: String(selectedVariantId||''), productTitle });
+          }
           
           this.addToCart(selectedVariantId, 1);
         } else if (e.target.classList.contains('cartuplift-size-dropdown')) {
@@ -3100,7 +3141,7 @@
           // Title is no longer needed for this inline add flow (hover reveals title visually)
           
           // Track product click
-        } else if (e.target.classList.contains('cartuplift-grid-add-btn') || e.target.closest('.cartuplift-grid-add-btn')) {
+  } else if (e.target.classList.contains('cartuplift-grid-add-btn') || e.target.closest('.cartuplift-grid-add-btn')) {
           e.preventDefault();
           e.stopPropagation();
           const button = e.target.classList.contains('cartuplift-grid-add-btn') ? e.target : e.target.closest('.cartuplift-grid-add-btn');
@@ -3119,10 +3160,10 @@
               }, 500); // Small delay to let add animation complete
             }
           }
-          if (this.settings.enableAnalytics) CartAnalytics.trackEvent('product_click', {
-            productId: variantId,
-            productTitle: productTitle
-          });
+          if (this.settings.enableAnalytics) {
+            CartAnalytics.trackEvent('product_click', { productId: variantId, productTitle });
+            cartUpliftBeacon({ event: 'click', productId: String(variantId||''), productTitle, slot: gridIndex != null ? Number(gridIndex) : undefined });
+          }
           
           this.addToCart(variantId, 1);
   } else if (

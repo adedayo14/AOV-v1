@@ -28,6 +28,7 @@ import {
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import { getSettings } from "../models/settings.server";
+import db from "../db.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -316,6 +317,50 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     }
 
+    // Pull lightweight rec tracking from DB (best-effort)
+    let recSummary = { totalImpressions: 0, totalClicks: 0, ctr: 0 };
+    let recCTRSeries: Array<{ date: string; impressions: number; clicks: number; ctr: number }> = [];
+    let topRecommended: Array<{ productId: string; productTitle: string; impressions: number; clicks: number; ctr: number; revenueCents: number }> = [];
+    try {
+      const events = await (db as any).trackingEvent?.findMany?.({
+        where: { shop: session.shop, createdAt: { gte: startDate, lte: endDate } }
+      }) ?? [];
+      const impressions = events.filter((e: any) => e.event === 'impression').length;
+      const clicks = events.filter((e: any) => e.event === 'click').length;
+      recSummary.totalImpressions = impressions;
+      recSummary.totalClicks = clicks;
+      recSummary.ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+
+      // Build CTR series by day (UTC)
+      const byDay: Record<string, { imp: number; clk: number }> = {};
+      for (const e of events) {
+        const d = new Date(e.createdAt);
+        const key = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString().slice(0, 10);
+        const b = byDay[key] || (byDay[key] = { imp: 0, clk: 0 });
+        if (e.event === 'impression') b.imp++;
+        else if (e.event === 'click') b.clk++;
+      }
+      recCTRSeries = Object.entries(byDay)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([date, v]) => ({ date, impressions: v.imp, clicks: v.clk, ctr: v.imp > 0 ? (v.clk / v.imp) * 100 : 0 }));
+
+      // Top recommended items by clicks (with impressions, ctr, revenue)
+      const byProduct: Record<string, { title: string; imp: number; clk: number; rev: number }>= {};
+      for (const e of events) {
+        const pid = e.productId as string | null;
+        if (!pid) continue;
+        const rec = byProduct[pid] || (byProduct[pid] = { title: e.productTitle || '', imp: 0, clk: 0, rev: 0 });
+        if (e.event === 'impression') rec.imp++;
+        else if (e.event === 'click') rec.clk++;
+        if (typeof e.revenueCents === 'number' && isFinite(e.revenueCents)) rec.rev += e.revenueCents;
+        if (e.productTitle && !rec.title) rec.title = e.productTitle;
+      }
+      topRecommended = Object.entries(byProduct)
+        .map(([productId, v]) => ({ productId, productTitle: v.title || productId, impressions: v.imp, clicks: v.clk, ctr: v.imp > 0 ? (v.clk / v.imp) * 100 : 0, revenueCents: v.rev }))
+        .sort((a,b) => (b.clicks - a.clicks) || (b.impressions - a.impressions))
+        .slice(0, 10);
+    } catch(_) {}
+
     return json({
       analytics: {
         // Core metrics - ALL REAL DATA
@@ -332,7 +377,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         
         // Product performance - REAL DATA
         topProducts,
-        topUpsells,
+  topUpsells,
+  // NEW: real rec tracking summary
+  recImpressions: recSummary.totalImpressions,
+  recClicks: recSummary.totalClicks,
+  recCTR: recSummary.ctr,
+  recCTRSeries,
+  topRecommended,
         bundleOpportunities,
         
         // Additional metrics - calculated from real data only
@@ -361,7 +412,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   } catch (error) {
     console.error('Error fetching analytics:', error);
-    return json({
+  return json({
       analytics: {
         // Core metrics
         totalOrders: 0,
@@ -377,7 +428,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         
         // Product performance
         topProducts: [],
-        topUpsells: [],
+  topUpsells: [],
+  recImpressions: 0,
+  recClicks: 0,
+  recCTR: 0,
+  recCTRSeries: [],
+  topRecommended: [],
         bundleOpportunities: [],
         
         // Additional metrics
@@ -623,6 +679,23 @@ export default function Dashboard() {
     item.quantity.toString(),
     `$${item.revenue.toFixed(2)}`,
     `$${item.avgOrderValue}`
+  ]);
+
+  // New: Recommendation CTR over time (date, impressions, clicks, CTR)
+  const recCTRRows = (analytics.recCTRSeries || []).map((p: any) => [
+    p.date,
+    (p.impressions ?? 0).toString(),
+    (p.clicks ?? 0).toString(),
+    `${(p.ctr ?? 0).toFixed(1)}%`
+  ]);
+
+  // New: Top Recommended Items (product, impressions, clicks, CTR, revenue)
+  const topRecommendedRows = (analytics.topRecommended || []).map((r: any) => [
+    r.productTitle || r.productId,
+    (r.impressions ?? 0).toString(),
+    (r.clicks ?? 0).toString(),
+    `${(r.ctr ?? 0).toFixed(1)}%`,
+    formatCurrency((Number(r.revenueCents || 0) / 100))
   ]);
 
   // Behavioral insights based on REAL store data - Enhanced with 6 key insights
@@ -995,6 +1068,36 @@ export default function Dashboard() {
                       'Revenue'
                     ]}
                     rows={upsellTableRows}
+                  />
+                </BlockStack>
+              </Card>
+
+              {/* Recommendation CTR trend */}
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack gap="200" align="space-between">
+                    <Text as="h2" variant="headingMd">📈 Recommendation CTR (trend)</Text>
+                    <Badge tone="attention">Time series</Badge>
+                  </InlineStack>
+                  <DataTable
+                    columnContentTypes={[ 'text', 'numeric', 'numeric', 'numeric' ]}
+                    headings={[ 'Date', 'Impressions', 'Clicks', 'CTR' ]}
+                    rows={recCTRRows}
+                  />
+                </BlockStack>
+              </Card>
+
+              {/* Top recommended items */}
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack gap="200" align="space-between">
+                    <Text as="h2" variant="headingMd">🔝 Top Recommended Items</Text>
+                    <Badge tone="success">By clicks</Badge>
+                  </InlineStack>
+                  <DataTable
+                    columnContentTypes={[ 'text', 'numeric', 'numeric', 'numeric', 'numeric' ]}
+                    headings={[ 'Product', 'Impressions', 'Clicks', 'CTR', 'Revenue' ]}
+                    rows={topRecommendedRows}
                   />
                 </BlockStack>
               </Card>

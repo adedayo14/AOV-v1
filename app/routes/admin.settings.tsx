@@ -189,7 +189,6 @@ export default function SettingsPage() {
         for (const button of Array.from(buttons).slice(0, 5)) { // Check first 5 buttons
           const buttonStyle = getComputedStyle(button);
           const bgColor = buttonStyle.backgroundColor;
-          const borderColor = buttonStyle.borderColor;
           
           // Skip if it's transparent, white, black, or green
           if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent' && 
@@ -297,7 +296,7 @@ export default function SettingsPage() {
 
   // Ensure new sticky cart settings have defaults
   useEffect(() => {
-    setFormSettings(prev => ({
+  setFormSettings((prev: any) => ({
       ...prev,
       stickyCartShowIcon: prev.stickyCartShowIcon !== false,
       stickyCartShowCount: prev.stickyCartShowCount !== false,
@@ -484,7 +483,6 @@ export default function SettingsPage() {
   // Calculate free shipping progress
   const threshold = (formSettings.freeShippingThreshold || 100) * 100;
   const currentTotal = 1500; // £15.00 in pence for demo - shows progress needed
-  const remaining = Math.max(0, threshold - currentTotal);
   const progress = Math.min((currentTotal / threshold) * 100, 100);
 
   return (
@@ -3858,7 +3856,6 @@ export default function SettingsPage() {
                         
                         if (!nextThreshold) {
                           // All thresholds achieved
-                          const lastThreshold = sortedThresholds[sortedThresholds.length - 1];
                           return (
                             <div className="cartuplift-single-next-progress">
                               <div className="cartuplift-next-goal-header">

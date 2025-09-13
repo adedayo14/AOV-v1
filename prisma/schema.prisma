@@ -93,3 +93,21 @@ model Settings {
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 }
+
+// Lightweight event log for storefront tracking (impressions, clicks, conversions)
+model TrackingEvent {
+  id         String   @id @default(cuid())
+  shop       String
+  event      String   // 'impression' | 'click' | 'conversion'
+  productId  String?
+  productTitle String?
+  priceCents Int?
+  revenueCents Int?
+  sessionId  String?
+  reason     String?  // e.g., 'server_recs', 'local_engine'
+  slot       Int?
+  createdAt  DateTime @default(now())
+
+  @@index([shop, event, createdAt])
+  @@index([shop, productId, createdAt])
+}
