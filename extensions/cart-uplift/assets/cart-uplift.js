@@ -3,7 +3,7 @@
 
   // Version sentinel & live verification (cache-bust expectation)
   (function(){
-  const v = 'grid-2025-09-12-11-row-stacked-variant-uniform';
+  const v = 'grid-2025-09-12-12-proxy-recs';
     if (window.CART_UPLIFT_ASSET_VERSION !== v) {
       window.CART_UPLIFT_ASSET_VERSION = v;
       console.log('[CartUplift] Loaded asset version ' + v + ' – expecting NEW grid (no .cartuplift-grid-overlay elements).');
@@ -4913,6 +4913,60 @@
       }
     }
 
+    // Try server-side recommendations via App Proxy (decayed lift + OOS + price caps)
+    async getServerRecommendations(cart) {
+      try {
+        if (!cart || !Array.isArray(cart.items) || cart.items.length === 0) return [];
+        const desired = Number(this.cartUplift.settings.maxRecommendations);
+        const limit = Math.max(isFinite(desired) && desired > 0 ? desired : 4, 4);
+        const ids = cart.items.map(it => String(it.product_id)).filter(Boolean);
+        const productId = ids[0];
+        const cartParam = ids.join(',');
+        const url = `/apps/cart-uplift/api/recommendations?product_id=${encodeURIComponent(productId)}&cart=${encodeURIComponent(cartParam)}&limit=${encodeURIComponent(String(limit))}`;
+
+        // Abort after 1500ms to keep UX snappy
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 1500);
+        const resp = await fetch(url, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (!resp.ok) return [];
+        const data = await resp.json();
+        const list = Array.isArray(data.recommendations) ? data.recommendations : [];
+        if (list.length === 0) return [];
+
+        // Enrich to include variant ids required for add-to-cart
+        const out = [];
+        for (const r of list) {
+          let formatted = null;
+          // Prefer handle-based fetch for speed; fallback to id lookup
+          if (r.handle) {
+            try {
+              const res = await fetch(`/products/${r.handle}.js`);
+              if (res.ok) {
+                const full = await res.json();
+                formatted = this.formatProduct(full);
+              }
+            } catch(_) {}
+          }
+          if (!formatted && r.id) {
+            const p = await this.fetchProductById(String(r.id));
+            if (p) formatted = p;
+          }
+          if (formatted) {
+            // Small score based on server signal to intermix with other sources if combined
+            formatted.score = (formatted.score || 0) + 0.9;
+            formatted.reason = 'server_recs';
+            out.push(formatted);
+          }
+          if (out.length >= limit) break;
+        }
+        return out;
+      } catch (e) {
+        try { console.warn('⚠️ Server recommendations failed, falling back', e?.message || e); } catch(_) {}
+        return [];
+      }
+    }
+
     // Main entry point - replaces existing loadRecommendations
     async getRecommendations() {
       try {
@@ -4923,6 +4977,13 @@
         // Empty cart strategy
         if (!cart || !cart.items || cart.items.length === 0) {
           return await this.getPopularProducts();
+        }
+
+        // First, try server-side decayed lift-based recs (AOV-focused and guarded)
+        const serverRecs = await this.getServerRecommendations(cart);
+        if (serverRecs && serverRecs.length > 0) {
+          const unique = this.deduplicateAndScore(serverRecs);
+          return await this.ensureMinCount(unique);
         }
         
         // Get smart recommendations based on mode
