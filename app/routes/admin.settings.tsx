@@ -191,6 +191,19 @@ export const action = withAuthAction(async ({ request, auth }) => {
     enableBehaviorTracking: settings.enableBehaviorTracking === 'true',
     enableAdvancedPersonalization: settings.enableAdvancedPersonalization === 'true',
     mlDataRetentionDays: String(settings.mlDataRetentionDays) || '30',
+    
+    // Smart Bundles settings
+    enableSmartBundles: settings.enableSmartBundles === 'true',
+    bundlesOnProductPages: settings.bundlesOnProductPages !== 'false', // Default true
+    bundlesOnCollectionPages: settings.bundlesOnCollectionPages === 'true',
+    bundlesOnCartPage: settings.bundlesOnCartPage === 'true',
+    bundlesOnCheckoutPage: settings.bundlesOnCheckoutPage === 'true',
+    defaultBundleDiscount: String(settings.defaultBundleDiscount) || '15',
+    bundleTitleTemplate: String(settings.bundleTitleTemplate) || 'Complete your setup',
+    bundleDiscountPrefix: String(settings.bundleDiscountPrefix) || 'BUNDLE',
+    bundleSavingsFormat: String(settings.bundleSavingsFormat) || 'both',
+    showIndividualPricesInBundle: settings.showIndividualPricesInBundle !== 'false', // Default true
+    autoApplyBundleDiscounts: settings.autoApplyBundleDiscounts !== 'false', // Default true
   };
   
   try {

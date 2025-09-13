@@ -74,15 +74,26 @@ class BundleRenderer {
 
     async initProductPageBundles() {
         const productId = this.getCurrentProductId();
-        if (!productId) return;
+        console.log('[BundleRenderer] Product page detected, productId:', productId);
+        
+        if (!productId) {
+            console.log('[BundleRenderer] No product ID found, skipping bundles');
+            return;
+        }
 
         try {
+            console.log('[BundleRenderer] Fetching bundles for product:', productId);
             const bundles = await this.fetchBundlesForProduct(productId);
+            console.log('[BundleRenderer] Received bundles:', bundles);
+            
             if (bundles.length > 0) {
+                console.log('[BundleRenderer] Rendering', bundles.length, 'bundles on product page');
                 this.renderProductPageBundles(bundles);
+            } else {
+                console.log('[BundleRenderer] No bundles found for this product');
             }
         } catch (error) {
-            console.warn('Failed to load product bundles:', error);
+            console.warn('[BundleRenderer] Failed to load product bundles:', error);
         }
     }
 
@@ -132,20 +143,43 @@ class BundleRenderer {
 
     getCurrentProductId() {
         // Try multiple methods to get product ID
+        console.log('[BundleRenderer] Detecting product ID...');
+        
         const metaProduct = document.querySelector('meta[property="product:id"]');
-        if (metaProduct) return metaProduct.getAttribute('content');
+        if (metaProduct) {
+            const id = metaProduct.getAttribute('content');
+            console.log('[BundleRenderer] Found product ID from meta tag:', id);
+            return id;
+        }
 
         const productForm = document.querySelector('form[action*="/cart/add"]');
         if (productForm) {
             const productIdInput = productForm.querySelector('input[name="id"]');
-            if (productIdInput) return productIdInput.value;
+            if (productIdInput) {
+                const id = productIdInput.value;
+                console.log('[BundleRenderer] Found product ID from form input:', id);
+                return id;
+            }
         }
 
         // Try window.ShopifyAnalytics or other global variables
         if (window.ShopifyAnalytics?.meta?.product?.id) {
-            return window.ShopifyAnalytics.meta.product.id.toString();
+            const id = window.ShopifyAnalytics.meta.product.id.toString();
+            console.log('[BundleRenderer] Found product ID from ShopifyAnalytics:', id);
+            return id;
+        }
+        
+        // Try URL path detection
+        const path = window.location.pathname;
+        const productMatch = path.match(/\/products\/([^\/\?]+)/);
+        if (productMatch) {
+            const handle = productMatch[1];
+            console.log('[BundleRenderer] Found product handle from URL:', handle);
+            // Use handle as fallback ID for demo purposes
+            return handle;
         }
 
+        console.log('[BundleRenderer] No product ID found');
         return null;
     }
 
@@ -176,13 +210,23 @@ class BundleRenderer {
     }
 
     async fetchBundlesForProduct(productId) {
-        const response = await fetch(`/apps/cart-uplift/api/bundles?product_id=${productId}&context=product`, {
+        const url = `/apps/cart-uplift/api/bundles?product_id=${productId}&context=product`;
+        console.log('[BundleRenderer] Fetching bundles from:', url);
+        
+        const response = await fetch(url, {
             headers: { 'Accept': 'application/json' }
         });
         
-        if (!response.ok) throw new Error('Failed to fetch bundles');
+        console.log('[BundleRenderer] API response status:', response.status);
+        
+        if (!response.ok) {
+            console.error('[BundleRenderer] API request failed:', response.status, response.statusText);
+            throw new Error('Failed to fetch bundles');
+        }
         
         const data = await response.json();
+        console.log('[BundleRenderer] API response data:', data);
+        
         return data.bundles || [];
     }
 
@@ -222,15 +266,24 @@ class BundleRenderer {
     }
 
     renderProductPageBundles(bundles) {
+        console.log('[BundleRenderer] Rendering product page bundles:', bundles.length);
+        
         const insertionPoint = this.findBundleInsertionPoint('product');
-        if (!insertionPoint) return;
+        console.log('[BundleRenderer] Insertion point found:', !!insertionPoint);
+        
+        if (!insertionPoint) {
+            console.warn('[BundleRenderer] No insertion point found for product page bundles');
+            return;
+        }
 
         bundles.forEach((bundle, index) => {
             if (index > 1) return; // Limit to 2 bundles on product pages
             
+            console.log('[BundleRenderer] Creating bundle element for:', bundle.name);
             const bundleElement = this.createBundleElement(bundle, 'product');
             insertionPoint.appendChild(bundleElement);
             this.renderedBundles.add(bundle.id);
+            console.log('[BundleRenderer] Bundle rendered successfully');
         });
     }
 
@@ -274,15 +327,32 @@ class BundleRenderer {
     }
 
     findBundleInsertionPoint(pageType) {
+        console.log('[BundleRenderer] Finding insertion point for page type:', pageType);
         let insertionPoint;
 
         switch (pageType) {
             case 'product':
                 // Try multiple locations on product pages
-                insertionPoint = document.querySelector('.product-form') ||
-                               document.querySelector('.product-form-container') ||
-                               document.querySelector('[data-product-form]') ||
-                               document.querySelector('.product-details');
+                const productSelectors = [
+                    '.product-form',
+                    '.product-form-container', 
+                    '[data-product-form]',
+                    '.product-details',
+                    '.product-info',
+                    '.product-content',
+                    '.product-description',
+                    'form[action*="/cart/add"]',
+                    '.product',
+                    'main'
+                ];
+                
+                for (const selector of productSelectors) {
+                    insertionPoint = document.querySelector(selector);
+                    if (insertionPoint) {
+                        console.log('[BundleRenderer] Found insertion point with selector:', selector);
+                        break;
+                    }
+                }
                 break;
             case 'collection':
                 insertionPoint = document.querySelector('.collection-products') ||
@@ -303,8 +373,10 @@ class BundleRenderer {
 
         // If no specific insertion point found, create one
         if (!insertionPoint) {
+            console.log('[BundleRenderer] No suitable insertion point found, creating fallback container');
             insertionPoint = document.createElement('div');
             insertionPoint.className = 'cart-uplift-bundles-container';
+            insertionPoint.style.cssText = 'margin: 20px; padding: 20px; border: 2px dashed #ccc; background: #f9f9f9;';
             document.body.appendChild(insertionPoint);
         }
 
@@ -312,6 +384,8 @@ class BundleRenderer {
     }
 
     createBundleElement(bundle, context) {
+        console.log('[BundleRenderer] Creating bundle element for:', bundle.name);
+        
         const bundleContainer = document.createElement('div');
         bundleContainer.className = `cart-uplift-bundle cart-uplift-bundle--${context}`;
         bundleContainer.dataset.bundleId = bundle.id;
@@ -322,32 +396,30 @@ class BundleRenderer {
         const ctaText = this.getBundleCTA(context);
 
         bundleContainer.innerHTML = `
-            <div class="cart-uplift-bundle__content">
+            <div class="cart-uplift-bundle__content" style="border: 2px solid #007c89; border-radius: 8px; padding: 20px; margin: 20px 0; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                 <div class="cart-uplift-bundle__header">
-                    <h3 class="cart-uplift-bundle__title">${title}</h3>
-                    <div class="cart-uplift-bundle__savings">${savingsText}</div>
+                    <h3 class="cart-uplift-bundle__title" style="color: #007c89; margin: 0 0 10px 0; font-size: 18px; font-weight: bold;">${title}</h3>
+                    <p class="cart-uplift-bundle__savings" style="color: #d73027; font-weight: bold; margin: 0 0 15px 0; font-size: 16px;">${savingsText}</p>
                 </div>
-                
-                <div class="cart-uplift-bundle__products">
+                <div class="cart-uplift-bundle__products" style="margin: 15px 0;">
                     ${productsHtml}
                 </div>
-                
-                <div class="cart-uplift-bundle__pricing">
-                    ${this.createPricingHtml(bundle)}
-                </div>
-                
-                <div class="cart-uplift-bundle__actions">
-                    <button class="cart-uplift-bundle__cta" data-bundle-id="${bundle.id}" data-discount-code="${bundle.discount_code}">
+                <div class="cart-uplift-bundle__actions" style="margin-top: 15px;">
+                    <button class="cart-uplift-bundle__cta" data-bundle-id="${bundle.id}" style="background: #007c89; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%; transition: background 0.2s;">
                         ${ctaText}
                     </button>
-                    ${bundle.discount_code ? `<div class="cart-uplift-bundle__discount-code">Code: <span>${bundle.discount_code}</span></div>` : ''}
+                    ${bundle.discount_code ? `<p style="margin: 10px 0 0 0; font-size: 14px; color: #666; text-align: center;">Use discount code: <strong style="color: #007c89;">${bundle.discount_code}</strong></p>` : ''}
                 </div>
             </div>
         `;
 
         // Add click handler
         const ctaButton = bundleContainer.querySelector('.cart-uplift-bundle__cta');
-        ctaButton.addEventListener('click', () => this.handleBundleAdd(bundle));
+        if (ctaButton) {
+            ctaButton.addEventListener('click', () => this.handleBundleAdd(bundle));
+            ctaButton.addEventListener('mouseenter', (e) => e.target.style.background = '#005f66');
+            ctaButton.addEventListener('mouseleave', (e) => e.target.style.background = '#007c89');
+        }
 
         return bundleContainer;
     }
@@ -393,14 +465,11 @@ class BundleRenderer {
 
     createProductsHtml(products) {
         return products.map(product => `
-            <div class="cart-uplift-bundle__product">
-                <div class="cart-uplift-bundle__product-image">
-                    ${product.image ? `<img src="${product.image}" alt="${product.title}">` : ''}
-                </div>
-                <div class="cart-uplift-bundle__product-details">
-                    <div class="cart-uplift-bundle__product-title">${product.title}</div>
+            <div style="display: flex; align-items: center; margin: 8px 0; padding: 8px; background: #f8f9fa; border-radius: 4px;">
+                <div style="flex: 1;">
+                    <div style="font-weight: 500; color: #333; margin-bottom: 4px;">${product.title}</div>
                     ${this.settings.showIndividualPricesInBundle ? 
-                        `<div class="cart-uplift-bundle__product-price">${this.formatMoney(product.price, this.settings.shopCurrency)}</div>` : ''}
+                        `<div style="color: #666; font-size: 14px;">$${parseFloat(product.price).toFixed(2)}</div>` : ''}
                 </div>
             </div>
         `).join('');

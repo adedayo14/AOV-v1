@@ -85,6 +85,40 @@ model Settings {
   enableGiftGating        Boolean  @default(false)
   giftProgressStyle       String   @default("single-next") // "stacked", "single-multi", "single-next"
   giftThresholds          String   @default("[]") // JSON array of gift thresholds
+  
+  // Legacy fields (to preserve existing data)
+  stickyCartShowIcon      Boolean  @default(true)
+  stickyCartShowCount     Boolean  @default(true)
+  stickyCartShowTotal     Boolean  @default(true)
+  stickyCartBackgroundColor String @default("#000000")
+  stickyCartTextColor     String   @default("#ffffff")
+  stickyCartCountBadgeColor String @default("#ff4444")
+  stickyCartCountBadgeTextColor String @default("#ffffff")
+  stickyCartBorderRadius  Int      @default(25)
+  giftNoticeText          String   @default("Free gift added: {{product}} (worth {{amount}})")
+  giftPriceText           String   @default("FREE")
+
+  // ML/Privacy Settings
+  mlPersonalizationMode   String   @default("basic")
+  enableMLRecommendations Boolean  @default(false)
+  mlPrivacyLevel          String   @default("basic")
+  enableAdvancedPersonalization Boolean @default(false)
+  enableBehaviorTracking  Boolean  @default(false)
+  mlDataRetentionDays     String   @default("30")
+
+  // Smart Bundle Settings
+  enableSmartBundles      Boolean  @default(false)
+  bundlesOnProductPages   Boolean  @default(true)
+  bundlesOnCollectionPages Boolean @default(false)
+  bundlesOnCartPage       Boolean  @default(false)
+  bundlesOnCheckoutPage   Boolean  @default(false)
+  defaultBundleDiscount   String   @default("15")
+  bundleTitleTemplate     String   @default("Complete your setup")
+  bundleDiscountPrefix    String   @default("BUNDLE")
+  bundleConfidenceThreshold String @default("medium")
+  bundleSavingsFormat     String   @default("both")
+  showIndividualPricesInBundle Boolean @default(true)
+  autoApplyBundleDiscounts Boolean @default(true)
 
   // Theme App Embed Status
   themeEmbedEnabled       Boolean  @default(false)

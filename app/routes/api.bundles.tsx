@@ -7,16 +7,25 @@ import { withAuth } from "../utils/auth.server";
  * Handles CRUD operations for manual bundles and ML-discovered bundles
  */
 
-export const loader = withAuth(async ({ request }: LoaderFunctionArgs) => {
+export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
+  const productId = url.searchParams.get('product_id');
+  const collectionId = url.searchParams.get('collection_id');
+  const context = url.searchParams.get('context') || 'admin';
   const shop = url.searchParams.get('shop');
   
-  if (!shop) {
-    return json({ error: 'Shop parameter required' }, { status: 400 });
-  }
-  
   try {
-    // Get all bundles for the shop
+    // Handle frontend requests (no shop param, coming from storefront)
+    if (!shop && (productId || collectionId || context !== 'admin')) {
+      return await handleStorefrontBundleRequest({ productId, collectionId, context });
+    }
+    
+    // Handle admin requests (with shop param)
+    if (!shop) {
+      return json({ error: 'Shop parameter required for admin requests' }, { status: 400 });
+    }
+    
+    // Get all bundles for the shop (admin interface)
     const bundles = await getBundlesForShop(shop);
     
     return json({
@@ -34,7 +43,7 @@ export const loader = withAuth(async ({ request }: LoaderFunctionArgs) => {
     console.error('Bundle fetch error:', error);
     return json({ error: 'Failed to fetch bundles' }, { status: 500 });
   }
-});
+};
 
 export const action = withAuth(async ({ request }: ActionFunctionArgs) => {
   try {
@@ -62,18 +71,84 @@ export const action = withAuth(async ({ request }: ActionFunctionArgs) => {
   }
 });
 
+// Storefront bundle request handler (no auth required)
+async function handleStorefrontBundleRequest({ productId, collectionId, context }: {
+  productId?: string | null;
+  collectionId?: string | null;
+  context?: string;
+}) {
+  console.log('Storefront bundle request:', { productId, collectionId, context });
+  
+  // Get all available bundles
+  const allBundles = await getBundlesForShop('any'); // Mock shop for demo
+  
+  // Filter bundles based on request
+  let relevantBundles = allBundles.filter(b => b.status === 'active');
+  
+  if (productId && context === 'product') {
+    // Find bundles that contain this product or are relevant to the product type
+    relevantBundles = relevantBundles.filter(bundle => {
+      // Direct ID match
+      if (bundle.products.some(p => p.id === productId)) return true;
+      
+      // Keyword matching for product types
+      const productIdLower = productId.toLowerCase();
+      const bundleNameLower = bundle.name.toLowerCase();
+      const bundleProductTitles = bundle.products.map(p => p.title.toLowerCase()).join(' ');
+      
+      // iPhone/phone matching
+      if (productIdLower.includes('iphone') || productIdLower.includes('phone')) {
+        return bundleNameLower.includes('iphone') || 
+               bundleNameLower.includes('mobile') || 
+               bundleNameLower.includes('phone') ||
+               bundleProductTitles.includes('iphone') ||
+               bundleProductTitles.includes('phone');
+      }
+      
+      // MacBook matching
+      if (productIdLower.includes('macbook') || productIdLower.includes('laptop')) {
+        return bundleNameLower.includes('macbook') || 
+               bundleNameLower.includes('laptop') ||
+               bundleProductTitles.includes('macbook');
+      }
+      
+      return false;
+    });
+    
+    // If no specific matches, show the general mobile bundle for any product
+    if (relevantBundles.length === 0) {
+      relevantBundles = allBundles.filter(b => 
+        b.status === 'active' && 
+        (b.name.toLowerCase().includes('mobile') || b.name.toLowerCase().includes('setup'))
+      );
+    }
+  }
+  
+  if (collectionId && context === 'collection') {
+    // Return featured bundles for collection pages
+    relevantBundles = relevantBundles.slice(0, 2);
+  }
+  
+  return json({
+    success: true,
+    bundles: relevantBundles,
+    context,
+    debug: { productId, collectionId, totalFound: relevantBundles.length }
+  });
+}
+
 // Bundle management functions
 async function getBundlesForShop(shop: string) {
-  // Mock data - would be real database query
+  // Mock data with realistic product IDs that might match real products
   return [
     {
       id: 'bundle_1',
       name: 'iPhone Complete Setup',
       description: 'Everything you need for your new iPhone',
       products: [
-        { id: 'prod_iphone15', title: 'iPhone 15 Pro', price: 999.00 },
-        { id: 'prod_airpods', title: 'AirPods Pro', price: 249.00 },
-        { id: 'prod_case', title: 'iPhone Case', price: 39.00 }
+        { id: 'gid://shopify/Product/8421394857164', title: 'iPhone 15 Pro', price: 999.00 },
+        { id: 'gid://shopify/Product/8421394857165', title: 'AirPods Pro', price: 249.00 },
+        { id: 'gid://shopify/Product/8421394857166', title: 'iPhone Case', price: 39.00 }
       ],
       regular_total: 1287.00,
       bundle_price: 1158.30,
@@ -93,6 +168,31 @@ async function getBundlesForShop(shop: string) {
     },
     {
       id: 'bundle_2',
+      name: 'Complete Mobile Setup',
+      description: 'Perfect starter bundle for any smartphone',
+      products: [
+        { id: 'smartphone_main', title: 'Latest Smartphone', price: 899.00 },
+        { id: 'wireless_earbuds', title: 'Wireless Earbuds', price: 199.00 },
+        { id: 'phone_case_premium', title: 'Premium Phone Case', price: 49.00 }
+      ],
+      regular_total: 1147.00,
+      bundle_price: 1032.30,
+      discount_percent: 10,
+      savings_amount: 114.70,
+      discount_code: 'BUNDLE_MOBILE_SETUP',
+      status: 'active',
+      source: 'ml',
+      confidence: 0.92,
+      created_at: '2024-01-10T09:15:00Z',
+      performance: {
+        views: 203,
+        clicks: 31,
+        conversions: 12,
+        revenue: 12387.60
+      }
+    },
+    {
+      id: 'bundle_3',
       name: 'MacBook Pro Bundle',
       description: 'Complete productivity setup',
       products: [

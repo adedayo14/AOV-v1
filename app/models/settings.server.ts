@@ -70,6 +70,40 @@ export interface SettingsData {
   giftProgressStyle: string;
   giftThresholds: string;
 
+  // Legacy fields (preserved for compatibility)
+  stickyCartShowIcon?: boolean;
+  stickyCartShowCount?: boolean;
+  stickyCartShowTotal?: boolean;
+  stickyCartBackgroundColor?: string;
+  stickyCartTextColor?: string;
+  stickyCartCountBadgeColor?: string;
+  stickyCartCountBadgeTextColor?: string;
+  stickyCartBorderRadius?: number;
+  giftNoticeText?: string;
+  giftPriceText?: string;
+
+  // ML/Privacy Settings
+  mlPersonalizationMode: string;
+  enableMLRecommendations: boolean;
+  mlPrivacyLevel: string;
+  enableAdvancedPersonalization: boolean;
+  enableBehaviorTracking: boolean;
+  mlDataRetentionDays: string;
+
+  // Smart Bundle Settings
+  enableSmartBundles: boolean;
+  bundlesOnProductPages: boolean;
+  bundlesOnCollectionPages: boolean;
+  bundlesOnCartPage: boolean;
+  bundlesOnCheckoutPage: boolean;
+  defaultBundleDiscount: string;
+  bundleTitleTemplate: string;
+  bundleDiscountPrefix: string;
+  bundleConfidenceThreshold: string;
+  bundleSavingsFormat: string;
+  showIndividualPricesInBundle: boolean;
+  autoApplyBundleDiscounts: boolean;
+
   // Theme embed status (updated by storefront heartbeat)
   themeEmbedEnabled?: boolean;
   themeEmbedLastSeen?: string; // ISO string
@@ -136,9 +170,32 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       enableGiftGating: (settings as any).enableGiftGating ?? false,
       progressBarMode: (settings as any).progressBarMode ?? "free-shipping",
       giftProgressStyle: (settings as any).giftProgressStyle ?? "single-next",
-  giftThresholds: (settings as any).giftThresholds ?? "[]",
-  themeEmbedEnabled: (settings as any).themeEmbedEnabled ?? false,
-  themeEmbedLastSeen: (settings as any).themeEmbedLastSeen ? new Date((settings as any).themeEmbedLastSeen).toISOString() : undefined,
+      giftThresholds: (settings as any).giftThresholds ?? "[]",
+      
+      // ML/Privacy Settings
+      mlPersonalizationMode: (settings as any).mlPersonalizationMode ?? "basic",
+      enableMLRecommendations: (settings as any).enableMLRecommendations ?? false,
+      mlPrivacyLevel: (settings as any).mlPrivacyLevel ?? "basic",
+      enableAdvancedPersonalization: (settings as any).enableAdvancedPersonalization ?? false,
+      enableBehaviorTracking: (settings as any).enableBehaviorTracking ?? false,
+      mlDataRetentionDays: (settings as any).mlDataRetentionDays ?? "30",
+      
+      // Smart Bundle Settings
+      enableSmartBundles: (settings as any).enableSmartBundles ?? false,
+      bundlesOnProductPages: (settings as any).bundlesOnProductPages ?? true,
+      bundlesOnCollectionPages: (settings as any).bundlesOnCollectionPages ?? false,
+      bundlesOnCartPage: (settings as any).bundlesOnCartPage ?? false,
+      bundlesOnCheckoutPage: (settings as any).bundlesOnCheckoutPage ?? false,
+      defaultBundleDiscount: (settings as any).defaultBundleDiscount ?? "15",
+      bundleTitleTemplate: (settings as any).bundleTitleTemplate ?? "Complete your setup",
+      bundleDiscountPrefix: (settings as any).bundleDiscountPrefix ?? "BUNDLE",
+      bundleConfidenceThreshold: (settings as any).bundleConfidenceThreshold ?? "medium",
+      bundleSavingsFormat: (settings as any).bundleSavingsFormat ?? "both",
+      showIndividualPricesInBundle: (settings as any).showIndividualPricesInBundle ?? true,
+      autoApplyBundleDiscounts: (settings as any).autoApplyBundleDiscounts ?? true,
+      
+      themeEmbedEnabled: (settings as any).themeEmbedEnabled ?? false,
+      themeEmbedLastSeen: (settings as any).themeEmbedLastSeen ? new Date((settings as any).themeEmbedLastSeen).toISOString() : undefined,
     };
   } catch (error) {
     console.error("Error fetching settings:", error);
@@ -327,9 +384,32 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       enableGiftGating: (settings as any).enableGiftGating ?? false,
       progressBarMode: (settings as any).progressBarMode ?? "free-shipping",
       giftProgressStyle: (settings as any).giftProgressStyle ?? "single-next",
-  giftThresholds: (settings as any).giftThresholds ?? "[]",
-  themeEmbedEnabled: (settings as any).themeEmbedEnabled ?? false,
-  themeEmbedLastSeen: (settings as any).themeEmbedLastSeen ? new Date((settings as any).themeEmbedLastSeen).toISOString() : undefined,
+      giftThresholds: (settings as any).giftThresholds ?? "[]",
+      
+      // ML/Privacy Settings
+      mlPersonalizationMode: (settings as any).mlPersonalizationMode ?? "basic",
+      enableMLRecommendations: (settings as any).enableMLRecommendations ?? false,
+      mlPrivacyLevel: (settings as any).mlPrivacyLevel ?? "basic",
+      enableAdvancedPersonalization: (settings as any).enableAdvancedPersonalization ?? false,
+      enableBehaviorTracking: (settings as any).enableBehaviorTracking ?? false,
+      mlDataRetentionDays: (settings as any).mlDataRetentionDays ?? "30",
+      
+      // Smart Bundle Settings
+      enableSmartBundles: (settings as any).enableSmartBundles ?? false,
+      bundlesOnProductPages: (settings as any).bundlesOnProductPages ?? true,
+      bundlesOnCollectionPages: (settings as any).bundlesOnCollectionPages ?? false,
+      bundlesOnCartPage: (settings as any).bundlesOnCartPage ?? false,
+      bundlesOnCheckoutPage: (settings as any).bundlesOnCheckoutPage ?? false,
+      defaultBundleDiscount: (settings as any).defaultBundleDiscount ?? "15",
+      bundleTitleTemplate: (settings as any).bundleTitleTemplate ?? "Complete your setup",
+      bundleDiscountPrefix: (settings as any).bundleDiscountPrefix ?? "BUNDLE",
+      bundleConfidenceThreshold: (settings as any).bundleConfidenceThreshold ?? "medium",
+      bundleSavingsFormat: (settings as any).bundleSavingsFormat ?? "both",
+      showIndividualPricesInBundle: (settings as any).showIndividualPricesInBundle ?? true,
+      autoApplyBundleDiscounts: (settings as any).autoApplyBundleDiscounts ?? true,
+      
+      themeEmbedEnabled: (settings as any).themeEmbedEnabled ?? false,
+      themeEmbedLastSeen: (settings as any).themeEmbedLastSeen ? new Date((settings as any).themeEmbedLastSeen).toISOString() : undefined,
     };
   } catch (error) {
     console.error("💥 Error saving settings:", error);
@@ -394,8 +474,31 @@ export function getDefaultSettings(): SettingsData {
     enableGiftGating: false,
     progressBarMode: "free-shipping",
     giftProgressStyle: "single-next",
-  giftThresholds: "[]",
-  themeEmbedEnabled: false,
-  themeEmbedLastSeen: undefined,
+    giftThresholds: "[]",
+    
+    // ML/Privacy Settings
+    mlPersonalizationMode: "basic",
+    enableMLRecommendations: false,
+    mlPrivacyLevel: "basic",
+    enableAdvancedPersonalization: false,
+    enableBehaviorTracking: false,
+    mlDataRetentionDays: "30",
+    
+    // Smart Bundle Settings
+    enableSmartBundles: false,
+    bundlesOnProductPages: true,
+    bundlesOnCollectionPages: false,
+    bundlesOnCartPage: false,
+    bundlesOnCheckoutPage: false,
+    defaultBundleDiscount: "15",
+    bundleTitleTemplate: "Complete your setup",
+    bundleDiscountPrefix: "BUNDLE",
+    bundleConfidenceThreshold: "medium",
+    bundleSavingsFormat: "both",
+    showIndividualPricesInBundle: true,
+    autoApplyBundleDiscounts: true,
+    
+    themeEmbedEnabled: false,
+    themeEmbedLastSeen: undefined,
   };
 }
