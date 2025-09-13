@@ -112,6 +112,12 @@ export const action = withAuthAction(async ({ request, auth }) => {
     giftPriceText: String(settings.giftPriceText) || "FREE",
     enableTitleCaps: settings.enableTitleCaps === 'true',
     enableRecommendationTitleCaps: settings.enableRecommendationTitleCaps === 'true',
+    // ML/AI Personalization settings
+    mlPersonalizationMode: String(settings.mlPersonalizationMode) || 'basic',
+    enableMLRecommendations: settings.enableMLRecommendations === 'true',
+    enableBehaviorTracking: settings.enableBehaviorTracking === 'true',
+    enableAdvancedPersonalization: settings.enableAdvancedPersonalization === 'true',
+    mlDataRetentionDays: String(settings.mlDataRetentionDays) || '30',
   };
   
   try {
@@ -217,6 +223,26 @@ export default function SettingsPage() {
     }
     if (!validated.recommendationsBackgroundColor) {
       validated.recommendationsBackgroundColor = themeColors.background;
+    }
+    
+    // ML/Privacy settings defaults
+    if (validated.mlPersonalizationMode === undefined) {
+      validated.mlPersonalizationMode = 'basic';
+    }
+    if (validated.enableMLRecommendations === undefined) {
+      validated.enableMLRecommendations = false;
+    }
+    if (validated.mlPrivacyLevel === undefined) {
+      validated.mlPrivacyLevel = 'basic';
+    }
+    if (validated.enableAdvancedPersonalization === undefined) {
+      validated.enableAdvancedPersonalization = false;
+    }
+    if (validated.enableBehaviorTracking === undefined) {
+      validated.enableBehaviorTracking = false;
+    }
+    if (validated.mlDataRetentionDays === undefined) {
+      validated.mlDataRetentionDays = '30';
     }
     
     return validated;
@@ -2977,6 +3003,96 @@ export default function SettingsPage() {
                     onChange={(value) => updateSetting("enableAnalytics", value)}
                     helpText="Track cart performance and user behavior"
                   />
+                </FormLayout>
+              </BlockStack>
+            </Card>
+
+            {/* ML/AI Personalization Settings */}
+            <Card>
+              <BlockStack gap="400">
+                <BlockStack gap="200">
+                  <Text variant="headingMd" as="h2">🤖 AI Personalization</Text>
+                  <Text variant="bodySm" tone="subdued">Configure machine learning features for personalized recommendations</Text>
+                </BlockStack>
+                
+                <FormLayout>
+                  <BlockStack gap="300">
+                    <Select
+                      label="Personalization Level"
+                      options={[
+                        { label: 'Basic (Anonymous) - No personal data collection', value: 'basic' },
+                        { label: 'Enhanced - Personalized with consent', value: 'enhanced' },
+                        { label: 'AI-Powered - Full machine learning with consent', value: 'full_ml' }
+                      ]}
+                      value={(formSettings as any).mlPersonalizationMode || 'basic'}
+                      onChange={(value) => updateSetting('mlPersonalizationMode', value)}
+                      helpText="Higher levels provide better recommendations but require customer consent"
+                    />
+                    
+                    {((formSettings as any).mlPersonalizationMode === 'enhanced' || (formSettings as any).mlPersonalizationMode === 'full_ml') && (
+                      <Banner tone="info">
+                        <Text variant="bodyMd" as="p">
+                          Enhanced and AI-Powered modes will show customers a consent dialog explaining data collection. 
+                          All data is processed securely and never shared with third parties.
+                        </Text>
+                      </Banner>
+                    )}
+                    
+                    <Checkbox
+                      label="Enable ML-powered recommendations"
+                      checked={(formSettings as any).enableMLRecommendations || false}
+                      onChange={(value) => updateSetting("enableMLRecommendations", value)}
+                      helpText="Use machine learning algorithms for better product suggestions"
+                      disabled={(formSettings as any).mlPersonalizationMode === 'basic'}
+                    />
+                    
+                    {(formSettings as any).mlPersonalizationMode === 'full_ml' && (
+                      <BlockStack gap="200">
+                        <Checkbox
+                          label="Advanced behavior analysis"
+                          checked={(formSettings as any).enableBehaviorTracking || false}
+                          onChange={(value) => updateSetting("enableBehaviorTracking", value)}
+                          helpText="Analyze shopping patterns for predictive recommendations"
+                        />
+                        
+                        <Checkbox
+                          label="Smart bundle discovery"
+                          checked={(formSettings as any).enableAdvancedPersonalization || false}
+                          onChange={(value) => updateSetting("enableAdvancedPersonalization", value)}
+                          helpText="AI-generated product bundles based on customer behavior"
+                        />
+                        
+                        <Select
+                          label="Data retention period"
+                          options={[
+                            { label: 'No data storage', value: '0' },
+                            { label: '7 days', value: '7' },
+                            { label: '30 days', value: '30' },
+                            { label: '90 days', value: '90' },
+                            { label: '1 year', value: '365' }
+                          ]}
+                          value={(formSettings as any).mlDataRetentionDays || '30'}
+                          onChange={(value) => updateSetting('mlDataRetentionDays', value)}
+                          helpText="How long to retain customer behavior data for ML learning"
+                        />
+                      </BlockStack>
+                    )}
+                    
+                    <Banner tone="warning">
+                      <BlockStack gap="200">
+                        <Text variant="bodyMd" as="p" fontWeight="medium">
+                          Privacy & Compliance Information
+                        </Text>
+                        <Text variant="bodySm" as="p">
+                          • Basic mode: No personal data collection, anonymous analytics only<br/>
+                          • Enhanced mode: Requires customer consent, GDPR compliant<br/>
+                          • AI-Powered mode: Advanced ML with explicit opt-in consent<br/>
+                          • Customers can change preferences or delete data anytime<br/>
+                          • All data is encrypted and never shared with third parties
+                        </Text>
+                      </BlockStack>
+                    </Banner>
+                  </BlockStack>
                 </FormLayout>
               </BlockStack>
             </Card>
