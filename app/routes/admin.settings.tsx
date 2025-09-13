@@ -245,10 +245,70 @@ export default function SettingsPage() {
       validated.mlDataRetentionDays = '30';
     }
     
+    // Bundle settings defaults
+    if (validated.enableSmartBundles === undefined) {
+      validated.enableSmartBundles = false;
+    }
+    if (validated.bundlesOnProductPages === undefined) {
+      validated.bundlesOnProductPages = true;
+    }
+    if (validated.bundlesOnCollectionPages === undefined) {
+      validated.bundlesOnCollectionPages = false;
+    }
+    if (validated.bundlesOnCartPage === undefined) {
+      validated.bundlesOnCartPage = false;
+    }
+    if (validated.bundlesOnCheckoutPage === undefined) {
+      validated.bundlesOnCheckoutPage = false;
+    }
+    if (validated.defaultBundleDiscount === undefined) {
+      validated.defaultBundleDiscount = '15';
+    }
+    if (validated.bundleTitleTemplate === undefined) {
+      validated.bundleTitleTemplate = 'Complete your setup';
+    }
+    if (validated.bundleDiscountPrefix === undefined) {
+      validated.bundleDiscountPrefix = 'BUNDLE';
+    }
+    if (validated.bundleConfidenceThreshold === undefined) {
+      validated.bundleConfidenceThreshold = 'medium';
+    }
+    if (validated.bundleSavingsFormat === undefined) {
+      validated.bundleSavingsFormat = 'both';
+    }
+    if (validated.showIndividualPricesInBundle === undefined) {
+      validated.showIndividualPricesInBundle = true;
+    }
+    if (validated.autoApplyBundleDiscounts === undefined) {
+      validated.autoApplyBundleDiscounts = true;
+    }
+    
     return validated;
   };
 
   const [formSettings, setFormSettings] = useState(validateSettings(settings));
+
+  // Bundle management state
+  const [showBundleCreator, setShowBundleCreator] = useState(false);
+  const [showProductPicker, setShowProductPicker] = useState(false);
+  const [newBundle, setNewBundle] = useState({
+    name: '',
+    description: '',
+    discount: '15',
+    products: []
+  });
+  const [selectedBundleProducts, setSelectedBundleProducts] = useState<any[]>([]);
+
+  // Helper functions for bundle calculations
+  const calculateBundleTotal = (products: any[]) => {
+    return products.reduce((total, product) => total + parseFloat(product.price || 0), 0);
+  };
+
+  const calculateDiscountedTotal = (products: any[], discountPercent: string) => {
+    const total = calculateBundleTotal(products);
+    const discount = parseFloat(discountPercent) / 100;
+    return total * (1 - discount);
+  };
 
   // Use theme colors for better defaults  
   const themeColors = detectThemeColors();
@@ -3075,6 +3135,306 @@ export default function SettingsPage() {
                           onChange={(value) => updateSetting('mlDataRetentionDays', value)}
                           helpText="How long to retain customer behavior data for ML learning"
                         />
+                      </BlockStack>
+                    )}
+                    
+                    <BlockStack gap="300">
+                      <Text as="h3" variant="headingMd">
+                        Smart Bundle Settings
+                      </Text>
+                      
+                      <Checkbox
+                        label="Enable Smart Bundles"
+                        checked={(formSettings as any).enableSmartBundles || false}
+                        onChange={(value) => updateSetting("enableSmartBundles", value)}
+                        helpText="Show ML-discovered and manual product bundles with automatic discounts"
+                      />
+                      
+                      {(formSettings as any).enableSmartBundles && (
+                        <BlockStack gap="200">
+                          <Text as="h4" variant="headingSm">Bundle Display Locations</Text>
+                          
+                          <BlockStack gap="100">
+                            <Checkbox
+                              label="Product pages"
+                              checked={(formSettings as any).bundlesOnProductPages !== false}
+                              onChange={(value) => updateSetting("bundlesOnProductPages", value)}
+                              helpText="Show relevant bundles on individual product pages"
+                            />
+                            
+                            <Checkbox
+                              label="Collection pages"
+                              checked={(formSettings as any).bundlesOnCollectionPages || false}
+                              onChange={(value) => updateSetting("bundlesOnCollectionPages", value)}
+                              helpText="Show popular bundles from the collection category"
+                            />
+                            
+                            <Checkbox
+                              label="Cart page"
+                              checked={(formSettings as any).bundlesOnCartPage || false}
+                              onChange={(value) => updateSetting("bundlesOnCartPage", value)}
+                              helpText="Show complementary bundles in cart (only when cart has 1-2 items)"
+                            />
+                            
+                            <Checkbox
+                              label="Checkout page"
+                              checked={(formSettings as any).bundlesOnCheckoutPage || false}
+                              onChange={(value) => updateSetting("bundlesOnCheckoutPage", value)}
+                              helpText="Last chance bundle offers during checkout"
+                            />
+                          </BlockStack>
+                          
+                          <Select
+                            label="Default bundle discount"
+                            options={[
+                              { label: '5% off', value: '5' },
+                              { label: '10% off', value: '10' },
+                              { label: '15% off', value: '15' },
+                              { label: '20% off', value: '20' },
+                              { label: '25% off', value: '25' },
+                              { label: 'Custom per bundle', value: 'custom' }
+                            ]}
+                            value={(formSettings as any).defaultBundleDiscount || '15'}
+                            onChange={(value) => updateSetting('defaultBundleDiscount', value)}
+                            helpText="Default discount percentage for auto-discovered bundles"
+                          />
+                          
+                          <TextField
+                            label="Bundle title template"
+                            value={(formSettings as any).bundleTitleTemplate || "Complete your setup"}
+                            onChange={(value) => updateSetting("bundleTitleTemplate", value)}
+                            helpText="Default title for bundles. Use {product} for dynamic product name"
+                            placeholder="Complete your {product} setup"
+                          />
+                          
+                          <TextField
+                            label="Bundle discount code prefix"
+                            value={(formSettings as any).bundleDiscountPrefix || "BUNDLE"}
+                            onChange={(value) => updateSetting("bundleDiscountPrefix", value)}
+                            helpText="Automatic discount codes will be: PREFIX + bundle ID (e.g., BUNDLE_IPHONE_SETUP)"
+                            placeholder="BUNDLE"
+                          />
+                          
+                          <Select
+                            label="ML bundle confidence threshold"
+                            options={[
+                              { label: 'Low (50% confidence)', value: 'low' },
+                              { label: 'Medium (70% confidence)', value: 'medium' },
+                              { label: 'High (85% confidence)', value: 'high' }
+                            ]}
+                            value={(formSettings as any).bundleConfidenceThreshold || 'medium'}
+                            onChange={(value) => updateSetting('bundleConfidenceThreshold', value)}
+                            helpText="Minimum ML confidence level required to show auto-discovered bundles"
+                          />
+                          
+                          <Text as="h4" variant="headingSm">Bundle Savings Display</Text>
+                          
+                          <Select
+                            label="Savings display format"
+                            options={[
+                              { label: 'Save $X', value: 'amount' },
+                              { label: 'Save X%', value: 'percentage' },
+                              { label: 'Save $X (X%)', value: 'both' },
+                              { label: 'X% off bundle', value: 'discount_label' }
+                            ]}
+                            value={(formSettings as any).bundleSavingsFormat || 'both'}
+                            onChange={(value) => updateSetting('bundleSavingsFormat', value)}
+                            helpText="How to display bundle savings to customers"
+                          />
+                          
+                          <Checkbox
+                            label="Show individual product prices in bundle"
+                            checked={(formSettings as any).showIndividualPricesInBundle !== false}
+                            onChange={(value) => updateSetting("showIndividualPricesInBundle", value)}
+                            helpText="Display strikethrough individual prices vs bundle price"
+                          />
+                          
+                          <Checkbox
+                            label="Auto-apply bundle discount codes"
+                            checked={(formSettings as any).autoApplyBundleDiscounts !== false}
+                            onChange={(value) => updateSetting("autoApplyBundleDiscounts", value)}
+                            helpText="Automatically apply discount codes when customers add bundles to cart"
+                          />
+                        </BlockStack>
+                      )}
+                    </BlockStack>
+                    
+                    {/* Manual Bundle Management */}
+                    {(formSettings as any).enableSmartBundles && (
+                      <BlockStack gap="300">
+                        <Text as="h3" variant="headingMd">
+                          Manual Bundle Management
+                        </Text>
+                        
+                        <Text as="p" variant="bodySm">
+                          Create custom bundles or manage ML-discovered bundles. Each bundle gets an automatic discount code.
+                        </Text>
+                        
+                        <Button
+                          onClick={() => setShowBundleCreator(true)}
+                          variant="primary"
+                        >
+                          Create New Bundle
+                        </Button>
+                        
+                        {/* Bundle List */}
+                        <BlockStack gap="200">
+                          <Text as="h4" variant="headingSm">Active Bundles</Text>
+                          
+                          {/* Sample Bundle Display - would be populated from API */}
+                          <Card>
+                            <BlockStack gap="200">
+                              <InlineStack wrap={false} align="space-between">
+                                <BlockStack gap="100">
+                                  <Text as="h5" variant="headingSm">iPhone Complete Setup</Text>
+                                  <Text as="p" variant="bodySm">iPhone 15 Pro + AirPods Pro + iPhone Case</Text>
+                                  <Text as="p" variant="bodySm">
+                                    Regular: $1,287 • Bundle: $1,158 • <strong>Save $129 (10%)</strong>
+                                  </Text>
+                                  <Text as="p" variant="bodySm">
+                                    Discount Code: <Badge>BUNDLE_IPHONE_SETUP</Badge>
+                                  </Text>
+                                </BlockStack>
+                                <BlockStack gap="100">
+                                  <Badge tone="success">Active</Badge>
+                                  <Badge>ML Discovered</Badge>
+                                  <Button size="slim">Edit</Button>
+                                </BlockStack>
+                              </InlineStack>
+                            </BlockStack>
+                          </Card>
+                          
+                          <Card>
+                            <BlockStack gap="200">
+                              <InlineStack wrap={false} align="space-between">
+                                <BlockStack gap="100">
+                                  <Text as="h5" variant="headingSm">MacBook Pro Bundle</Text>
+                                  <Text as="p" variant="bodySm">MacBook Air + Wireless Mouse + Mousepad</Text>
+                                  <Text as="p" variant="bodySm">
+                                    Regular: $1,278 • Bundle: $1,150 • <strong>Save $128 (15%)</strong>
+                                  </Text>
+                                  <Text as="p" variant="bodySm">
+                                    Discount Code: <Badge>BUNDLE_MACBOOK_PRO</Badge>
+                                  </Text>
+                                </BlockStack>
+                                <BlockStack gap="100">
+                                  <Badge tone="warning">Draft</Badge>
+                                  <Badge>Manual</Badge>
+                                  <Button size="slim">Edit</Button>
+                                </BlockStack>
+                              </InlineStack>
+                            </BlockStack>
+                          </Card>
+                        </BlockStack>
+                        
+                        {/* Bundle Creator Modal */}
+                        {showBundleCreator && (
+                          <Modal
+                            open={showBundleCreator}
+                            onClose={() => setShowBundleCreator(false)}
+                            title="Create New Bundle"
+                            primaryAction={{
+                              content: 'Create Bundle',
+                              onAction: () => {
+                                // Handle bundle creation
+                                setShowBundleCreator(false);
+                              }
+                            }}
+                            secondaryActions={[{
+                              content: 'Cancel',
+                              onAction: () => setShowBundleCreator(false)
+                            }]}
+                          >
+                            <Modal.Section>
+                              <BlockStack gap="400">
+                                <TextField
+                                  label="Bundle Name"
+                                  value={newBundle.name}
+                                  onChange={(value) => setNewBundle(prev => ({ ...prev, name: value }))}
+                                  placeholder="Complete iPhone Setup"
+                                  autoComplete="off"
+                                />
+                                
+                                <TextField
+                                  label="Bundle Description"
+                                  value={newBundle.description}
+                                  onChange={(value) => setNewBundle(prev => ({ ...prev, description: value }))}
+                                  placeholder="Everything you need for your new iPhone"
+                                  multiline={3}
+                                  autoComplete="off"
+                                />
+                                
+                                <Select
+                                  label="Bundle Discount"
+                                  options={[
+                                    { label: '5% off', value: '5' },
+                                    { label: '10% off', value: '10' },
+                                    { label: '15% off', value: '15' },
+                                    { label: '20% off', value: '20' },
+                                    { label: '25% off', value: '25' },
+                                  ]}
+                                  value={newBundle.discount}
+                                  onChange={(value) => setNewBundle(prev => ({ ...prev, discount: value }))}
+                                />
+                                
+                                <BlockStack gap="200">
+                                  <Text as="h4" variant="headingSm">Bundle Products</Text>
+                                  <Text as="p" variant="bodySm">
+                                    Select products to include in this bundle:
+                                  </Text>
+                                  
+                                  <Button
+                                    onClick={() => setShowProductPicker(true)}
+                                    variant="secondary"
+                                  >
+                                    Add Products ({selectedBundleProducts.length} selected)
+                                  </Button>
+                                  
+                                  {selectedBundleProducts.length > 0 && (
+                                    <BlockStack gap="100">
+                                      {selectedBundleProducts.map((product, index) => (
+                                        <InlineStack key={index} wrap={false} align="space-between">
+                                          <Text as="p" variant="bodySm">{product.title} - ${product.price}</Text>
+                                          <Button 
+                                            size="slim" 
+                                            variant="plain"
+                                            onClick={() => {
+                                              setSelectedBundleProducts(prev => 
+                                                prev.filter((_, i) => i !== index)
+                                              );
+                                            }}
+                                          >
+                                            Remove
+                                          </Button>
+                                        </InlineStack>
+                                      ))}
+                                    </BlockStack>
+                                  )}
+                                </BlockStack>
+                                
+                                {selectedBundleProducts.length > 1 && (
+                                  <Card>
+                                    <BlockStack gap="200">
+                                      <Text as="h4" variant="headingSm">Bundle Preview</Text>
+                                      <Text as="p" variant="bodySm">
+                                        Individual Total: ${calculateBundleTotal(selectedBundleProducts).toFixed(2)}
+                                      </Text>
+                                      <Text as="p" variant="bodySm">
+                                        Bundle Price: ${calculateDiscountedTotal(selectedBundleProducts, newBundle.discount).toFixed(2)}
+                                      </Text>
+                                      <Text as="p" variant="bodyMd" fontWeight="medium">
+                                        Customer Saves: ${(calculateBundleTotal(selectedBundleProducts) - calculateDiscountedTotal(selectedBundleProducts, newBundle.discount)).toFixed(2)} ({newBundle.discount}% off)
+                                      </Text>
+                                      <Text as="p" variant="bodySm">
+                                        Discount Code: <Badge>BUNDLE_{newBundle.name.toUpperCase().replace(/\s+/g, '_')}</Badge>
+                                      </Text>
+                                    </BlockStack>
+                                  </Card>
+                                )}
+                              </BlockStack>
+                            </Modal.Section>
+                          </Modal>
+                        )}
                       </BlockStack>
                     )}
                     
