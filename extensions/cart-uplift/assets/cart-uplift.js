@@ -5719,6 +5719,19 @@
   // Auto-initialize if settings exist
   if (window.CartUpliftSettings) {
     window.cartUpliftDrawer = new CartUpliftDrawer(window.CartUpliftSettings);
+    
+    // Initialize bundle renderer if bundles are enabled
+    if (window.CartUpliftSettings.enableSmartBundles) {
+      // Load bundle renderer dynamically
+      const script = document.createElement('script');
+      script.src = '/apps/cart-uplift/assets/bundle-renderer.js';
+      script.onload = function() {
+        if (window.BundleRenderer) {
+          window.cartUpliftBundleRenderer = new window.BundleRenderer(window.CartUpliftSettings);
+        }
+      };
+      document.head.appendChild(script);
+    }
   }
 
 })();

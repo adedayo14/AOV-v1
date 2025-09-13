@@ -51,7 +51,80 @@ export const loader = withAuth(async ({ auth }) => {
     console.error('Error fetching shop currency:', error);
   }
   
-  return json({ settings, shopCurrency });
+  // Fetch real bundles from API
+  let bundles = [];
+  try {
+    const bundlesResponse = await fetch(`/apps/cart-uplift/api/bundles?shop=${shop}`, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (bundlesResponse.ok) {
+      const bundlesData = await bundlesResponse.json();
+      bundles = bundlesData.bundles || [];
+    }
+  } catch (error) {
+    console.error('Error fetching bundles:', error);
+  }
+  
+  // Fetch some real products for bundle creation
+  let products = [];
+  try {
+    const productsQuery = `
+      query getProducts($first: Int!) {
+        products(first: $first) {
+          edges {
+            node {
+              id
+              title
+              handle
+              priceRangeV2 {
+                minVariantPrice {
+                  amount
+                  currencyCode
+                }
+              }
+              variants(first: 1) {
+                edges {
+                  node {
+                    id
+                    price
+                  }
+                }
+              }
+              images(first: 1) {
+                edges {
+                  node {
+                    url
+                    altText
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+    
+    const response = await auth.admin.graphql(productsQuery, {
+      variables: { first: 50 }
+    });
+    const productData = await response.json();
+    
+    if (productData.data?.products?.edges) {
+      products = productData.data.products.edges.map((edge: any) => ({
+        id: edge.node.id,
+        title: edge.node.title,
+        handle: edge.node.handle,
+        price: parseFloat(edge.node.priceRangeV2.minVariantPrice.amount),
+        currency: edge.node.priceRangeV2.minVariantPrice.currencyCode,
+        variant_id: edge.node.variants.edges[0]?.node.id,
+        image: edge.node.images.edges[0]?.node.url
+      }));
+    }
+  } catch (error) {
+    console.error('Error fetching products:', error);
+  }
+  
+  return json({ settings, shopCurrency, bundles, products });
 });
 
 export const action = withAuthAction(async ({ request, auth }) => {
@@ -151,7 +224,7 @@ function formatCurrency(amount: number | string, currencyCode: string = 'USD', m
 }
 
 export default function SettingsPage() {
-  const { settings, shopCurrency } = useLoaderData<typeof loader>();
+  const { settings, shopCurrency, bundles = [], products: storeProducts = [] } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const productsFetcher = useFetcher();
 
@@ -3281,50 +3354,54 @@ export default function SettingsPage() {
                         <BlockStack gap="200">
                           <Text as="h4" variant="headingSm">Active Bundles</Text>
                           
-                          {/* Sample Bundle Display - would be populated from API */}
-                          <Card>
-                            <BlockStack gap="200">
-                              <InlineStack wrap={false} align="space-between">
-                                <BlockStack gap="100">
-                                  <Text as="h5" variant="headingSm">iPhone Complete Setup</Text>
-                                  <Text as="p" variant="bodySm">iPhone 15 Pro + AirPods Pro + iPhone Case</Text>
-                                  <Text as="p" variant="bodySm">
-                                    Regular: $1,287 • Bundle: $1,158 • <strong>Save $129 (10%)</strong>
-                                  </Text>
-                                  <Text as="p" variant="bodySm">
-                                    Discount Code: <Badge>BUNDLE_IPHONE_SETUP</Badge>
-                                  </Text>
+                          {bundles.length === 0 ? (
+                            <Card>
+                              <BlockStack gap="200">
+                                <Text as="p" variant="bodySm">
+                                  No bundles created yet. Create your first bundle to get started!
+                                </Text>
+                                <Text as="p" variant="bodySm">
+                                  💡 Tip: Our ML system will also discover bundles automatically based on customer behavior.
+                                </Text>
+                              </BlockStack>
+                            </Card>
+                          ) : (
+                            bundles.map((bundle: any) => (
+                              <Card key={bundle.id}>
+                                <BlockStack gap="200">
+                                  <InlineStack wrap={false} align="space-between">
+                                    <BlockStack gap="100">
+                                      <Text as="h5" variant="headingSm">{bundle.name}</Text>
+                                      <Text as="p" variant="bodySm">
+                                        {bundle.products.map((p: any) => p.title).join(' + ')}
+                                      </Text>
+                                      <Text as="p" variant="bodySm">
+                                        Regular: ${bundle.regular_total.toFixed(2)} • Bundle: ${bundle.bundle_price.toFixed(2)} • <strong>Save ${bundle.savings_amount.toFixed(2)} ({bundle.discount_percent}%)</strong>
+                                      </Text>
+                                      <Text as="p" variant="bodySm">
+                                        Discount Code: <Badge>{bundle.discount_code}</Badge>
+                                      </Text>
+                                      {bundle.performance && (
+                                        <Text as="p" variant="bodySm">
+                                          Performance: {bundle.performance.views} views, {bundle.performance.conversions} sales, ${bundle.performance.revenue.toFixed(2)} revenue
+                                        </Text>
+                                      )}
+                                    </BlockStack>
+                                    <BlockStack gap="100">
+                                      <Badge tone={bundle.status === 'active' ? 'success' : 'warning'}>
+                                        {bundle.status === 'active' ? 'Active' : 'Draft'}
+                                      </Badge>
+                                      <Badge>{bundle.source === 'ml' ? 'ML Discovered' : 'Manual'}</Badge>
+                                      {bundle.confidence && (
+                                        <Badge tone="info">{Math.round(bundle.confidence * 100)}% confidence</Badge>
+                                      )}
+                                      <Button size="slim">Edit</Button>
+                                    </BlockStack>
+                                  </InlineStack>
                                 </BlockStack>
-                                <BlockStack gap="100">
-                                  <Badge tone="success">Active</Badge>
-                                  <Badge>ML Discovered</Badge>
-                                  <Button size="slim">Edit</Button>
-                                </BlockStack>
-                              </InlineStack>
-                            </BlockStack>
-                          </Card>
-                          
-                          <Card>
-                            <BlockStack gap="200">
-                              <InlineStack wrap={false} align="space-between">
-                                <BlockStack gap="100">
-                                  <Text as="h5" variant="headingSm">MacBook Pro Bundle</Text>
-                                  <Text as="p" variant="bodySm">MacBook Air + Wireless Mouse + Mousepad</Text>
-                                  <Text as="p" variant="bodySm">
-                                    Regular: $1,278 • Bundle: $1,150 • <strong>Save $128 (15%)</strong>
-                                  </Text>
-                                  <Text as="p" variant="bodySm">
-                                    Discount Code: <Badge>BUNDLE_MACBOOK_PRO</Badge>
-                                  </Text>
-                                </BlockStack>
-                                <BlockStack gap="100">
-                                  <Badge tone="warning">Draft</Badge>
-                                  <Badge>Manual</Badge>
-                                  <Button size="slim">Edit</Button>
-                                </BlockStack>
-                              </InlineStack>
-                            </BlockStack>
-                          </Card>
+                              </Card>
+                            ))
+                          )}
                         </BlockStack>
                         
                         {/* Bundle Creator Modal */}
