@@ -3,7 +3,7 @@
 
   // Version sentinel & live verification (cache-bust expectation)
   (function(){
-  const v = 'grid-2025-09-12-12-proxy-recs';
+  const v = 'grid-2025-09-13-01-prewarm';
     if (window.CART_UPLIFT_ASSET_VERSION !== v) {
       window.CART_UPLIFT_ASSET_VERSION = v;
       console.log('[CartUplift] Loaded asset version ' + v + ' – expecting NEW grid (no .cartuplift-grid-overlay elements).');
@@ -170,6 +170,56 @@
       this.initPromise = this.init();
     }
 
+    // Pre-fetch settings and recommendations (no visible DOM update until needed)
+    async prewarmRecommendations() {
+      try {
+        if (this._prewarmingRecs) return;
+        this._prewarmingRecs = true;
+        // Ensure latest settings first
+        if (!this._settingsPrewarmed) {
+          await this.refreshSettingsFromAPI();
+          this._settingsPrewarmed = true;
+        }
+        // Fetch recommendations early if enabled and not yet loaded
+        if (this.settings.enableRecommendations && !this._recommendationsLoaded) {
+          if (!this.recommendationEngine) {
+            this.recommendationEngine = new SmartRecommendationEngine(this);
+          }
+          const recs = await this.recommendationEngine.getRecommendations();
+          if (Array.isArray(recs) && recs.length) {
+            this._allRecommendations = recs;
+            this._recommendationsLocked = true;
+            this.rebuildRecommendationsFromMaster();
+            this._recommendationsLoaded = true;
+
+            // Prefetch top recommendation images on idle (prewarm path)
+            const prefetchImages = () => {
+              try {
+                (this._allRecommendations || []).slice(0, 8).forEach(p => {
+                  if (p && p.image && !document.querySelector(`link[rel="prefetch"][href="${p.image}"]`)) {
+                    const link = document.createElement('link');
+                    link.rel = 'prefetch';
+                    link.as = 'image';
+                    link.href = p.image;
+                    link.dataset.cartuplift = 'prefetch';
+                    document.head.appendChild(link);
+                  }
+                });
+              } catch(_) {}
+            };
+            if ('requestIdleCallback' in window) {
+              requestIdleCallback(prefetchImages, { timeout: 1500 });
+            } else {
+              setTimeout(prefetchImages, 300);
+            }
+          }
+        }
+      } catch (_) {
+        // Silent on purpose for prewarm
+      } finally {
+        this._prewarmingRecs = false;
+      }
+    }
     // Basic HTML escape for safe text insertion
     escapeHtml(str) {
       if (str === undefined || str === null) return '';
@@ -526,6 +576,14 @@
         }
         this.updateDrawerContent();
       };
+
+      // Prewarm settings and recommendations on idle to reduce first-open delay
+      const prewarm = () => this.prewarmRecommendations && this.prewarmRecommendations();
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(prewarm, { timeout: 2000 });
+      } else {
+        setTimeout(prewarm, 600);
+      }
     }
 
     // Track last meaningful click to derive animation source
@@ -929,9 +987,18 @@
       
       console.log('🛒 Cart Uplift: Sticky cart added to DOM:', document.getElementById('cartuplift-sticky'));
       
-      stickyCart.querySelector('.cartuplift-sticky-btn').addEventListener('click', () => {
+      const stickyBtnEl = stickyCart.querySelector('.cartuplift-sticky-btn');
+      stickyBtnEl.addEventListener('click', () => {
         this.openDrawer();
       });
+      // Prewarm on hover/focus to shave time
+      const prewarmOnce = () => {
+        if (this.prewarmRecommendations) this.prewarmRecommendations();
+        stickyBtnEl.removeEventListener('mouseenter', prewarmOnce);
+        stickyBtnEl.removeEventListener('focus', prewarmOnce);
+      };
+      stickyBtnEl.addEventListener('mouseenter', prewarmOnce);
+      stickyBtnEl.addEventListener('focus', prewarmOnce);
       
       console.log('🛒 Cart Uplift: Sticky cart setup complete');
     }
@@ -1792,7 +1859,7 @@
 
   getRecommendationItems() {
       if (!this._recommendationsLoaded) {
-        return '<div class="cartuplift-recommendations-loading">Loading recommendations...</div>';
+        return this.getRecommendationsSkeletonHTML();
       }
       
       if (!this.recommendations || this.recommendations.length === 0) {
@@ -1827,7 +1894,7 @@
       </div>
                   <div class="cartuplift-product-actions">
                     <div class="cartuplift-recommendation-price">${this.formatMoney(normalizePriceToCents(product.priceCents || 0))}</div>
-                    <button class="cartuplift-add-recommendation" data-product-id="${product.id}" data-variant-id="${product.variant_id}">
+                    <button class="cartuplift-add-recommendation" data-product-id="${product.id}" data-variant-id="${product.variant_id || (Array.isArray(product.variants) && (product.variants.find(v=>v.available)?.id || product.variants[0]?.id)) || ''}">
                       ${this.settings.addButtonText || 'Add'}
                     </button>
                   </div>
@@ -1870,6 +1937,53 @@
           </div>
         `).join('');
       }
+    }
+
+    // Lightweight skeleton UI while recs load
+    getRecommendationsSkeletonHTML() {
+      const layoutMap = { horizontal: 'row', row: 'row', carousel: 'row', vertical: 'column', column: 'column', list: 'column', grid: 'grid' };
+      const layoutRaw = this.settings.recommendationLayout || 'column';
+      const layout = layoutMap[layoutRaw] || layoutRaw;
+      if (layout === 'row') {
+        const cards = Array.from({ length: 3 }).map(() => `
+          <div class="cartuplift-recommendation-card is-skeleton">
+            <div class="cartuplift-card-content">
+              <div class="cartuplift-product-image cartuplift-skeleton-box"></div>
+              <div class="cartuplift-product-info">
+                <div class="cartuplift-skeleton-line" style="width: 90%"></div>
+                <div class="cartuplift-skeleton-line" style="width: 70%"></div>
+                <div class="cartuplift-product-variation">
+                  <div class="cartuplift-skeleton-pill" style="width: 140px"></div>
+                </div>
+              </div>
+              <div class="cartuplift-product-actions">
+                <div class="cartuplift-skeleton-line" style="width: 60px; height: 16px"></div>
+                <div class="cartuplift-skeleton-pill" style="width: 60px"></div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+        return `<div class="cartuplift-recommendations-track">${cards}</div>`;
+      }
+      if (layout === 'grid') {
+        const items = Array.from({ length: 4 }).map(() => `
+          <div class="cartuplift-grid-item is-skeleton">
+            <div class="cartuplift-grid-image cartuplift-skeleton-box"></div>
+          </div>
+        `).join('');
+        return `<div class="cartuplift-grid-container">${items}</div>`;
+      }
+      // column/list
+      return Array.from({ length: 3 }).map(() => `
+        <div class="cartuplift-recommendation-item is-skeleton">
+          <div class="cartuplift-skeleton-box" style="width:56px;height:56px;border-radius:6px"></div>
+          <div class="cartuplift-recommendation-info">
+            <div class="cartuplift-skeleton-line" style="width: 80%"></div>
+            <div class="cartuplift-skeleton-line" style="width: 50%"></div>
+          </div>
+          <div class="cartuplift-skeleton-pill" style="width:24px;height:24px;border-radius:50%"></div>
+        </div>
+      `).join('');
     }
 
     generateDynamicGrid() {
@@ -2072,6 +2186,23 @@
           const result = parts.join(' / ');
           return result || variant.title;
         };
+
+        // Helper: build combined label "Color / Size" for desktop carousel (row)
+        const buildCombinedLabel = (variant) => {
+          const arr = variant.options || variant.option_values || [];
+          const values = Array.isArray(arr) && arr.length
+            ? arr
+            : [variant.option1, variant.option2, variant.option3].filter(Boolean);
+          const cleaned = values.map(v => String(v || '').trim()).filter(Boolean);
+          // Ensure color appears first if we detected a color index
+          if (colorIndex !== -1 && cleaned.length) {
+            const colorVal = Array.isArray(arr) ? arr[colorIndex] : (variant[`option${colorIndex+1}`] || '');
+            const nonColor = cleaned.filter(v => String(v).toLowerCase() !== String(colorVal || '').toLowerCase());
+            const ordered = [colorVal, ...nonColor].filter(Boolean);
+            return ordered.join(' / ');
+          }
+          return cleaned.join(' / ');
+        };
         
         // Build optional color inline select if color is present and no swatches are used
         let colorSelect = '';
@@ -2091,14 +2222,14 @@
             }
             colorSelect = `
               <label class="cartuplift-variant-label">${this.escapeHtml(colorName)}</label>
-              <select class="cartuplift-size-dropdown cartuplift-color-dropdown" data-product-id="${product.id}" data-option-index="${colorIndex}">
+              <select class="cartuplift-size-dropdown cartuplift-color-dropdown cartuplift-simple-select" data-product-id="${product.id}" data-option-index="${colorIndex}">
                 ${values.map(val => `<option value="${this.escapeHtml(val)}" ${String(val).toLowerCase() === String(selectedColor).toLowerCase() ? 'selected' : ''}>${this.escapeHtml(val)}</option>`).join('')}
               </select>
             `;
           }
         }
         const sizeSelect = `
-          <select class="cartuplift-size-dropdown" data-product-id="${product.id}">
+          <select class="cartuplift-size-dropdown cartuplift-simple-select" data-product-id="${product.id}">
             ${availableVariants.map((variant, index) => `
               <option value="${variant.id}" data-price-cents="${variant.price_cents}" ${(String(selectedId) === String(variant.id) || (!selectedId && index === 0)) ? 'selected' : ''}>
                 ${buildLabel(variant)}
@@ -2106,12 +2237,30 @@
             `).join('')}
           </select>`;
 
+        // Desktop-only combined select for carousel (row layout): build a single pill with "Color / Size"
+        let comboSelect = '';
+        const layoutRaw = this.settings?.recommendationLayout || 'column';
+        const layoutMap = { horizontal: 'row', row: 'row', carousel: 'row', vertical: 'column', column: 'column', list: 'column', grid: 'grid' };
+        const layout = layoutMap[layoutRaw] || layoutRaw;
+        const hasMultipleOptions = Array.isArray(opts) && opts.length > 1;
+        if (layout === 'row' && hasMultipleOptions) {
+          comboSelect = `
+            <select class="cartuplift-size-dropdown cartuplift-combo-dropdown" data-product-id="${product.id}">
+              ${availableVariants.map((variant, index) => `
+                <option value="${variant.id}" data-price-cents="${variant.price_cents}" ${(String(selectedId) === String(variant.id) || (!selectedId && index === 0)) ? 'selected' : ''}>
+                  ${this.escapeHtml(buildCombinedLabel(variant))}
+                </option>
+              `).join('')}
+            </select>`;
+        }
+
         if (onlyColor) {
-          // Only color exists, use the color dropdown alone
+          // Only color exists, use the color dropdown alone (combo not needed)
           return `<div class="cartuplift-product-variation">${colorSelect}</div>`;
         }
 
-        return `<div class="cartuplift-product-variation">${colorSelect}${sizeSelect}</div>`;
+        // Render both: on mobile we show simple selects; on desktop (carousel) we show combo via CSS
+        return `<div class="cartuplift-product-variation">${comboSelect}${colorSelect}${sizeSelect}</div>`;
       } else {
         // Simple product or single variant - hide selector completely
         return `<div class="cartuplift-product-variation hidden"></div>`;
@@ -2448,8 +2597,13 @@
       // Context: row card
       const card = select.closest('.cartuplift-recommendation-card');
       if (card) {
-        const addBtn = card.querySelector('.cartuplift-add-recommendation');
-        if (addBtn && variantId) addBtn.dataset.variantId = variantId;
+          // If there's a combo dropdown, keep it in sync and prefer it as source of truth
+          const combo = card.querySelector('.cartuplift-combo-dropdown');
+          if (combo && combo !== select && variantId) {
+            combo.value = String(variantId);
+          }
+          const addBtn = card.querySelector('.cartuplift-add-recommendation');
+          if (addBtn && variantId) addBtn.dataset.variantId = variantId;
         const priceElement = card.querySelector('.cartuplift-recommendation-price');
         if (priceElement && priceCents) priceElement.textContent = this.formatMoney(priceCents);
       }
@@ -3100,7 +3254,7 @@
           if (!card) return;
           
           // Check if size needs to be selected
-          const sizeSelect = card.querySelector('.cartuplift-size-dropdown:not([disabled])');
+          const sizeSelect = card.querySelector('.cartuplift-combo-dropdown, .cartuplift-size-dropdown:not(.cartuplift-color-dropdown):not([disabled])');
           let selectedVariantId = e.target.dataset.variantId;
           
           if (sizeSelect && !sizeSelect.value) {
@@ -3448,6 +3602,26 @@
   this._recommendationsLoaded = true;
         
         
+        // Prefetch rec images on idle to reduce first-open jank
+        const prefetchImages = () => {
+          try {
+            (this._allRecommendations || []).slice(0, 8).forEach(p => {
+              if (p && p.image) {
+                const link = document.createElement('link');
+                link.rel = 'prefetch';
+                link.as = 'image';
+                link.href = p.image;
+                document.head.appendChild(link);
+              }
+            });
+          } catch(_) {}
+        };
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(prefetchImages, { timeout: 1500 });
+        } else {
+          setTimeout(prefetchImages, 300);
+        }
+
         // Update recommendations display if drawer is open
         if (this.isOpen) {
           const recommendationsContent = document.getElementById('cartuplift-recommendations-content');
