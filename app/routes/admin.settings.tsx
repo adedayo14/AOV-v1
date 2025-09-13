@@ -5049,6 +5049,66 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Product Picker Modal for Bundle Creation */}
+      {showProductPicker && (
+        <Modal
+          open
+          onClose={() => setShowProductPicker(false)}
+          title="Select Products for Bundle"
+          primaryAction={{
+            content: 'Done',
+            onAction: () => {
+              setShowProductPicker(false);
+            }
+          }}
+          secondaryActions={[{ content: 'Cancel', onAction: () => setShowProductPicker(false) }]}
+        >
+          <Modal.Section>
+            <BlockStack gap="300">
+              <Text variant="bodySm" tone="subdued">
+                Select products to include in your bundle. You can select multiple products.
+              </Text>
+              
+              {products.length === 0 ? (
+                <Text as="p" tone="subdued">No products available.</Text>
+              ) : (
+                <div className="cartuplift-product-selector-list">
+                  {products.map((product: any) => {
+                    const isSelected = selectedBundleProducts.some(p => p.id === product.id);
+                    return (
+                      <div key={product.id} className="cartuplift-product-row">
+                        <Checkbox
+                          label=""
+                          checked={isSelected}
+                          onChange={(checked: boolean) => {
+                            if (checked) {
+                              // Add product to selection
+                              setSelectedBundleProducts(prev => [...prev, product]);
+                            } else {
+                              // Remove product from selection
+                              setSelectedBundleProducts(prev => prev.filter(p => p.id !== product.id));
+                            }
+                          }}
+                        />
+                        <img 
+                          className="cartuplift-product-thumb" 
+                          src={product.image || ''} 
+                          alt={product.title} 
+                        />
+                        <div className="cartuplift-product-meta">
+                          <p className="cartuplift-product-title">{product.title}</p>
+                          <p className="cartuplift-product-sub">${product.price} {product.currency}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </BlockStack>
+          </Modal.Section>
+        </Modal>
+      )}
+
       {/* Gift Product Selector Modal */}
       {showGiftProductSelector && (
         <Modal
