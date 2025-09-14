@@ -182,6 +182,13 @@ class BundleRenderer {
             return id;
         }
 
+        // Prefer ShopifyAnalytics product id (product-level), not variant id
+        if (window.ShopifyAnalytics?.meta?.product?.id) {
+            const id = window.ShopifyAnalytics.meta.product.id.toString();
+            console.log('[BundleRenderer] Found product ID from ShopifyAnalytics:', id);
+            return id;
+        }
+
         const productForm = document.querySelector('form[action*="/cart/add"]');
         if (productForm) {
             const productIdInput = productForm.querySelector('input[name="id"]');
@@ -190,13 +197,6 @@ class BundleRenderer {
                 console.log('[BundleRenderer] Found product ID from form input:', id);
                 return id;
             }
-        }
-
-        // Try window.ShopifyAnalytics or other global variables
-        if (window.ShopifyAnalytics?.meta?.product?.id) {
-            const id = window.ShopifyAnalytics.meta.product.id.toString();
-            console.log('[BundleRenderer] Found product ID from ShopifyAnalytics:', id);
-            return id;
         }
         
         // Try URL path detection

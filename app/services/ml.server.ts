@@ -102,7 +102,10 @@ export async function generateBundlesFromOrders(params: {
   }
 
   const recIds = Object.entries(candidate).sort((a, b) => b[1] - a[1]).slice(0, Math.max(2, limit)).map(([id]) => id);
-  if (recIds.length === 0) return [];
+  if (recIds.length === 0) {
+    // Content-based fallback when there are no co-purchase signals
+    return contentBasedFallback({ shop, productId, limit, defaultDiscountPct, bundleTitle });
+  }
 
   // 4) Fetch product + variant info for anchor and recs
   const allGids = [productId, ...recIds].map(id => `gid://shopify/Product/${id}`);
@@ -142,6 +145,113 @@ export async function generateBundlesFromOrders(params: {
       products: [
         { id: productId, variant_id: anchor.variantId, title: byPid[productId]?.title || 'Product', price: anchor.price },
         { id: rid, variant_id: rec.variantId, title: byPid[rid]?.title || 'Recommended', price: rec.price },
+      ],
+      regular_total,
+      bundle_price,
+      savings_amount,
+      discount_percent: defaultDiscountPct,
+      status: 'active',
+      source: 'ml',
+    });
+  }
+
+  return bundles;
+}
+
+async function contentBasedFallback(params: {
+  shop: string;
+  productId: string;
+  limit: number;
+  defaultDiscountPct: number;
+  bundleTitle?: string;
+}): Promise<GeneratedBundle[]> {
+  const { shop, productId, limit, defaultDiscountPct, bundleTitle } = params;
+  const { admin } = await unauthenticated.admin(shop);
+
+  // Fetch anchor product details
+  const anchorGid = `gid://shopify/Product/${productId}`;
+  const anchorResp = await admin.graphql(`
+    #graphql
+    query($id: ID!) {
+      product(id: $id) {
+        id
+        title
+        vendor
+        productType
+        variants(first: 3) { edges { node { id price } } }
+      }
+    }
+  `, { variables: { id: anchorGid } });
+  if (!anchorResp.ok) return [];
+  const anchorData: any = await anchorResp.json();
+  const anchor = anchorData?.data?.product;
+  if (!anchor?.id) return [];
+  const anchorTitle: string = anchor.title || '';
+  const anchorVendor: string = anchor.vendor || '';
+  const anchorType: string = anchor.productType || '';
+  const anchorVar = anchor.variants?.edges?.[0]?.node;
+  const anchorPrice = parseFloat(anchorVar?.price || '0') || 0;
+  const anchorVid = getVid(anchorVar?.id);
+
+  // Fetch a sample of products to compare against
+  const listResp = await admin.graphql(`
+    #graphql
+    query { products(first: 75, sortKey: BEST_SELLING) { edges { node {
+      id
+      title
+      vendor
+      productType
+      variants(first: 1) { edges { node { id price } } }
+    } } } }
+  `);
+  if (!listResp.ok) return [];
+  const listData: any = await listResp.json();
+  const nodes: any[] = listData?.data?.products?.edges?.map((e: any) => e.node) || [];
+
+  // Tokenize titles for a simple content similarity
+  const tokenize = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+  const anchorTokens = new Set(tokenize(anchorTitle));
+
+  const scored: Array<{ pid: string; vid: string; title: string; price: number; score: number }> = [];
+  for (const n of nodes) {
+    const pid = getPid(n.id);
+    if (!pid || pid === productId) continue;
+    const title: string = n.title || '';
+    const vendor: string = n.vendor || '';
+    const ptype: string = n.productType || '';
+    const v = n.variants?.edges?.[0]?.node;
+    const price = parseFloat(v?.price || '0') || 0;
+    const vid = getVid(v?.id);
+
+    // Similarity components: title Jaccard, vendor match, type match, price proximity
+    const tokens = tokenize(title);
+    const setB = new Set(tokens);
+    const inter = [...anchorTokens].filter(t => setB.has(t)).length;
+    const union = new Set([...anchorTokens, ...setB]).size || 1;
+    const jaccard = inter / union;
+    const vendorBoost = vendor && vendor === anchorVendor ? 0.3 : 0;
+    const typeBoost = ptype && ptype === anchorType ? 0.2 : 0;
+    const priceDelta = Math.abs(price - anchorPrice);
+    const priceBoost = anchorPrice > 0 ? Math.max(0, 0.3 - Math.min(0.3, priceDelta / Math.max(20, anchorPrice * 0.5) * 0.3)) : 0;
+    const score = jaccard + vendorBoost + typeBoost + priceBoost;
+    scored.push({ pid, vid, title, price, score });
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  const picks = scored.slice(0, Math.max(2, limit));
+  if (picks.length === 0) return [];
+
+  const bundles: GeneratedBundle[] = [];
+  for (const rec of picks) {
+    const regular_total = anchorPrice + rec.price;
+    const bundle_price = Math.max(0, regular_total * (1 - defaultDiscountPct / 100));
+    const savings_amount = Math.max(0, regular_total - bundle_price);
+    bundles.push({
+      id: `CB_${productId}_${rec.pid}`,
+      name: bundleTitle || 'Complete your setup',
+      products: [
+        { id: productId, variant_id: anchorVid, title: anchorTitle || 'Product', price: anchorPrice },
+        { id: rec.pid, variant_id: rec.vid, title: rec.title || 'Recommended', price: rec.price },
       ],
       regular_total,
       bundle_price,

@@ -355,6 +355,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
             if (gid) productId = gid.replace('gid://shopify/Product/','');
           }
         } catch(_) { /* ignore */ }
+      } else {
+        // If numeric, it could be a Variant ID; try resolving to Product ID
+        try {
+          const { admin } = await unauthenticated.admin(shop);
+          const nodeResp = await admin.graphql(`#graphql
+            query($id: ID!) { node(id: $id) { __typename ... on ProductVariant { product { id } } ... on Product { id } } }
+          `, { variables: { id: `gid://shopify/ProductVariant/${productId}` } });
+          if (nodeResp.ok) {
+            const data: any = await nodeResp.json();
+            const n = data?.data?.node;
+            if (n?.__typename === 'ProductVariant' && n?.product?.id) {
+              productId = String(n.product.id).replace('gid://shopify/Product/','');
+            } else if (n?.__typename === 'Product' && n?.id) {
+              productId = String(n.id).replace('gid://shopify/Product/','');
+            }
+          }
+        } catch(_) { /* ignore; fall back to provided id */ }
       }
 
       const defaultDiscountPct = (() => {
