@@ -3,6 +3,9 @@
  * Displays smart bundles with dynamic pricing and automatic discount codes
  */
 
+// Prevent duplicate class declarations if script loads multiple times
+if (typeof window.BundleRenderer === 'undefined') {
+
 class BundleRenderer {
     constructor(settings = {}) {
         this.settings = {
@@ -198,7 +201,7 @@ class BundleRenderer {
         
         // Try URL path detection
         const path = window.location.pathname;
-        const productMatch = path.match(/\/products\/([^\/\?]+)/);
+        const productMatch = path.match(/\/products\/([^/?]+)/);
         if (productMatch) {
             const handle = productMatch[1];
             console.log('[BundleRenderer] Found product handle from URL:', handle);
@@ -707,3 +710,5 @@ class BundleRenderer {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = BundleRenderer;
 }
+
+} // End of duplicate prevention check
