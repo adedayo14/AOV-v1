@@ -1,6 +1,6 @@
 import * as React from "react";
 import { json } from "@remix-run/node";
-import { useLoaderData, useFetcher } from "@remix-run/react";
+import { useLoaderData, useFetcher, useRevalidator } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -241,6 +241,7 @@ export default function SettingsPage() {
   const { settings, shopCurrency, bundles = [], products: storeProducts = [] } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const productsFetcher = useFetcher();
+  const revalidator = useRevalidator();
 
   // Default color constants - avoid green fallbacks
   const DEFAULT_SHIPPING_COLOR = '#121212'; // Dark neutral instead of blue
@@ -375,15 +376,16 @@ export default function SettingsPage() {
 
   const [formSettings, setFormSettings] = useState(validateSettings(settings));
 
-  // Update form settings when loader data changes (important for persistence)
-  // But don't update immediately after form submission to avoid resetting user changes
+  // Update form settings only when loader settings actually change (avoid overwriting after save)
+  const lastSettingsRef = useRef<string | null>(null);
   useEffect(() => {
-    // Don't update form settings if we just submitted and are still loading
-    if (fetcher.state === "idle") {
-      console.log('🔄 Updating form settings from loader data:', settings);
+    const serialized = JSON.stringify(settings ?? {});
+    if (lastSettingsRef.current !== serialized) {
+      console.log('🔄 Loader settings changed. Syncing form state.');
       setFormSettings(validateSettings(settings));
+      lastSettingsRef.current = serialized;
     }
-  }, [settings, fetcher.state]);
+  }, [settings]);
 
   // Bundle management state
   const [showBundleCreator, setShowBundleCreator] = useState(false);
@@ -510,6 +512,8 @@ export default function SettingsPage() {
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data && (fetcher.data as any)?.success) {
       setShowSuccessBanner(true);
+  // Refresh loader data so UI reflects saved settings
+  try { revalidator.revalidate(); } catch {}
       const timer = setTimeout(() => {
         setShowSuccessBanner(false);
       }, 3000);
@@ -1962,11 +1966,11 @@ export default function SettingsPage() {
           .cartuplift-selected-products { margin-top: 8px; }
           .cartuplift-selected-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
           .cartuplift-product-selector-list { max-height: 360px; overflow: auto; display: grid; gap: 8px; }
-          .cartuplift-product-row { display: grid; grid-template-columns: auto 40px 1fr; align-items: center; gap: 10px; padding: 8px; border: 1px solid #ececef; border-radius: 6px; background: #fff; }
+          .cartuplift-product-row { display: grid; grid-template-columns: 24px 40px 1fr; align-items: center; gap: 10px; padding: 8px; border: 1px solid #ececef; border-radius: 6px; background: #fff; }
           .cartuplift-product-thumb { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; background: #f4f5f6; }
           .cartuplift-product-meta { display: flex; flex-direction: column; gap: 2px; }
           .cartuplift-product-title { font-size: 12px; font-weight: 600; color: #1a1a1a; margin: 0; }
-          .cartuplift-product-sub { font-size: 11px; color: #737373; margin: 0; }
+          .cartuplift-product-sub { font-size: 11px; color: #737373; margin: 0; white-space: nowrap; }
           
           .cartuplift-recommendations-header {
             display: flex;
@@ -3538,7 +3542,7 @@ export default function SettingsPage() {
                                     <BlockStack gap="100">
                                       {selectedBundleProducts.map((product, index) => (
                                         <InlineStack key={index} wrap={false} align="space-between">
-                                          <Text as="p" variant="bodySm">{product.title} - ${product.price}</Text>
+                                          <Text as="p" variant="bodySm">{product.title} - {formatCurrency(product.price, product.currency || shopCurrency?.currencyCode || 'USD')}</Text>
                                           <Button 
                                             size="slim" 
                                             variant="plain"
@@ -3561,16 +3565,16 @@ export default function SettingsPage() {
                                     <BlockStack gap="200">
                                       <Text as="h4" variant="headingSm">Bundle Preview</Text>
                                       <Text as="p" variant="bodySm">
-                                        Individual Total: ${calculateBundleTotal(selectedBundleProducts).toFixed(2)}
+                                        Individual Total: {formatCurrency(calculateBundleTotal(selectedBundleProducts), shopCurrency?.currencyCode || 'USD')}
                                       </Text>
                                       <Text as="p" variant="bodySm">
-                                        Bundle Price: ${calculateDiscountedTotal(selectedBundleProducts, newBundle.discount).toFixed(2)}
+                                        Bundle Price: {formatCurrency(calculateDiscountedTotal(selectedBundleProducts, newBundle.discount), shopCurrency?.currencyCode || 'USD')}
                                       </Text>
                                       <Text as="p" variant="bodyMd" fontWeight="medium">
-                                        Customer Saves: ${(calculateBundleTotal(selectedBundleProducts) - calculateDiscountedTotal(selectedBundleProducts, newBundle.discount)).toFixed(2)} ({newBundle.discount}% off)
+                                        Customer Saves: {formatCurrency(calculateBundleTotal(selectedBundleProducts) - calculateDiscountedTotal(selectedBundleProducts, newBundle.discount), shopCurrency?.currencyCode || 'USD')} ({newBundle.discount}% off)
                                       </Text>
                                       <Text as="p" variant="bodySm">
-                                        Discount Code: <Badge>BUNDLE_{newBundle.name.toUpperCase().replace(/\s+/g, '_')}</Badge>
+                                        Discount Code: {`BUNDLE_${newBundle.name.toUpperCase().replace(/\s+/g, '_')}`}
                                       </Text>
                                     </BlockStack>
                                   </Card>
@@ -5145,7 +5149,7 @@ export default function SettingsPage() {
                         />
                         <div className="cartuplift-product-meta">
                           <p className="cartuplift-product-title">{product.title}</p>
-                          <p className="cartuplift-product-sub">${product.price} {product.currency}</p>
+                          <p className="cartuplift-product-sub">{formatCurrency(product.price, product.currency || shopCurrency?.currencyCode || 'USD')}</p>
                         </div>
                       </div>
                     );
