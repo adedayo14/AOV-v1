@@ -1,7 +1,11 @@
 {% comment %}
 Smart Bundles Block - Displays ML-powered product bundles on product p{%- comment -%}
   {%- comment -%}
-  Ensure the bundle renderer script is available on product pages using this block.
+  Ensure the bundle rend  tryInit();
+});
+</script>
+
+{% endif %}t is available on product pages using this block.
   This is a safe fallback in case the app-embed delayed loader hasn't run yet.
 {%- endcomment -%}
 <script src="{{ 'bundle-renderer.js' | asset_url }}" defer onload="console.log('[SmartBundles] bundle-renderer.js loaded successfully')" onerror="console.error('[SmartBundles] Failed to load bundle-renderer.js')"></script>e the bundle renderer script is available on product pages using this block.
@@ -27,7 +31,7 @@ if (!document.querySelector('script[src*="bundle-renderer.js"]')) {
   <div id="smart-bundles-container-{{ product.id }}" class="smart-bundles-loading">
     <div class="smart-bundles-placeholder" style="text-align: center; padding: 20px; color: #666;">
       <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-  <p style="margin-top: 10px; font-size: 14px;">🔍 Loading ML bundles v370...</p>
+  <p style="margin-top: 10px; font-size: 14px;">🔍 Loading ML bundles v371...</p>
     </div>
   </div>
 </div>
@@ -93,6 +97,30 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     } else {
       console.log('[SmartBundles] BundleRenderer class not found, waiting... (attempt ' + attempt + ')');
+      console.log('[SmartBundles] Available globals:', {
+        CartUplift: typeof window.CartUplift,
+        CartUpliftAssets: window.CartUpliftAssets,
+        CartUpliftSettings: typeof window.CartUpliftSettings,
+        BundleRenderer: typeof window.BundleRenderer
+      });
+      
+      // Try to load the script if we have the asset URL but no script tag
+      if (window.CartUpliftAssets && window.CartUpliftAssets.bundleRenderer && attempt === 1) {
+        console.log('[SmartBundles] Loading bundle renderer from app-embed asset URL...');
+        const existing = document.querySelector('script[data-cartuplift="bundle-renderer"]');
+        if (!existing) {
+          const script = document.createElement('script');
+          script.src = window.CartUpliftAssets.bundleRenderer;
+          script.defer = true;
+          script.setAttribute('data-cartuplift', 'bundle-renderer');
+          script.onload = () => console.log('[SmartBundles] Bundle renderer script loaded successfully');
+          script.onerror = () => console.error('[SmartBundles] Failed to load bundle renderer script');
+          document.head.appendChild(script);
+          console.log('[SmartBundles] Bundle renderer script added to DOM');
+        } else {
+          console.log('[SmartBundles] Bundle renderer script already exists in DOM');
+        }
+      }
     }
 
     if (attempt <= 6) {
