@@ -387,7 +387,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       })();
 
       // Use ML service with built-in content-based fallback if co-purchase data is sparse
-      const bundles = await generateBundlesFromOrders({
+  const bundles = await generateBundlesFromOrders({
         shop,
         productId,
         limit,
@@ -395,15 +395,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
         bundleTitle: settings?.bundleTitleTemplate || 'Complete your setup',
       });
 
-      return json({ bundles }, {
+  // Attach a small hint when empty to help diagnose in network panel
+  const payload = bundles.length ? { bundles } : { bundles, reason: 'no_candidates' };
+  return json(payload, {
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Cache-Control': 'public, max-age=30'
         }
       });
     } catch (error) {
-      console.error('Bundles API error:', error);
-      return json({ bundles: [], reason: 'unavailable' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
+  console.error('Bundles API error:', error);
+  return json({ bundles: [], reason: 'unavailable' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
     }
   }
 
