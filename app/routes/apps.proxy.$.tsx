@@ -399,15 +399,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
       // Attach a small hint when empty to help diagnose in network panel
       const payload = bundles.length ? { bundles } : { bundles, reason: 'no_candidates' };
-  return json(payload, {
+      console.log(`[BUNDLES API] Returning payload:`, payload);
+      return json(payload, {
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Cache-Control': 'public, max-age=30'
         }
       });
     } catch (error) {
-  console.error('Bundles API error:', error);
-  return json({ bundles: [], reason: 'unavailable' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
+      console.error('[BUNDLES API] Error:', error);
+      console.error('[BUNDLES API] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      return json({ bundles: [], reason: 'unavailable' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
     }
   }
 
