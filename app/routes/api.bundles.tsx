@@ -86,42 +86,30 @@ async function handleStorefrontBundleRequest({ productId, collectionId, context 
   let relevantBundles = allBundles.filter(b => b.status === 'active');
   
   if (productId && context === 'product') {
+    console.log('Filtering bundles for product:', productId);
+    
     // Find bundles that contain this product or are relevant to the product type
     relevantBundles = relevantBundles.filter(bundle => {
-      // Direct ID match
-      if (bundle.products.some(p => p.id === productId)) return true;
-      
-      // Keyword matching for product types
-      const productIdLower = productId.toLowerCase();
-      const bundleNameLower = bundle.name.toLowerCase();
-      const bundleProductTitles = bundle.products.map(p => p.title.toLowerCase()).join(' ');
-      
-      // iPhone/phone matching
-      if (productIdLower.includes('iphone') || productIdLower.includes('phone')) {
-        return bundleNameLower.includes('iphone') || 
-               bundleNameLower.includes('mobile') || 
-               bundleNameLower.includes('phone') ||
-               bundleProductTitles.includes('iphone') ||
-               bundleProductTitles.includes('phone');
+      // Direct ID match (check both Shopify GID format and plain ID)
+      const hasDirectMatch = bundle.products.some(p => 
+        p.id === productId || 
+        p.id === `gid://shopify/Product/${productId}` ||
+        p.id.endsWith(`/${productId}`)
+      );
+      if (hasDirectMatch) {
+        console.log('Found direct ID match in bundle:', bundle.name);
+        return true;
       }
       
-      // MacBook matching
-      if (productIdLower.includes('macbook') || productIdLower.includes('laptop')) {
-        return bundleNameLower.includes('macbook') || 
-               bundleNameLower.includes('laptop') ||
-               bundleProductTitles.includes('macbook');
-      }
-      
-      return false;
+      // For demo purposes, show relevant bundles for any product on PDP
+      // This makes the demo work regardless of which product is viewed
+      return true;
     });
     
-    // If no specific matches, show the general mobile bundle for any product
-    if (relevantBundles.length === 0) {
-      relevantBundles = allBundles.filter(b => 
-        b.status === 'active' && 
-        (b.name.toLowerCase().includes('mobile') || b.name.toLowerCase().includes('setup'))
-      );
-    }
+    // Limit to first 2 bundles for clean display
+    relevantBundles = relevantBundles.slice(0, 2);
+    
+    console.log(`Found ${relevantBundles.length} relevant bundles for product ${productId}`);
   }
   
   if (collectionId && context === 'collection') {
@@ -143,18 +131,18 @@ async function getBundlesForShop(shop: string) {
   return [
     {
       id: 'bundle_1',
-      name: 'iPhone Complete Setup',
-      description: 'Everything you need for your new iPhone',
+      name: 'Complete Footwear Bundle',
+      description: 'Everything you need for your active lifestyle',
       products: [
-        { id: 'gid://shopify/Product/8421394857164', title: 'iPhone 15 Pro', price: 999.00 },
-        { id: 'gid://shopify/Product/8421394857165', title: 'AirPods Pro', price: 249.00 },
-        { id: 'gid://shopify/Product/8421394857166', title: 'iPhone Case', price: 39.00 }
+        { id: '51714487091539', title: 'Mens Strider', price: 89.99 },
+        { id: 'athletic_socks_001', title: 'Performance Athletic Socks', price: 19.99 },
+        { id: 'shoe_care_kit_001', title: 'Premium Shoe Care Kit', price: 29.99 }
       ],
-      regular_total: 1287.00,
-      bundle_price: 1158.30,
+      regular_total: 139.97,
+      bundle_price: 125.97,
       discount_percent: 10,
-      savings_amount: 128.70,
-      discount_code: 'BUNDLE_IPHONE_SETUP',
+      savings_amount: 13.97,
+      discount_code: 'BUNDLE_FOOTWEAR_COMPLETE',
       status: 'active',
       source: 'ml', // 'ml' or 'manual'
       confidence: 0.87,
@@ -163,23 +151,23 @@ async function getBundlesForShop(shop: string) {
         views: 156,
         clicks: 23,
         conversions: 8,
-        revenue: 9266.40
+        revenue: 1007.76
       }
     },
     {
       id: 'bundle_2',
-      name: 'Complete Mobile Setup',
-      description: 'Perfect starter bundle for any smartphone',
+      name: 'Athletic Performance Bundle',
+      description: 'Complete gear for athletes and fitness enthusiasts',
       products: [
-        { id: 'smartphone_main', title: 'Latest Smartphone', price: 899.00 },
-        { id: 'wireless_earbuds', title: 'Wireless Earbuds', price: 199.00 },
-        { id: 'phone_case_premium', title: 'Premium Phone Case', price: 49.00 }
+        { id: '51714487091539', title: 'Mens Strider', price: 89.99 },
+        { id: 'water_bottle_premium', title: 'Insulated Water Bottle', price: 34.99 },
+        { id: 'workout_towel', title: 'Quick-Dry Workout Towel', price: 24.99 }
       ],
-      regular_total: 1147.00,
-      bundle_price: 1032.30,
+      regular_total: 149.97,
+      bundle_price: 134.97,
       discount_percent: 10,
-      savings_amount: 114.70,
-      discount_code: 'BUNDLE_MOBILE_SETUP',
+      savings_amount: 15.00,
+      discount_code: 'BUNDLE_ATHLETIC_PERFORMANCE',
       status: 'active',
       source: 'ml',
       confidence: 0.92,
@@ -188,32 +176,32 @@ async function getBundlesForShop(shop: string) {
         views: 203,
         clicks: 31,
         conversions: 12,
-        revenue: 12387.60
+        revenue: 1619.64
       }
     },
     {
       id: 'bundle_3',
-      name: 'MacBook Pro Bundle',
-      description: 'Complete productivity setup',
+      name: 'Running Essentials Bundle',
+      description: 'Everything you need for your running routine',
       products: [
-        { id: 'prod_macbook', title: 'MacBook Air', price: 1199.00 },
-        { id: 'prod_mouse', title: 'Wireless Mouse', price: 59.00 },
-        { id: 'prod_mousepad', title: 'Premium Mousepad', price: 20.00 }
+        { id: 'running_shoes_premium', title: 'Premium Running Shoes', price: 149.99 },
+        { id: 'running_shorts', title: 'Performance Running Shorts', price: 39.99 },
+        { id: 'fitness_tracker', title: 'Fitness Activity Tracker', price: 99.99 }
       ],
-      regular_total: 1278.00,
-      bundle_price: 1150.20,
+      regular_total: 289.97,
+      bundle_price: 260.97,
       discount_percent: 10,
-      savings_amount: 127.80,
-      discount_code: 'BUNDLE_MACBOOK_PRO',
-      status: 'draft',
+      savings_amount: 29.00,
+      discount_code: 'BUNDLE_RUNNING_ESSENTIALS',
+      status: 'active',
       source: 'manual',
       confidence: null,
       created_at: '2024-01-20T14:20:00Z',
       performance: {
-        views: 0,
-        clicks: 0,
-        conversions: 0,
-        revenue: 0
+        views: 89,
+        clicks: 12,
+        conversions: 4,
+        revenue: 1043.88
       }
     }
   ];
