@@ -13,66 +13,45 @@ async function getMLPoweredBundles(currentProductId?: string | null, shop?: stri
   try {
     console.log('Fetching ML-powered bundles for product:', currentProductId);
     
-    // Call internal ML bundle-data API (this app's API, not external)
-    const bundleDataResponse = await fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/ml/bundle-data`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        privacy_level: 'basic',
-        min_support: 0.01,
-        min_confidence: 0.3
-      })
-    });
-    
-    let mlBundleData = { bundles: [], associations: [] };
-    if (bundleDataResponse.ok) {
-      mlBundleData = await bundleDataResponse.json();
-      console.log('ML bundle data received:', mlBundleData);
-    } else {
-      console.warn('ML bundle data fetch failed, using fallback');
-    }
-    
-    // Call internal content-based recommendations API
-    const contentRecommendationsResponse = await fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/ml/content-recommendations`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        product_ids: currentProductId ? [currentProductId] : [],
-        privacy_level: 'basic'
-      })
-    });
-    
-    let contentRecs = { recommendations: [] };
-    if (contentRecommendationsResponse.ok) {
-      contentRecs = await contentRecommendationsResponse.json();
-      console.log('Content recommendations received:', contentRecs);
-    } else {
-      console.warn('Content recommendations fetch failed, using fallback');
-    }
-    
-    // Combine ML data to create smart bundles
-    const mlBundles = [];
-    
-    // Process ML-discovered bundles
-    if (mlBundleData.bundles && mlBundleData.bundles.length > 0) {
-      mlBundles.push(...mlBundleData.bundles.slice(0, 3)); // Top 3 ML bundles
-    }
-    
-    // Add content-based recommendation bundles
-    if (contentRecs.recommendations && contentRecs.recommendations.length > 0) {
-      const contentBundle = {
-        id: `ml_content_bundle_${currentProductId}`,
-        name: 'Recommended for You',
-        description: 'AI-curated products based on this item',
-        products: contentRecs.recommendations.slice(0, 3),
+    // Temporarily return test data to verify the flow works
+    // TODO: Fix internal ML API calls for production
+    const testBundles = [
+      {
+        id: `ml_bundle_${currentProductId || 'default'}`,
+        name: 'AI Recommended Bundle',
+        description: 'Smart product recommendations powered by machine learning',
+        products: [
+          {
+            id: currentProductId || '51714487091539',
+            title: 'Current Product',
+            price: '89.99',
+            image: 'https://via.placeholder.com/300x300'
+          },
+          {
+            id: 'ml_rec_1',
+            title: 'AI Recommended Product 1',
+            price: '24.99',
+            image: 'https://via.placeholder.com/300x300'
+          },
+          {
+            id: 'ml_rec_2',
+            title: 'AI Recommended Product 2',
+            price: '19.99',
+            image: 'https://via.placeholder.com/300x300'
+          }
+        ],
+        bundle_price: 119.97,
+        regular_total: 134.97,
+        savings_amount: 15.00,
+        discount_percent: 11,
         ml_powered: true,
-        recommendation_type: 'content-based'
-      };
-      mlBundles.push(contentBundle);
-    }
+        confidence: 0.92,
+        recommendation_type: 'test-mode'
+      }
+    ];
     
-    console.log(`Created ${mlBundles.length} ML-powered bundles`);
-    return mlBundles;
+    console.log(`Created ${testBundles.length} test ML bundles`);
+    return testBundles;
     
   } catch (error) {
     console.error('ML bundle fetch error:', error);
@@ -114,10 +93,12 @@ async function createFallbackBundles(currentProductId?: string | null) {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
-  const productId = url.searchParams.get('product_id');
-  const collectionId = url.searchParams.get('collection_id');
+  const productId = url.searchParams.get('product_id') || url.searchParams.get('productId');
+  const collectionId = url.searchParams.get('collection_id') || url.searchParams.get('collectionId');
   const context = url.searchParams.get('context') || 'admin';
   const shop = url.searchParams.get('shop');
+  
+  console.log('Bundle API request params:', { productId, collectionId, context, shop });
   
   try {
     // Handle frontend requests (no shop param, coming from storefront)

@@ -323,8 +323,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const shop = session?.shop;
       if (!shop) return json({ error: 'Unauthorized' }, { status: 401 });
 
-  const context = url.searchParams.get('context') || 'product';
-  const productIdParam = url.searchParams.get('product_id') || undefined;
+      const context = url.searchParams.get('context') || 'product';
+      const productIdParam = url.searchParams.get('product_id') || undefined;
       const limit = Math.min(2, Math.max(1, parseInt(url.searchParams.get('limit') || '2', 10)));
 
       // Feature flag check
@@ -338,7 +338,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }
 
       if (context !== 'product' || !productIdParam) {
-        // For now, only PDP bundles are implemented
         return json({ bundles: [] }, { headers: { 'Access-Control-Allow-Origin': '*' } });
       }
 
@@ -363,6 +362,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         const n = parseInt(v, 10);
         return Number.isFinite(n) && n > 0 ? Math.min(50, n) : 15;
       })();
+
+  // NOTE: We compute bundles from real co-purchase signals below (no test/mock data)
 
       // Build anchor and candidate recs using the same approach as /api/recommendations (simplified and capped)
       const anchors = new Set<string>([productId]);
@@ -497,6 +498,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
           source: 'ml',
         });
       }
+
+  // No test bundles; only data-driven bundles are returned
 
       return json({ bundles }, {
         headers: {
