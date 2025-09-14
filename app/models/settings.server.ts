@@ -277,9 +277,31 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
     let settings;
     let attempt = 0;
     let dataForSave: any = { ...filteredData };
-    const maxAttempts = 3;
+    const maxAttempts = Math.max(10, Object.keys(filteredData).length + 2);
 
-    while (attempt < maxAttempts) {
+    const baselineSave = async () => {
+      console.warn('🔧 Falling back to baseline core fields save');
+      const baselineFields: (keyof SettingsData)[] = [
+        'enableApp','enableStickyCart','showOnlyOnCartPage','autoOpenCart','enableFreeShipping','freeShippingThreshold',
+        'enableRecommendations','enableAddons','enableDiscountCode','enableNotes','enableExpressCheckout','enableAnalytics',
+        'cartPosition','cartIcon','freeShippingText','freeShippingAchievedText','recommendationsTitle','actionText',
+        'addButtonText','checkoutButtonText','applyButtonText','backgroundColor','textColor','buttonColor','buttonTextColor',
+        'recommendationsBackgroundColor','shippingBarBackgroundColor','shippingBarColor','recommendationLayout','maxRecommendations',
+        'complementDetectionMode','manualRecommendationProducts','progressBarMode','giftProgressStyle','giftThresholds'
+      ];
+      const fallbackData: any = {};
+      for (const key of baselineFields) {
+        if ((filteredData as any)[key] !== undefined) fallbackData[key] = (filteredData as any)[key];
+      }
+      settings = await (db as any).settings.upsert({
+        where: { shop },
+        create: { shop, ...fallbackData },
+        update: fallbackData,
+      });
+      console.log('🔧 Baseline save successful');
+    };
+
+  while (attempt < maxAttempts) {
       try {
         if (attempt > 0) console.log(`🔧 Retry save attempt #${attempt} with fields:`, Object.keys(dataForSave));
         console.log('🔧 Attempting save...');
@@ -331,7 +353,13 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
             attempt++;
             continue;
           }
-          throw new Error('Database save failed: ' + msg);
+          try {
+            await baselineSave();
+            break;
+          } catch (fallbackError: any) {
+            console.error('💥 Baseline save failed:', fallbackError?.message || fallbackError);
+            throw new Error('Database save failed: ' + msg);
+          }
         }
 
         console.warn('🔧 Stripping unknown fields and retrying:', fieldsToRemove);
@@ -340,6 +368,15 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
         }
 
         attempt++;
+        if (attempt >= maxAttempts - 1) {
+          try {
+            await baselineSave();
+            break;
+          } catch (fallbackError: any) {
+            console.error('💥 Final baseline save failed:', fallbackError?.message || fallbackError);
+            throw new Error('Database save failed: ' + msg);
+          }
+        }
       }
     }
 

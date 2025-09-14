@@ -208,8 +208,8 @@ export const action = withAuthAction(async ({ request, auth }) => {
   };
   
   try {
-    await saveSettings(shop, processedSettings);
-    return json({ success: true, message: "Settings saved successfully!" });
+  const saved = await saveSettings(shop, processedSettings);
+  return json({ success: true, message: "Settings saved successfully!", settings: saved });
   } catch (error) {
     console.error("Error saving settings:", error);
     return json({ success: false, message: "Failed to save settings" }, { status: 500 });
@@ -485,6 +485,9 @@ export default function SettingsPage() {
   
   // Success banner auto-hide state
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  // Error banner state
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const lastSubmitAtRef = useRef<number | null>(null);
 
   // Ensure new sticky cart settings have defaults
   useEffect(() => {
@@ -511,6 +514,11 @@ export default function SettingsPage() {
   // Auto-hide success banner after 3 seconds
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data && (fetcher.data as any)?.success) {
+      const data: any = fetcher.data;
+      if (data.settings) {
+        // Optimistically sync form state with server-saved values
+        setFormSettings(validateSettings(data.settings));
+      }
       setShowSuccessBanner(true);
   // Refresh loader data so UI reflects saved settings
   try { revalidator.revalidate(); } catch {}
@@ -518,6 +526,20 @@ export default function SettingsPage() {
         setShowSuccessBanner(false);
       }, 3000);
       return () => clearTimeout(timer);
+    } else if (fetcher.state === "idle" && fetcher.data && !(fetcher.data as any)?.success) {
+      // Server returned an error payload
+      const data: any = fetcher.data;
+      setErrorMessage(data?.message || 'Failed to save settings.');
+      const timer = setTimeout(() => setErrorMessage(null), 5000);
+      return () => clearTimeout(timer);
+    } else if (fetcher.state === "idle" && !fetcher.data && lastSubmitAtRef.current) {
+      // Submission ended without a response body; treat as failure if just submitted
+      const elapsed = Date.now() - lastSubmitAtRef.current;
+      if (elapsed < 4000) {
+        setErrorMessage('Save failed. Please try again.');
+        const timer = setTimeout(() => setErrorMessage(null), 5000);
+        return () => clearTimeout(timer);
+      }
     }
   }, [fetcher.state, fetcher.data]);
 
@@ -543,6 +565,7 @@ export default function SettingsPage() {
 
   const handleSubmit = () => {
     console.log('🚀 Form submission - current formSettings:', formSettings);
+  lastSubmitAtRef.current = Date.now();
     const formData = new FormData();
     
     // Explicitly handle all fields to ensure checkboxes send false when unchecked
@@ -3166,6 +3189,11 @@ export default function SettingsPage() {
       }} />
 
       <div className="cartuplift-settings-layout">
+        {errorMessage && (
+          <div className="cartuplift-success-banner">
+            <Banner tone="critical">{errorMessage}</Banner>
+          </div>
+        )}
         {showSuccessBanner && (
           <div className="cartuplift-success-banner">
             <Banner tone="success">Settings saved successfully!</Banner>
