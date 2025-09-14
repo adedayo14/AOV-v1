@@ -1,6 +1,10 @@
 {% comment %}
 Smart Bundles Block - Displays ML-powered product bundles on product p{%- comment -%}
+  {%- comment -%}
   Ensure the bundle renderer script is available on product pages using this block.
+  This is a safe fallback in case the app-embed delayed loader hasn't run yet.
+{%- endcomment -%}
+<script src="{{ 'bundle-renderer.js' | asset_url }}" defer onload="console.log('[SmartBundles] bundle-renderer.js loaded successfully')" onerror="console.error('[SmartBundles] Failed to load bundle-renderer.js')"></script>e the bundle renderer script is available on product pages using this block.
   This is a safe fallback in case the app-embed delayed loader hasn't run yet.
   Check if script is already loaded to prevent duplicate loading.
 {%- endcomment -%}
@@ -23,7 +27,7 @@ if (!document.querySelector('script[src*="bundle-renderer.js"]')) {
   <div id="smart-bundles-container-{{ product.id }}" class="smart-bundles-loading">
     <div class="smart-bundles-placeholder" style="text-align: center; padding: 20px; color: #666;">
       <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-  <p style="margin-top: 10px; font-size: 14px;">🔍 Loading ML bundles v367...</p>
+  <p style="margin-top: 10px; font-size: 14px;">🔍 Loading ML bundles v370...</p>
     </div>
   </div>
 </div>
@@ -73,19 +77,42 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Direct path if renderer is already present
     if (window.BundleRenderer) {
+      console.log('[SmartBundles] BundleRenderer class found, initializing...');
       if (!window.cartUpliftBundleRenderer) {
         try {
           window.cartUpliftBundleRenderer = new window.BundleRenderer(window.CartUpliftSettings || window.cartUpliftSettings || {});
-        } catch (e) {}
+          console.log('[SmartBundles] BundleRenderer instance created');
+        } catch (e) {
+          console.error('[SmartBundles] Error creating BundleRenderer:', e);
+        }
       }
       if (window.cartUpliftBundleRenderer && typeof window.cartUpliftBundleRenderer.initProductPage === 'function') {
+        console.log('[SmartBundles] Calling initProductPage for product:', productId);
         window.cartUpliftBundleRenderer.initProductPage(productId, bundleContainer);
         return;
       }
+    } else {
+      console.log('[SmartBundles] BundleRenderer class not found, waiting... (attempt ' + attempt + ')');
     }
 
     if (attempt <= 6) {
       setTimeout(() => tryInit(attempt + 1), 500);
+    } else {
+      // Fallback: Try direct API call to test if the issue is script loading or API
+      console.log('[SmartBundles] All attempts failed, trying direct API call test...');
+      fetch('/apps/cart-uplift/api/bundles?product_id=' + productId + '&context=product', {
+        headers: { 'Accept': 'application/json' }
+      })
+      .then(response => {
+        console.log('[SmartBundles] Direct API test response status:', response.status);
+        return response.json();
+      })
+      .then(data => {
+        console.log('[SmartBundles] Direct API test data:', data);
+      })
+      .catch(error => {
+        console.error('[SmartBundles] Direct API test error:', error);
+      });
     }
   };
 
