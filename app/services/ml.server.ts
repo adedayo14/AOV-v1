@@ -1,4 +1,5 @@
 import { unauthenticated } from "~/shopify.server";
+import prisma from "~/db.server";
 
 type BundleProduct = {
   id: string;
@@ -164,6 +165,14 @@ export async function generateBundlesFromOrders(params: {
     });
   }
 
+  // If no ML bundles generated, try manual bundles as final fallback
+  if (bundles.length === 0) {
+    console.log(`[ML] No ML bundles generated, trying manual bundles as fallback`);
+    const manualBundles = await getManualBundles({ shop, productId, limit, defaultDiscountPct });
+    console.log(`[ML] Manual fallback generated ${manualBundles.length} bundles`);
+    return manualBundles;
+  }
+
   return bundles;
 }
 
@@ -256,13 +265,13 @@ async function contentBasedFallback(params: {
     const priceBoost = anchorPrice > 0 ? Math.max(0, 0.3 - Math.min(0.3, priceDelta / Math.max(20, anchorPrice * 0.5) * 0.3)) : 0;
     
     // Ensure minimum baseline score so we always have candidates
-    const baselineScore = 0.05; // Give every product at least 5% relevance
+    const baselineScore = 0.15; // Give every product at least 15% relevance for better fallback
     const score = Math.max(baselineScore, jaccard + vendorBoost + typeBoost + priceBoost);
     scored.push({ pid, vid, title, price, score });
   }
 
   scored.sort((a, b) => b.score - a.score);
-  const picks = scored.slice(0, Math.max(1, limit)); // Always try to get at least 1
+  const picks = scored.slice(0, Math.max(3, limit)); // Always try to get at least 3 candidates for better bundles
   console.log(`[FALLBACK] Scored ${scored.length} products, picked top ${picks.length}:`, picks.map(p => ({ title: p.title, score: p.score.toFixed(3) })));
   if (picks.length === 0) {
     console.log(`[FALLBACK] No products available for bundling`);
@@ -291,4 +300,116 @@ async function contentBasedFallback(params: {
   }
 
   return bundles;
+}
+
+// Fetch manual bundles for a product as fallback
+async function getManualBundles(params: {
+  shop: string;
+  productId: string;
+  limit: number;
+  defaultDiscountPct: number;
+}): Promise<GeneratedBundle[]> {
+  const { shop, productId, limit, defaultDiscountPct } = params;
+  console.log(`[MANUAL] Fetching manual bundles for product ${productId} in shop ${shop}`);
+  
+  try {
+    // Find bundles that include this product
+    const manualBundles = await prisma.bundle.findMany({
+      where: {
+        shop,
+        isActive: true,
+        products: {
+          some: {
+            productId
+          }
+        }
+      },
+      include: {
+        products: true
+      },
+      take: limit
+    });
+
+    if (manualBundles.length === 0) {
+      console.log(`[MANUAL] No manual bundles found for product ${productId}`);
+      return [];
+    }
+
+    console.log(`[MANUAL] Found ${manualBundles.length} manual bundles`);
+    
+    // Convert to GeneratedBundle format
+    const { admin } = await unauthenticated.admin(shop);
+    const generatedBundles: GeneratedBundle[] = [];
+
+    for (const bundle of manualBundles) {
+      // Fetch product details for all products in the bundle
+      const productIds = bundle.products.map((p: any) => `gid://shopify/Product/${p.productId}`);
+      const prodResp = await admin.graphql(`
+        #graphql
+        query prod($ids: [ID!]!) {
+          nodes(ids: $ids) {
+            ... on Product { 
+              id 
+              title 
+              variants(first: 1) { 
+                edges { 
+                  node { 
+                    id 
+                    price 
+                    availableForSale 
+                  } 
+                } 
+              } 
+            }
+          }
+        }
+      `, { variables: { ids: productIds } });
+
+      if (!prodResp.ok) continue;
+      const prodData: any = await prodResp.json();
+      const nodes: any[] = prodData?.data?.nodes || [];
+
+      const bundleProducts: BundleProduct[] = [];
+      let regular_total = 0;
+
+      for (const node of nodes) {
+        if (!node?.id) continue;
+        const pid = getPid(node.id);
+        const firstVar = node.variants?.edges?.[0]?.node;
+        const vid = getVid(firstVar?.id);
+        const price = parseFloat(firstVar?.price || '0') || 0;
+        
+        bundleProducts.push({
+          id: pid,
+          variant_id: vid,
+          title: node.title || 'Product',
+          price: price
+        });
+        
+        regular_total += price;
+      }
+
+      const discountPercent = bundle.discountPercent || defaultDiscountPct;
+      const bundle_price = Math.max(0, regular_total * (1 - discountPercent / 100));
+      const savings_amount = Math.max(0, regular_total - bundle_price);
+
+      generatedBundles.push({
+        id: `MANUAL_${bundle.id}`,
+        name: bundle.name,
+        products: bundleProducts,
+        regular_total,
+        bundle_price,
+        savings_amount,
+        discount_percent: discountPercent,
+        status: 'active',
+        source: 'manual',
+      });
+    }
+
+    console.log(`[MANUAL] Successfully converted ${generatedBundles.length} manual bundles`);
+    return generatedBundles;
+  } catch (error) {
+    console.error(`[MANUAL] Error fetching manual bundles:`, error);
+    return [];
+  }
 }
