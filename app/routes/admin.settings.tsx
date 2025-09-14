@@ -460,6 +460,13 @@ export default function SettingsPage() {
   const [productsError, setProductsError] = useState<string | null>(null);
   const [products, setProducts] = useState<any[]>([]);
   
+  // Initialize products list from loader (storeProducts) for immediate availability
+  useEffect(() => {
+    if (Array.isArray(storeProducts) && storeProducts.length > 0) {
+      setProducts(storeProducts);
+    }
+  }, [storeProducts]);
+  
   // Enhanced manual selection with variants
   const [selectedProductForVariants, setSelectedProductForVariants] = useState<any>(null);
   const [showVariantSelector, setShowVariantSelector] = useState(false);
@@ -638,9 +645,27 @@ export default function SettingsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showGiftProductSelector, giftProductSearchQuery]);
 
+  // Fetch products when bundle product picker opens
+  useEffect(() => {
+    if (!showProductPicker) return;
+    setProductsError(null);
+    setProductsLoading(true);
+    const timeout = setTimeout(() => {
+      const qs = new URLSearchParams();
+      qs.set('limit', '25');
+      productsFetcher.load(`/api/products?${qs.toString()}`);
+    }, 250);
+    return () => clearTimeout(timeout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showProductPicker]);
+
   useEffect(() => {
     if (productsFetcher.state === 'loading') {
       if (showProductSelector) {
+        setProductsLoading(true);
+        setProductsError(null);
+      }
+      if (showProductPicker) {
         setProductsLoading(true);
         setProductsError(null);
       }
@@ -656,6 +681,10 @@ export default function SettingsPage() {
           setProducts([]);
           setProductsError(typeof data.error === 'string' ? data.error : 'Failed to load products');
         }
+        if (showProductPicker) {
+          setProducts([]);
+          setProductsError(typeof data.error === 'string' ? data.error : 'Failed to load products');
+        }
         if (showGiftProductSelector) {
           setGiftProducts([]);
           setGiftProductsError(typeof data.error === 'string' ? data.error : 'Failed to load products');
@@ -664,14 +693,18 @@ export default function SettingsPage() {
         if (showProductSelector) {
           setProducts(Array.isArray(data?.products) ? data.products : []);
         }
+        if (showProductPicker) {
+          setProducts(Array.isArray(data?.products) ? data.products : []);
+        }
         if (showGiftProductSelector) {
           setGiftProducts(Array.isArray(data?.products) ? data.products : []);
         }
       }
       if (showProductSelector) setProductsLoading(false);
+      if (showProductPicker) setProductsLoading(false);
       if (showGiftProductSelector) setGiftProductsLoading(false);
     }
-  }, [productsFetcher.state, productsFetcher.data, showProductSelector, showGiftProductSelector]);
+  }, [productsFetcher.state, productsFetcher.data, showProductSelector, showProductPicker, showGiftProductSelector]);
 
   // Calculate free shipping progress
   const threshold = (formSettings.freeShippingThreshold || 100) * 100;
