@@ -376,9 +376,14 @@ export default function SettingsPage() {
   const [formSettings, setFormSettings] = useState(validateSettings(settings));
 
   // Update form settings when loader data changes (important for persistence)
+  // But don't update immediately after form submission to avoid resetting user changes
   useEffect(() => {
-    setFormSettings(validateSettings(settings));
-  }, [settings]);
+    // Don't update form settings if we just submitted and are still loading
+    if (fetcher.state === "idle") {
+      console.log('🔄 Updating form settings from loader data:', settings);
+      setFormSettings(validateSettings(settings));
+    }
+  }, [settings, fetcher.state]);
 
   // Bundle management state
   const [showBundleCreator, setShowBundleCreator] = useState(false);
@@ -528,10 +533,18 @@ export default function SettingsPage() {
   const handleSubmit = () => {
     console.log('🚀 Form submission - current formSettings:', formSettings);
     const formData = new FormData();
+    
+    // Explicitly handle all fields to ensure checkboxes send false when unchecked
     Object.entries(formSettings).forEach(([key, value]) => {
       console.log(`📝 Adding to form: ${key} = ${value}`);
-      formData.append(key, String(value));
+      // For boolean values, explicitly convert to string
+      if (typeof value === 'boolean') {
+        formData.append(key, value ? 'true' : 'false');
+      } else {
+        formData.append(key, String(value));
+      }
     });
+    
     fetcher.submit(formData, { method: "post" });
   };
 
