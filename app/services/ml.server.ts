@@ -102,9 +102,18 @@ export async function generateBundlesFromOrders(params: {
   }
 
   const recIds = Object.entries(candidate).sort((a, b) => b[1] - a[1]).slice(0, Math.max(2, limit)).map(([id]) => id);
-  if (recIds.length === 0) {
-    // Content-based fallback when there are no co-purchase signals
-    return contentBasedFallback({ shop, productId, limit, defaultDiscountPct, bundleTitle });
+  console.log(`[ML] Co-purchase analysis found ${recIds.length} candidates for product ${productId}`);
+  
+  // Always try content-based fallback if co-purchase yields too few results
+  if (recIds.length < limit) {
+    console.log(`[ML] Triggering content-based fallback (need ${limit - recIds.length} more bundles)`);
+    const fallbackBundles = await contentBasedFallback({ shop, productId, limit: limit - recIds.length, defaultDiscountPct, bundleTitle });
+    console.log(`[ML] Content-based fallback generated ${fallbackBundles.length} bundles`);
+    if (recIds.length === 0) {
+      console.log(`[ML] Using fallback entirely (no co-purchase data)`);
+      return fallbackBundles; // Use fallback entirely if no co-purchase signals
+    }
+    // TODO: Merge co-purchase + content-based results if both exist
   }
 
   // 4) Fetch product + variant info for anchor and recs
@@ -166,6 +175,7 @@ async function contentBasedFallback(params: {
   bundleTitle?: string;
 }): Promise<GeneratedBundle[]> {
   const { shop, productId, limit, defaultDiscountPct, bundleTitle } = params;
+  console.log(`[FALLBACK] Starting content-based fallback for product ${productId}, limit: ${limit}`);
   const { admin } = await unauthenticated.admin(shop);
 
   // Fetch anchor product details
@@ -182,10 +192,17 @@ async function contentBasedFallback(params: {
       }
     }
   `, { variables: { id: anchorGid } });
-  if (!anchorResp.ok) return [];
+  if (!anchorResp.ok) {
+    console.log(`[FALLBACK] Failed to fetch anchor product ${productId}`);
+    return [];
+  }
   const anchorData: any = await anchorResp.json();
   const anchor = anchorData?.data?.product;
-  if (!anchor?.id) return [];
+  if (!anchor?.id) {
+    console.log(`[FALLBACK] Anchor product ${productId} not found`);
+    return [];
+  }
+  console.log(`[FALLBACK] Found anchor product: ${anchor.title}`);
   const anchorTitle: string = anchor.title || '';
   const anchorVendor: string = anchor.vendor || '';
   const anchorType: string = anchor.productType || '';
@@ -204,9 +221,13 @@ async function contentBasedFallback(params: {
       variants(first: 1) { edges { node { id price } } }
     } } } }
   `);
-  if (!listResp.ok) return [];
+  if (!listResp.ok) {
+    console.log(`[FALLBACK] Failed to fetch product list for comparison`);
+    return [];
+  }
   const listData: any = await listResp.json();
   const nodes: any[] = listData?.data?.products?.edges?.map((e: any) => e.node) || [];
+  console.log(`[FALLBACK] Found ${nodes.length} products to compare against`);
 
   // Tokenize titles for a simple content similarity
   const tokenize = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
@@ -233,13 +254,20 @@ async function contentBasedFallback(params: {
     const typeBoost = ptype && ptype === anchorType ? 0.2 : 0;
     const priceDelta = Math.abs(price - anchorPrice);
     const priceBoost = anchorPrice > 0 ? Math.max(0, 0.3 - Math.min(0.3, priceDelta / Math.max(20, anchorPrice * 0.5) * 0.3)) : 0;
-    const score = jaccard + vendorBoost + typeBoost + priceBoost;
+    
+    // Ensure minimum baseline score so we always have candidates
+    const baselineScore = 0.05; // Give every product at least 5% relevance
+    const score = Math.max(baselineScore, jaccard + vendorBoost + typeBoost + priceBoost);
     scored.push({ pid, vid, title, price, score });
   }
 
   scored.sort((a, b) => b.score - a.score);
-  const picks = scored.slice(0, Math.max(2, limit));
-  if (picks.length === 0) return [];
+  const picks = scored.slice(0, Math.max(1, limit)); // Always try to get at least 1
+  console.log(`[FALLBACK] Scored ${scored.length} products, picked top ${picks.length}:`, picks.map(p => ({ title: p.title, score: p.score.toFixed(3) })));
+  if (picks.length === 0) {
+    console.log(`[FALLBACK] No products available for bundling`);
+    return []; // No products in store at all
+  }
 
   const bundles: GeneratedBundle[] = [];
   for (const rec of picks) {

@@ -387,16 +387,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
       })();
 
       // Use ML service with built-in content-based fallback if co-purchase data is sparse
-  const bundles = await generateBundlesFromOrders({
+      console.log(`[BUNDLES API] Generating bundles for product ${productId}, shop: ${shop}, limit: ${limit}`);
+      const bundles = await generateBundlesFromOrders({
         shop,
         productId,
         limit,
         defaultDiscountPct,
         bundleTitle: settings?.bundleTitleTemplate || 'Complete your setup',
       });
+      console.log(`[BUNDLES API] Generated ${bundles.length} bundles:`, bundles.map(b => ({ id: b.id, name: b.name, products: b.products.length })));
 
-  // Attach a small hint when empty to help diagnose in network panel
-  const payload = bundles.length ? { bundles } : { bundles, reason: 'no_candidates' };
+      // Attach a small hint when empty to help diagnose in network panel
+      const payload = bundles.length ? { bundles } : { bundles, reason: 'no_candidates' };
   return json(payload, {
         headers: {
           'Access-Control-Allow-Origin': '*',
