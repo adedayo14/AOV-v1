@@ -5,192 +5,107 @@ import { withAuth } from "../utils/auth.server";
 /**
  * Bundle Management API
  * Handles CRUD operations for manual bundles and ML-discovered bundles
- * Now fetches real products from Shopify store
+ * Integrates with the ML recommendation system for dynamic bundle generation
  */
 
-// Helper function to create bundles with real Shopify products
-async function createRealProductBundles(currentProductId?: string | null) {
+// Helper function to get ML-powered bundles from your existing AI system
+async function getMLPoweredBundles(currentProductId?: string | null, shop?: string) {
   try {
-    console.log('Creating real product bundles for product:', currentProductId);
+    console.log('Fetching ML-powered bundles for product:', currentProductId);
     
-    // Fetch real products from your store using a simple approach
-    // We'll get some popular products and create logical bundles
-    const realProducts = await fetchRealStoreProducts();
+    // Use your existing ML bundle-data endpoint
+    const bundleDataResponse = await fetch(`https://${shop}/api/ml/bundle-data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        privacy_level: 'basic',
+        min_support: 0.01,
+        min_confidence: 0.3
+      })
+    });
     
-    if (realProducts.length < 2) {
-      console.log('Not enough products found, using fallback bundles');
-      return createFallbackBundles(currentProductId);
+    if (!bundleDataResponse.ok) {
+      throw new Error('Failed to fetch ML bundle data');
     }
     
-    // Create bundles with real products
-    const bundles = [];
+    const mlBundleData = await bundleDataResponse.json();
+    console.log('ML bundle data received:', mlBundleData);
     
-    // Bundle 1: Main product + 2 complementary products
-    if (realProducts.length >= 3) {
-      const bundle1Products = realProducts.slice(0, 3);
-      const total = bundle1Products.reduce((sum, p) => sum + parseFloat(p.price), 0);
-      const bundlePrice = total * 0.9; // 10% discount
-      
-      bundles.push({
-        id: 'bundle_real_complete',
-        name: 'Complete Bundle',
-        description: 'Perfect combination of our top products',
-        products: bundle1Products,
-        regular_total: total,
-        bundle_price: bundlePrice,
-        discount_percent: 10,
-        savings_amount: total - bundlePrice,
-        discount_code: 'BUNDLE_COMPLETE_10',
-        status: 'active',
-        source: 'smart',
-        confidence: 0.92,
-        created_at: new Date().toISOString(),
-        performance: {
-          views: 345,
-          clicks: 67,
-          conversions: 18,
-          revenue: bundlePrice * 18
-        }
-      });
+    // Use your existing content-based recommendations
+    const contentRecommendationsResponse = await fetch(`https://${shop}/api/ml/content-recommendations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        product_ids: currentProductId ? [currentProductId] : [],
+        privacy_level: 'basic'
+      })
+    });
+    
+    if (!contentRecommendationsResponse.ok) {
+      throw new Error('Failed to fetch content recommendations');
     }
     
-    // Bundle 2: Different combination
-    if (realProducts.length >= 5) {
-      const bundle2Products = [realProducts[0], realProducts[3], realProducts[4]];
-      const total = bundle2Products.reduce((sum, p) => sum + parseFloat(p.price), 0);
-      const bundlePrice = total * 0.85; // 15% discount
-      
-      bundles.push({
-        id: 'bundle_real_starter',
-        name: 'Starter Bundle',
-        description: 'Great value bundle to get you started',
-        products: bundle2Products,
-        regular_total: total,
-        bundle_price: bundlePrice,
-        discount_percent: 15,
-        savings_amount: total - bundlePrice,
-        discount_code: 'BUNDLE_STARTER_15',
-        status: 'active',
-        source: 'smart',
-        confidence: 0.87,
-        created_at: new Date().toISOString(),
-        performance: {
-          views: 234,
-          clicks: 43,
-          conversions: 12,
-          revenue: bundlePrice * 12
-        }
-      });
+    const contentRecs = await contentRecommendationsResponse.json();
+    console.log('Content recommendations received:', contentRecs);
+    
+    // Combine ML data to create smart bundles
+    const mlBundles = [];
+    
+    // Process ML-discovered bundles
+    if (mlBundleData.bundles && mlBundleData.bundles.length > 0) {
+      mlBundles.push(...mlBundleData.bundles.slice(0, 3)); // Top 3 ML bundles
     }
     
-    console.log(`Created ${bundles.length} real product bundles with actual store products`);
-    return bundles;
+    // Add content-based recommendation bundles
+    if (contentRecs.recommendations && contentRecs.recommendations.length > 0) {
+      const contentBundle = {
+        id: `ml_content_bundle_${currentProductId}`,
+        name: 'Recommended for You',
+        description: 'AI-curated products based on this item',
+        products: contentRecs.recommendations.slice(0, 3),
+        ml_powered: true,
+        recommendation_type: 'content-based'
+      };
+      mlBundles.push(contentBundle);
+    }
+    
+    console.log(`Created ${mlBundles.length} ML-powered bundles`);
+    return mlBundles;
     
   } catch (error) {
-    console.error('Error creating real product bundles:', error);
-    return createFallbackBundles(currentProductId);
+    console.error('ML bundle fetch error:', error);
+    return await createFallbackBundles(currentProductId);
   }
 }
 
-// Fetch real products from the store using Storefront API
-async function fetchRealStoreProducts() {
-  try {
-    // Get the shop domain from the request or environment
-    const shopDomain = 'test-lab-101.myshopify.com'; // Your actual shop domain
-    
-    // Use Shopify Storefront API to fetch products (this would require a storefront access token)
-    // For now, let's create realistic product data based on your actual store
-    
-    const storeProducts = [
-      {
-        id: '51714487091539',
-        title: 'Mens Strider',
-        price: '89.99',
-        image: 'https://cdn.shopify.com/s/files/1/0123/4567/8901/products/mens-strider.jpg',
-        handle: 'mens-strider'
-      },
-      {
-        id: '51714487091540',
-        title: 'Women\'s Running Shoes',
-        price: '94.99',
-        image: 'https://cdn.shopify.com/s/files/1/0123/4567/8901/products/womens-running.jpg',
-        handle: 'womens-running-shoes'
-      },
-      {
-        id: '51714487091541',
-        title: 'Athletic Compression Socks',
-        price: '24.99',
-        image: 'https://cdn.shopify.com/s/files/1/0123/4567/8901/products/compression-socks.jpg',
-        handle: 'athletic-compression-socks'
-      },
-      {
-        id: '51714487091542',
-        title: 'Insulated Sports Water Bottle',
-        price: '34.99',
-        image: 'https://cdn.shopify.com/s/files/1/0123/4567/8901/products/water-bottle.jpg',
-        handle: 'insulated-sports-water-bottle'
-      },
-      {
-        id: '51714487091543',
-        title: 'Quick-Dry Workout Towel',
-        price: '19.99',
-        image: 'https://cdn.shopify.com/s/files/1/0123/4567/8901/products/workout-towel.jpg',
-        handle: 'quick-dry-workout-towel'
-      },
-      {
-        id: '51714487091544',
-        title: 'Resistance Training Band Set',
-        price: '29.99',
-        image: 'https://cdn.shopify.com/s/files/1/0123/4567/8901/products/resistance-bands.jpg',
-        handle: 'resistance-training-band-set'
-      }
-    ];
-    
-    console.log(`Fetched ${storeProducts.length} products from store: ${shopDomain}`);
-    return storeProducts;
-    
-  } catch (error) {
-    console.error('Error fetching store products:', error);
-    return [];
-  }
-}
-
-// Fallback bundles in case real products can't be fetched
-function createFallbackBundles(currentProductId?: string | null) {
+// Fallback function for when ML system is unavailable
+async function createFallbackBundles(currentProductId?: string | null) {
+  console.log('Creating fallback bundles for:', currentProductId);
+  
   return [
     {
-      id: 'bundle_fallback_1',
-      name: 'Essential Bundle',
-      description: 'Must-have items for your active lifestyle',
+      id: 'fallback_bundle_1',
+      name: 'Suggested Bundle',
+      description: 'Hand-picked products that work well together',
       products: [
-        { 
-          id: currentProductId || '51714487091539', 
-          title: 'Mens Strider', 
-          price: '89.99',
-          image: '/images/products/mens-strider.jpg'
+        {
+          id: 'demo_product_1',
+          title: 'Product A',
+          price: '19.99',
+          image: '/placeholder-product.jpg'
         },
-        { 
-          id: 'essential_accessory', 
-          title: 'Essential Accessory', 
+        {
+          id: 'demo_product_2', 
+          title: 'Product B',
           price: '24.99',
-          image: '/images/products/accessory.jpg'
+          image: '/placeholder-product.jpg'
         }
       ],
-      regular_total: 114.98,
-      bundle_price: 103.48,
-      discount_percent: 10,
-      savings_amount: 11.50,
-      discount_code: 'BUNDLE_ESSENTIAL_10',
-      status: 'active',
-      source: 'fallback',
-      confidence: 0.75,
-      created_at: new Date().toISOString(),
-      performance: {
-        views: 123,
-        clicks: 23,
-        conversions: 5,
-        revenue: 517.40
-      }
+      bundle_price: 39.99,
+      regular_total: 44.98,
+      savings_amount: 4.99,
+      discount_percent: 11,
+      ml_powered: false
     }
   ];
 }
@@ -259,7 +174,7 @@ export const action = withAuth(async ({ request }: ActionFunctionArgs) => {
   }
 });
 
-// Storefront bundle request handler (no auth required, fetches real Shopify products)
+// Storefront bundle request handler (no auth required, uses ML system)
 async function handleStorefrontBundleRequest({ productId, collectionId, context }: {
   productId?: string | null;
   collectionId?: string | null;
@@ -268,26 +183,33 @@ async function handleStorefrontBundleRequest({ productId, collectionId, context 
   console.log('Storefront bundle request:', { productId, collectionId, context });
   
   try {
-    // Create real bundles with actual products from the store
-    const realBundles = await createRealProductBundles(productId);
+    // Extract shop domain from the request or use current context
+    const shop = 'test-lab-101.myshopify.com'; // This should come from request context
+    
+    // Use ML-powered bundles instead of hardcoded ones
+    const mlBundles = await getMLPoweredBundles(productId, shop);
     
     return json({
       success: true,
-      bundles: realBundles,
+      bundles: mlBundles,
       context,
-      debug: { productId, collectionId, totalFound: realBundles.length }
+      ml_powered: true,
+      debug: { productId, collectionId, totalFound: mlBundles.length }
     });
   } catch (error) {
-    console.error('Error fetching real products for bundles:', error);
+    console.error('Error fetching ML bundles:', error);
+    // Fallback to basic bundles if ML system fails
+    const fallbackBundles = await createFallbackBundles(productId);
     return json({
       success: true,
-      bundles: [],
+      bundles: fallbackBundles,
       context,
+      ml_powered: false,
       debug: { 
         productId, 
         collectionId, 
-        totalFound: 0, 
-        error: error instanceof Error ? error.message : 'Unknown error'
+        totalFound: fallbackBundles.length, 
+        error: error instanceof Error ? error.message : 'ML system unavailable'
       }
     });
   }
