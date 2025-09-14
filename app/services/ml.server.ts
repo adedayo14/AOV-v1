@@ -60,14 +60,6 @@ export async function generateBundlesFromOrders(params: {
     console.log(`[ML] Step 2: Content-based failed, manual bundles temporarily disabled due to Prisma issue...`);
     // TODO: Fix Prisma Bundle model access
     const manualBundles: GeneratedBundle[] = [];
-    /*
-    const manualBundles = await getManualBundles({
-      shop,
-      productId,
-      limit,
-      defaultDiscountPct
-    });
-    */
     console.log(`[ML] Manual bundles returned ${manualBundles.length} bundles`);
 
     if (manualBundles.length > 0) {

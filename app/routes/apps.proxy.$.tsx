@@ -19,6 +19,10 @@ function setRecsCache(key: string, payload: any) {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
+  console.log('🚀 LOADER ENTRY - URL:', request.url);
+  console.log('🚀 LOADER ENTRY - Method:', request.method);
+  console.log('🚀 LOADER ENTRY - Headers:', Object.fromEntries(request.headers.entries()));
+  
   const url = new URL(request.url);
   const path = url.pathname;
 
