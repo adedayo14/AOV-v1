@@ -63,6 +63,12 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 </script>
+
+{%- comment -%}
+  Ensure the bundle renderer script is available on product pages using this block.
+  This is a safe fallback in case the app-embed delayed loader hasn’t run yet.
+{%- endcomment -%}
+<script src="{{ 'bundle-renderer.js' | asset_url }}" defer></script>
 {% endif %}
 
 {% schema %}

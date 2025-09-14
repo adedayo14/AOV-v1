@@ -90,6 +90,22 @@
             } else {
               console.error('🛒 Cart Uplift: CartUpliftDrawer class not found');
             }
+
+            // Expose asset paths for other blocks
+            window.CartUpliftAssets = window.CartUpliftAssets || {};
+            window.CartUpliftAssets.bundleRenderer = {{ 'bundle-renderer.js' | asset_url | json }};
+
+            // If smart bundles are enabled, pre-load the renderer so blocks can initialize fast
+            if (window.CartUpliftSettings.enableSmartBundles) {
+              const existing = document.querySelector('script[data-cartuplift="bundle-renderer"]');
+              if (!existing) {
+                const script = document.createElement('script');
+                script.src = window.CartUpliftAssets.bundleRenderer;
+                script.defer = true;
+                script.setAttribute('data-cartuplift', 'bundle-renderer');
+                document.head.appendChild(script);
+              }
+            }
           } else {
             console.warn('🛒 Cart Uplift: App is disabled in settings');
           }

@@ -5740,9 +5740,10 @@
     
     // Initialize bundle renderer if bundles are enabled
     if (window.CartUpliftSettings.enableSmartBundles) {
-      // Load bundle renderer dynamically
+      // Load bundle renderer dynamically (prefer asset URL provided by app-embed)
       const script = document.createElement('script');
-      script.src = '/apps/cart-uplift/assets/bundle-renderer.js';
+      const assetUrl = (window.CartUpliftAssets && window.CartUpliftAssets.bundleRenderer) || '/apps/cart-uplift/assets/bundle-renderer.js';
+      script.src = assetUrl;
       script.onload = function() {
         if (window.BundleRenderer) {
           window.cartUpliftBundleRenderer = new window.BundleRenderer(window.CartUpliftSettings);
