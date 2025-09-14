@@ -302,7 +302,6 @@ async function contentBasedFallback(params: {
   return bundles;
 }
 
-// Fetch manual bundles for a product as fallback
 async function getManualBundles(params: {
   shop: string;
   productId: string;
@@ -342,8 +341,12 @@ async function getManualBundles(params: {
     const generatedBundles: GeneratedBundle[] = [];
 
     for (const bundle of manualBundles) {
+      console.log(`[MANUAL] Processing bundle ${bundle.id} with ${bundle.products.length} products`);
+      
       // Fetch product details for all products in the bundle
       const productIds = bundle.products.map((p: any) => `gid://shopify/Product/${p.productId}`);
+      console.log(`[MANUAL] Fetching product details for IDs:`, productIds);
+      
       const prodResp = await admin.graphql(`
         #graphql
         query prod($ids: [ID!]!) {
@@ -365,9 +368,14 @@ async function getManualBundles(params: {
         }
       `, { variables: { ids: productIds } });
 
-      if (!prodResp.ok) continue;
+      if (!prodResp.ok) {
+        console.log(`[MANUAL] Failed to fetch product details for bundle ${bundle.id}`);
+        continue;
+      }
+      
       const prodData: any = await prodResp.json();
       const nodes: any[] = prodData?.data?.nodes || [];
+      console.log(`[MANUAL] Retrieved ${nodes.length} product nodes from GraphQL`);
 
       const bundleProducts: BundleProduct[] = [];
       let regular_total = 0;
@@ -379,6 +387,8 @@ async function getManualBundles(params: {
         const vid = getVid(firstVar?.id);
         const price = parseFloat(firstVar?.price || '0') || 0;
         
+        console.log(`[MANUAL] Processing product ${pid}: title="${node.title}", price=${price}`);
+        
         bundleProducts.push({
           id: pid,
           variant_id: vid,
@@ -387,6 +397,13 @@ async function getManualBundles(params: {
         });
         
         regular_total += price;
+      }
+
+      console.log(`[MANUAL] Bundle ${bundle.id} has ${bundleProducts.length} products, total: ${regular_total}`);
+
+      if (bundleProducts.length < 2) {
+        console.log(`[MANUAL] Skipping bundle ${bundle.id} - insufficient valid products`);
+        continue;
       }
 
       const discountPercent = bundle.discountPercent || defaultDiscountPct;
@@ -404,6 +421,8 @@ async function getManualBundles(params: {
         status: 'active',
         source: 'manual',
       });
+      
+      console.log(`[MANUAL] Created bundle: ${bundle.name} (${bundleProducts.length} products, ${discountPercent}% off)`);
     }
 
     console.log(`[MANUAL] Successfully converted ${generatedBundles.length} manual bundles`);
