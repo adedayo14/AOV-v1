@@ -387,7 +387,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
       })();
 
       // Use ML service with built-in content-based fallback if co-purchase data is sparse
+      console.log(`[BUNDLES API] === STARTING ML SERVICE CALL ===`);
       console.log(`[BUNDLES API] Generating bundles for product ${productId}, shop: ${shop}, limit: ${limit}`);
+      console.log(`[BUNDLES API] Call parameters:`, { shop, productId, limit, defaultDiscountPct });
+      
       const bundles = await generateBundlesFromOrders({
         shop,
         productId,
@@ -395,6 +398,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         defaultDiscountPct,
         bundleTitle: settings?.bundleTitleTemplate || 'Complete your setup',
       });
+      
+      console.log(`[BUNDLES API] === ML SERVICE COMPLETED ===`);
       console.log(`[BUNDLES API] Generated ${bundles.length} bundles:`, bundles.map(b => ({ id: b.id, name: b.name, products: b.products.length })));
 
       // Attach a small hint when empty to help diagnose in network panel
@@ -407,8 +412,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
         }
       });
     } catch (error) {
+      console.error('[BUNDLES API] === ERROR CAUGHT ===');
       console.error('[BUNDLES API] Error:', error);
+      console.error('[BUNDLES API] Error message:', error instanceof Error ? error.message : 'Unknown error');
       console.error('[BUNDLES API] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('[BUNDLES API] Error type:', typeof error);
+      console.error('[BUNDLES API] Error constructor:', error?.constructor?.name);
       return json({ bundles: [], reason: 'unavailable' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
     }
   }
