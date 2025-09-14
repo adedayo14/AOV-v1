@@ -50,17 +50,35 @@ Smart Bundles Block - Displays ML-powered product bundles on product pages
 document.addEventListener('DOMContentLoaded', function() {
   const productId = {{ product.id }};
   const bundleContainer = document.getElementById('smart-bundles-container-' + productId);
-  
-  if (bundleContainer && typeof window.CartUplift !== 'undefined' && window.CartUplift.initSmartBundles) {
-    window.CartUplift.initSmartBundles(productId, bundleContainer);
-  } else {
-    // Retry after a delay if CartUplift isn't loaded yet
-    setTimeout(function() {
-      if (typeof window.CartUplift !== 'undefined' && window.CartUplift.initSmartBundles) {
-        window.CartUplift.initSmartBundles(productId, bundleContainer);
+
+  const tryInit = (attempt = 1) => {
+    if (!bundleContainer) return;
+
+    // Preferred path via CartUplift facade
+    if (typeof window.CartUplift !== 'undefined' && window.CartUplift.initSmartBundles) {
+      window.CartUplift.initSmartBundles(productId, bundleContainer);
+      return;
+    }
+
+    // Direct path if renderer is already present
+    if (window.BundleRenderer) {
+      if (!window.cartUpliftBundleRenderer) {
+        try {
+          window.cartUpliftBundleRenderer = new window.BundleRenderer(window.CartUpliftSettings || window.cartUpliftSettings || {});
+        } catch (e) {}
       }
-    }, 1000);
-  }
+      if (window.cartUpliftBundleRenderer && typeof window.cartUpliftBundleRenderer.initProductPage === 'function') {
+        window.cartUpliftBundleRenderer.initProductPage(productId, bundleContainer);
+        return;
+      }
+    }
+
+    if (attempt <= 6) {
+      setTimeout(() => tryInit(attempt + 1), 500);
+    }
+  };
+
+  tryInit();
 });
 </script>
 

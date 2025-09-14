@@ -680,17 +680,28 @@ class BundleRenderer {
 }
 
 // Auto-initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        if (window.cartUpliftSettings?.enableSmartBundles) {
-            window.cartUpliftBundleRenderer = new BundleRenderer(window.cartUpliftSettings);
+// Always create a renderer instance so theme blocks can call methods even if
+// global settings haven't been preloaded or enableSmartBundles is false.
+(function initCartUpliftBundleRenderer() {
+    const init = () => {
+        try {
+            const resolvedSettings = (window.CartUpliftSettings || window.cartUpliftSettings || {});
+            // Keep backward compatibility: expose a lowercase alias
+            if (!window.cartUpliftSettings) {
+                window.cartUpliftSettings = resolvedSettings;
+            }
+            window.cartUpliftBundleRenderer = new BundleRenderer(resolvedSettings);
+        } catch (e) {
+            console.warn('[BundleRenderer] Failed to initialize renderer:', e);
         }
-    });
-} else {
-    if (window.cartUpliftSettings?.enableSmartBundles) {
-        window.cartUpliftBundleRenderer = new BundleRenderer(window.cartUpliftSettings);
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
     }
-}
+})();
 
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
