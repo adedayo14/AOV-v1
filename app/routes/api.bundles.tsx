@@ -13,8 +13,8 @@ async function getMLPoweredBundles(currentProductId?: string | null, shop?: stri
   try {
     console.log('Fetching ML-powered bundles for product:', currentProductId);
     
-    // Use your existing ML bundle-data endpoint
-    const bundleDataResponse = await fetch(`https://${shop}/api/ml/bundle-data`, {
+    // Call internal ML bundle-data API (this app's API, not external)
+    const bundleDataResponse = await fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/ml/bundle-data`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -24,15 +24,16 @@ async function getMLPoweredBundles(currentProductId?: string | null, shop?: stri
       })
     });
     
-    if (!bundleDataResponse.ok) {
-      throw new Error('Failed to fetch ML bundle data');
+    let mlBundleData = { bundles: [], associations: [] };
+    if (bundleDataResponse.ok) {
+      mlBundleData = await bundleDataResponse.json();
+      console.log('ML bundle data received:', mlBundleData);
+    } else {
+      console.warn('ML bundle data fetch failed, using fallback');
     }
     
-    const mlBundleData = await bundleDataResponse.json();
-    console.log('ML bundle data received:', mlBundleData);
-    
-    // Use your existing content-based recommendations
-    const contentRecommendationsResponse = await fetch(`https://${shop}/api/ml/content-recommendations`, {
+    // Call internal content-based recommendations API
+    const contentRecommendationsResponse = await fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/ml/content-recommendations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -41,12 +42,13 @@ async function getMLPoweredBundles(currentProductId?: string | null, shop?: stri
       })
     });
     
-    if (!contentRecommendationsResponse.ok) {
-      throw new Error('Failed to fetch content recommendations');
+    let contentRecs = { recommendations: [] };
+    if (contentRecommendationsResponse.ok) {
+      contentRecs = await contentRecommendationsResponse.json();
+      console.log('Content recommendations received:', contentRecs);
+    } else {
+      console.warn('Content recommendations fetch failed, using fallback');
     }
-    
-    const contentRecs = await contentRecommendationsResponse.json();
-    console.log('Content recommendations received:', contentRecs);
     
     // Combine ML data to create smart bundles
     const mlBundles = [];
