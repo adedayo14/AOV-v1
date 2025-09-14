@@ -2,6 +2,7 @@ import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-r
 import { getSettings, saveSettings } from "../models/settings.server";
 import db from "../db.server";
 import { authenticate, unauthenticated } from "../shopify.server";
+import { generateBundlesFromOrders } from "../services/ml.server";
 
 // Lightweight in-memory cache for recommendations (per worker)
 // Keyed by shop + product/cart context + limit; TTL ~60s
@@ -374,149 +375,25 @@ export async function loader({ request }: LoaderFunctionArgs) {
         } catch(_) { /* ignore; fall back to provided id */ }
       }
 
+      // Guard: unresolved or invalid product id
+      if (!productId || !/^[0-9]+$/.test(productId)) {
+        return json({ bundles: [], reason: 'invalid_product' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
+      }
+
       const defaultDiscountPct = (() => {
         const v = String(settings?.defaultBundleDiscount ?? '15');
         const n = parseInt(v, 10);
         return Number.isFinite(n) && n > 0 ? Math.min(50, n) : 15;
       })();
 
-  // NOTE: We compute bundles from real co-purchase signals below (no test/mock data)
-
-      // Build anchor and candidate recs using the same approach as /api/recommendations (simplified and capped)
-      const anchors = new Set<string>([productId]);
-      const { admin } = await unauthenticated.admin(shop);
-      const HALF_LIFE_DAYS = 60;
-      const LN2_OVER_HL = Math.log(2) / HALF_LIFE_DAYS;
-      const getPid = (gid?: string) => (gid||'').replace('gid://shopify/Product/','');
-
-      // Fetch recent orders
-      const ordersResp = await admin.graphql(`
-        #graphql
-        query getOrders($first: Int!) {
-          orders(first: $first, sortKey: CREATED_AT, reverse: true) {
-            edges { node {
-              id
-              createdAt
-              lineItems(first: 30) { edges { node {
-                product { id title handle images(first: 1) { edges { node { url } } } vendor }
-                variant { id price }
-              } } }
-            } }
-          }
-        }
-      `, { variables: { first: 200 } });
-      if (!ordersResp.ok) {
-        return json({ bundles: [], reason: `admin_http_${ordersResp.status}` }, { headers: { 'Access-Control-Allow-Origin': '*' } });
-      }
-      const ordersData: any = await ordersResp.json();
-      if (!ordersData?.data) {
-        return json({ bundles: [], reason: 'admin_orders_error' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
-      }
-      const orderEdges: any[] = ordersData?.data?.orders?.edges || [];
-
-      // Accumulate co-purchase weights
-      type Assoc = { wco:number };
-      const wAppear: Record<string, number> = {};
-      const assoc: Record<string, { with: Record<string, Assoc>; wAppear:number } > = {};
-      for (const e of orderEdges) {
-        const n = e.node;
-        const ageDays = Math.max(0, (Date.now() - new Date(n.createdAt).getTime()) / 86400000);
-        const w = Math.exp(-LN2_OVER_HL * ageDays);
-        const items: string[] = [];
-        for (const ie of (n.lineItems?.edges||[])) {
-          const p = ie.node.product; if (!p?.id) continue;
-          const pid = getPid(p.id);
-          items.push(pid);
-        }
-        if (items.length < 2) continue;
-        const seen = new Set<string>();
-        for (const it of items) {
-          if (!seen.has(it)) { wAppear[it] = (wAppear[it]||0)+w; seen.add(it); }
-          assoc[it] ||= { with: {}, wAppear: 0 }; assoc[it].wAppear += w;
-        }
-        for (let i=0;i<items.length;i++) for (let j=i+1;j<items.length;j++) {
-          const a = items[i], b = items[j];
-          assoc[a] ||= { with: {}, wAppear: 0 }; assoc[b] ||= { with: {}, wAppear: 0 };
-          assoc[a].with[b] ||= { wco: 0 }; assoc[a].with[b].wco += w;
-          assoc[b].with[a] ||= { wco: 0 }; assoc[b].with[a].wco += w;
-        }
-      }
-
-      const anchorIds = Array.from(anchors);
-      const totalW = Object.values(wAppear).reduce((a,b)=>a+b,0) || 1;
-      const candidate: Record<string, number> = {};
-      for (const a of anchorIds) {
-        const aStats = assoc[a]; const wA = aStats?.wAppear || 0; if (!aStats || wA<=0) continue;
-        for (const [b, ab] of Object.entries(aStats.with)) {
-          if (anchors.has(b)) continue;
-          const wB = assoc[b]?.wAppear || 0; if (wB<=0) continue;
-          const confidence = ab.wco / Math.max(1e-6, wA);
-          const probB = wB / totalW;
-          const lift = probB > 0 ? confidence / probB : 0;
-          const s = 0.6 * Math.min(1, lift/2) + 0.4 * Math.min(1, wB / (totalW * 0.05));
-          candidate[b] = Math.max(candidate[b]||0, s);
-        }
-      }
-
-      const recIds = Object.entries(candidate).sort((a,b)=>b[1]-a[1]).slice(0, Math.max(2, limit)).map(([id])=>id);
-      if (recIds.length === 0) {
-        return json({ bundles: [] }, { headers: { 'Access-Control-Allow-Origin': '*' } });
-      }
-
-      // Fetch product + variant info for anchor and recs in one shot
-  const allGids = [productId, ...recIds].map(id => `gid://shopify/Product/${id}`);
-      const prodResp = await admin.graphql(`
-        #graphql
-        query prod($ids: [ID!]!) {
-          nodes(ids: $ids) {
-            ... on Product { id title handle variants(first: 3) { edges { node { id price availableForSale title } } } }
-          }
-        }
-      `, { variables: { ids: allGids } });
-      if (!prodResp.ok) {
-        return json({ bundles: [], reason: `admin_http_${prodResp.status}` }, { headers: { 'Access-Control-Allow-Origin': '*' } });
-      }
-      const prodData: any = await prodResp.json();
-      const nodes: any[] = prodData?.data?.nodes || [];
-      const byPid: Record<string, any> = {};
-      for (const n of nodes) {
-        if (!n?.id) continue; const pid = getPid(n.id);
-        const firstVar = n.variants?.edges?.[0]?.node;
-        const vid = (firstVar?.id||'').replace('gid://shopify/ProductVariant/','');
-        const price = parseFloat(firstVar?.price || '0') || 0;
-        byPid[pid] = { title: n.title, variantId: vid, price };
-      }
-
-      const anchor = byPid[productId];
-      if (!anchor) {
-        return json({ bundles: [] }, { headers: { 'Access-Control-Allow-Origin': '*' } });
-      }
-
-      // Build up to `limit` simple 2-item bundles: anchor + each top rec
-      const bundles = [] as Array<any>;
-      for (const rid of recIds.slice(0, limit)) {
-        const rec = byPid[rid]; if (!rec) continue;
-        const regular_total = (anchor.price || 0) + (rec.price || 0);
-        const bundle_price = Math.max(0, regular_total * (1 - defaultDiscountPct/100));
-        const savings_amount = Math.max(0, regular_total - bundle_price);
-        bundles.push({
-          id: `AUTO_${productId}_${rid}`,
-          name: settings?.bundleTitleTemplate || 'Complete your setup',
-          products: [
-            { id: productId, variant_id: anchor.variantId, title: byPid[productId]?.title || 'Product', price: anchor.price },
-            { id: rid, variant_id: rec.variantId, title: byPid[rid]?.title || 'Recommended', price: rec.price },
-          ],
-          regular_total,
-          bundle_price,
-          savings_amount,
-          discount_percent: defaultDiscountPct,
-          // discount_code intentionally omitted unless we create it in Admin ahead of time
-          status: 'active',
-          source: 'ml',
-        });
-      }
-
-  // No test bundles; only data-driven bundles are returned
+      // Use ML service with built-in content-based fallback if co-purchase data is sparse
+      const bundles = await generateBundlesFromOrders({
+        shop,
+        productId,
+        limit,
+        defaultDiscountPct,
+        bundleTitle: settings?.bundleTitleTemplate || 'Complete your setup',
+      });
 
       return json({ bundles }, {
         headers: {
