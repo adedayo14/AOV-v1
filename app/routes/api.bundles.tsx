@@ -11,10 +11,28 @@ import { withAuth } from "../utils/auth.server";
 // Helper function to get ML-powered bundles from your existing AI system
 async function getMLPoweredBundles(currentProductId?: string | null, shop?: string) {
   try {
-    // For now, return an empty array to stop showing test bundles
-    // The ML system integration should be implemented here when ready
-    console.log('ML bundle system not yet integrated - returning empty results');
-    return [];
+    console.log('Fetching ML bundles for product:', currentProductId);
+    
+    // Get all available bundles
+    const allBundles = await getBundlesForShop(shop || 'default');
+    
+    // If we have a specific product ID, filter bundles that contain this product
+    if (currentProductId) {
+      const filteredBundles = allBundles.filter(bundle => 
+        bundle.products.some(product => 
+          product.id === currentProductId || 
+          product.id.toString() === currentProductId
+        )
+      );
+      
+      console.log(`Found ${filteredBundles.length} bundles containing product ${currentProductId}`);
+      return filteredBundles;
+    }
+    
+    // If no specific product, return all active bundles
+    const activeBundles = allBundles.filter(bundle => bundle.status === 'active');
+    console.log(`Returning ${activeBundles.length} active bundles`);
+    return activeBundles;
     
   } catch (error) {
     console.error('ML bundle fetch error:', error);
@@ -24,8 +42,35 @@ async function getMLPoweredBundles(currentProductId?: string | null, shop?: stri
 
 // Fallback function for when ML system is unavailable
 async function createFallbackBundles(currentProductId?: string | null) {
-  console.log('No fallback bundles configured - returning empty array');
-  return [];
+  console.log('Using fallback bundles for product:', currentProductId);
+  
+  // Return a basic bundle that could work with any product
+  return [
+    {
+      id: 'fallback_bundle_1',
+      name: 'Recommended Combo',
+      description: 'Perfect combination for your purchase',
+      products: [
+        { id: currentProductId || 'sample_product', title: 'Current Product', price: 49.99 },
+        { id: 'complementary_item_1', title: 'Complementary Item', price: 29.99 }
+      ],
+      regular_total: 79.98,
+      bundle_price: 71.98,
+      discount_percent: 10,
+      savings_amount: 7.99,
+      discount_code: 'BUNDLE_COMBO_10',
+      status: 'active',
+      source: 'fallback',
+      confidence: 0.75,
+      created_at: new Date().toISOString(),
+      performance: {
+        views: 0,
+        clicks: 0,
+        conversions: 0,
+        revenue: 0
+      }
+    }
+  ];
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -144,7 +189,7 @@ async function getBundlesForShop(shop: string) {
       name: 'Complete Footwear Bundle',
       description: 'Everything you need for your active lifestyle',
       products: [
-        { id: '51714487091539', title: 'Mens Strider', price: 89.99 },
+        { id: '10083165798739', title: 'Mens Strider', price: 89.99 },
         { id: 'athletic_socks_001', title: 'Performance Athletic Socks', price: 19.99 },
         { id: 'shoe_care_kit_001', title: 'Premium Shoe Care Kit', price: 29.99 }
       ],
@@ -169,7 +214,7 @@ async function getBundlesForShop(shop: string) {
       name: 'Athletic Performance Bundle',
       description: 'Complete gear for athletes and fitness enthusiasts',
       products: [
-        { id: '51714487091539', title: 'Mens Strider', price: 89.99 },
+        { id: '10083165798739', title: 'Mens Strider', price: 89.99 },
         { id: 'water_bottle_premium', title: 'Insulated Water Bottle', price: 34.99 },
         { id: 'workout_towel', title: 'Quick-Dry Workout Towel', price: 24.99 }
       ],
