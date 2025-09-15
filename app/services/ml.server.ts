@@ -32,16 +32,113 @@ export async function generateBundlesFromOrders(params: {
   excludeProductId?: string;
   defaultDiscountPct: number;
   bundleTitle?: string;
+  enableCoPurchase?: boolean;
 }): Promise<GeneratedBundle[]> {
-  const { shop, productId, limit, defaultDiscountPct, bundleTitle = "Frequently Bought Together" } = params;
+  const { shop, productId, limit, defaultDiscountPct, bundleTitle = "Frequently Bought Together", enableCoPurchase } = params;
 
   const manualBundles = await getManualBundlesSafely({ shop, productId, limit, defaultDiscountPct });
   if (manualBundles.length) return manualBundles;
+
+  // Optional co-purchase (requires orders and toggle)
+  if (enableCoPurchase) {
+    const coBundles = await coPurchaseFallback({ shop, productId, limit, defaultDiscountPct, bundleTitle });
+    if (coBundles.length) return coBundles;
+  }
 
   const shopifyBundles = await shopifyRecommendationsFallback({ shop, productId, limit, defaultDiscountPct, bundleTitle });
   if (shopifyBundles.length) return shopifyBundles;
 
   return await contentBasedFallback({ shop, productId, limit, defaultDiscountPct, bundleTitle });
+}
+
+async function coPurchaseFallback(params: { shop: string; productId: string; limit: number; defaultDiscountPct: number; bundleTitle?: string }): Promise<GeneratedBundle[]> {
+  const { shop, productId, limit, defaultDiscountPct, bundleTitle } = params;
+  try {
+    const { admin } = await unauthenticated.admin(shop);
+    // Fetch recent orders containing the anchor product
+    const searchQuery = `line_items.product_id:${productId}`;
+    const ordersResp = await admin.graphql(`#graphql
+      query CoOrders($first: Int!, $query: String!) {
+        orders(first: $first, query: $query, sortKey: PROCESSED_AT, reverse: true) {
+          edges { node { id lineItems(first: 50) { edges { node { product { id title } } } } } }
+        }
+      }
+    `, { variables: { first: 100, query: searchQuery } });
+    if (!ordersResp.ok) return [];
+    const ordersData: any = await ordersResp.json();
+    const orders: any[] = ordersData?.data?.orders?.edges?.map((e: any) => e.node) || [];
+
+    // Build co-occurrence counts
+    const counts = new Map<string, number>();
+    for (const order of orders) {
+      const lineNodes: any[] = order?.lineItems?.edges?.map((e: any) => e.node) || [];
+      const productSet = new Set<string>();
+      for (const li of lineNodes) {
+        const pid = getPid(li?.product?.id);
+        if (pid && pid !== productId) productSet.add(pid);
+      }
+      for (const pid of productSet) {
+        counts.set(pid, (counts.get(pid) || 0) + 1);
+      }
+    }
+
+    // Require some signal to avoid noise
+    const minCoOccur = 5; // adjustable threshold
+    const ranked = [...counts.entries()].filter(([, c]) => c >= minCoOccur).sort((a, b) => b[1] - a[1]).map(([pid]) => pid);
+    if (!ranked.length) return [];
+
+    // Fetch anchor and candidate details for pricing
+    const anchorGid = `gid://shopify/Product/${productId}`;
+    const anchorResp = await admin.graphql(`#graphql
+      query($id: ID!) { product(id: $id) { id title variants(first:1){edges{node{id price}}} } }
+    `, { variables: { id: anchorGid } });
+    if (!anchorResp.ok) return [];
+    const anchorJson: any = await anchorResp.json();
+    const anchor = anchorJson?.data?.product;
+    if (!anchor?.id) return [];
+    const av = anchor.variants?.edges?.[0]?.node;
+    const anchorPrice = parseFloat(av?.price || '0') || 0;
+    const anchorVid = getVid(av?.id);
+
+    const take = Math.max(3, limit);
+    const pickPids = ranked.slice(0, take);
+    const nodesResp = await admin.graphql(`#graphql
+      query Prods($ids: [ID!]!) { nodes(ids: $ids) { ... on Product { id title variants(first:1){edges{node{id price}}} } } }
+    `, { variables: { ids: pickPids.map(pid => `gid://shopify/Product/${pid}`) } });
+    if (!nodesResp.ok) return [];
+    const nodesJson: any = await nodesResp.json();
+    const nodes: any[] = nodesJson?.data?.nodes || [];
+
+    const bundles: GeneratedBundle[] = [];
+    for (const n of nodes) {
+      const pid = getPid(n?.id);
+      if (!pid) continue;
+      const v = n.variants?.edges?.[0]?.node;
+      const price = parseFloat(v?.price || '0') || 0;
+      const vid = getVid(v?.id);
+      const regular_total = anchorPrice + price;
+      const bundle_price = Math.max(0, regular_total * (1 - defaultDiscountPct / 100));
+      const savings_amount = Math.max(0, regular_total - bundle_price);
+      bundles.push({
+        id: `CO_${productId}_${pid}`,
+        name: bundleTitle || 'Frequently Bought Together',
+        products: [
+          { id: productId, variant_id: anchorVid, title: anchor.title || 'Product', price: anchorPrice },
+          { id: pid, variant_id: vid, title: n.title || 'Recommended', price },
+        ],
+        regular_total,
+        bundle_price,
+        savings_amount,
+        discount_percent: defaultDiscountPct,
+        status: 'active',
+        source: 'ml',
+      });
+    }
+    return bundles;
+  } catch (e) {
+    console.warn('[CO-PURCHASE] Fallback error:', e);
+    return [];
+  }
 }
 
 async function getManualBundlesSafely(params: { shop: string; productId: string; limit: number; defaultDiscountPct: number }): Promise<GeneratedBundle[]> {

@@ -3244,7 +3244,7 @@ export default function SettingsPage() {
               <BlockStack gap="400">
                 <BlockStack gap="200">
                   <Text variant="headingMd" as="h2">🤖 AI Personalization</Text>
-                  <Text variant="bodySm" tone="subdued">Configure machine learning features for personalized recommendations</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">Configure machine learning features for personalized recommendations</Text>
                 </BlockStack>
                 
                 <FormLayout>
@@ -3377,6 +3377,7 @@ export default function SettingsPage() {
                             onChange={(value) => updateSetting("bundleTitleTemplate", value)}
                             helpText="Default title for bundles. Use {product} for dynamic product name"
                             placeholder="Complete your {product} setup"
+                            autoComplete="off"
                           />
                           
                           <TextField
@@ -3385,6 +3386,7 @@ export default function SettingsPage() {
                             onChange={(value) => updateSetting("bundleDiscountPrefix", value)}
                             helpText="Automatic discount codes will be: PREFIX + bundle ID (e.g., BUNDLE_IPHONE_SETUP)"
                             placeholder="BUNDLE"
+                            autoComplete="off"
                           />
                           
                           <Select
@@ -3492,7 +3494,7 @@ export default function SettingsPage() {
                                       </Badge>
                                       <Badge>{bundle.source === 'ml' ? 'ML Discovered' : 'Manual'}</Badge>
                                       {bundle.confidence && (
-                                        <Badge tone="info">{Math.round(bundle.confidence * 100)}% confidence</Badge>
+                                        <Badge tone="info">{String(Math.round((bundle as any).confidence * 100)) + '% confidence'}</Badge>
                                       )}
                                       <Button size="slim">Edit</Button>
                                     </BlockStack>
@@ -3563,7 +3565,7 @@ export default function SettingsPage() {
                                     onClick={() => setShowProductPicker(true)}
                                     variant="secondary"
                                   >
-                                    Add Products ({selectedBundleProducts.length} selected)
+                                    {`Add Products (${selectedBundleProducts.length} selected)`}
                                   </Button>
                                   
                                   {selectedBundleProducts.length > 0 && (
@@ -3640,7 +3642,7 @@ export default function SettingsPage() {
                 <FormLayout>
                   <BlockStack gap="200">
                     <Text variant="headingSm" as="h3">Incentive Type</Text>
-                    <Text variant="bodySm" color="subdued">Choose what motivates your customers to spend more</Text>
+                    <Text as="p" variant="bodySm" tone="subdued">Choose what motivates your customers to spend more</Text>
                     
                     <BlockStack gap="300">
                       <BlockStack gap="100">
@@ -3651,7 +3653,7 @@ export default function SettingsPage() {
                           checked={(formSettings.progressBarMode || 'free-shipping') === 'free-shipping'}
                           onChange={() => updateSetting('progressBarMode', 'free-shipping')}
                         />
-                        <Text variant="bodySm" color="subdued" tone="subdued">
+                        <Text as="p" variant="bodySm" tone="subdued">
                           Simple progress bar showing how close customers are to free shipping
                         </Text>
                       </BlockStack>
@@ -3664,7 +3666,7 @@ export default function SettingsPage() {
                           checked={formSettings.progressBarMode === 'gift-gating'}
                           onChange={() => updateSetting('progressBarMode', 'gift-gating')}
                         />
-                        <Text variant="bodySm" color="subdued" tone="subdued">
+                        <Text as="p" variant="bodySm" tone="subdued">
                           Advanced progress system with multiple gift thresholds and rewards
                         </Text>
                       </BlockStack>
@@ -3677,7 +3679,7 @@ export default function SettingsPage() {
                           checked={formSettings.progressBarMode === 'combined'}
                           onChange={() => updateSetting('progressBarMode', 'combined')}
                         />
-                        <Text variant="bodySm" color="subdued" tone="subdued">
+                        <Text as="p" variant="bodySm" tone="subdued">
                           Unified progress bar combining free shipping and gift thresholds
                         </Text>
                       </BlockStack>
@@ -3784,7 +3786,7 @@ export default function SettingsPage() {
                                   checked={(formSettings.giftProgressStyle || 'single-next') === 'stacked'}
                                   onChange={() => updateSetting('giftProgressStyle', 'stacked')}
                                 />
-                                <Text variant="bodySm" color="subdued" tone="subdued">
+                                <Text as="p" variant="bodySm" tone="subdued">
                                   Show separate progress bars for each threshold
                                 </Text>
                               </BlockStack>
@@ -3797,7 +3799,7 @@ export default function SettingsPage() {
                                   checked={(formSettings.giftProgressStyle || 'single-next') === 'single-multi'}
                                   onChange={() => updateSetting('giftProgressStyle', 'single-multi')}
                                 />
-                                <Text variant="bodySm" color="subdued" tone="subdued">
+                                <Text as="p" variant="bodySm" tone="subdued">
                                   One progress bar showing all reward milestones
                                 </Text>
                               </BlockStack>
@@ -3810,7 +3812,7 @@ export default function SettingsPage() {
                                   checked={(formSettings.giftProgressStyle || 'single-next') === 'single-next'}
                                   onChange={() => updateSetting('giftProgressStyle', 'single-next')}
                                 />
-                                <Text variant="bodySm" color="subdued" tone="subdued">
+                                <Text as="p" variant="bodySm" tone="subdued">
                                   Focus on the next achievable reward
                                 </Text>
                               </BlockStack>
@@ -3819,7 +3821,7 @@ export default function SettingsPage() {
                           
                           <BlockStack gap="200">
                             <Text variant="headingSm" as="h3">Gift Thresholds</Text>
-                            <Text variant="bodySm" color="subdued">
+                            <Text as="p" variant="bodySm" tone="subdued">
                               Set spending thresholds to unlock gifts, discounts, or free products
                             </Text>
                             
@@ -3833,7 +3835,7 @@ export default function SettingsPage() {
                                 
                                 if (giftThresholds.length === 0) {
                                   return (
-                                    <Text variant="bodySm" color="subdued" alignment="center">
+                                    <Text as="p" variant="bodySm" tone="subdued" alignment="center">
                                       No gift thresholds added yet. Click "Add Gift Threshold" to get started.
                                     </Text>
                                   );
@@ -3929,7 +3931,7 @@ export default function SettingsPage() {
                                                     </div>
                                                   )}
                                                   <div className="cartuplift-product-info">
-                                                    <Text variant="bodyMd" fontWeight="medium">
+                                                    <Text as="p" variant="bodyMd" fontWeight="medium">
                                                       {threshold.productTitle}
                                                     </Text>
                                                   </div>
@@ -4009,12 +4011,12 @@ export default function SettingsPage() {
                                 autoComplete="off"
                                 multiline={2}
                               />
-                              <Text variant="bodySm" color="subdued">
+                              <Text as="p" variant="bodySm" tone="subdued">
                                 <strong>You can use:</strong><br/>
                                 • <code>{'{{amount}}'}</code> – total savings (e.g. "£115.00")<br/>
                                 • <code>{'{{product}}'}</code> – gift product names (comma-separated if multiple)
                               </Text>
-                              <Text variant="bodySm" color="subdued">
+                              <Text as="p" variant="bodySm" tone="subdued">
                                 <strong>Fallback (if left blank):</strong> "Free gift included"
                               </Text>
                             </BlockStack>
@@ -4030,7 +4032,7 @@ export default function SettingsPage() {
                                 placeholder="FREE"
                                 autoComplete="off"
                               />
-                              <Text variant="bodySm" color="subdued">
+                              <Text as="p" variant="bodySm" tone="subdued">
                                 <strong>Default:</strong> "FREE" | <strong>Fallback (if left blank):</strong> "Gift"
                               </Text>
                             </BlockStack>
@@ -4306,7 +4308,7 @@ export default function SettingsPage() {
                           <InlineStack gap="200" align="start">
                             <Button onClick={() => setShowProductSelector(true)}>Select products</Button>
                             {selectedProducts.length > 0 && (
-                              <Badge tone="success">{selectedProducts.length} selected</Badge>
+                              <Badge tone="success">{`${selectedProducts.length} selected`}</Badge>
                             )}
                           </InlineStack>
                         </div>
@@ -5145,7 +5147,7 @@ export default function SettingsPage() {
         >
           <Modal.Section>
             <BlockStack gap="300">
-              <Text variant="bodySm" tone="subdued">
+              <Text as="p" variant="bodySm" tone="subdued">
                 Select products to include in your bundle. You can select multiple products.
               </Text>
               

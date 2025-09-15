@@ -412,6 +412,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         limit,
         defaultDiscountPct,
         bundleTitle: settings?.bundleTitleTemplate || 'Complete your setup',
+        enableCoPurchase: (settings as any).enableAdvancedPersonalization === true,
       });
       
       console.log(`[BUNDLES API] === ML SERVICE COMPLETED ===`);
