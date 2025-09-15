@@ -1,6 +1,6 @@
 import * as React from "react";
 import { json } from "@remix-run/node";
-import { useLoaderData, useFetcher, useRevalidator } from "@remix-run/react";
+import { useLoaderData, useFetcher } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -27,6 +27,13 @@ export const loader = withAuth(async ({ auth }) => {
   const shop = auth.session.shop;
   const settings = await getSettings(shop);
   
+  // DEBUG: Log the actual settings to see what's being returned
+  console.log('🔍 SETTINGS DEBUG - Loader returning:', {
+    recommendationLayout: settings.recommendationLayout,
+    enableRecommendations: settings.enableRecommendations,
+    shop: shop
+  });
+  
   // Get shop currency information
   let shopCurrency = { currencyCode: 'USD', moneyFormat: undefined }; // Default fallback
   try {
@@ -51,80 +58,7 @@ export const loader = withAuth(async ({ auth }) => {
     console.error('Error fetching shop currency:', error);
   }
   
-  // Fetch real bundles from API
-  let bundles = [];
-  try {
-    const bundlesResponse = await fetch(`/apps/cart-uplift/api/bundles?shop=${shop}`, {
-      headers: { 'Accept': 'application/json' }
-    });
-    if (bundlesResponse.ok) {
-      const bundlesData = await bundlesResponse.json();
-      bundles = bundlesData.bundles || [];
-    }
-  } catch (error) {
-    console.error('Error fetching bundles:', error);
-  }
-  
-  // Fetch some real products for bundle creation
-  let products = [];
-  try {
-    const productsQuery = `
-      query getProducts($first: Int!) {
-        products(first: $first) {
-          edges {
-            node {
-              id
-              title
-              handle
-              priceRangeV2 {
-                minVariantPrice {
-                  amount
-                  currencyCode
-                }
-              }
-              variants(first: 1) {
-                edges {
-                  node {
-                    id
-                    price
-                  }
-                }
-              }
-              images(first: 1) {
-                edges {
-                  node {
-                    url
-                    altText
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-    
-    const response = await auth.admin.graphql(productsQuery, {
-      variables: { first: 50 }
-    });
-    const productData = await response.json();
-    
-    if (productData.data?.products?.edges) {
-      products = productData.data.products.edges.map((edge: any) => ({
-        id: edge.node.id,
-        title: edge.node.title,
-        handle: edge.node.handle,
-        price: parseFloat(edge.node.priceRangeV2.minVariantPrice.amount),
-        currency: edge.node.priceRangeV2.minVariantPrice.currencyCode,
-        variant_id: edge.node.variants.edges[0]?.node.id,
-        image: edge.node.images.edges[0]?.node.url
-      }));
-    }
-  } catch (error) {
-    console.error('Error fetching products:', error);
-  }
-  
-  return json({ settings, shopCurrency, bundles, products });
+  return json({ settings, shopCurrency });
 });
 
 export const action = withAuthAction(async ({ request, auth }) => {
@@ -162,10 +96,12 @@ export const action = withAuthAction(async ({ request, auth }) => {
     freeShippingText: String(settings.freeShippingText) || "You're {{ amount }} away from free shipping!",
     freeShippingAchievedText: String(settings.freeShippingAchievedText) || "🎉 Congratulations! You've unlocked free shipping!",
     recommendationsTitle: String(settings.recommendationsTitle) || "You might also like",
+    actionText: String(settings.actionText) || "Add discount code",
     addButtonText: String(settings.addButtonText) || "Add",
     checkoutButtonText: String(settings.checkoutButtonText) || "CHECKOUT",
-    discountLinkText: String(settings.discountLinkText) || "+ Got a promotion code?",
-    notesLinkText: String(settings.notesLinkText) || "+ Add order notes",
+    applyButtonText: String(settings.applyButtonText) || "Apply",
+  discountLinkText: String(settings.discountLinkText || '+ Got a promotion code?'),
+  notesLinkText: String(settings.notesLinkText || '+ Add order notes'),
     backgroundColor: String(settings.backgroundColor) || "#ffffff",
     textColor: String(settings.textColor) || "#1A1A1A",
     buttonColor: String(settings.buttonColor) || "#000000",
@@ -173,7 +109,7 @@ export const action = withAuthAction(async ({ request, auth }) => {
     recommendationsBackgroundColor: String(settings.recommendationsBackgroundColor) || "#ecebe3",
     shippingBarBackgroundColor: String(settings.shippingBarBackgroundColor) || "#f0f0f0",
     shippingBarColor: String(settings.shippingBarColor) || "#121212", // Dark neutral default
-    recommendationLayout: String(settings.recommendationLayout) || "horizontal",
+    recommendationLayout: String(settings.recommendationLayout) || "carousel",
     complementDetectionMode: String(settings.complementDetectionMode) || "automatic",
     manualRecommendationProducts: String(settings.manualRecommendationProducts) || "",
     // Progress Bar System
@@ -183,33 +119,16 @@ export const action = withAuthAction(async ({ request, auth }) => {
     giftThresholds: String(settings.giftThresholds) || "[]",
     giftNoticeText: String(settings.giftNoticeText) || "Free gift added: {{product}} (worth {{amount}})",
     giftPriceText: String(settings.giftPriceText) || "FREE",
-    enableTitleCaps: settings.enableTitleCaps === 'true',
-    enableRecommendationTitleCaps: settings.enableRecommendationTitleCaps === 'true',
-    // ML/AI Personalization settings
-    mlPersonalizationMode: String(settings.mlPersonalizationMode) || 'basic',
-    enableMLRecommendations: settings.enableMLRecommendations === 'true',
-    enableBehaviorTracking: settings.enableBehaviorTracking === 'true',
-    enableAdvancedPersonalization: settings.enableAdvancedPersonalization === 'true',
-    mlPrivacyLevel: String(settings.mlPrivacyLevel) || 'basic',
-    mlDataRetentionDays: String(settings.mlDataRetentionDays) || '30',
-    
-    // Smart Bundles settings
-    enableSmartBundles: settings.enableSmartBundles === 'true',
-    bundlesOnProductPages: settings.bundlesOnProductPages !== 'false', // Default true
-    bundlesOnCollectionPages: settings.bundlesOnCollectionPages === 'true',
-    bundlesOnCartPage: settings.bundlesOnCartPage === 'true',
-    bundlesOnCheckoutPage: settings.bundlesOnCheckoutPage === 'true',
-    defaultBundleDiscount: String(settings.defaultBundleDiscount) || '15',
-    bundleTitleTemplate: String(settings.bundleTitleTemplate) || 'Complete your setup',
-    bundleDiscountPrefix: String(settings.bundleDiscountPrefix) || 'BUNDLE',
-    bundleSavingsFormat: String(settings.bundleSavingsFormat) || 'both',
-    showIndividualPricesInBundle: settings.showIndividualPricesInBundle !== 'false', // Default true
-    autoApplyBundleDiscounts: settings.autoApplyBundleDiscounts !== 'false', // Default true
   };
   
   try {
-  const saved = await saveSettings(shop, processedSettings);
-  return json({ success: true, message: "Settings saved successfully!", settings: saved });
+    await saveSettings(shop, processedSettings);
+    console.log('🔄 SETTINGS DEBUG - Action saved:', {
+      recommendationLayout: processedSettings.recommendationLayout,
+      enableRecommendations: processedSettings.enableRecommendations,
+      shop: shop
+    });
+    return json({ success: true, message: "Settings saved successfully!" });
   } catch (error) {
     console.error("Error saving settings:", error);
     return json({ success: false, message: "Failed to save settings" }, { status: 500 });
@@ -238,10 +157,9 @@ function formatCurrency(amount: number | string, currencyCode: string = 'USD', m
 }
 
 export default function SettingsPage() {
-  const { settings, shopCurrency, bundles = [], products: storeProducts = [] } = useLoaderData<typeof loader>();
+  const { settings, shopCurrency } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const productsFetcher = useFetcher();
-  const revalidator = useRevalidator();
 
   // Default color constants - avoid green fallbacks
   const DEFAULT_SHIPPING_COLOR = '#121212'; // Dark neutral instead of blue
@@ -283,6 +201,7 @@ export default function SettingsPage() {
         for (const button of Array.from(buttons).slice(0, 5)) { // Check first 5 buttons
           const buttonStyle = getComputedStyle(button);
           const bgColor = buttonStyle.backgroundColor;
+          const borderColor = buttonStyle.borderColor;
           
           // Skip if it's transparent, white, black, or green
           if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent' && 
@@ -313,101 +232,10 @@ export default function SettingsPage() {
       validated.recommendationsBackgroundColor = themeColors.background;
     }
     
-    // ML/Privacy settings defaults
-    if (validated.mlPersonalizationMode === undefined) {
-      validated.mlPersonalizationMode = 'basic';
-    }
-    if (validated.enableMLRecommendations === undefined) {
-      validated.enableMLRecommendations = false;
-    }
-    if (validated.mlPrivacyLevel === undefined) {
-      validated.mlPrivacyLevel = 'basic';
-    }
-    if (validated.enableAdvancedPersonalization === undefined) {
-      validated.enableAdvancedPersonalization = false;
-    }
-    if (validated.enableBehaviorTracking === undefined) {
-      validated.enableBehaviorTracking = false;
-    }
-    if (validated.mlDataRetentionDays === undefined) {
-      validated.mlDataRetentionDays = '30';
-    }
-    
-    // Bundle settings defaults
-    if (validated.enableSmartBundles === undefined) {
-      validated.enableSmartBundles = false;
-    }
-    if (validated.bundlesOnProductPages === undefined) {
-      validated.bundlesOnProductPages = true;
-    }
-    if (validated.bundlesOnCollectionPages === undefined) {
-      validated.bundlesOnCollectionPages = false;
-    }
-    if (validated.bundlesOnCartPage === undefined) {
-      validated.bundlesOnCartPage = false;
-    }
-    if (validated.bundlesOnCheckoutPage === undefined) {
-      validated.bundlesOnCheckoutPage = false;
-    }
-    if (validated.defaultBundleDiscount === undefined) {
-      validated.defaultBundleDiscount = '15';
-    }
-    if (validated.bundleTitleTemplate === undefined) {
-      validated.bundleTitleTemplate = 'Complete your setup';
-    }
-    if (validated.bundleDiscountPrefix === undefined) {
-      validated.bundleDiscountPrefix = 'BUNDLE';
-    }
-    if (validated.bundleConfidenceThreshold === undefined) {
-      validated.bundleConfidenceThreshold = 'medium';
-    }
-    if (validated.bundleSavingsFormat === undefined) {
-      validated.bundleSavingsFormat = 'both';
-    }
-    if (validated.showIndividualPricesInBundle === undefined) {
-      validated.showIndividualPricesInBundle = true;
-    }
-    if (validated.autoApplyBundleDiscounts === undefined) {
-      validated.autoApplyBundleDiscounts = true;
-    }
-    
     return validated;
   };
 
   const [formSettings, setFormSettings] = useState(validateSettings(settings));
-
-  // Update form settings only when loader settings actually change (avoid overwriting after save)
-  const lastSettingsRef = useRef<string | null>(null);
-  useEffect(() => {
-    const serialized = JSON.stringify(settings ?? {});
-    if (lastSettingsRef.current !== serialized) {
-      console.log('🔄 Loader settings changed. Syncing form state.');
-      setFormSettings(validateSettings(settings));
-      lastSettingsRef.current = serialized;
-    }
-  }, [settings]);
-
-  // Bundle management state
-  const [showBundleCreator, setShowBundleCreator] = useState(false);
-  const [showProductPicker, setShowProductPicker] = useState(false);
-  const [newBundle, setNewBundle] = useState({
-    name: '',
-    description: '',
-    discount: '15',
-    products: []
-  });
-  const [selectedBundleProducts, setSelectedBundleProducts] = useState<any[]>([]);
-
-  // Helper functions for bundle calculations
-  const calculateBundleTotal = (products: any[]) => {
-    return products.reduce((total, product) => total + parseFloat(product.price || 0), 0);
-  };
-
-  const calculateDiscountedTotal = (products: any[], discountPercent: string) => {
-    const total = calculateBundleTotal(products);
-    const discount = parseFloat(discountPercent) / 100;
-    return total * (1 - discount);
-  };
 
   // Use theme colors for better defaults  
   const themeColors = detectThemeColors();
@@ -462,13 +290,6 @@ export default function SettingsPage() {
   const [productsError, setProductsError] = useState<string | null>(null);
   const [products, setProducts] = useState<any[]>([]);
   
-  // Initialize products list from loader (storeProducts) for immediate availability
-  useEffect(() => {
-    if (Array.isArray(storeProducts) && storeProducts.length > 0) {
-      setProducts(storeProducts);
-    }
-  }, [storeProducts]);
-  
   // Enhanced manual selection with variants
   const [selectedProductForVariants, setSelectedProductForVariants] = useState<any>(null);
   const [showVariantSelector, setShowVariantSelector] = useState(false);
@@ -485,13 +306,10 @@ export default function SettingsPage() {
   
   // Success banner auto-hide state
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
-  // Error banner state
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const lastSubmitAtRef = useRef<number | null>(null);
 
   // Ensure new sticky cart settings have defaults
   useEffect(() => {
-  setFormSettings((prev: any) => ({
+    setFormSettings(prev => ({
       ...prev,
       stickyCartShowIcon: prev.stickyCartShowIcon !== false,
       stickyCartShowCount: prev.stickyCartShowCount !== false,
@@ -514,32 +332,11 @@ export default function SettingsPage() {
   // Auto-hide success banner after 3 seconds
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data && (fetcher.data as any)?.success) {
-      const data: any = fetcher.data;
-      if (data.settings) {
-        // Optimistically sync form state with server-saved values
-        setFormSettings(validateSettings(data.settings));
-      }
       setShowSuccessBanner(true);
-  // Refresh loader data so UI reflects saved settings
-  try { revalidator.revalidate(); } catch {}
       const timer = setTimeout(() => {
         setShowSuccessBanner(false);
       }, 3000);
       return () => clearTimeout(timer);
-    } else if (fetcher.state === "idle" && fetcher.data && !(fetcher.data as any)?.success) {
-      // Server returned an error payload
-      const data: any = fetcher.data;
-      setErrorMessage(data?.message || 'Failed to save settings.');
-      const timer = setTimeout(() => setErrorMessage(null), 5000);
-      return () => clearTimeout(timer);
-    } else if (fetcher.state === "idle" && !fetcher.data && lastSubmitAtRef.current) {
-      // Submission ended without a response body; treat as failure if just submitted
-      const elapsed = Date.now() - lastSubmitAtRef.current;
-      if (elapsed < 4000) {
-        setErrorMessage('Save failed. Please try again.');
-        const timer = setTimeout(() => setErrorMessage(null), 5000);
-        return () => clearTimeout(timer);
-      }
     }
   }, [fetcher.state, fetcher.data]);
 
@@ -564,21 +361,10 @@ export default function SettingsPage() {
   }, []);
 
   const handleSubmit = () => {
-    console.log('🚀 Form submission - current formSettings:', formSettings);
-  lastSubmitAtRef.current = Date.now();
     const formData = new FormData();
-    
-    // Explicitly handle all fields to ensure checkboxes send false when unchecked
     Object.entries(formSettings).forEach(([key, value]) => {
-      console.log(`📝 Adding to form: ${key} = ${value}`);
-      // For boolean values, explicitly convert to string
-      if (typeof value === 'boolean') {
-        formData.append(key, value ? 'true' : 'false');
-      } else {
-        formData.append(key, String(value));
-      }
+      formData.append(key, String(value));
     });
-    
     fetcher.submit(formData, { method: "post" });
   };
 
@@ -627,9 +413,9 @@ export default function SettingsPage() {
   ];
 
   const recommendationLayoutOptions = [
-    { label: "Carousel", value: "carousel" },
-    { label: "List", value: "list" },
-    { label: "Grid", value: "grid" },
+    { label: "🚀 NEW Carousel", value: "carousel" },
+    { label: "📋 NEW List", value: "list" },
+    { label: "⚡ NEW Grid (Premium)", value: "grid" },
   ];
 
   const complementDetectionModeOptions = [
@@ -672,27 +458,9 @@ export default function SettingsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showGiftProductSelector, giftProductSearchQuery]);
 
-  // Fetch products when bundle product picker opens
-  useEffect(() => {
-    if (!showProductPicker) return;
-    setProductsError(null);
-    setProductsLoading(true);
-    const timeout = setTimeout(() => {
-      const qs = new URLSearchParams();
-      qs.set('limit', '25');
-      productsFetcher.load(`/api/products?${qs.toString()}`);
-    }, 250);
-    return () => clearTimeout(timeout);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showProductPicker]);
-
   useEffect(() => {
     if (productsFetcher.state === 'loading') {
       if (showProductSelector) {
-        setProductsLoading(true);
-        setProductsError(null);
-      }
-      if (showProductPicker) {
         setProductsLoading(true);
         setProductsError(null);
       }
@@ -708,10 +476,6 @@ export default function SettingsPage() {
           setProducts([]);
           setProductsError(typeof data.error === 'string' ? data.error : 'Failed to load products');
         }
-        if (showProductPicker) {
-          setProducts([]);
-          setProductsError(typeof data.error === 'string' ? data.error : 'Failed to load products');
-        }
         if (showGiftProductSelector) {
           setGiftProducts([]);
           setGiftProductsError(typeof data.error === 'string' ? data.error : 'Failed to load products');
@@ -720,22 +484,19 @@ export default function SettingsPage() {
         if (showProductSelector) {
           setProducts(Array.isArray(data?.products) ? data.products : []);
         }
-        if (showProductPicker) {
-          setProducts(Array.isArray(data?.products) ? data.products : []);
-        }
         if (showGiftProductSelector) {
           setGiftProducts(Array.isArray(data?.products) ? data.products : []);
         }
       }
       if (showProductSelector) setProductsLoading(false);
-      if (showProductPicker) setProductsLoading(false);
       if (showGiftProductSelector) setGiftProductsLoading(false);
     }
-  }, [productsFetcher.state, productsFetcher.data, showProductSelector, showProductPicker, showGiftProductSelector]);
+  }, [productsFetcher.state, productsFetcher.data, showProductSelector, showGiftProductSelector]);
 
   // Calculate free shipping progress
   const threshold = (formSettings.freeShippingThreshold || 100) * 100;
   const currentTotal = 1500; // £15.00 in pence for demo - shows progress needed
+  const remaining = Math.max(0, threshold - currentTotal);
   const progress = Math.min((currentTotal / threshold) * 100, 100);
 
   return (
@@ -931,10 +692,6 @@ export default function SettingsPage() {
             line-height: 1.2;
           }
 
-          .is-title-caps .cartuplift-item-title {
-            text-transform: uppercase;
-          }
-
           .cartuplift-item-variant {
             font-size: 9px;
             color: #666;
@@ -1095,10 +852,6 @@ export default function SettingsPage() {
             font-weight: 500;
             color: #333;
             line-height: 1.1;
-          }
-
-          .is-title-caps .cartuplift-recommendation-info h4 {
-            text-transform: uppercase;
           }
 
           .cartuplift-recommendation-price {
@@ -1381,36 +1134,36 @@ export default function SettingsPage() {
           }
 
           .cartuplift-footer {
-            border-top: 1px solid #eee;
-            padding: 14px 16px 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+            padding: 12px 16px;
             background: ${formSettings.backgroundColor || '#ffffff'};
+            border-top: 1px solid #e1e3e5;
             flex-shrink: 0;
           }
 
           .cartuplift-subtotal {
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
             font-size: 14px;
-            font-weight: 600;
+            font-weight: 500;
             color: ${formSettings.textColor || '#333'};
           }
 
           .cartuplift-checkout-btn {
             width: 100%;
+            padding: 14px 16px;
             background: ${resolveColor(formSettings.buttonColor, '#333')};
             color: ${resolveColor(formSettings.buttonTextColor, 'white')};
-            border: 0;
-            border-radius: 8px;
-            font-weight: 700;
-            height: 44px;
-            cursor: pointer;
+            border: none;
+            border-radius: 6px;
             font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
             letter-spacing: 0.5px;
             transition: background 0.2s ease;
+            margin-bottom: 12px;
           }
 
           .cartuplift-checkout-btn:hover {
@@ -1418,49 +1171,32 @@ export default function SettingsPage() {
           }
 
           .cartuplift-express-checkout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+            display: flex;
             gap: 8px;
+            margin-top: 8px;
           }
 
           .cartuplift-paypal-btn,
           .cartuplift-shoppay-btn {
-            border: 0;
-            border-radius: 8px;
-            height: 44px;
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: white;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            font-size: 14px;
-            font-weight: 600;
-            padding: 0 12px;
+            font-size: 12px;
+            font-weight: 500;
+            transition: background 0.2s ease;
           }
 
-          .cartuplift-paypal-btn {
-            background: #FFC439;
-          }
-
-          .cartuplift-paypal-btn:hover {
-            background: #FFD700;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(255, 196, 57, 0.3);
-          }
-
-          .cartuplift-shoppay-btn {
-            background: #5a31f4;
-            color: #fff;
-            font-weight: 700;
-          }
-
+          .cartuplift-paypal-btn:hover,
           .cartuplift-shoppay-btn:hover {
-            background: #4c2ed8;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(90, 49, 244, 0.3);
+            background: #f5f5f5;
           }
 
-          .cartuplift-paypal-label { font-weight: 700; color: #111; }
+          .cartuplift-paypal-logo {
+            height: 16px;
+          }
             border: 1px solid #ddd;
             border-radius: 3px;
             background: white;
@@ -1989,11 +1725,11 @@ export default function SettingsPage() {
           .cartuplift-selected-products { margin-top: 8px; }
           .cartuplift-selected-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
           .cartuplift-product-selector-list { max-height: 360px; overflow: auto; display: grid; gap: 8px; }
-          .cartuplift-product-row { display: grid; grid-template-columns: 24px 40px 1fr; align-items: center; gap: 10px; padding: 8px; border: 1px solid #ececef; border-radius: 6px; background: #fff; }
+          .cartuplift-product-row { display: grid; grid-template-columns: auto 40px 1fr; align-items: center; gap: 10px; padding: 8px; border: 1px solid #ececef; border-radius: 6px; background: #fff; }
           .cartuplift-product-thumb { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; background: #f4f5f6; }
           .cartuplift-product-meta { display: flex; flex-direction: column; gap: 2px; }
           .cartuplift-product-title { font-size: 12px; font-weight: 600; color: #1a1a1a; margin: 0; }
-          .cartuplift-product-sub { font-size: 11px; color: #737373; margin: 0; white-space: nowrap; }
+          .cartuplift-product-sub { font-size: 11px; color: #737373; margin: 0; }
           
           .cartuplift-recommendations-header {
             display: flex;
@@ -2605,11 +2341,7 @@ export default function SettingsPage() {
             background: rgba(0,0,0,0.1);
             padding: 2px 4px;
             border-radius: 3px;
-          }
-
-          .is-grid-caps .cartuplift-grid-item h5 {
             text-transform: uppercase;
-          }
             letter-spacing: 0.5px;
           }
           
@@ -2734,44 +2466,6 @@ export default function SettingsPage() {
             margin-right: -16px !important;
             padding-left: 16px !important;
             padding-right: 16px !important;
-          }
-
-          /* Inline Links Styles */
-          .cartuplift-inline-links {
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 8px;
-            padding: 12px 16px;
-            font-size: 13px;
-            color: #666;
-          }
-
-          .cartuplift-inline-link {
-            display: flex;
-            align-items: center;
-            color: #007bff;
-            cursor: pointer;
-            text-decoration: none;
-            transition: color 0.2s ease;
-          }
-
-          .cartuplift-inline-link:hover {
-            color: #0056b3;
-            text-decoration: underline;
-          }
-
-          .cartuplift-inline-link svg {
-            width: 14px;
-            height: 14px;
-            margin-right: 4px;
-            flex-shrink: 0;
-          }
-
-          .cartuplift-inline-sep {
-            color: #ccc;
-            font-weight: bold;
-            margin: 0 4px;
           }
 
           /* Gift Progress Bars Styles */
@@ -3189,11 +2883,11 @@ export default function SettingsPage() {
       }} />
 
       <div className="cartuplift-settings-layout">
-        {errorMessage && (
-          <div className="cartuplift-success-banner">
-            <Banner tone="critical">{errorMessage}</Banner>
-          </div>
-        )}
+        {/* DEVELOPMENT VERSION BANNER - Always visible for testing */}
+        <div className="cartuplift-success-banner">
+          <Banner tone="info">🔥 DEVELOPMENT VERSION LOADED - NEW LAYOUT OPTIONS AVAILABLE 🔥</Banner>
+        </div>
+
         {showSuccessBanner && (
           <div className="cartuplift-success-banner">
             <Banner tone="success">Settings saved successfully!</Banner>
@@ -3239,402 +2933,6 @@ export default function SettingsPage() {
               </BlockStack>
             </Card>
 
-            {/* ML/AI Personalization Settings */}
-            <Card>
-              <BlockStack gap="400">
-                <BlockStack gap="200">
-                  <Text variant="headingMd" as="h2">🤖 AI Personalization</Text>
-                  <Text as="p" variant="bodySm" tone="subdued">Configure machine learning features for personalized recommendations</Text>
-                </BlockStack>
-                
-                <FormLayout>
-                  <BlockStack gap="300">
-                    <Select
-                      label="Personalization Level"
-                      options={[
-                        { label: 'Basic (Anonymous) - No personal data collection', value: 'basic' },
-                        { label: 'Enhanced - Personalized with consent', value: 'enhanced' },
-                        { label: 'AI-Powered - Full machine learning with consent', value: 'full_ml' }
-                      ]}
-                      value={(formSettings as any).mlPersonalizationMode || 'basic'}
-                      onChange={(value) => updateSetting('mlPersonalizationMode', value)}
-                      helpText="Higher levels provide better recommendations but require customer consent"
-                    />
-                    
-                    {((formSettings as any).mlPersonalizationMode === 'enhanced' || (formSettings as any).mlPersonalizationMode === 'full_ml') && (
-                      <Banner tone="info">
-                        <Text variant="bodyMd" as="p">
-                          Enhanced and AI-Powered modes will show customers a consent dialog explaining data collection. 
-                          All data is processed securely and never shared with third parties.
-                        </Text>
-                      </Banner>
-                    )}
-                    
-                    <Checkbox
-                      label="Enable ML-powered recommendations"
-                      checked={(formSettings as any).enableMLRecommendations || false}
-                      onChange={(value) => updateSetting("enableMLRecommendations", value)}
-                      helpText="Use machine learning algorithms for better product suggestions"
-                      disabled={(formSettings as any).mlPersonalizationMode === 'basic'}
-                    />
-                    
-                    {(formSettings as any).mlPersonalizationMode === 'full_ml' && (
-                      <BlockStack gap="200">
-                        <Checkbox
-                          label="Advanced behavior analysis"
-                          checked={(formSettings as any).enableBehaviorTracking || false}
-                          onChange={(value) => updateSetting("enableBehaviorTracking", value)}
-                          helpText="Analyze shopping patterns for predictive recommendations"
-                        />
-                        
-                        <Checkbox
-                          label="Smart bundle discovery"
-                          checked={(formSettings as any).enableAdvancedPersonalization || false}
-                          onChange={(value) => updateSetting("enableAdvancedPersonalization", value)}
-                          helpText="AI-generated product bundles based on customer behavior"
-                        />
-                        
-                        <Select
-                          label="Data retention period"
-                          options={[
-                            { label: 'No data storage', value: '0' },
-                            { label: '7 days', value: '7' },
-                            { label: '30 days', value: '30' },
-                            { label: '90 days', value: '90' },
-                            { label: '1 year', value: '365' }
-                          ]}
-                          value={(formSettings as any).mlDataRetentionDays || '30'}
-                          onChange={(value) => updateSetting('mlDataRetentionDays', value)}
-                          helpText="How long to retain customer behavior data for ML learning"
-                        />
-                      </BlockStack>
-                    )}
-                    
-                    <BlockStack gap="300">
-                      <Text as="h3" variant="headingMd">
-                        Smart Bundle Settings
-                      </Text>
-                      
-                      <Checkbox
-                        label="Enable Smart Bundles"
-                        checked={(formSettings as any).enableSmartBundles || false}
-                        onChange={(value) => updateSetting("enableSmartBundles", value)}
-                        helpText="Show ML-discovered and manual product bundles with automatic discounts"
-                      />
-                      
-                      {(formSettings as any).enableSmartBundles && (
-                        <BlockStack gap="200">
-                          <Text as="h4" variant="headingSm">Bundle Display Locations</Text>
-                          
-                          <BlockStack gap="100">
-                            <Checkbox
-                              label="Product pages"
-                              checked={(formSettings as any).bundlesOnProductPages !== false}
-                              onChange={(value) => updateSetting("bundlesOnProductPages", value)}
-                              helpText="Show relevant bundles on individual product pages"
-                            />
-                            
-                            <Checkbox
-                              label="Collection pages"
-                              checked={(formSettings as any).bundlesOnCollectionPages || false}
-                              onChange={(value) => updateSetting("bundlesOnCollectionPages", value)}
-                              helpText="Show popular bundles from the collection category"
-                            />
-                            
-                            <Checkbox
-                              label="Cart page"
-                              checked={(formSettings as any).bundlesOnCartPage || false}
-                              onChange={(value) => updateSetting("bundlesOnCartPage", value)}
-                              helpText="Show complementary bundles in cart (only when cart has 1-2 items)"
-                            />
-                            
-                            <Checkbox
-                              label="Checkout page"
-                              checked={(formSettings as any).bundlesOnCheckoutPage || false}
-                              onChange={(value) => updateSetting("bundlesOnCheckoutPage", value)}
-                              helpText="Last chance bundle offers during checkout"
-                            />
-                          </BlockStack>
-                          
-                          <Select
-                            label="Default bundle discount"
-                            options={[
-                              { label: '5% off', value: '5' },
-                              { label: '10% off', value: '10' },
-                              { label: '15% off', value: '15' },
-                              { label: '20% off', value: '20' },
-                              { label: '25% off', value: '25' },
-                              { label: 'Custom per bundle', value: 'custom' }
-                            ]}
-                            value={(formSettings as any).defaultBundleDiscount || '15'}
-                            onChange={(value) => updateSetting('defaultBundleDiscount', value)}
-                            helpText="Default discount percentage for auto-discovered bundles"
-                          />
-                          
-                          <TextField
-                            label="Bundle title template"
-                            value={(formSettings as any).bundleTitleTemplate || "Complete your setup"}
-                            onChange={(value) => updateSetting("bundleTitleTemplate", value)}
-                            helpText="Default title for bundles. Use {product} for dynamic product name"
-                            placeholder="Complete your {product} setup"
-                            autoComplete="off"
-                          />
-                          
-                          <TextField
-                            label="Bundle discount code prefix"
-                            value={(formSettings as any).bundleDiscountPrefix || "BUNDLE"}
-                            onChange={(value) => updateSetting("bundleDiscountPrefix", value)}
-                            helpText="Automatic discount codes will be: PREFIX + bundle ID (e.g., BUNDLE_IPHONE_SETUP)"
-                            placeholder="BUNDLE"
-                            autoComplete="off"
-                          />
-                          
-                          <Select
-                            label="ML bundle confidence threshold"
-                            options={[
-                              { label: 'Low (50% confidence)', value: 'low' },
-                              { label: 'Medium (70% confidence)', value: 'medium' },
-                              { label: 'High (85% confidence)', value: 'high' }
-                            ]}
-                            value={(formSettings as any).bundleConfidenceThreshold || 'medium'}
-                            onChange={(value) => updateSetting('bundleConfidenceThreshold', value)}
-                            helpText="Minimum ML confidence level required to show auto-discovered bundles"
-                          />
-                          
-                          <Text as="h4" variant="headingSm">Bundle Savings Display</Text>
-                          
-                          <Select
-                            label="Savings display format"
-                            options={[
-                              { label: 'Save $X', value: 'amount' },
-                              { label: 'Save X%', value: 'percentage' },
-                              { label: 'Save $X (X%)', value: 'both' },
-                              { label: 'X% off bundle', value: 'discount_label' }
-                            ]}
-                            value={(formSettings as any).bundleSavingsFormat || 'both'}
-                            onChange={(value) => updateSetting('bundleSavingsFormat', value)}
-                            helpText="How to display bundle savings to customers"
-                          />
-                          
-                          <Checkbox
-                            label="Show individual product prices in bundle"
-                            checked={(formSettings as any).showIndividualPricesInBundle !== false}
-                            onChange={(value) => updateSetting("showIndividualPricesInBundle", value)}
-                            helpText="Display strikethrough individual prices vs bundle price"
-                          />
-                          
-                          <Checkbox
-                            label="Auto-apply bundle discount codes"
-                            checked={(formSettings as any).autoApplyBundleDiscounts !== false}
-                            onChange={(value) => updateSetting("autoApplyBundleDiscounts", value)}
-                            helpText="Automatically apply discount codes when customers add bundles to cart"
-                          />
-                        </BlockStack>
-                      )}
-                    </BlockStack>
-                    
-                    {/* Manual Bundle Management */}
-                    {(formSettings as any).enableSmartBundles && (
-                      <BlockStack gap="300">
-                        <Text as="h3" variant="headingMd">
-                          Manual Bundle Management
-                        </Text>
-                        
-                        <Text as="p" variant="bodySm">
-                          Create custom bundles or manage ML-discovered bundles. Each bundle gets an automatic discount code.
-                        </Text>
-                        
-                        <Button
-                          onClick={() => setShowBundleCreator(true)}
-                          variant="primary"
-                        >
-                          Create New Bundle
-                        </Button>
-                        
-                        {/* Bundle List */}
-                        <BlockStack gap="200">
-                          <Text as="h4" variant="headingSm">Active Bundles</Text>
-                          
-                          {bundles.length === 0 ? (
-                            <Card>
-                              <BlockStack gap="200">
-                                <Text as="p" variant="bodySm">
-                                  No bundles created yet. Create your first bundle to get started!
-                                </Text>
-                                <Text as="p" variant="bodySm">
-                                  💡 Tip: Our ML system will also discover bundles automatically based on customer behavior.
-                                </Text>
-                              </BlockStack>
-                            </Card>
-                          ) : (
-                            bundles.map((bundle: any) => (
-                              <Card key={bundle.id}>
-                                <BlockStack gap="200">
-                                  <InlineStack wrap={false} align="space-between">
-                                    <BlockStack gap="100">
-                                      <Text as="h5" variant="headingSm">{bundle.name}</Text>
-                                      <Text as="p" variant="bodySm">
-                                        {bundle.products.map((p: any) => p.title).join(' + ')}
-                                      </Text>
-                                      <Text as="p" variant="bodySm">
-                                        Regular: ${bundle.regular_total.toFixed(2)} • Bundle: ${bundle.bundle_price.toFixed(2)} • <strong>Save ${bundle.savings_amount.toFixed(2)} ({bundle.discount_percent}%)</strong>
-                                      </Text>
-                                      <Text as="p" variant="bodySm">
-                                        Discount Code: <Badge>{bundle.discount_code}</Badge>
-                                      </Text>
-                                      {bundle.performance && (
-                                        <Text as="p" variant="bodySm">
-                                          Performance: {bundle.performance.views} views, {bundle.performance.conversions} sales, ${bundle.performance.revenue.toFixed(2)} revenue
-                                        </Text>
-                                      )}
-                                    </BlockStack>
-                                    <BlockStack gap="100">
-                                      <Badge tone={bundle.status === 'active' ? 'success' : 'warning'}>
-                                        {bundle.status === 'active' ? 'Active' : 'Draft'}
-                                      </Badge>
-                                      <Badge>{bundle.source === 'ml' ? 'ML Discovered' : 'Manual'}</Badge>
-                                      {bundle.confidence && (
-                                        <Badge tone="info">{String(Math.round((bundle as any).confidence * 100)) + '% confidence'}</Badge>
-                                      )}
-                                      <Button size="slim">Edit</Button>
-                                    </BlockStack>
-                                  </InlineStack>
-                                </BlockStack>
-                              </Card>
-                            ))
-                          )}
-                        </BlockStack>
-                        
-                        {/* Bundle Creator Modal */}
-                        {showBundleCreator && (
-                          <Modal
-                            open={showBundleCreator}
-                            onClose={() => setShowBundleCreator(false)}
-                            title="Create New Bundle"
-                            primaryAction={{
-                              content: 'Create Bundle',
-                              onAction: () => {
-                                // Handle bundle creation
-                                setShowBundleCreator(false);
-                              }
-                            }}
-                            secondaryActions={[{
-                              content: 'Cancel',
-                              onAction: () => setShowBundleCreator(false)
-                            }]}
-                          >
-                            <Modal.Section>
-                              <BlockStack gap="400">
-                                <TextField
-                                  label="Bundle Name"
-                                  value={newBundle.name}
-                                  onChange={(value) => setNewBundle(prev => ({ ...prev, name: value }))}
-                                  placeholder="Complete iPhone Setup"
-                                  autoComplete="off"
-                                />
-                                
-                                <TextField
-                                  label="Bundle Description"
-                                  value={newBundle.description}
-                                  onChange={(value) => setNewBundle(prev => ({ ...prev, description: value }))}
-                                  placeholder="Everything you need for your new iPhone"
-                                  multiline={3}
-                                  autoComplete="off"
-                                />
-                                
-                                <Select
-                                  label="Bundle Discount"
-                                  options={[
-                                    { label: '5% off', value: '5' },
-                                    { label: '10% off', value: '10' },
-                                    { label: '15% off', value: '15' },
-                                    { label: '20% off', value: '20' },
-                                    { label: '25% off', value: '25' },
-                                  ]}
-                                  value={newBundle.discount}
-                                  onChange={(value) => setNewBundle(prev => ({ ...prev, discount: value }))}
-                                />
-                                
-                                <BlockStack gap="200">
-                                  <Text as="h4" variant="headingSm">Bundle Products</Text>
-                                  <Text as="p" variant="bodySm">
-                                    Select products to include in this bundle:
-                                  </Text>
-                                  
-                                  <Button
-                                    onClick={() => setShowProductPicker(true)}
-                                    variant="secondary"
-                                  >
-                                    {`Add Products (${selectedBundleProducts.length} selected)`}
-                                  </Button>
-                                  
-                                  {selectedBundleProducts.length > 0 && (
-                                    <BlockStack gap="100">
-                    {selectedBundleProducts.map((product, index) => (
-                                        <InlineStack key={index} wrap={false} align="space-between">
-                      <Text as="p" variant="bodySm">{product.title} - {formatCurrency(product.price, product.currency || shopCurrency?.currencyCode || 'USD')}</Text>
-                                          <Button 
-                                            size="slim" 
-                                            variant="plain"
-                                            onClick={() => {
-                                              setSelectedBundleProducts(prev => 
-                                                prev.filter((_, i) => i !== index)
-                                              );
-                                            }}
-                                          >
-                                            Remove
-                                          </Button>
-                                        </InlineStack>
-                                      ))}
-                                    </BlockStack>
-                                  )}
-                                </BlockStack>
-                                
-                                {selectedBundleProducts.length > 1 && (
-                                  <Card>
-                                    <BlockStack gap="200">
-                                      <Text as="h4" variant="headingSm">Bundle Preview</Text>
-                                      <Text as="p" variant="bodySm">
-                                        Individual Total: {formatCurrency(calculateBundleTotal(selectedBundleProducts), shopCurrency?.currencyCode || 'USD')}
-                                      </Text>
-                                      <Text as="p" variant="bodySm">
-                                        Bundle Price: {formatCurrency(calculateDiscountedTotal(selectedBundleProducts, newBundle.discount), shopCurrency?.currencyCode || 'USD')}
-                                      </Text>
-                                      <Text as="p" variant="bodyMd" fontWeight="medium">
-                                        Customer Saves: {formatCurrency(calculateBundleTotal(selectedBundleProducts) - calculateDiscountedTotal(selectedBundleProducts, newBundle.discount), shopCurrency?.currencyCode || 'USD')} ({newBundle.discount}% off)
-                                      </Text>
-                                      <Text as="p" variant="bodySm">
-                                        Discount Code: {`BUNDLE_${newBundle.name.toUpperCase().replace(/\s+/g, '_')}`}
-                                      </Text>
-                                    </BlockStack>
-                                  </Card>
-                                )}
-                              </BlockStack>
-                            </Modal.Section>
-                          </Modal>
-                        )}
-                      </BlockStack>
-                    )}
-                    
-                    <Banner tone="warning">
-                      <BlockStack gap="200">
-                        <Text variant="bodyMd" as="p" fontWeight="medium">
-                          Privacy & Compliance Information
-                        </Text>
-                        <Text variant="bodySm" as="p">
-                          • Basic mode: No personal data collection, anonymous analytics only<br/>
-                          • Enhanced mode: Requires customer consent, GDPR compliant<br/>
-                          • AI-Powered mode: Advanced ML with explicit opt-in consent<br/>
-                          • Customers can change preferences or delete data anytime<br/>
-                          • All data is encrypted and never shared with third parties
-                        </Text>
-                      </BlockStack>
-                    </Banner>
-                  </BlockStack>
-                </FormLayout>
-              </BlockStack>
-            </Card>
-
             {/* Customer Incentives */}
             <Card>
               <BlockStack gap="400">
@@ -3642,7 +2940,7 @@ export default function SettingsPage() {
                 <FormLayout>
                   <BlockStack gap="200">
                     <Text variant="headingSm" as="h3">Incentive Type</Text>
-                    <Text as="p" variant="bodySm" tone="subdued">Choose what motivates your customers to spend more</Text>
+                    <Text variant="bodySm" color="subdued">Choose what motivates your customers to spend more</Text>
                     
                     <BlockStack gap="300">
                       <BlockStack gap="100">
@@ -3653,7 +2951,7 @@ export default function SettingsPage() {
                           checked={(formSettings.progressBarMode || 'free-shipping') === 'free-shipping'}
                           onChange={() => updateSetting('progressBarMode', 'free-shipping')}
                         />
-                        <Text as="p" variant="bodySm" tone="subdued">
+                        <Text variant="bodySm" color="subdued" tone="subdued">
                           Simple progress bar showing how close customers are to free shipping
                         </Text>
                       </BlockStack>
@@ -3666,7 +2964,7 @@ export default function SettingsPage() {
                           checked={formSettings.progressBarMode === 'gift-gating'}
                           onChange={() => updateSetting('progressBarMode', 'gift-gating')}
                         />
-                        <Text as="p" variant="bodySm" tone="subdued">
+                        <Text variant="bodySm" color="subdued" tone="subdued">
                           Advanced progress system with multiple gift thresholds and rewards
                         </Text>
                       </BlockStack>
@@ -3679,7 +2977,7 @@ export default function SettingsPage() {
                           checked={formSettings.progressBarMode === 'combined'}
                           onChange={() => updateSetting('progressBarMode', 'combined')}
                         />
-                        <Text as="p" variant="bodySm" tone="subdued">
+                        <Text variant="bodySm" color="subdued" tone="subdued">
                           Unified progress bar combining free shipping and gift thresholds
                         </Text>
                       </BlockStack>
@@ -3786,7 +3084,7 @@ export default function SettingsPage() {
                                   checked={(formSettings.giftProgressStyle || 'single-next') === 'stacked'}
                                   onChange={() => updateSetting('giftProgressStyle', 'stacked')}
                                 />
-                                <Text as="p" variant="bodySm" tone="subdued">
+                                <Text variant="bodySm" color="subdued" tone="subdued">
                                   Show separate progress bars for each threshold
                                 </Text>
                               </BlockStack>
@@ -3799,7 +3097,7 @@ export default function SettingsPage() {
                                   checked={(formSettings.giftProgressStyle || 'single-next') === 'single-multi'}
                                   onChange={() => updateSetting('giftProgressStyle', 'single-multi')}
                                 />
-                                <Text as="p" variant="bodySm" tone="subdued">
+                                <Text variant="bodySm" color="subdued" tone="subdued">
                                   One progress bar showing all reward milestones
                                 </Text>
                               </BlockStack>
@@ -3812,7 +3110,7 @@ export default function SettingsPage() {
                                   checked={(formSettings.giftProgressStyle || 'single-next') === 'single-next'}
                                   onChange={() => updateSetting('giftProgressStyle', 'single-next')}
                                 />
-                                <Text as="p" variant="bodySm" tone="subdued">
+                                <Text variant="bodySm" color="subdued" tone="subdued">
                                   Focus on the next achievable reward
                                 </Text>
                               </BlockStack>
@@ -3821,7 +3119,7 @@ export default function SettingsPage() {
                           
                           <BlockStack gap="200">
                             <Text variant="headingSm" as="h3">Gift Thresholds</Text>
-                            <Text as="p" variant="bodySm" tone="subdued">
+                            <Text variant="bodySm" color="subdued">
                               Set spending thresholds to unlock gifts, discounts, or free products
                             </Text>
                             
@@ -3835,7 +3133,7 @@ export default function SettingsPage() {
                                 
                                 if (giftThresholds.length === 0) {
                                   return (
-                                    <Text as="p" variant="bodySm" tone="subdued" alignment="center">
+                                    <Text variant="bodySm" color="subdued" alignment="center">
                                       No gift thresholds added yet. Click "Add Gift Threshold" to get started.
                                     </Text>
                                   );
@@ -3931,7 +3229,7 @@ export default function SettingsPage() {
                                                     </div>
                                                   )}
                                                   <div className="cartuplift-product-info">
-                                                    <Text as="p" variant="bodyMd" fontWeight="medium">
+                                                    <Text variant="bodyMd" fontWeight="medium">
                                                       {threshold.productTitle}
                                                     </Text>
                                                   </div>
@@ -4011,12 +3309,12 @@ export default function SettingsPage() {
                                 autoComplete="off"
                                 multiline={2}
                               />
-                              <Text as="p" variant="bodySm" tone="subdued">
+                              <Text variant="bodySm" color="subdued">
                                 <strong>You can use:</strong><br/>
                                 • <code>{'{{amount}}'}</code> – total savings (e.g. "£115.00")<br/>
                                 • <code>{'{{product}}'}</code> – gift product names (comma-separated if multiple)
                               </Text>
-                              <Text as="p" variant="bodySm" tone="subdued">
+                              <Text variant="bodySm" color="subdued">
                                 <strong>Fallback (if left blank):</strong> "Free gift included"
                               </Text>
                             </BlockStack>
@@ -4032,7 +3330,7 @@ export default function SettingsPage() {
                                 placeholder="FREE"
                                 autoComplete="off"
                               />
-                              <Text as="p" variant="bodySm" tone="subdued">
+                              <Text variant="bodySm" color="subdued">
                                 <strong>Default:</strong> "FREE" | <strong>Fallback (if left blank):</strong> "Gift"
                               </Text>
                             </BlockStack>
@@ -4101,13 +3399,6 @@ export default function SettingsPage() {
                     checked={formSettings.showOnlyOnCartPage}
                     onChange={(value) => updateSetting("showOnlyOnCartPage", value)}
                     helpText="Limit cart uplift features to cart page only (disables recommendations and upsells on other pages)"
-                  />
-                  
-                  <Checkbox
-                    label="Show Product Titles in Caps"
-                    checked={formSettings.enableTitleCaps || false}
-                    onChange={(value) => updateSetting("enableTitleCaps", value)}
-                    helpText="Display product titles in UPPERCASE for both cart items and recommendations"
                   />
                 </FormLayout>
               </BlockStack>
@@ -4236,7 +3527,11 @@ export default function SettingsPage() {
                       label="Layout Style"
                       options={recommendationLayoutOptions}
                       value={formSettings.recommendationLayout}
-                      onChange={(value) => updateSetting("recommendationLayout", value)}
+                      onChange={(value) => {
+                        console.log('🎯 Dropdown onChange - received value:', value);
+                        console.log('🎯 Available options:', recommendationLayoutOptions);
+                        updateSetting("recommendationLayout", value);
+                      }}
                       helpText="How recommendations are displayed in the cart"
                     />
                     
@@ -4279,13 +3574,6 @@ export default function SettingsPage() {
                       autoComplete="off"
                     />
                     
-                    <Checkbox
-                      label="Show Grid Titles in Caps"
-                      checked={formSettings.enableRecommendationTitleCaps || false}
-                      onChange={(value) => updateSetting("enableRecommendationTitleCaps", value)}
-                      helpText="Display product titles in UPPERCASE specifically for grid layout recommendations"
-                    />
-                    
                     <Select
                       label="Recommendation Mode (AI vs. Manual)"
                       options={complementDetectionModeOptions}
@@ -4308,7 +3596,7 @@ export default function SettingsPage() {
                           <InlineStack gap="200" align="start">
                             <Button onClick={() => setShowProductSelector(true)}>Select products</Button>
                             {selectedProducts.length > 0 && (
-                              <Badge tone="success">{`${selectedProducts.length} selected`}</Badge>
+                              <Badge tone="success">{selectedProducts.length} selected</Badge>
                             )}
                           </InlineStack>
                         </div>
@@ -4323,6 +3611,7 @@ export default function SettingsPage() {
             <Card>
               <BlockStack gap="400">
                 <Text variant="headingMd" as="h2">⚡ Additional Features</Text>
+                <Text as="p" tone="subdued">Admin Settings UI version: links-2025-09-10-2</Text>
                 <FormLayout>
                   <Checkbox
                     label="Enable Discount Code Field"
@@ -4330,6 +3619,15 @@ export default function SettingsPage() {
                     onChange={(value) => updateSetting("enableDiscountCode", value)}
                     helpText="Allow customers to apply discount codes in cart"
                   />
+                  {formSettings.enableDiscountCode && (
+                    <TextField
+                      label="Promotion Link Text"
+                      value={formSettings.discountLinkText || '+ Got a promotion code?'}
+                      onChange={(value) => updateSetting('discountLinkText', value)}
+                      helpText="Inline link label shown on your online store to open the discount code modal"
+                      autoComplete="off"
+                    />
+                  )}
                   
                   <Checkbox
                     label="Enable Order Notes"
@@ -4337,34 +3635,19 @@ export default function SettingsPage() {
                     onChange={(value) => updateSetting("enableNotes", value)}
                     helpText="Let customers add special instructions"
                   />
-                  
-                  <Checkbox
-                    label="Enable Express Checkout"
-                    checked={formSettings.enableExpressCheckout}
-                    onChange={(value) => updateSetting("enableExpressCheckout", value)}
-                    helpText="Show PayPal and Shop Pay buttons for faster checkout"
-                  />
-
-                  {formSettings.enableDiscountCode && (
-                    <TextField
-                      label="Discount Link Text"
-                      value={formSettings.discountLinkText || ""}
-                      onChange={(value) => updateSetting("discountLinkText", value)}
-                      placeholder="+ Got a promotion code?"
-                      helpText="Text shown for the discount code link"
-                      autoComplete="off"
-                    />
-                  )}
 
                   {formSettings.enableNotes && (
                     <TextField
                       label="Notes Link Text"
-                      value={formSettings.notesLinkText || ""}
-                      onChange={(value) => updateSetting("notesLinkText", value)}
-                      placeholder="+ Add order notes"
-                      helpText="Text shown for the order notes link"
+                      value={formSettings.notesLinkText || '+ Add order notes'}
+                      onChange={(value) => updateSetting('notesLinkText', value)}
+                      helpText="Inline link label shown on your online store to open the order notes modal"
                       autoComplete="off"
                     />
+                  )}
+
+                  {(formSettings.enableDiscountCode || formSettings.enableNotes) && (
+                    <Text as="p" tone="subdued">Inline links are used on the online store. The old full-width button is deprecated.</Text>
                   )}
                 </FormLayout>
               </BlockStack>
@@ -4374,7 +3657,7 @@ export default function SettingsPage() {
 
         {/* Preview Column - Right Side */}
         <div className="cartuplift-preview-column" ref={previewRef}>
-          <div className={`cartuplift-preview-container ${formSettings.enableTitleCaps ? 'is-title-caps' : ''} ${formSettings.enableRecommendationTitleCaps ? 'is-grid-caps' : ''}`}>
+          <div className="cartuplift-preview-container">
             {/* Header */}
             <div className="cartuplift-preview-header">
                   <h2 className="cartuplift-cart-title">CART (5)</h2>
@@ -4510,6 +3793,7 @@ export default function SettingsPage() {
                         
                         if (!nextThreshold) {
                           // All thresholds achieved
+                          const lastThreshold = sortedThresholds[sortedThresholds.length - 1];
                           return (
                             <div className="cartuplift-single-next-progress">
                               <div className="cartuplift-next-goal-header">
@@ -5068,28 +4352,12 @@ export default function SettingsPage() {
                     </Modal>
                   )}
 
-                  {/* Discount & Notes Section - Inline Links Style Like Real Cart */}
+                  {/* Discount & Notes Section - Collapsed Button Like Real Cart */}
                   {(formSettings.enableDiscountCode || formSettings.enableNotes) && (
                     <div className="cartuplift-discount-section">
-                      <div className="cartuplift-inline-links">
-                        {formSettings.enableDiscountCode && (
-                          <span className="cartuplift-inline-link">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6Z" />
-                            </svg>
-                            {(formSettings.discountLinkText || '+ Got a promotion code?').replace(/^\+\s*/, '')}
-                          </span>
-                        )}
-                        {formSettings.enableDiscountCode && formSettings.enableNotes && (
-                          <span className="cartuplift-inline-sep">•</span>
-                        )}
-                        {formSettings.enableNotes && (
-                          <span className="cartuplift-inline-link">
-                            {formSettings.notesLinkText || '+ Add order notes'}
-                          </span>
-                        )}
-                      </div>
+                      <button className="cartuplift-rainbow-card-button" type="button">
+                        {formSettings.actionText || 'Add discount codes and notes'}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -5105,12 +4373,10 @@ export default function SettingsPage() {
                   
                   {formSettings.enableExpressCheckout && (
                     <div className="cartuplift-express-checkout">
-                      <button className="cartuplift-paypal-btn" title="Pay with PayPal">
-                        <span className="cartuplift-paypal-label">PayPal</span>
+                      <button className="cartuplift-paypal-btn">
+                        <img src="https://www.paypalobjects.com/webstatic/en_US/i/buttons/PP_logo_h_100x26.png" alt="PayPal" className="cartuplift-paypal-logo" />
                       </button>
-                      <button className="cartuplift-shoppay-btn" title="Pay with Shop Pay">
-                        Shop Pay
-                      </button>
+                      <button className="cartuplift-shoppay-btn">Shop Pay</button>
                     </div>
                   )}
                 </div>
@@ -5130,66 +4396,6 @@ export default function SettingsPage() {
               </div>
         </div>
       </div>
-
-      {/* Product Picker Modal for Bundle Creation */}
-      {showProductPicker && (
-        <Modal
-          open
-          onClose={() => setShowProductPicker(false)}
-          title="Select Products for Bundle"
-          primaryAction={{
-            content: 'Done',
-            onAction: () => {
-              setShowProductPicker(false);
-            }
-          }}
-          secondaryActions={[{ content: 'Cancel', onAction: () => setShowProductPicker(false) }]}
-        >
-          <Modal.Section>
-            <BlockStack gap="300">
-              <Text as="p" variant="bodySm" tone="subdued">
-                Select products to include in your bundle. You can select multiple products.
-              </Text>
-              
-              {products.length === 0 ? (
-                <Text as="p" tone="subdued">No products available.</Text>
-              ) : (
-                <div className="cartuplift-product-selector-list">
-                  {products.map((product: any) => {
-                    const isSelected = selectedBundleProducts.some(p => p.id === product.id);
-                    return (
-                      <div key={product.id} className="cartuplift-product-row">
-                        <Checkbox
-                          label=""
-                          checked={isSelected}
-                          onChange={(checked: boolean) => {
-                            if (checked) {
-                              // Add product to selection
-                              setSelectedBundleProducts(prev => [...prev, product]);
-                            } else {
-                              // Remove product from selection
-                              setSelectedBundleProducts(prev => prev.filter(p => p.id !== product.id));
-                            }
-                          }}
-                        />
-                        <img 
-                          className="cartuplift-product-thumb" 
-                          src={product.image || ''} 
-                          alt={product.title} 
-                        />
-                        <div className="cartuplift-product-meta">
-                          <p className="cartuplift-product-title">{product.title}</p>
-                          <p className="cartuplift-product-sub">{formatCurrency(product.price, product.currency || shopCurrency?.currencyCode || 'USD')}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </BlockStack>
-          </Modal.Section>
-        </Modal>
-      )}
 
       {/* Gift Product Selector Modal */}
       {showGiftProductSelector && (

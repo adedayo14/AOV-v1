@@ -25,34 +25,44 @@ export type GeneratedBundle = {
 const getPid = (gid?: string) => (gid || "").replace("gid://shopify/Product/", "");
 const getVid = (gid?: string) => (gid || "").replace("gid://shopify/ProductVariant/", "");
 
+// Dynamic bundle pricing for optimal AOV lift
+const calculateOptimalDiscount = (products: BundleProduct[], customerAOV: number = 0) => {
+  const bundleValue = products.reduce((sum, p) => sum + p.price, 0);
+  
+  // Stepped discounts based on bundle value
+  if (bundleValue < 50) return 10; // Small bundles: 10%
+  if (bundleValue < 100) return 15; // Medium: 15%
+  if (bundleValue < 200) return 20; // Large: 20%
+  return 25; // Premium: 25%
+};
+
 export async function generateBundlesFromOrders(params: {
   shop: string;
   productId: string;
   limit: number;
   excludeProductId?: string;
-  defaultDiscountPct: number;
   bundleTitle?: string;
   enableCoPurchase?: boolean;
 }): Promise<GeneratedBundle[]> {
-  const { shop, productId, limit, defaultDiscountPct, bundleTitle = "Frequently Bought Together", enableCoPurchase } = params;
+  const { shop, productId, limit, bundleTitle = "Frequently Bought Together", enableCoPurchase } = params;
 
-  const manualBundles = await getManualBundlesSafely({ shop, productId, limit, defaultDiscountPct });
+  const manualBundles = await getManualBundlesSafely({ shop, productId, limit });
   if (manualBundles.length) return manualBundles;
 
   // Optional co-purchase (requires orders and toggle)
   if (enableCoPurchase) {
-    const coBundles = await coPurchaseFallback({ shop, productId, limit, defaultDiscountPct, bundleTitle });
+    const coBundles = await coPurchaseFallback({ shop, productId, limit, bundleTitle });
     if (coBundles.length) return coBundles;
   }
 
-  const shopifyBundles = await shopifyRecommendationsFallback({ shop, productId, limit, defaultDiscountPct, bundleTitle });
+  const shopifyBundles = await shopifyRecommendationsFallback({ shop, productId, limit, bundleTitle });
   if (shopifyBundles.length) return shopifyBundles;
 
-  return await contentBasedFallback({ shop, productId, limit, defaultDiscountPct, bundleTitle });
+  return await contentBasedFallback({ shop, productId, limit, bundleTitle });
 }
 
-async function coPurchaseFallback(params: { shop: string; productId: string; limit: number; defaultDiscountPct: number; bundleTitle?: string }): Promise<GeneratedBundle[]> {
-  const { shop, productId, limit, defaultDiscountPct, bundleTitle } = params;
+async function coPurchaseFallback(params: { shop: string; productId: string; limit: number; bundleTitle?: string }): Promise<GeneratedBundle[]> {
+  const { shop, productId, limit, bundleTitle } = params;
   try {
     const { admin } = await unauthenticated.admin(shop);
     // Fetch recent orders containing the anchor product
@@ -116,20 +126,25 @@ async function coPurchaseFallback(params: { shop: string; productId: string; lim
       const v = n.variants?.edges?.[0]?.node;
       const price = parseFloat(v?.price || '0') || 0;
       const vid = getVid(v?.id);
+      
+      const bundleProducts = [
+        { id: productId, variant_id: anchorVid, title: anchor.title || 'Product', price: anchorPrice },
+        { id: pid, variant_id: vid, title: n.title || 'Recommended', price },
+      ];
+      
       const regular_total = anchorPrice + price;
-      const bundle_price = Math.max(0, regular_total * (1 - defaultDiscountPct / 100));
+      const optimalDiscount = calculateOptimalDiscount(bundleProducts);
+      const bundle_price = Math.max(0, regular_total * (1 - optimalDiscount / 100));
       const savings_amount = Math.max(0, regular_total - bundle_price);
+      
       bundles.push({
         id: `CO_${productId}_${pid}`,
         name: bundleTitle || 'Frequently Bought Together',
-        products: [
-          { id: productId, variant_id: anchorVid, title: anchor.title || 'Product', price: anchorPrice },
-          { id: pid, variant_id: vid, title: n.title || 'Recommended', price },
-        ],
+        products: bundleProducts,
         regular_total,
         bundle_price,
         savings_amount,
-        discount_percent: defaultDiscountPct,
+        discount_percent: optimalDiscount,
         status: 'active',
         source: 'ml',
       });
@@ -141,7 +156,7 @@ async function coPurchaseFallback(params: { shop: string; productId: string; lim
   }
 }
 
-async function getManualBundlesSafely(params: { shop: string; productId: string; limit: number; defaultDiscountPct: number }): Promise<GeneratedBundle[]> {
+async function getManualBundlesSafely(params: { shop: string; productId: string; limit: number }): Promise<GeneratedBundle[]> {
   try {
     return await getManualBundles(params);
   } catch (e) {
@@ -150,8 +165,8 @@ async function getManualBundlesSafely(params: { shop: string; productId: string;
   }
 }
 
-async function getManualBundles(params: { shop: string; productId: string; limit: number; defaultDiscountPct: number }): Promise<GeneratedBundle[]> {
-  const { shop, productId, limit, defaultDiscountPct } = params;
+async function getManualBundles(params: { shop: string; productId: string; limit: number }): Promise<GeneratedBundle[]> {
+  const { shop, productId, limit } = params;
   if (!prisma?.bundle?.findMany) return [];
 
   const bundles = await prisma.bundle.findMany({
@@ -189,8 +204,8 @@ async function getManualBundles(params: { shop: string; productId: string; limit
     }
     if (items.length < 2) continue;
 
-    const discountPercent = (b as any).discountPercent ?? defaultDiscountPct;
-    const bundle_price = Math.max(0, regular_total * (1 - Number(discountPercent) / 100));
+    const optimalDiscount = calculateOptimalDiscount(items);
+    const bundle_price = Math.max(0, regular_total * (1 - optimalDiscount / 100));
     const savings_amount = Math.max(0, regular_total - bundle_price);
 
     generated.push({
@@ -200,7 +215,7 @@ async function getManualBundles(params: { shop: string; productId: string; limit
       regular_total,
       bundle_price,
       savings_amount,
-      discount_percent: Number(discountPercent) || 0,
+      discount_percent: optimalDiscount,
       status: "active",
       source: "manual",
     });
@@ -209,8 +224,8 @@ async function getManualBundles(params: { shop: string; productId: string; limit
   return generated;
 }
 
-async function shopifyRecommendationsFallback(params: { shop: string; productId: string; limit: number; defaultDiscountPct: number; bundleTitle?: string }): Promise<GeneratedBundle[]> {
-  const { shop, productId, limit, defaultDiscountPct, bundleTitle } = params;
+async function shopifyRecommendationsFallback(params: { shop: string; productId: string; limit: number; bundleTitle?: string }): Promise<GeneratedBundle[]> {
+  const { shop, productId, limit, bundleTitle } = params;
   try {
     const { admin } = await unauthenticated.admin(shop);
     const anchorGid = `gid://shopify/Product/${productId}`;
@@ -242,20 +257,25 @@ async function shopifyRecommendationsFallback(params: { shop: string; productId:
       const v = rec.variants?.edges?.[0]?.node;
       const price = parseFloat(v?.price || "0") || 0;
       const vid = getVid(v?.id);
+      
+      const bundleProducts = [
+        { id: productId, variant_id: anchorVid, title: anchor.title || "Product", price: anchorPrice },
+        { id: pid, variant_id: vid, title: rec.title || "Recommended", price },
+      ];
+      
       const regular_total = anchorPrice + price;
-      const bundle_price = Math.max(0, regular_total * (1 - defaultDiscountPct / 100));
+      const optimalDiscount = calculateOptimalDiscount(bundleProducts);
+      const bundle_price = Math.max(0, regular_total * (1 - optimalDiscount / 100));
       const savings_amount = Math.max(0, regular_total - bundle_price);
+      
       bundles.push({
         id: `SHOPIFY_${productId}_${pid}`,
         name: bundleTitle || "Complete your setup",
-        products: [
-          { id: productId, variant_id: anchorVid, title: anchor.title || "Product", price: anchorPrice },
-          { id: pid, variant_id: vid, title: rec.title || "Recommended", price },
-        ],
+        products: bundleProducts,
         regular_total,
         bundle_price,
         savings_amount,
-        discount_percent: defaultDiscountPct,
+        discount_percent: optimalDiscount,
         status: "active",
         source: "rules",
       });
@@ -267,8 +287,8 @@ async function shopifyRecommendationsFallback(params: { shop: string; productId:
   }
 }
 
-async function contentBasedFallback(params: { shop: string; productId: string; limit: number; defaultDiscountPct: number; bundleTitle?: string }): Promise<GeneratedBundle[]> {
-  const { shop, productId, limit, defaultDiscountPct, bundleTitle } = params;
+async function contentBasedFallback(params: { shop: string; productId: string; limit: number; bundleTitle?: string }): Promise<GeneratedBundle[]> {
+  const { shop, productId, limit, bundleTitle } = params;
   const { admin } = await unauthenticated.admin(shop);
 
   const anchorGid = `gid://shopify/Product/${productId}`;
@@ -328,20 +348,24 @@ async function contentBasedFallback(params: { shop: string; productId: string; l
 
   const bundles: GeneratedBundle[] = [];
   for (const rec of picks) {
+    const bundleProducts = [
+      { id: productId, variant_id: anchorVid, title: anchorTitle || "Product", price: anchorPrice },
+      { id: rec.pid, variant_id: rec.vid, title: rec.title || "Recommended", price: rec.price },
+    ];
+    
     const regular_total = anchorPrice + rec.price;
-    const bundle_price = Math.max(0, regular_total * (1 - defaultDiscountPct / 100));
+    const optimalDiscount = calculateOptimalDiscount(bundleProducts);
+    const bundle_price = Math.max(0, regular_total * (1 - optimalDiscount / 100));
     const savings_amount = Math.max(0, regular_total - bundle_price);
+    
     bundles.push({
       id: `CB_${productId}_${rec.pid}`,
       name: bundleTitle || "Complete your setup",
-      products: [
-        { id: productId, variant_id: anchorVid, title: anchorTitle || "Product", price: anchorPrice },
-        { id: rec.pid, variant_id: rec.vid, title: rec.title || "Recommended", price: rec.price },
-      ],
+      products: bundleProducts,
       regular_total,
       bundle_price,
       savings_amount,
-      discount_percent: defaultDiscountPct,
+      discount_percent: optimalDiscount,
       status: "active",
       source: "ml",
     });

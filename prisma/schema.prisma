@@ -1,4 +1,4 @@
-// Development Prisma schema for SQLite (no env var required)
+// Prisma schema - SQLite for local development
 generator client {
   provider = "prisma-client-js"
 }
@@ -24,6 +24,8 @@ model Session {
   locale        String?
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
+
+  @@map("Session")
 }
 
 model Settings {
@@ -36,7 +38,7 @@ model Settings {
   showOnlyOnCartPage      Boolean  @default(false)
   autoOpenCart            Boolean  @default(true)
   enableFreeShipping      Boolean  @default(false)
-  freeShippingThreshold   Float    @default(0)
+  freeShippingThreshold   Float    @default(100)
   
   // Advanced Features
   enableRecommendations   Boolean  @default(false)
@@ -45,9 +47,6 @@ model Settings {
   enableNotes             Boolean  @default(false)
   enableExpressCheckout   Boolean  @default(true)
   enableAnalytics         Boolean  @default(false)
-  enableTitleCaps         Boolean  @default(false)
-  // Dev-only toggle for recommendation grid/header caps; aliased in code to enableTitleCaps in prod
-  enableRecommendationTitleCaps Boolean @default(false)
   
   // Cart Behavior & Position
   cartPosition            String   @default("bottom-right")
@@ -61,9 +60,10 @@ model Settings {
   addButtonText           String   @default("Add")
   checkoutButtonText      String   @default("CHECKOUT")
   applyButtonText         String   @default("Apply")
-  // Dev-only link texts (not present in prod schema)
+  // Inline link texts (storefront)
   discountLinkText        String   @default("+ Got a promotion code?")
   notesLinkText           String   @default("+ Add order notes")
+  
   
   // Appearance
   backgroundColor         String   @default("#ffffff")
@@ -74,51 +74,29 @@ model Settings {
   shippingBarBackgroundColor String @default("#f0f0f0")
   shippingBarColor        String   @default("#121212")
   
-  // Recommendation Settings
+  // Layout and Recommendations - IMPORTANT: Default is "carousel"
   recommendationLayout    String   @default("carousel")
-  maxRecommendations      Int      @default(3)
+  maxRecommendations      Int      @default(4)
   complementDetectionMode String   @default("automatic")
   manualRecommendationProducts String @default("")
   
-  // Progress Bar System
-  progressBarMode         String   @default("free-shipping") // "free-shipping", "gift-gating", "combined"
-  enableGiftGating        Boolean  @default(false)
-  giftProgressStyle       String   @default("single-next") // "stacked", "single-multi", "single-next"
-  giftThresholds          String   @default("[]") // JSON array of gift thresholds
-  
-  // Legacy fields (to preserve existing data)
-  stickyCartShowIcon      Boolean  @default(true)
-  stickyCartShowCount     Boolean  @default(true)
-  stickyCartShowTotal     Boolean  @default(true)
-  stickyCartBackgroundColor String @default("#000000")
-  stickyCartTextColor     String   @default("#ffffff")
-  stickyCartCountBadgeColor String @default("#ff4444")
+  // Sticky Cart Settings
+  stickyCartShowIcon           Boolean @default(true)
+  stickyCartShowCount          Boolean @default(true)
+  stickyCartShowTotal          Boolean @default(true)
+  stickyCartBackgroundColor    String  @default("#000000")
+  stickyCartTextColor          String  @default("#ffffff")
+  stickyCartCountBadgeColor    String  @default("#ff4444")
   stickyCartCountBadgeTextColor String @default("#ffffff")
-  stickyCartBorderRadius  Int      @default(25)
+  stickyCartBorderRadius       Int     @default(25)
+  
+  // Progress Bar System
+  progressBarMode         String   @default("free-shipping")
+  enableGiftGating        Boolean  @default(false)
+  giftProgressStyle       String   @default("single-next")
+  giftThresholds          String   @default("[]")
   giftNoticeText          String   @default("Free gift added: {{product}} (worth {{amount}})")
   giftPriceText           String   @default("FREE")
-
-  // ML/Privacy Settings
-  mlPersonalizationMode   String   @default("basic")
-  enableMLRecommendations Boolean  @default(false)
-  mlPrivacyLevel          String   @default("basic")
-  enableAdvancedPersonalization Boolean @default(false)
-  enableBehaviorTracking  Boolean  @default(false)
-  mlDataRetentionDays     String   @default("30")
-
-  // Smart Bundle Settings
-  enableSmartBundles      Boolean  @default(false)
-  bundlesOnProductPages   Boolean  @default(true)
-  bundlesOnCollectionPages Boolean @default(false)
-  bundlesOnCartPage       Boolean  @default(false)
-  bundlesOnCheckoutPage   Boolean  @default(false)
-  defaultBundleDiscount   String   @default("15")
-  bundleTitleTemplate     String   @default("Complete your setup")
-  bundleDiscountPrefix    String   @default("BUNDLE")
-  bundleConfidenceThreshold String @default("medium")
-  bundleSavingsFormat     String   @default("both")
-  showIndividualPricesInBundle Boolean @default(true)
-  autoApplyBundleDiscounts Boolean @default(true)
 
   // Theme App Embed Status
   themeEmbedEnabled       Boolean  @default(false)
@@ -126,47 +104,6 @@ model Settings {
   
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
-}
 
-// Lightweight event log for storefront tracking (impressions, clicks, conversions)
-model TrackingEvent {
-  id         String   @id @default(cuid())
-  shop       String
-  event      String   // 'impression' | 'click' | 'conversion'
-  productId  String?
-  productTitle String?
-  priceCents Int?
-  revenueCents Int?
-  sessionId  String?
-  reason     String?  // e.g., 'server_recs', 'local_engine'
-  slot       Int?
-  createdAt  DateTime @default(now())
-
-  @@index([shop, event, createdAt])
-  @@index([shop, productId, createdAt])
-}
-
-// Manual bundles created by merchants
-model Bundle {
-  id          String        @id @default(cuid())
-  shop        String
-  name        String
-  description String?
-  discountPercent Int       @default(15)
-  isActive    Boolean       @default(true)
-  products    BundleProduct[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  
-  @@index([shop, isActive])
-}
-
-model BundleProduct {
-  id         String  @id @default(cuid())
-  bundleId   String
-  productId  String  // Shopify product ID
-  variantId  String? // Shopify variant ID
-  bundle     Bundle  @relation(fields: [bundleId], references: [id], onDelete: Cascade)
-  
-  @@index([bundleId])
+  @@map("Settings")
 }

@@ -531,14 +531,6 @@ body.cartuplift-no-scroll {
   text-overflow: ellipsis;
   /* Consistent height whether variants exist or not */
   min-height: 14px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Ensure cart text is left-aligned regardless of theme */
-.cartuplift-item-info {
-  text-align: left !important;
 }
 
 /* Quantity Selector - 32px height, 100px min-width */
@@ -705,7 +697,7 @@ body.cartuplift-no-scroll {
 
 .cartuplift-scrollable-content .cartuplift-recommendations {
   margin-top: 0;
-  padding-top: 6px;   /* reduced from 12px - less space above header */
+  padding-top: 12px;  /* add equal space above header so it sits lower */
   padding-bottom: 0;  /* keep compact spacing after content */
   padding-left: 10px; /* add left padding for horizontal cards */
 }
@@ -724,11 +716,11 @@ body.cartuplift-no-scroll {
   align-items: center;
   width: 100%;
   padding-left: 16px;
-  padding-top: 8px;    /* reduced from 10px */
-  padding-bottom: 6px; /* reduced from 10px - less space between header and cards */
+  padding-top: 10px;
+  padding-bottom: 10px; /* Add bottom padding for more space between header and cards */
   padding-right: 16px; /* Reduced to move toggle closer to edge */
   background: var(--cartuplift-recommendations-bg);
-  height: 40px;  /* reduced from 46px to account for less padding */
+  height: 46px;  /* Increased from 36px to account for bottom padding */
   box-sizing: border-box;
   position: relative;
   z-index: 3; /* Ensure header/toggle are clickable above scroll content on mobile */
@@ -793,7 +785,7 @@ body.cartuplift-no-scroll {
   position: relative;
   display: block; /* Default visible; allow collapsed state to override */
   background: var(--cartuplift-recommendations-bg);
-  padding: 8px 12px 12px 12px; /* reduced top padding from 12px to 8px */
+  padding: 12px;
   /* Smooth transitions for content changes */
   transition: opacity 0.2s ease, transform 0.2s ease;
   transform: translateZ(0); /* Force hardware acceleration */
@@ -802,7 +794,7 @@ body.cartuplift-no-scroll {
 /* Ensure recommendations are visible by default */
 .cartuplift-recommendations:not(.collapsed) .cartuplift-recommendations-content {
   display: block !important;
-  margin-top: 0; /* removed margin-top to reduce spacing between header and content */
+  margin-top: 12px; /* add equal space below header so title is visually centered */
 }
 
 .cartuplift-recommendations.collapsed .cartuplift-recommendations-content {
@@ -907,19 +899,6 @@ body.cartuplift-no-scroll {
   z-index: 10;
 }
 
-.cartuplift-item-variant .cartuplift-item-swatch-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  margin-right: 6px;
-  vertical-align: -1px;
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
-}
-.cartuplift-item-variant .cartuplift-item-swatch-dot.is-white {
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
-}
-
 .cartuplift-carousel-dot {
   width: 8px;
   height: 8px;
@@ -958,23 +937,6 @@ body.cartuplift-no-scroll {
   will-change: auto; /* Only use when needed */
 }
 
-/* Skeleton shimmer */
-@keyframes cartupliftShimmer {
-  0% { background-position: -200px 0; }
-  100% { background-position: calc(200px + 100%) 0; }
-}
-.cartuplift-skeleton-box,
-.cartuplift-skeleton-line,
-.cartuplift-skeleton-pill {
-  background: linear-gradient(90deg, #eee 25%, #f5f5f5 37%, #eee 63%);
-  background-size: 200px 100%;
-  animation: cartupliftShimmer 1.2s ease-in-out infinite;
-}
-.cartuplift-skeleton-line { height: 12px; border-radius: 6px; }
-.cartuplift-skeleton-pill { height: 28px; border-radius: 16px; }
-.cartuplift-recommendation-card.is-skeleton .cartuplift-product-image { background: none; }
-.cartuplift-grid-item.is-skeleton { border: none; }
-
 .cartuplift-card-content {
   display: flex;
   flex-direction: row;
@@ -1012,8 +974,6 @@ body.cartuplift-no-scroll {
   min-width: 0;
   padding-top: 0; /* remove extra top padding */
   height: 100%; /* Allow pushing variation to the bottom */
-  justify-content: space-between; /* Align bottom of info with bottom of actions */
-  position: relative; /* create containing block */
 }
 
 .cartuplift-recommendation-card h4 {
@@ -1030,39 +990,11 @@ body.cartuplift-no-scroll {
   -webkit-box-orient: vertical;
   margin-bottom: 4px; /* Add margin for consistent spacing */
   text-transform: none !important;
-  max-height: 2.6em; /* ensure space for two lines */
 }
 
-/* Variation selector - layout */
+/* Variation selector - only show if product has multiple variants */
 .cartuplift-product-variation {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-/* In carousel (row) align selectors to bottom to match Add button */
-.cartuplift-recommendations-row .cartuplift-product-variation {
-  margin-top: auto;
-  /* Stack selects vertically in carousel for two options (Color + Size) */
-  flex-direction: column;
-  align-items: flex-start;
-  flex-wrap: nowrap;
-}
-
-/* Combined dropdown visibility rules */
-.cartuplift-combo-dropdown { display: none; }
-.cartuplift-simple-select { display: inline-flex; }
-
-@media (min-width: 769px) {
-  /* In desktop carousel, show the combined dropdown and hide individual selects to save space */
-  .cartuplift-recommendations-row .cartuplift-combo-dropdown { display: inline-flex; width: 180px; max-width: 180px; }
-  .cartuplift-recommendations-row .cartuplift-simple-select { display: none !important; }
-}
-
-/* Hide inline labels to save space and ensure color is visible */
-.cartuplift-variant-label {
-  display: none !important;
+  margin-top: 4px; /* Move up from auto to position higher */
 }
 
 .cartuplift-size-dropdown {
@@ -1090,22 +1022,6 @@ body.cartuplift-no-scroll {
   background-size: 8px 5px;
 }
 
-/* Uniform control sizes on carousel (desktop) */
-@media (min-width: 769px) {
-  .cartuplift-recommendations-row .cartuplift-size-dropdown {
-    width: 140px;
-    max-width: 140px;
-  }
-}
-
-/* On mobile, take full width for better usability while still uniform */
-@media (max-width: 768px) {
-  .cartuplift-recommendations-row .cartuplift-size-dropdown {
-    width: 100%;
-    max-width: 100%;
-  }
-}
-
 .cartuplift-size-dropdown:focus {
   outline: none;
   border-color: #999;
@@ -1123,7 +1039,7 @@ body.cartuplift-no-scroll {
   align-items: flex-end;
   justify-content: space-between; /* Changed to space-between for better distribution */
   flex-shrink: 0;
-  width: 74px; /* Slightly slimmer to free space for title */
+  width: 78px; /* Slightly slimmer to free space for title */
   height: 100%; /* Span full card height to align Add button with bottom */
   min-height: 80px; /* Reduce to tighten space under Add button */
   padding-top: 2px; /* Small padding to align with image */
@@ -1264,79 +1180,58 @@ body.cartuplift-no-scroll {
 
 /* Grid Layout - for premium grid display */
 .cartuplift-recommendations-grid .cartuplift-recommendations-content {
-  padding: 0; /* No padding for full width grid */
-  margin: 0; /* Remove any margins */
+  padding: 12px; /* Reduced from 16px to match row layout */
 }
 
-/* --- Desktop Grid: single row, compact height, 4 items per row --- */
+/* --- Minimal COS-style Grid (desktop) --- */
 .cartuplift-grid-container {
   display: grid;
-  grid-template-columns: repeat(4, 1fr); /* Show 4 per row on desktop */
-  grid-template-rows: 140px; /* Single row, aligns with carousel footprint */
-  gap: 0;
-  width: 100%;
-  background: var(--cartuplift-recommendations-bg);
-  border: none;
-  border-radius: 0;
-  overflow: visible; /* Allow borders to show properly */
-  margin: 0 0 12px 0; /* Slightly tighter spacing under grid */
-  transition: grid-template-rows 0.3s ease; /* Smooth transition */
-  padding: 0; /* Ensure no padding cuts off borders */
-}
-
-/* Force single-row height even if a class toggles collapsed/expanded */
-.cartuplift-grid-container.collapsed {
-  grid-template-rows: 140px;
-}
-
-/* Desktop: Only show first 4 items to keep height consistent */
-.cartuplift-grid-container > .cartuplift-grid-item:nth-child(n+5) {
-  display: none !important;
+  grid-template-columns: repeat(3, 1fr); /* 3 equal columns instead of 4 fixed-width */
+  grid-auto-rows: 104px;
+  gap: 0; /* No gaps - single rectangle divided into sections */
+  justify-content: center;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 0 16px; /* Add horizontal margin for better spacing */
 }
 
 .cartuplift-grid-item {
   position: relative;
   width: 100%; /* Full width of column */
-  height: 140px; /* Match single-row height */
+  height: 104px;
   cursor: pointer;
-  overflow: visible; /* Allow border to show fully */
-  background: var(--cartuplift-recommendations-bg); /* Use selected section background */
-  border: 0.5px solid transparent; /* All 4 sides with thin hidden borders */
+  overflow: hidden;
+  background: #ffffff;
+  border-right: 1px solid transparent; /* Hidden border that will show on hover */
+  border-bottom: 1px solid transparent; /* Hidden border that will show on hover */
   transition: border-color .2s ease, background-color .2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0; /* Remove padding so image fills entire area */
+  padding: 12px;
   box-sizing: border-box;
-  margin: 0; /* Ensure no margin cuts off borders */
 }
 
-/* No per-column border overrides needed for 4-column grid */
+/* Remove borders on last column and last row items */
+.cartuplift-grid-item:nth-child(3n) {
+  border-right: none; /* No right border on last column */
+}
 
-/* Show full thin black outline on hover with improved visibility */
 .cartuplift-grid-item:hover {
-  border-color: #000000; /* All 4 sides get black border */
   background-color: #f8f8f8;
-  z-index: 10; /* Ensure hover state appears above adjacent items */
-  position: relative;
+  border-right-color: #d0d0d0;
+  border-bottom-color: #d0d0d0;
 }
 
-/* Remove right border hover effect from last column items - NOT NEEDED ANYMORE */
+/* Remove hover border on last column */
+.cartuplift-grid-item:nth-child(3n):hover {
+  border-right-color: transparent;
+}
 
-.cartuplift-grid-image { 
-  position: absolute; 
-  inset: 0; 
-  width: 100%; 
-  height: 100%; 
-  background: #f8f8f8;
-}
-.cartuplift-grid-image img { 
-  position: absolute; 
-  inset: 0; 
-  width: 100%; 
-  height: 100%; 
-  object-fit: cover; /* Changed from contain to cover to fill entire area */
-}
+.cartuplift-grid-image { position: relative; width:100%; height:100%; }
+.cartuplift-grid-image img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 
 /* Hover content container - ONLY button, no title/price on image */
 .cartuplift-grid-hover { position:absolute; inset:0; display:flex; flex-direction:column; opacity:0; transition:opacity .28s ease; padding:6px 6px 8px; justify-content:flex-end; align-items:center; }
@@ -1347,54 +1242,10 @@ body.cartuplift-no-scroll {
 .cartuplift-grid-title { display:none !important; }
 .cartuplift-grid-price { display:none !important; }
 
-.cartuplift-grid-add-btn { 
-  /* Match the theme-icon-button-round-light style */
-  background: rgba(255, 255, 255, 0.9); /* Semi-transparent white background */
-  color: #000; /* Black icon */
-  border: none; /* No border for cleaner look */
-  width: 28px; /* Same as w-7 (1.75rem = 28px) */
-  height: 28px; /* Same as h-7 */
-  border-radius: 50%; /* Fully rounded */
-  display: inline-flex; 
-  align-items: center; 
-  justify-content: center; 
-  opacity: 0.8; /* Start with 80% opacity like the reference */
-  transform: translateY(6px); 
-  transition: all 0.3s ease; /* Smooth transitions */
-  cursor: pointer;
-  position: relative;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
-  /* Add the extended click area like the reference */
-}
-
-/* Extended click area (like the after pseudo-element in reference) */
-.cartuplift-grid-add-btn::after {
-  content: '';
-  position: absolute;
-  left: -8px; /* -0.5rem = -8px */
-  top: -8px;
-  width: calc(100% + 16px); /* +1rem = +16px total */
-  height: calc(100% + 16px);
-  display: block;
-  pointer-events: auto;
-}
-
-.cartuplift-grid-item:hover .cartuplift-grid-add-btn { 
-  opacity: 1; /* Full opacity on hover */
-  transform: translateY(0); 
-  background: rgba(255, 255, 255, 1); /* Fully opaque on hover */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Stronger shadow on hover */
-}
-.cartuplift-grid-add-btn svg { 
-  width: 16px; /* Same as h-4 w-4 from reference */
-  height: 16px; 
-  fill: currentColor; /* Use fill instead of stroke for solid icons */
-  stroke: none; /* Remove stroke */
-  stroke-width: 0;
-  pointer-events: none; /* Prevent SVG from blocking clicks */
-}
-
-/* Remove old hover styles that are now integrated above */
+.cartuplift-grid-add-btn { background: #000; color:#fff; border:0; font-size:11px; font-weight:500; padding:6px 10px; line-height:1; border-radius:0; display:inline-flex; gap:6px; align-items:center; opacity:0; transform:translateY(6px); transition:opacity .3s ease, transform .3s ease, background .2s ease; }
+.cartuplift-grid-item:hover .cartuplift-grid-add-btn { opacity:1; transform:translateY(0); }
+.cartuplift-grid-add-btn svg { width:14px; height:14px; }
+.cartuplift-grid-add-btn:hover { background:#222; }
 
 /* Hide ALL old overlay styles completely */
 .cartuplift-grid-overlay { display:none !important; }
@@ -1402,85 +1253,29 @@ body.cartuplift-no-scroll {
 .cartuplift-grid-container .cartuplift-grid-title { display:none !important; }
 .cartuplift-grid-container .cartuplift-grid-price { display:none !important; }
 
-/* Limit to exactly 6 items visually (2 rows of 3) - REMOVED, now handled dynamically */
+/* Limit to exactly 8 items visually (2 rows) */
+.cartuplift-grid-container > .cartuplift-grid-item:nth-child(n+9) { display:none !important; }
 
 /* Typography smoothing */
 .cartuplift-grid-container, .cartuplift-grid-container * { -webkit-font-smoothing: antialiased; }
 
 /* Mobile adjustments for grid */
 @media (max-width: 768px) {
-  /* Mobile: Single scrollable row with 2.3 items visible - OVERRIDE DESKTOP */
-  .cartuplift-grid-container,
-  .cartuplift-grid-container.collapsed {
-    display: flex !important; /* Override grid layout completely */
-    flex-direction: row !important;
-    grid-template-columns: unset !important;
-    grid-template-rows: unset !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    scroll-snap-type: x mandatory !important;
-    gap: 4px !important; /* Much thinner gap between cards */
-    padding: 0 16px 16px 16px !important; /* Added bottom padding for space under cards */
-    height: 172px !important; /* Increased height to accommodate bottom padding */
-    width: 100% !important;
-    margin: 0 0 16px 0 !important; /* Add bottom margin for spacing under cards */
+  .cartuplift-grid-container {
+    grid-template-columns: 2fr 2fr 1fr;
+    grid-template-rows: 1fr;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
   }
   
   .cartuplift-grid-item {
-    flex: 0 0 140px !important; /* Fixed width, no grow/shrink */
-    min-width: 140px !important;
-    max-width: 140px !important;
-    width: 140px !important;
-    height: 140px !important;
-    scroll-snap-align: start !important;
-    padding: 0 !important; /* Remove padding so image fills entire area */
-    display: flex !important; /* Override any hidden states */
+    scroll-snap-align: start;
+    min-width: calc(50% - 8px);
   }
   
-  /* Show ALL items on mobile - override desktop limits */
-  .cartuplift-grid-container > .cartuplift-grid-item:nth-child(n+4),
-  .cartuplift-grid-container > .cartuplift-grid-item:nth-child(n+7),
-  .cartuplift-grid-container.collapsed > .cartuplift-grid-item:nth-child(n+4) { 
-    display: flex !important; 
-  }
-  
-  /* Hide scrollbar completely on mobile */
-  .cartuplift-grid-container::-webkit-scrollbar {
-    display: none !important;
-    width: 0 !important;
-    height: 0 !important;
-  }
-  
-  .cartuplift-grid-container {
-    -ms-overflow-style: none !important;  /* Internet Explorer 10+ */
-    scrollbar-width: none !important;  /* Firefox */
-  }
-  
-  /* Adjust button size for mobile */
-  .cartuplift-grid-add-btn {
-    width: 24px !important;
-    height: 24px !important;
-  }
-  
-  .cartuplift-grid-add-btn svg {
-    width: 14px !important;
-    height: 14px !important;
-  }
-  
-  /* Make cart container bigger on mobile when using grid */
-  .cartuplift-recommendations-grid .cartuplift-items {
-    max-height: calc(100vh - 280px) !important; /* More space for cart items */
-    flex: 1 !important;
-  }
-  
-  .cartuplift-recommendations-grid .cartuplift-content-wrapper {
-    max-height: calc(100vh - 120px) !important; /* Bigger overall container */
-  }
-  
-  /* Reduce grid section height to give more space to cart */
-  .cartuplift-recommendations-grid {
-    flex-shrink: 0 !important;
-    min-height: auto !important;
+  .cartuplift-grid-item:nth-child(3n) {
+    min-width: 25%;
   }
 }
 
@@ -1792,7 +1587,7 @@ body.cartuplift-no-scroll {
 .cartuplift-paypal-btn,
 .cartuplift-shoppay-btn {
   flex: 1;
-  padding: 8px 12px;
+  padding: 8px;
   border: 1px solid #ddd;
   border-radius: 6px;
   cursor: pointer;
@@ -1801,36 +1596,27 @@ body.cartuplift-no-scroll {
   align-items: center;
   justify-content: center;
   background: white;
-  font-size: 14px;
-  min-height: 40px;
+  font-size: 12px;
 }
 
-.cartuplift-paypal-btn {
-  background: #ffc439; /* PayPal Yellow */
-  border-color: #ffc439;
+.cartuplift-paypal-btn:hover,
+.cartuplift-shoppay-btn:hover {
+  border-color: var(--cartuplift-primary);
 }
 
-.cartuplift-paypal-btn:hover {
-  background: #f4b400; /* Darker on hover */
-  border-color: #f4b400;
-}
-
-.cartuplift-paypal-label {
-  font-weight: 700;
-  color: #111;
+.cartuplift-paypal-btn img {
+  height: 12px;
+  width: auto; /* preserve aspect ratio to avoid stretching */
+  max-width: 60px; /* prevent excessive width */
+  object-fit: contain;
+  display: block; /* ensure proper rendering */
 }
 
 .cartuplift-shoppay-btn {
   background: #5a31f4;
   color: white;
   border-color: #5a31f4;
-  font-weight: 700; /* Make text bold */
-}
-.cartuplift-shoppay-label { color: #fff; font-weight: inherit; }
-
-.cartuplift-shoppay-btn:hover {
-  background: #4c28d4;
-  border-color: #4c28d4;
+  font-weight: 600;
 }
 
 /* Gift Modal */
@@ -2703,101 +2489,4 @@ body.cartuplift-no-scroll {
   color: var(--cartuplift-primary, #121212) !important;
   font-weight: bold;
   font-size: 14px;
-}
-
-/* Title Caps Setting - Apply when enabled */
-[data-cartuplift-title-caps="true"] .cartuplift-item-title,
-[data-cartuplift-title-caps="true"] .cartuplift-item-title a,
-[data-cartuplift-title-caps="true"] .cartuplift-recommendations-title,
-[data-cartuplift-title-caps="true"] .cartuplift-recommendation-card h4,
-[data-cartuplift-title-caps="true"] .cartuplift-recommendation-item h4,
-[data-cartuplift-title-caps="true"] .cartuplift-recommendation-info h4,
-[data-cartuplift-title-caps="true"] .cartuplift-grid-item h4 {
-  text-transform: uppercase !important;
-}
-
-/* ========================================
-   Variant Swatches (Cart + Recommendations)
-   ======================================== */
-.cartuplift-variant-swatch-group {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: nowrap;
-  margin-bottom: 6px;
-}
-
-.cartuplift-variant-swatch {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 1px solid #d1d5db; /* light gray */
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.02) inset;
-  cursor: pointer;
-  background: #f9fafb;
-  position: relative;
-}
-
-.cartuplift-variant-swatch[aria-selected="true"],
-.cartuplift-variant-swatch.selected {
-  /* Subtle selection ring without heavy outlines */
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.55);
-  border-color: transparent;
-}
-
-/* Ensure white swatches are visible */
-.cartuplift-variant-swatch.is-white {
-  border-color: #c7c7c7;
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.05) inset;
-  background: #fff;
-}
-
-/* Tiny initial when color unknown */
-.cartuplift-variant-swatch .cartuplift-swatch-initial {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  line-height: 1;
-  color: #111;
-}
-
-/* Cart line item variant display with swatch */
-.cartuplift-item-variant {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.cartuplift-item-variant .cartuplift-swatch {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 1px solid #d1d5db;
-  display: inline-block;
-  vertical-align: middle;
-}
-
-.cartuplift-item-variant .cartuplift-swatch.is-white {
-  border-color: #c7c7c7;
-  background: #fff;
-}
-
-/* Compact spacing for recommendation cards */
-.cartuplift-recommendation-card .cartuplift-variant-swatch-group {
-  margin-top: 4px;
-  margin-bottom: 8px;
-}
-
-/* Grid hover: place swatches above add button */
-.cartuplift-grid-hover .cartuplift-variant-swatch-group {
-  margin-bottom: 10px;
-}
-
-/* Column/list items: left align swatches for consistency */
-.cartuplift-recommendation-item .cartuplift-variant-swatch-group {
-  justify-content: flex-start;
 }

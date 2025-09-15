@@ -395,24 +395,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
         return json({ bundles: [], reason: 'invalid_product' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
       }
 
-      const defaultDiscountPct = (() => {
-        const v = String(settings?.defaultBundleDiscount ?? '15');
-        const n = parseInt(v, 10);
-        return Number.isFinite(n) && n > 0 ? Math.min(50, n) : 15;
-      })();
-
       // Use ML service with built-in content-based fallback if co-purchase data is sparse
       console.log(`[BUNDLES API] === STARTING ML SERVICE CALL ===`);
       console.log(`[BUNDLES API] Generating bundles for product ${productId}, shop: ${shop}, limit: ${limit}`);
-      console.log(`[BUNDLES API] Call parameters:`, { shop, productId, limit, defaultDiscountPct });
+      console.log(`[BUNDLES API] Call parameters:`, { shop, productId, limit });
       
       const bundles = await generateBundlesFromOrders({
         shop,
         productId,
         limit,
-        defaultDiscountPct,
         bundleTitle: settings?.bundleTitleTemplate || 'Complete your setup',
-        enableCoPurchase: (settings as any).enableAdvancedPersonalization === true,
+        enableCoPurchase: true,
       });
       
       console.log(`[BUNDLES API] === ML SERVICE COMPLETED ===`);
