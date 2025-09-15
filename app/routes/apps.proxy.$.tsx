@@ -345,8 +345,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
       // Feature flag check
       let settings: any = undefined;
-      try { settings = await getSettings(shop); } catch(_){ /* non-fatal */ }
+      try { 
+        settings = await getSettings(shop);
+        console.log('[BUNDLES API] Settings loaded for shop', shop, ':', {
+          enableSmartBundles: settings?.enableSmartBundles,
+          bundlesOnProductPages: settings?.bundlesOnProductPages,
+          settingsKeys: Object.keys(settings || {})
+        });
+      } catch(e) { 
+        console.error('[BUNDLES API] Failed to load settings:', e);
+      }
+      
       if (!settings?.enableSmartBundles) {
+        console.log('[BUNDLES API] Smart bundles disabled, enableSmartBundles:', settings?.enableSmartBundles);
         return json({ bundles: [], reason: 'disabled' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
       }
       if (context === 'product' && !settings?.bundlesOnProductPages) {
