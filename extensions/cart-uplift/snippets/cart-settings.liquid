@@ -1,0 +1,66 @@
+{% comment %}
+  Cart Uplift Settings Injection
+  This snippet loads and injects CartUpliftSettings into the global window object
+  so the cart drawer can initialize properly.
+{% endcomment %}
+
+<script>
+(function() {
+  'use strict';
+  
+  // Skip if already loaded
+  if (window.CartUpliftSettings) return;
+  
+  // Get shop domain for API calls
+  const shop = '{{ shop.permanent_domain }}';
+  
+  // Fetch settings from the API
+  async function loadCartUpliftSettings() {
+    try {
+      const response = await fetch('/apps/cart-uplift/api/settings');
+      if (response.ok) {
+        const settings = await response.json();
+        
+        // Set global settings
+        window.CartUpliftSettings = settings;
+        window.CartUpliftShop = shop;
+        
+        // Trigger cart initialization if the drawer script is already loaded
+        if (window.CartUpliftDrawer && !window.cartUpliftDrawer) {
+          window.cartUpliftDrawer = new window.CartUpliftDrawer(settings);
+          
+          // Initialize bundle renderer if bundles are enabled
+          if (settings.enableSmartBundles && !window.cartUpliftBundleRenderer) {
+            const script = document.createElement('script');
+            const assetUrl = (window.CartUpliftAssets && window.CartUpliftAssets.bundleRenderer) || '/apps/cart-uplift/assets/bundle-renderer.js';
+            script.src = assetUrl;
+            script.onload = function() {
+              if (window.BundleRenderer) {
+                window.cartUpliftBundleRenderer = new window.BundleRenderer(settings);
+              }
+            };
+            document.head.appendChild(script);
+          }
+        }
+        
+        // Dispatch event to notify other scripts
+        const event = new CustomEvent('cartuplift:settings-loaded', { detail: settings });
+        document.dispatchEvent(event);
+        
+        console.log('[CartUplift] Settings loaded successfully:', settings);
+      } else {
+        console.warn('[CartUplift] Failed to load settings:', response.status);
+      }
+    } catch (error) {
+      console.error('[CartUplift] Error loading settings:', error);
+    }
+  }
+  
+  // Load settings when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadCartUpliftSettings);
+  } else {
+    loadCartUpliftSettings();
+  }
+})();
+</script>

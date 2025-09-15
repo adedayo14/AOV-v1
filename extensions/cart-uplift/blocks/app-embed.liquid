@@ -84,12 +84,17 @@
           
           // Initialize cart if enabled
           if (window.CartUpliftSettings.enableApp) {
-            // Create new cart uplift instance
-            if (window.CartUpliftDrawer) {
-              window.cartUpliftDrawer = new window.CartUpliftDrawer(window.CartUpliftSettings);
-            } else {
-              console.error('🛒 Cart Uplift: CartUpliftDrawer class not found');
+            // Wait for CartUpliftDrawer to be available (since script loads with defer)
+            function initializeCart() {
+              if (window.CartUpliftDrawer) {
+                window.cartUpliftDrawer = new window.CartUpliftDrawer(window.CartUpliftSettings);
+                console.log('🛒 Cart Uplift: Cart drawer initialized successfully');
+              } else {
+                console.log('🛒 Cart Uplift: Waiting for CartUpliftDrawer class...');
+                setTimeout(initializeCart, 100);
+              }
             }
+            initializeCart();
 
             // Expose asset paths for other blocks
             window.CartUpliftAssets = window.CartUpliftAssets || {};
