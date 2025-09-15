@@ -126,6 +126,14 @@
       this.settings.stockUrgencyThreshold = this.settings.stockUrgencyThreshold || 5;
       this.settings.stockUrgencyMessage = this.settings.stockUrgencyMessage || '⚠️ Only {count} left in stock!';
       
+      // Initialize quantity suggestions features
+      this.settings.enableQuantitySuggestions = Boolean(this.settings.enableQuantitySuggestions);
+      this.settings.enableShippingQuantity = Boolean(this.settings.enableShippingQuantity);
+      this.settings.enableBulkSuggestions = Boolean(this.settings.enableBulkSuggestions);
+      this.settings.quantitySuggestionPlacement = this.settings.quantitySuggestionPlacement || 'inline';
+      this.settings.bulkDiscountThreshold = this.settings.bulkDiscountThreshold || 3;
+      this.settings.bulkSuggestionMessage = this.settings.bulkSuggestionMessage || '💡 Buy {quantity} for {savings} total savings!';
+      
       // Initialize urgency timers
       this._urgencyTimer = null;
       this._urgencyEndTime = null;
@@ -1132,6 +1140,7 @@
             
             <div class="cartuplift-scrollable-content">
               ${this.settings.enableAddons ? this.getAddonsHTML() : ''}
+              ${this.settings.quantitySuggestionPlacement === 'recommendations' ? this._getQuantitySuggestionsHTML() : ''}
               ${shouldShowRecommendations ? this.getRecommendationsHTML() : ''}
               ${(() => {
                 if (!(this.settings.enableDiscountCode || this.settings.enableNotes)) return '';
@@ -1365,8 +1374,10 @@
               </svg>
             </button>
           </div>
+          ${this.settings.quantitySuggestionPlacement === 'inline' && !isGift ? this._getQuantitySuggestionsHTML(item) : ''}
         </div>
-      `;}).join('');
+      `;}).join('') + 
+      (this.settings.quantitySuggestionPlacement === 'bottom' ? this._getQuantitySuggestionsHTML() : '');
     }
 
   getGiftProgressHTML() {
@@ -5821,6 +5832,138 @@
           ${urgencyMessages.join('<br>')}
         </div>
       `;
+    }
+
+    // Smart Quantity Suggestions
+    _getQuantitySuggestionsHTML(item = null) {
+      if (!this.settings.enableQuantitySuggestions) return '';
+      
+      const suggestions = [];
+      
+      // Free shipping quantity suggestions
+      if (this.settings.enableShippingQuantity && this.settings.enableFreeShipping) {
+        const shippingSuggestion = this._generateShippingSuggestion();
+        if (shippingSuggestion) suggestions.push(shippingSuggestion);
+      }
+      
+      // Item-specific bulk suggestions
+      if (this.settings.enableBulkSuggestions && item) {
+        const bulkSuggestion = this._generateBulkSuggestion(item);
+        if (bulkSuggestion) suggestions.push(bulkSuggestion);
+      }
+      
+      if (suggestions.length === 0) return '';
+      
+      return `
+        <div class="cartuplift-quantity-suggestions">
+          ${suggestions.join('')}
+        </div>
+      `;
+    }
+
+    _generateShippingSuggestion() {
+      if (!this.cart || !this.settings.freeShippingThreshold) return '';
+      
+      const currentTotal = this.getDisplayedTotalCents();
+      const threshold = this.settings.freeShippingThreshold * 100;
+      const remaining = threshold - currentTotal;
+      
+      if (remaining <= 0) return ''; // Already reached free shipping
+      
+      // Find cheapest item that could help reach threshold
+      const availableItems = this.cart.items.filter(item => {
+        const itemPrice = normalizePriceToCents(item.price);
+        return itemPrice > 0 && itemPrice <= remaining + (remaining * 0.2); // Allow 20% overage
+      });
+      
+      if (availableItems.length === 0) return '';
+      
+      const cheapestItem = availableItems.reduce((min, item) => {
+        const itemPrice = normalizePriceToCents(item.price);
+        const minPrice = normalizePriceToCents(min.price);
+        return itemPrice < minPrice ? item : min;
+      });
+      
+      const additionalQty = Math.ceil(remaining / normalizePriceToCents(cheapestItem.price));
+      
+      return `
+        <div class="cartuplift-quantity-suggestion shipping">
+          <span class="cartuplift-suggestion-icon">🚚</span>
+          <span class="cartuplift-suggestion-text">
+            Add ${additionalQty} more ${cheapestItem.title} for free shipping!
+          </span>
+          <button class="cartuplift-suggestion-btn" onclick="window.cartUpliftDrawer.applySuggestion('shipping', '${cheapestItem.variant_id}', ${additionalQty})">
+            Add ${additionalQty}
+          </button>
+        </div>
+      `;
+    }
+
+    _generateBulkSuggestion(item) {
+      const currentQty = item.quantity;
+      const bulkThreshold = this.settings.bulkDiscountThreshold;
+      
+      if (currentQty >= bulkThreshold) return ''; // Already at bulk quantity
+      
+      const suggestedQty = Math.max(bulkThreshold, currentQty + 1);
+      const additionalQty = suggestedQty - currentQty;
+      const itemPrice = normalizePriceToCents(item.price);
+      
+      // Calculate potential savings (example: 5% bulk discount)
+      const bulkDiscount = 0.05; // 5% bulk discount
+      const regularTotal = suggestedQty * itemPrice;
+      const bulkTotal = regularTotal * (1 - bulkDiscount);
+      const savings = regularTotal - bulkTotal;
+      
+      const message = this.settings.bulkSuggestionMessage
+        .replace('{quantity}', suggestedQty)
+        .replace('{savings}', this.formatMoney(savings));
+      
+      return `
+        <div class="cartuplift-quantity-suggestion bulk">
+          <span class="cartuplift-suggestion-icon">💰</span>
+          <span class="cartuplift-suggestion-text">${message}</span>
+          <button class="cartuplift-suggestion-btn" onclick="window.cartUpliftDrawer.applySuggestion('bulk', '${item.variant_id}', ${additionalQty})">
+            Add ${additionalQty}
+          </button>
+        </div>
+      `;
+    }
+
+    async applySuggestion(type, variantId, quantity) {
+      try {
+        console.log(`[Quantity Suggestion] Applying ${type} suggestion: +${quantity} of variant ${variantId}`);
+        
+        // Add to cart using Shopify's cart API
+        const response = await fetch('/cart/add.js', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: variantId,
+            quantity: quantity
+          })
+        });
+        
+        if (response.ok) {
+          // Track suggestion conversion
+          cartUpliftBeacon({
+            event: 'quantity_suggestion_applied',
+            type: type,
+            variant_id: variantId,
+            quantity: quantity
+          });
+          
+          // Refresh cart display
+          await this.fetchCart();
+          this.updateDrawerContent();
+        } else {
+          console.error('Failed to apply quantity suggestion:', response);
+        }
+      } catch (error) {
+        console.error('Error applying quantity suggestion:', error);
+      }
     }
 
     async loadPurchasePatterns() {

@@ -3728,6 +3728,65 @@ export default function SettingsPage() {
                       />
                     </BlockStack>
                   )}
+
+                  <Checkbox
+                    label="Enable Smart Quantity Suggestions"
+                    checked={formSettings.enableQuantitySuggestions}
+                    onChange={(value) => updateSetting("enableQuantitySuggestions", value)}
+                    helpText="Show intelligent quantity recommendations to increase average order value"
+                  />
+
+                  {formSettings.enableQuantitySuggestions && (
+                    <BlockStack gap="400">
+                      <Text variant="headingSm" as="h3">📊 Quantity Optimization</Text>
+                      
+                      <Checkbox
+                        label="Free shipping quantity suggestions"
+                        checked={formSettings.enableShippingQuantity}
+                        onChange={(value) => updateSetting("enableShippingQuantity", value)}
+                        helpText="Suggest adding more items to reach free shipping threshold"
+                      />
+
+                      <Checkbox
+                        label="Bulk pricing recommendations"
+                        checked={formSettings.enableBulkSuggestions}
+                        onChange={(value) => updateSetting("enableBulkSuggestions", value)}
+                        helpText="Recommend buying multiple quantities for better value"
+                      />
+
+                      {formSettings.enableBulkSuggestions && (
+                        <BlockStack gap="300">
+                          <TextField
+                            label="Bulk Discount Threshold"
+                            type="number"
+                            value={String(formSettings.bulkDiscountThreshold || 3)}
+                            onChange={(value) => updateSetting("bulkDiscountThreshold", parseInt(value) || 3)}
+                            helpText="Minimum quantity to trigger bulk suggestions"
+                            autoComplete="off"
+                          />
+                          <TextField
+                            label="Bulk Suggestion Message"
+                            value={formSettings.bulkSuggestionMessage || "💡 Buy {quantity} for {savings} total savings!"}
+                            onChange={(value) => updateSetting("bulkSuggestionMessage", value)}
+                            helpText="Use {quantity} and {savings} as placeholders"
+                            autoComplete="off"
+                          />
+                        </BlockStack>
+                      )}
+
+                      <Select
+                        label="Quantity Suggestion Display"
+                        options={[
+                          { label: "Inline with cart items", value: "inline" },
+                          { label: "Below cart items", value: "bottom" },
+                          { label: "Above recommendations", value: "recommendations" }
+                        ]}
+                        value={formSettings.quantitySuggestionPlacement || "inline"}
+                        onChange={(value) => updateSetting("quantitySuggestionPlacement", value)}
+                        helpText="Where to show quantity suggestions in the cart"
+                      />
+                    </BlockStack>
+                  )}
                 </FormLayout>
               </BlockStack>
             </Card>
