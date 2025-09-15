@@ -160,13 +160,25 @@
       this.settings.highValueThreshold = this.settings.highValueThreshold || 150;
       this.settings.bundlePriority = this.settings.bundlePriority || 'profit';
       
-      // Initialize urgency timers
+      // Initialize urgency timers safely
       this._urgencyTimer = null;
       this._urgencyEndTime = null;
-      this._initializeUrgencyTimer();
+      try {
+        if (typeof this._initializeUrgencyTimer === 'function') {
+          this._initializeUrgencyTimer();
+        }
+      } catch (error) {
+        console.warn('[CartUplift] Urgency timer initialization failed:', error);
+      }
       
-      // Initialize exit intent detection
-      this._initializeExitIntent();
+      // Initialize exit intent detection safely  
+      try {
+        if (typeof this._initializeExitIntent === 'function') {
+          this._initializeExitIntent();
+        }
+      } catch (error) {
+        console.warn('[CartUplift] Exit intent initialization failed:', error);
+      }
       
       this.cart = null;
       this.isOpen = false;

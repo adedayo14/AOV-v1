@@ -11,84 +11,21 @@ import { withAuth } from "../utils/auth.server";
 // Helper function to get ML-powered bundles from your existing AI system
 async function getMLPoweredBundles(currentProductId?: string | null, shop?: string) {
   try {
-    console.log('Fetching ML-powered bundles for product:', currentProductId);
-    
-    // Temporarily return test data to verify the flow works
-    // TODO: Fix internal ML API calls for production
-    const testBundles = [
-      {
-        id: `ml_bundle_${currentProductId || 'default'}`,
-        name: 'AI Recommended Bundle',
-        description: 'Smart product recommendations powered by machine learning',
-        products: [
-          {
-            id: currentProductId || '51714487091539',
-            title: 'Current Product',
-            price: '89.99',
-            image: 'https://via.placeholder.com/300x300'
-          },
-          {
-            id: 'ml_rec_1',
-            title: 'AI Recommended Product 1',
-            price: '24.99',
-            image: 'https://via.placeholder.com/300x300'
-          },
-          {
-            id: 'ml_rec_2',
-            title: 'AI Recommended Product 2',
-            price: '19.99',
-            image: 'https://via.placeholder.com/300x300'
-          }
-        ],
-        bundle_price: 119.97,
-        regular_total: 134.97,
-        savings_amount: 15.00,
-        discount_percent: 11,
-        ml_powered: true,
-        confidence: 0.92,
-        recommendation_type: 'test-mode'
-      }
-    ];
-    
-    console.log(`Created ${testBundles.length} test ML bundles`);
-    return testBundles;
+    // For now, return an empty array to stop showing test bundles
+    // The ML system integration should be implemented here when ready
+    console.log('ML bundle system not yet integrated - returning empty results');
+    return [];
     
   } catch (error) {
     console.error('ML bundle fetch error:', error);
-    return await createFallbackBundles(currentProductId);
+    return [];
   }
 }
 
 // Fallback function for when ML system is unavailable
 async function createFallbackBundles(currentProductId?: string | null) {
-  console.log('Creating fallback bundles for:', currentProductId);
-  
-  return [
-    {
-      id: 'fallback_bundle_1',
-      name: 'Suggested Bundle',
-      description: 'Hand-picked products that work well together',
-      products: [
-        {
-          id: 'demo_product_1',
-          title: 'Product A',
-          price: '19.99',
-          image: '/placeholder-product.jpg'
-        },
-        {
-          id: 'demo_product_2', 
-          title: 'Product B',
-          price: '24.99',
-          image: '/placeholder-product.jpg'
-        }
-      ],
-      bundle_price: 39.99,
-      regular_total: 44.98,
-      savings_amount: 4.99,
-      discount_percent: 11,
-      ml_powered: false
-    }
-  ];
+  console.log('No fallback bundles configured - returning empty array');
+  return [];
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
