@@ -39,9 +39,19 @@
     },
 
     formatMoney(cents) {
-      if (typeof cents !== 'number' || isNaN(cents)) return '$0.00';
-      const dollars = (cents / 100).toFixed(2);
-      return `$${dollars}`;
+      // Ensure we have a valid number, default to 0 if not
+      const validCents = (typeof cents === 'number' && !isNaN(cents)) ? cents : 0;
+      const amount = (validCents / 100).toFixed(2);
+      
+      if (window.CartUpliftMoneyFormat) {
+        try {
+          return window.CartUpliftMoneyFormat.replace(/\{\{\s*amount\s*\}\}/g, amount);
+        } catch {
+          // Fallback
+        }
+      }
+      
+      return '$' + amount;
     },
 
     beacon(payload) {
@@ -675,14 +685,38 @@
       const title = this.settings.recommendationsTitle || 'You might also like';
       const capsEnabled = !!(this.settings.enableTitleCaps || this.settings.enableRecommendationTitleCaps);
 
+      // For row layout, render controls outside the scroll container so they don't scroll
+      const controlsHTML = layout === 'row' ? `
+        <div class="cartuplift-carousel-controls">
+          <button class="cartuplift-carousel-nav prev" data-nav="prev" aria-label="Previous">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 12l-4-4 4-4"/>
+            </svg>
+          </button>
+          <button class="cartuplift-carousel-nav next" data-nav="next" aria-label="Next">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 4l4 4-4 4"/>
+            </svg>
+          </button>
+        </div>
+      ` : '';
+
       return `
         <div class="cartuplift-recommendations cartuplift-recommendations-${layout}">
           <div class="cartuplift-recommendations-header">
             <h3 class="cartuplift-recommendations-title">${capsEnabled ? title.toUpperCase() : title}</h3>
+            ${layout === 'row' ? `
+              <button class="cartuplift-recommendations-toggle" aria-label="Toggle recommendations">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M6 1v10M1 6h10"/>
+                </svg>
+              </button>
+            ` : ''}
           </div>
           <div class="cartuplift-recommendations-content" id="cartuplift-recommendations-content">
             ${this.getRecommendationItems()}
           </div>
+          ${controlsHTML}
         </div>
       `;
     }
@@ -690,20 +724,66 @@
     getRecommendationItems() {
       if (!this.recommendations?.length) return '';
 
-      return this.recommendations.map(rec => `
-        <div class="cartuplift-recommendation-card">
-          <div class="cartuplift-recommendation-image">
-            <img src="${rec.image}" alt="${Utils.escapeHtml(rec.title)}" loading="lazy">
+      const layout = this.settings.recommendationLayout || 'column';
+      
+      if (layout === 'row') {
+        // Horizontal carousel layout with detailed cards
+        return `
+          <div class="cartuplift-recommendations-track">
+            ${this.recommendations.map(rec => `
+              <div class="cartuplift-recommendation-card" data-variant-id="${rec.variant_id}">
+                <div class="cartuplift-card-content">
+                  <div class="cartuplift-product-image">
+                    <img src="${rec.image}" alt="${Utils.escapeHtml(rec.title)}" loading="lazy">
+                  </div>
+                  <div class="cartuplift-product-info">
+                    <h4>${Utils.escapeHtml(rec.title)}</h4>
+                    ${this.generateVariantSelector(rec)}
+                  </div>
+                  <div class="cartuplift-product-actions">
+                    <div class="cartuplift-recommendation-price" data-price="${rec.priceCents}">${Utils.formatMoney(rec.priceCents)}</div>
+                    <button class="cartuplift-add-recommendation" data-variant-id="${rec.variant_id}" aria-label="Add ${Utils.escapeHtml(rec.title)} to cart">
+                      Add
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
           </div>
-          <div class="cartuplift-recommendation-details">
-            <div class="cartuplift-recommendation-title">${Utils.escapeHtml(rec.title)}</div>
-            <div class="cartuplift-recommendation-price">${Utils.formatMoney(rec.priceCents)}</div>
+        `;
+      } else if (layout === 'grid') {
+        // Grid layout
+        return `
+          <div class="cartuplift-grid-container">
+            ${this.recommendations.map(rec => `
+              <div class="cartuplift-grid-item" data-variant-id="${rec.variant_id}">
+                <img src="${rec.image}" alt="${Utils.escapeHtml(rec.title)}" loading="lazy">
+                <div class="cartuplift-grid-overlay">
+                  <div class="cartuplift-grid-title">${Utils.escapeHtml(rec.title)}</div>
+                  <div class="cartuplift-grid-price">${Utils.formatMoney(rec.priceCents)}</div>
+                  <button class="cartuplift-grid-add-btn" data-variant-id="${rec.variant_id}">+</button>
+                </div>
+              </div>
+            `).join('')}
           </div>
-          <button class="cartuplift-add-recommendation-circle" data-variant-id="${rec.variant_id}" aria-label="Add ${Utils.escapeHtml(rec.title)} to cart">
-            +
-          </button>
-        </div>
-      `).join('');
+        `;
+      } else {
+        // Column layout (vertical list)
+        return this.recommendations.map(rec => `
+          <div class="cartuplift-recommendation-item">
+            <div class="cartuplift-recommendation-image">
+              <img src="${rec.image}" alt="${Utils.escapeHtml(rec.title)}" loading="lazy">
+            </div>
+            <div class="cartuplift-recommendation-details">
+              <div class="cartuplift-recommendation-title">${Utils.escapeHtml(rec.title)}</div>
+              <div class="cartuplift-recommendation-price">${Utils.formatMoney(rec.priceCents)}</div>
+            </div>
+            <button class="cartuplift-add-recommendation-circle" data-variant-id="${rec.variant_id}" aria-label="Add ${Utils.escapeHtml(rec.title)} to cart">
+              +
+            </button>
+          </div>
+        `).join('');
+      }
     }
 
     getFooterHTML(cart, settings) {
@@ -889,11 +969,32 @@
             : e.target.closest('.cartuplift-item-remove-x');
           const line = button.dataset.line;
           this.updateQuantity(line, 0);
-        } else if (e.target.classList.contains('cartuplift-add-recommendation-circle')) {
+        } 
+        // Recommendation add buttons (all layouts)
+        else if (e.target.classList.contains('cartuplift-add-recommendation-circle') ||
+                 e.target.classList.contains('cartuplift-add-recommendation') ||
+                 e.target.classList.contains('cartuplift-grid-add-btn')) {
           const variantId = e.target.dataset.variantId;
           if (variantId) {
             this.addToCart(variantId);
           }
+        }
+        // Carousel navigation
+        else if (e.target.classList.contains('cartuplift-carousel-nav') || e.target.closest('.cartuplift-carousel-nav')) {
+          const navButton = e.target.classList.contains('cartuplift-carousel-nav') ? e.target : e.target.closest('.cartuplift-carousel-nav');
+          const direction = navButton.dataset.nav;
+          this.handleCarouselNavigation(direction);
+        }
+        // Recommendations toggle
+        else if (e.target.classList.contains('cartuplift-recommendations-toggle') || e.target.closest('.cartuplift-recommendations-toggle')) {
+          this.toggleRecommendations();
+        }
+      });
+
+      // Handle variant selector changes
+      container.addEventListener('change', (e) => {
+        if (e.target.classList.contains('cartuplift-size-dropdown')) {
+          this.handleVariantChange(e.target);
         }
       });
     }
@@ -1000,6 +1101,25 @@
         })),
         options: product.options || []
       };
+    }
+
+    generateVariantSelector(product) {
+      if (!product.variants || product.variants.length <= 1) {
+        return '<div class="cartuplift-product-variation hidden"></div>';
+      }
+
+      // Simple single dropdown for multiple variants
+      const options = product.variants.map(variant => 
+        `<option value="${variant.id}" data-price="${variant.price_cents || Utils.normalizePriceToCents(variant.price)}">${variant.title || 'Option'}</option>`
+      ).join('');
+
+      return `
+        <div class="cartuplift-product-variation">
+          <select class="cartuplift-size-dropdown" data-product-id="${product.id}">
+            ${options}
+          </select>
+        </div>
+      `;
     }
 
     removeInvalidRecommendation(variantId) {
@@ -1498,6 +1618,57 @@
       });
     }
 
+    handleCarouselNavigation(direction) {
+      const track = document.querySelector('.cartuplift-recommendations-track');
+      if (!track) return;
+
+      const cardWidth = 280; // Card width + gap
+      const currentScroll = track.scrollLeft;
+      const targetScroll = direction === 'next' 
+        ? currentScroll + cardWidth 
+        : currentScroll - cardWidth;
+
+      track.scrollTo({
+        left: targetScroll,
+        behavior: 'smooth'
+      });
+    }
+
+    toggleRecommendations() {
+      const recommendations = document.querySelector('.cartuplift-recommendations');
+      if (!recommendations) return;
+
+      recommendations.classList.toggle('collapsed');
+      
+      const toggle = recommendations.querySelector('.cartuplift-recommendations-toggle svg');
+      if (toggle) {
+        const isCollapsed = recommendations.classList.contains('collapsed');
+        toggle.style.transform = isCollapsed ? 'rotate(0deg)' : 'rotate(45deg)';
+      }
+    }
+
+    handleVariantChange(select) {
+      const selectedOption = select.options[select.selectedIndex];
+      const variantId = selectedOption.value;
+      const priceCents = parseInt(selectedOption.dataset.price) || 0;
+      
+      // Update the variant ID on the add button
+      const card = select.closest('.cartuplift-recommendation-card');
+      if (card) {
+        const addBtn = card.querySelector('.cartuplift-add-recommendation');
+        if (addBtn) {
+          addBtn.dataset.variantId = variantId;
+        }
+        
+        // Update price display
+        const priceEl = card.querySelector('.cartuplift-recommendation-price');
+        if (priceEl) {
+          priceEl.textContent = Utils.formatMoney(priceCents);
+          priceEl.dataset.price = priceCents;
+        }
+      }
+    }
+
     setupNotificationBlocker() {
       // Block theme notifications when app is enabled
       const hideNotifications = () => {
@@ -1568,16 +1739,23 @@
     
     // Initialize bundle renderer if bundles are enabled
     if (window.CartUpliftSettings.enableSmartBundles) {
-      const script = document.createElement('script');
-      const assetUrl = (window.CartUpliftAssets && window.CartUpliftAssets.bundleRenderer) || 
-                       '/apps/cart-uplift/assets/bundle-renderer.js';
-      script.src = assetUrl;
-      script.onload = function() {
-        if (window.BundleRenderer) {
-          window.cartUpliftBundleRenderer = new window.BundleRenderer(window.CartUpliftSettings);
-        }
-      };
-      document.head.appendChild(script);
+      // Check if bundle renderer is already loaded
+      if (window.BundleRenderer) {
+        window.cartUpliftBundleRenderer = new window.BundleRenderer(window.CartUpliftSettings);
+      } else if (!document.querySelector('script[src*="bundle-renderer"]')) {
+        // Load bundle renderer script
+        const script = document.createElement('script');
+        script.src = window.location.origin + '/apps/cart-uplift/assets/bundle-renderer.js';
+        script.onload = function() {
+          if (window.BundleRenderer) {
+            window.cartUpliftBundleRenderer = new window.BundleRenderer(window.CartUpliftSettings);
+          }
+        };
+        script.onerror = function() {
+          console.warn('[CartUplift] Failed to load bundle renderer');
+        };
+        document.head.appendChild(script);
+      }
     }
   }
 
