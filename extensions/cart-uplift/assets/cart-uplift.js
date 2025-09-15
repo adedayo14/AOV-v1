@@ -116,6 +116,21 @@
       // Set default gift price text if not provided
       this.settings.giftPriceText = this.settings.giftPriceText || 'FREE';
       
+      // Initialize urgency features
+      this.settings.enableUrgency = Boolean(this.settings.enableUrgency);
+      this.settings.enableTimeUrgency = Boolean(this.settings.enableTimeUrgency);
+      this.settings.enableStockUrgency = Boolean(this.settings.enableStockUrgency);
+      this.settings.urgencyPlacement = this.settings.urgencyPlacement || 'subtitle';
+      this.settings.urgencyTimerHours = this.settings.urgencyTimerHours || 2;
+      this.settings.urgencyTimerMessage = this.settings.urgencyTimerMessage || '⏰ Limited time: Complete your order in {time}!';
+      this.settings.stockUrgencyThreshold = this.settings.stockUrgencyThreshold || 5;
+      this.settings.stockUrgencyMessage = this.settings.stockUrgencyMessage || '⚠️ Only {count} left in stock!';
+      
+      // Initialize urgency timers
+      this._urgencyTimer = null;
+      this._urgencyEndTime = null;
+      this._initializeUrgencyTimer();
+      
       this.cart = null;
       this.isOpen = false;
       this._isAnimating = false;
@@ -1110,6 +1125,7 @@
           ${this.getHeaderHTML(itemCount)}
           
           <div class="cartuplift-content-wrapper">
+            ${this.settings.urgencyPlacement === 'header' ? this._getUrgencyHTML() : ''}
             <div class="cartuplift-items">
               ${this.getCartItemsHTML()}
             </div>
@@ -1140,6 +1156,8 @@
               <span>Subtotal${hasDiscount ? ' (after discount)' : ''}</span>
               <span class="cartuplift-subtotal-amount">${this.formatMoney(finalTotal)}</span>
             </div>
+            
+            ${this.settings.urgencyPlacement === 'footer' ? this._getUrgencyHTML() : ''}
             
             <button class="cartuplift-checkout-btn" onclick="window.cartUpliftDrawer.proceedToCheckout()">
               ${this.settings.checkoutButtonText || 'Checkout'}
@@ -1241,6 +1259,7 @@
       return `
         <div class="cartuplift-header">
           <h2 class="cartuplift-cart-title">Cart (${itemCount})</h2>
+          ${this.settings.urgencyPlacement === 'subtitle' ? this._getUrgencyHTML() : ''}
           ${progressMessage ? `
             <div class="cartuplift-shipping-info">
               <p class="cartuplift-shipping-message">${progressMessage}</p>
@@ -5694,6 +5713,114 @@
         })),
         options: product.options || []
       };
+    }
+
+    // Urgency features
+    _initializeUrgencyTimer() {
+      if (!this.settings.enableTimeUrgency) return;
+      
+      // Check if timer already exists in localStorage
+      const storedEndTime = localStorage.getItem('cartuplift-urgency-end');
+      if (storedEndTime) {
+        this._urgencyEndTime = parseInt(storedEndTime);
+        // If timer hasn't expired, use it
+        if (this._urgencyEndTime > Date.now()) {
+          this._startUrgencyTimer();
+          return;
+        }
+      }
+      
+      // Create new timer
+      const hours = this.settings.urgencyTimerHours || 2;
+      this._urgencyEndTime = Date.now() + (hours * 60 * 60 * 1000);
+      localStorage.setItem('cartuplift-urgency-end', this._urgencyEndTime.toString());
+      this._startUrgencyTimer();
+    }
+
+    _startUrgencyTimer() {
+      if (this._urgencyTimer) {
+        clearInterval(this._urgencyTimer);
+      }
+      
+      this._urgencyTimer = setInterval(() => {
+        if (this._urgencyEndTime && Date.now() >= this._urgencyEndTime) {
+          clearInterval(this._urgencyTimer);
+          this._urgencyTimer = null;
+          localStorage.removeItem('cartuplift-urgency-end');
+          // Refresh urgency display
+          if (this.isOpen) {
+            this._rebuild();
+          }
+        } else if (this.isOpen) {
+          // Update countdown display
+          this._updateUrgencyDisplay();
+        }
+      }, 1000);
+    }
+
+    _updateUrgencyDisplay() {
+      const urgencyElement = document.querySelector('.cartuplift-urgency-message');
+      if (urgencyElement && this._urgencyEndTime) {
+        const remaining = this._urgencyEndTime - Date.now();
+        if (remaining > 0) {
+          const timeString = this._formatTimeRemaining(remaining);
+          const message = this.settings.urgencyTimerMessage.replace('{time}', timeString);
+          urgencyElement.innerHTML = message;
+        }
+      }
+    }
+
+    _formatTimeRemaining(milliseconds) {
+      const totalSeconds = Math.floor(milliseconds / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      
+      if (hours > 0) {
+        return `${hours}h ${minutes}m ${seconds}s`;
+      } else if (minutes > 0) {
+        return `${minutes}m ${seconds}s`;
+      } else {
+        return `${seconds}s`;
+      }
+    }
+
+    _getUrgencyHTML() {
+      if (!this.settings.enableUrgency) return '';
+      
+      const urgencyMessages = [];
+      
+      // Time-based urgency
+      if (this.settings.enableTimeUrgency && this._urgencyEndTime) {
+        const remaining = this._urgencyEndTime - Date.now();
+        if (remaining > 0) {
+          const timeString = this._formatTimeRemaining(remaining);
+          const message = this.settings.urgencyTimerMessage.replace('{time}', timeString);
+          urgencyMessages.push(`<span class="cartuplift-urgency-message">${message}</span>`);
+        }
+      }
+      
+      // Stock-based urgency
+      if (this.settings.enableStockUrgency && this.cart?.items?.length) {
+        const lowStockItems = this.cart.items.filter(item => {
+          const inventory = item.variant?.inventory_quantity;
+          return inventory && inventory <= this.settings.stockUrgencyThreshold;
+        });
+        
+        if (lowStockItems.length > 0) {
+          const lowestStock = Math.min(...lowStockItems.map(item => item.variant?.inventory_quantity || 0));
+          const message = this.settings.stockUrgencyMessage.replace('{count}', lowestStock);
+          urgencyMessages.push(`<span class="cartuplift-stock-urgency">${message}</span>`);
+        }
+      }
+      
+      if (urgencyMessages.length === 0) return '';
+      
+      return `
+        <div class="cartuplift-urgency-container" data-placement="${this.settings.urgencyPlacement}">
+          ${urgencyMessages.join('<br>')}
+        </div>
+      `;
     }
 
     async loadPurchasePatterns() {

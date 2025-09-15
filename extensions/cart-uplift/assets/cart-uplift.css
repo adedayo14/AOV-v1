@@ -152,6 +152,49 @@ body.cartuplift-no-scroll {
   text-align: center;
 }
 
+/* ========================================
+   Urgency Messages
+   ======================================== */
+.cartuplift-urgency-container {
+  padding: 8px 16px;
+  margin: 4px 0;
+  background: linear-gradient(135deg, #ff4444 0%, #ff6b6b 100%);
+  border-radius: 6px;
+  text-align: center;
+  animation: urgencyPulse 2s ease-in-out infinite;
+}
+
+.cartuplift-urgency-message,
+.cartuplift-stock-urgency {
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  margin: 0;
+  line-height: 1.3;
+}
+
+@keyframes urgencyPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.02); }
+}
+
+/* Urgency placement styles */
+.cartuplift-drawer .cartuplift-urgency-container[data-placement="header"] {
+  margin: 8px 16px 0;
+  border-radius: 0 0 6px 6px;
+}
+
+.cartuplift-drawer .cartuplift-urgency-container[data-placement="footer"] {
+  margin: 8px 0;
+  animation-duration: 1.5s;
+}
+
+.cartuplift-drawer .cartuplift-urgency-container[data-placement="subtitle"] {
+  margin: 4px 0 8px;
+  background: linear-gradient(135deg, #ff9500 0%, #ffb347 100%);
+}
+
 .cartuplift-close {
   background: transparent;
   border: none;

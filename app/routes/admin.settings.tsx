@@ -3649,6 +3649,85 @@ export default function SettingsPage() {
                   {(formSettings.enableDiscountCode || formSettings.enableNotes) && (
                     <Text as="p" tone="subdued">Inline links are used on the online store. The old full-width button is deprecated.</Text>
                   )}
+
+                  <Checkbox
+                    label="Enable Urgency Triggers"
+                    checked={formSettings.enableUrgency}
+                    onChange={(value) => updateSetting("enableUrgency", value)}
+                    helpText="Add time-based and stock-based urgency messages to drive immediate purchases"
+                  />
+
+                  {formSettings.enableUrgency && (
+                    <BlockStack gap="400">
+                      <Text variant="headingSm" as="h3">⏰ Urgency Features</Text>
+                      
+                      <Checkbox
+                        label="Time-based urgency (countdown timers)"
+                        checked={formSettings.enableTimeUrgency}
+                        onChange={(value) => updateSetting("enableTimeUrgency", value)}
+                        helpText="Show countdown timers for limited-time offers"
+                      />
+
+                      {formSettings.enableTimeUrgency && (
+                        <BlockStack gap="300">
+                          <TextField
+                            label="Timer Duration (hours)"
+                            type="number"
+                            value={String(formSettings.urgencyTimerHours || 2)}
+                            onChange={(value) => updateSetting("urgencyTimerHours", parseInt(value) || 2)}
+                            helpText="How many hours the countdown should run"
+                            autoComplete="off"
+                          />
+                          <TextField
+                            label="Timer Message"
+                            value={formSettings.urgencyTimerMessage || "⏰ Limited time: Complete your order in {time}!"}
+                            onChange={(value) => updateSetting("urgencyTimerMessage", value)}
+                            helpText="Use {time} where you want the countdown to appear"
+                            autoComplete="off"
+                          />
+                        </BlockStack>
+                      )}
+
+                      <Checkbox
+                        label="Stock urgency (low inventory alerts)"
+                        checked={formSettings.enableStockUrgency}
+                        onChange={(value) => updateSetting("enableStockUrgency", value)}
+                        helpText="Show low stock messages to create scarcity"
+                      />
+
+                      {formSettings.enableStockUrgency && (
+                        <BlockStack gap="300">
+                          <TextField
+                            label="Low Stock Threshold"
+                            type="number"
+                            value={String(formSettings.stockUrgencyThreshold || 5)}
+                            onChange={(value) => updateSetting("stockUrgencyThreshold", parseInt(value) || 5)}
+                            helpText="Show urgency when inventory is below this number"
+                            autoComplete="off"
+                          />
+                          <TextField
+                            label="Low Stock Message"
+                            value={formSettings.stockUrgencyMessage || "⚠️ Only {count} left in stock!"}
+                            onChange={(value) => updateSetting("stockUrgencyMessage", value)}
+                            helpText="Use {count} for the remaining stock number"
+                            autoComplete="off"
+                          />
+                        </BlockStack>
+                      )}
+
+                      <Select
+                        label="Urgency Message Placement"
+                        options={[
+                          { label: "Above cart items", value: "header" },
+                          { label: "Below cart title", value: "subtitle" },
+                          { label: "Above checkout button", value: "footer" }
+                        ]}
+                        value={formSettings.urgencyPlacement || "subtitle"}
+                        onChange={(value) => updateSetting("urgencyPlacement", value)}
+                        helpText="Where to display urgency messages in the cart"
+                      />
+                    </BlockStack>
+                  )}
                 </FormLayout>
               </BlockStack>
             </Card>
