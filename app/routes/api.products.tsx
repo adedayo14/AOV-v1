@@ -8,7 +8,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const query = url.searchParams.get('query') || '';
     const limit = parseInt(url.searchParams.get('limit') || '50');
 
-    const response = await admin.graphql(`
+  const response = await admin.graphql(`
       query getProducts($first: Int!, $query: String) {
         products(first: $first, query: $query) {
           edges {
@@ -18,12 +18,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
               handle
               status
               featuredImage { url altText }
+        priceRangeV2 { minVariantPrice { amount currencyCode } }
               variants(first: 10) {
                 edges {
                   node {
                     id
                     title
-                    price
+          price
                     availableForSale
                   }
                 }
@@ -53,10 +54,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const variants = (product.variants?.edges || []).map((variantEdge: any) => ({
         id: variantEdge.node.id,
         title: variantEdge.node.title,
-        price: variantEdge.node.price,
+        price: typeof variantEdge.node.price === 'number' ? variantEdge.node.price : parseFloat(variantEdge.node.price ?? '0') || 0,
         availableForSale: variantEdge.node.availableForSale,
       }));
-      const minVariant = variants.find((v: any) => v.price != null) || variants[0];
+      const minVariant = variants.find((v: any) => typeof v.price === 'number') || variants[0];
+      const minPriceAmount = product.priceRangeV2?.minVariantPrice?.amount;
+      const currencyCode = product.priceRangeV2?.minVariantPrice?.currencyCode || 'USD';
+      const minPrice = typeof minPriceAmount === 'number' ? minPriceAmount : parseFloat(minPriceAmount ?? '0') || (minVariant?.price ?? 0);
       return {
         id: product.id,
         title: product.title,
@@ -64,7 +68,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
         status: product.status,
         image: product.featuredImage?.url || null,
         imageAlt: product.featuredImage?.altText || product.title,
-        minPrice: minVariant?.price ?? null,
+        minPrice,
+        currency: currencyCode,
+        // Back-compat for UIs expecting `price`
+        price: minPrice,
         variants,
       };
     });

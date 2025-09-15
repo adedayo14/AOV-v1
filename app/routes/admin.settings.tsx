@@ -3568,9 +3568,9 @@ export default function SettingsPage() {
                                   
                                   {selectedBundleProducts.length > 0 && (
                                     <BlockStack gap="100">
-                                      {selectedBundleProducts.map((product, index) => (
+                    {selectedBundleProducts.map((product, index) => (
                                         <InlineStack key={index} wrap={false} align="space-between">
-                                          <Text as="p" variant="bodySm">{product.title} - {formatCurrency(product.price, product.currency || shopCurrency?.currencyCode || 'USD')}</Text>
+                      <Text as="p" variant="bodySm">{product.title} - {formatCurrency(product.price, product.currency || shopCurrency?.currencyCode || 'USD')}</Text>
                                           <Button 
                                             size="slim" 
                                             variant="plain"

@@ -26,6 +26,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const path = url.pathname;
 
+  // Simple test endpoint to verify code execution
+  if (path.includes('/api/test')) {
+    console.log('🧪 TEST ENDPOINT HIT');
+    return json({ 
+      message: 'Server code is executing - v387!',
+      timestamp: new Date().toISOString(),
+      path: path,
+      headers: Object.fromEntries(request.headers.entries())
+    });
+  }
+
   // GET /apps/proxy/api/recommendations
   // Minimal, conservative AOV-focused recs: decayed confidence/lift + popularity, OOS + price-gap guardrails
   if (path.includes('/api/recommendations')) {
