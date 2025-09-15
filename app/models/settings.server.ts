@@ -104,6 +104,22 @@ export interface SettingsData {
   showIndividualPricesInBundle: boolean;
   autoApplyBundleDiscounts: boolean;
 
+  // Enhanced Bundle Display Settings
+  enableEnhancedBundles: boolean;
+  showPurchaseCounts: boolean;
+  showRecentlyViewed: boolean;
+  showTestimonials: boolean;
+  showTrustBadges: boolean;
+  highlightHighValue: boolean;
+  enhancedImages: boolean;
+  animatedSavings: boolean;
+  highValueThreshold: number;
+  bundlePriority: string;
+  badgeHighValueText: string;
+  badgePopularText: string;
+  badgeTrendingText: string;
+  testimonialsList: string;
+
   // Theme embed status (updated by storefront heartbeat)
   themeEmbedEnabled?: boolean;
   themeEmbedLastSeen?: string; // ISO string
@@ -194,6 +210,29 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       showIndividualPricesInBundle: (settings as any).showIndividualPricesInBundle ?? true,
       autoApplyBundleDiscounts: (settings as any).autoApplyBundleDiscounts ?? true,
       
+      // Enhanced Bundle Display Settings
+      enableEnhancedBundles: (settings as any).enableEnhancedBundles ?? false,
+      showPurchaseCounts: (settings as any).showPurchaseCounts ?? false,
+      showRecentlyViewed: (settings as any).showRecentlyViewed ?? false,
+      showTestimonials: (settings as any).showTestimonials ?? false,
+      showTrustBadges: (settings as any).showTrustBadges ?? false,
+      highlightHighValue: (settings as any).highlightHighValue ?? false,
+      enhancedImages: (settings as any).enhancedImages ?? false,
+      animatedSavings: (settings as any).animatedSavings ?? false,
+      highValueThreshold: (settings as any).highValueThreshold ?? 150,
+      bundlePriority: (settings as any).bundlePriority ?? "value",
+      badgeHighValueText: (settings as any).badgeHighValueText ?? "Best Value",
+      badgePopularText: (settings as any).badgePopularText ?? "Most Popular",
+      badgeTrendingText: (settings as any).badgeTrendingText ?? "Trending",
+      testimonialsList: (settings as any).testimonialsList ?? JSON.stringify([
+        { text: "Love this combo!", author: "Sarah M." },
+        { text: "Perfect together!", author: "Mike R." },
+        { text: "Great value bundle", author: "Emma K." },
+        { text: "Exactly what I needed", author: "Alex T." },
+        { text: "Highly recommend", author: "Lisa P." },
+        { text: "Amazing quality", author: "James W." }
+      ]),
+      
       themeEmbedEnabled: (settings as any).themeEmbedEnabled ?? false,
       themeEmbedLastSeen: (settings as any).themeEmbedLastSeen ? new Date((settings as any).themeEmbedLastSeen).toISOString() : undefined,
     };
@@ -231,7 +270,11 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       // Smart Bundle Settings
       'enableSmartBundles', 'bundlesOnProductPages', 'bundlesOnCollectionPages', 'bundlesOnCartPage', 'bundlesOnCheckoutPage', 
       'defaultBundleDiscount', 'bundleTitleTemplate', 'bundleDiscountPrefix', 'bundleConfidenceThreshold', 'bundleSavingsFormat', 
-      'showIndividualPricesInBundle', 'autoApplyBundleDiscounts'
+      'showIndividualPricesInBundle', 'autoApplyBundleDiscounts',
+      // Enhanced Bundle Display Settings
+      'enableEnhancedBundles', 'showPurchaseCounts', 'showRecentlyViewed', 'showTestimonials', 'showTrustBadges', 
+      'highlightHighValue', 'enhancedImages', 'animatedSavings', 'highValueThreshold', 'bundlePriority',
+      'badgeHighValueText', 'badgePopularText', 'badgeTrendingText', 'testimonialsList'
     ];
     
   // Production-only fields (exclude in production environment)
@@ -451,6 +494,29 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       showIndividualPricesInBundle: (settings as any).showIndividualPricesInBundle ?? true,
       autoApplyBundleDiscounts: (settings as any).autoApplyBundleDiscounts ?? true,
       
+      // Enhanced Bundle Display Settings
+      enableEnhancedBundles: (settings as any).enableEnhancedBundles ?? false,
+      showPurchaseCounts: (settings as any).showPurchaseCounts ?? false,
+      showRecentlyViewed: (settings as any).showRecentlyViewed ?? false,
+      showTestimonials: (settings as any).showTestimonials ?? false,
+      showTrustBadges: (settings as any).showTrustBadges ?? false,
+      highlightHighValue: (settings as any).highlightHighValue ?? false,
+      enhancedImages: (settings as any).enhancedImages ?? false,
+      animatedSavings: (settings as any).animatedSavings ?? false,
+      highValueThreshold: (settings as any).highValueThreshold ?? 150,
+      bundlePriority: (settings as any).bundlePriority ?? "value",
+      badgeHighValueText: (settings as any).badgeHighValueText ?? "Best Value",
+      badgePopularText: (settings as any).badgePopularText ?? "Most Popular",
+      badgeTrendingText: (settings as any).badgeTrendingText ?? "Trending",
+      testimonialsList: (settings as any).testimonialsList ?? JSON.stringify([
+        { text: "Love this combo!", author: "Sarah M." },
+        { text: "Perfect together!", author: "Mike R." },
+        { text: "Great value bundle", author: "Emma K." },
+        { text: "Exactly what I needed", author: "Alex T." },
+        { text: "Highly recommend", author: "Lisa P." },
+        { text: "Amazing quality", author: "James W." }
+      ]),
+      
       themeEmbedEnabled: (settings as any).themeEmbedEnabled ?? false,
       themeEmbedLastSeen: (settings as any).themeEmbedLastSeen ? new Date((settings as any).themeEmbedLastSeen).toISOString() : undefined,
     };
@@ -540,6 +606,29 @@ export function getDefaultSettings(): SettingsData {
     bundleSavingsFormat: "both",
     showIndividualPricesInBundle: true,
     autoApplyBundleDiscounts: true,
+    
+    // Enhanced Bundle Display Settings
+    enableEnhancedBundles: false,
+    showPurchaseCounts: false,
+    showRecentlyViewed: false,
+    showTestimonials: false,
+    showTrustBadges: false,
+    highlightHighValue: false,
+    enhancedImages: false,
+    animatedSavings: false,
+    highValueThreshold: 150,
+    bundlePriority: "value",
+    badgeHighValueText: "Best Value",
+    badgePopularText: "Most Popular",
+    badgeTrendingText: "Trending",
+    testimonialsList: JSON.stringify([
+      { text: "Love this combo!", author: "Sarah M." },
+      { text: "Perfect together!", author: "Mike R." },
+      { text: "Great value bundle", author: "Emma K." },
+      { text: "Exactly what I needed", author: "Alex T." },
+      { text: "Highly recommend", author: "Lisa P." },
+      { text: "Amazing quality", author: "James W." }
+    ]),
     
     themeEmbedEnabled: false,
     themeEmbedLastSeen: undefined,

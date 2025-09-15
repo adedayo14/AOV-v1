@@ -2609,3 +2609,526 @@ body.cartuplift-no-scroll {
   font-weight: bold;
   font-size: 14px;
 }
+
+/* ========================================
+   Exit Intent Modal Styling
+   ======================================== */
+.cartuplift-exit-intent-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+.cartuplift-exit-intent-content {
+  background: white;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideInUp 0.4s ease;
+}
+
+.cartuplift-exit-intent-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  z-index: 1;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.cartuplift-exit-intent-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #333;
+}
+
+.cartuplift-exit-intent-header {
+  text-align: center;
+  padding: 30px 25px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.cartuplift-exit-intent-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 10px;
+  color: #333;
+}
+
+.cartuplift-exit-intent-message {
+  font-size: 16px;
+  color: #666;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.cartuplift-exit-intent-actions {
+  padding: 20px 25px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.cartuplift-exit-intent-btn {
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  min-width: 140px;
+}
+
+.cartuplift-exit-intent-btn.primary {
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  color: white;
+  border-color: #007bff;
+}
+
+.cartuplift-exit-intent-btn.primary:hover {
+  background: linear-gradient(135deg, #0056b3, #004085);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.cartuplift-exit-intent-btn.secondary {
+  background: white;
+  color: #666;
+  border-color: #ddd;
+}
+
+.cartuplift-exit-intent-btn.secondary:hover {
+  background: #f8f9fa;
+  border-color: #bbb;
+}
+
+.cartuplift-exit-intent-bundles {
+  padding: 20px 25px;
+  border-top: 1px solid #eee;
+}
+
+.cartuplift-exit-intent-bundles h3 {
+  font-size: 18px;
+  margin: 0 0 15px;
+  color: #333;
+  text-align: center;
+}
+
+.cartuplift-exit-intent-bundle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cartuplift-exit-intent-bundle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.cartuplift-exit-intent-bundle:hover {
+  border-color: #007bff;
+  background: rgba(0, 123, 255, 0.02);
+}
+
+.cartuplift-exit-intent-bundle img {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.cartuplift-exit-intent-bundle-info {
+  flex: 1;
+}
+
+.cartuplift-exit-intent-bundle-info h4 {
+  font-size: 14px;
+  margin: 0 0 4px;
+  color: #333;
+  font-weight: 500;
+}
+
+.cartuplift-exit-intent-bundle-price {
+  font-size: 14px;
+  color: #007bff;
+  font-weight: 600;
+  margin: 0;
+}
+
+.cartuplift-exit-intent-bundle button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.cartuplift-exit-intent-bundle button:hover {
+  background: #0056b3;
+}
+
+.cartuplift-exit-intent-success {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  padding: 15px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+  z-index: 1000000;
+  animation: slideInRight 0.4s ease;
+  font-weight: 500;
+}
+
+/* Mobile optimizations for exit intent */
+@media (max-width: 768px) {
+  .cartuplift-exit-intent-content {
+    width: 95%;
+    margin: 20px;
+    max-height: 85vh;
+  }
+  
+  .cartuplift-exit-intent-title {
+    font-size: 20px;
+  }
+  
+  .cartuplift-exit-intent-actions {
+    flex-direction: column;
+  }
+  
+  .cartuplift-exit-intent-btn {
+    width: 100%;
+    min-width: auto;
+  }
+  
+  .cartuplift-exit-intent-bundle {
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
+  }
+  
+  .cartuplift-exit-intent-bundle img {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .cartuplift-exit-intent-success {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    font-size: 14px;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ========================================
+   Enhanced Bundle Display Styling
+   ======================================== */
+
+/* High-value bundle highlighting */
+.cartuplift-high-value {
+  position: relative;
+  border: 2px solid #ffd700;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 223, 0, 0.05));
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.2);
+}
+
+.cartuplift-high-value::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #ffd700, #ffed4e, #ffd700, #ffed4e);
+  background-size: 400% 400%;
+  border-radius: inherit;
+  z-index: -1;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Trust badges */
+.cartuplift-badges {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cartuplift-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.cartuplift-badge-high-value {
+  background: linear-gradient(135deg, #ffd700, #ffed4e);
+  color: #b8860b;
+}
+
+.cartuplift-badge-popular {
+  background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+  color: white;
+}
+
+.cartuplift-badge-trending {
+  background: linear-gradient(135deg, #4ecdc4, #6bccc9);
+  color: white;
+}
+
+/* Enhanced images */
+.cartuplift-enhanced-image {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.cartuplift-enhanced-image:hover {
+  transform: scale(1.05);
+}
+
+.cartuplift-enhanced-image img {
+  transition: all 0.3s ease;
+}
+
+.cartuplift-enhanced-image:hover img {
+  transform: scale(1.1);
+}
+
+/* Social proof overlay */
+.cartuplift-social-proof-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  color: white;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cartuplift-purchase-count {
+  font-size: 11px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cartuplift-purchase-count::before {
+  content: '🔥';
+  font-size: 10px;
+}
+
+.cartuplift-recently-viewed {
+  font-size: 10px;
+  opacity: 0.9;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cartuplift-recently-viewed::before {
+  content: '👀';
+  font-size: 9px;
+}
+
+/* Testimonials */
+.cartuplift-testimonial {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: rgba(0, 123, 255, 0.1);
+  border-left: 3px solid #007bff;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.cartuplift-testimonial-text {
+  display: block;
+  font-style: italic;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.cartuplift-testimonial-author {
+  font-size: 10px;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Savings display */
+.cartuplift-savings {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+.cartuplift-animated-savings {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* Enhanced recommendation cards (row layout) */
+.cartuplift-recommendations-row .cartuplift-recommendation-card.cartuplift-high-value {
+  transform: scale(1.02);
+}
+
+.cartuplift-recommendations-row .cartuplift-recommendation-card.cartuplift-high-value:hover {
+  transform: scale(1.08);
+}
+
+/* Enhanced recommendation items (column layout) */
+.cartuplift-recommendation-item.cartuplift-high-value {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 223, 0, 0.05));
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+/* Enhanced grid items */
+.cartuplift-grid-item.cartuplift-high-value {
+  transform: scale(1.02);
+  z-index: 2;
+}
+
+.cartuplift-grid-item.cartuplift-high-value:hover {
+  transform: scale(1.08);
+}
+
+.cartuplift-grid-price {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Mobile optimizations for enhanced bundles */
+@media (max-width: 768px) {
+  .cartuplift-badges {
+    top: 4px;
+    left: 4px;
+  }
+  
+  .cartuplift-badge {
+    padding: 2px 6px;
+    font-size: 9px;
+  }
+  
+  .cartuplift-social-proof-overlay {
+    padding: 6px;
+  }
+  
+  .cartuplift-purchase-count,
+  .cartuplift-recently-viewed {
+    font-size: 10px;
+  }
+  
+  .cartuplift-testimonial {
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+  
+  .cartuplift-savings {
+    padding: 1px 4px;
+    font-size: 9px;
+  }
+  
+  .cartuplift-enhanced-image:hover {
+    transform: none; /* Disable transform on mobile for performance */
+  }
+  
+  .cartuplift-enhanced-image:hover img {
+    transform: none;
+  }
+}
+
+/* Animation performance optimizations */
+@media (prefers-reduced-motion: reduce) {
+  .cartuplift-animated-savings {
+    animation: none;
+  }
+  
+  .cartuplift-high-value::before {
+    animation: none;
+  }
+  
+  .cartuplift-enhanced-image,
+  .cartuplift-enhanced-image img {
+    transition: none;
+  }
+}

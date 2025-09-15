@@ -3787,6 +3787,212 @@ export default function SettingsPage() {
                       />
                     </BlockStack>
                   )}
+
+                  <Checkbox
+                    label="Enable Exit Intent Capture"
+                    checked={formSettings.enableExitIntent}
+                    onChange={(value) => updateSetting("enableExitIntent", value)}
+                    helpText="Show retention offers when customers try to leave the website (not the cart)"
+                  />
+
+                  {formSettings.enableExitIntent && (
+                    <BlockStack gap="400">
+                      <Text variant="headingSm" as="h3">🚪 Exit Intent Recovery</Text>
+                      
+                      <TextField
+                        label="Delay Before Detection (seconds)"
+                        type="number"
+                        value={String(formSettings.exitIntentDelay || 10)}
+                        onChange={(value) => updateSetting("exitIntentDelay", parseInt(value) || 10)}
+                        helpText="Wait this long before exit intent can trigger (prevents immediate annoyance)"
+                        autoComplete="off"
+                      />
+
+                      <TextField
+                        label="Exit Intent Discount (%)"
+                        type="number"
+                        value={String(formSettings.exitIntentDiscount || 10)}
+                        onChange={(value) => updateSetting("exitIntentDiscount", parseInt(value) || 10)}
+                        helpText="Discount percentage to offer for exit intent recovery"
+                        autoComplete="off"
+                      />
+
+                      <TextField
+                        label="Exit Intent Title"
+                        value={formSettings.exitIntentTitle || "Wait! Don't leave empty-handed"}
+                        onChange={(value) => updateSetting("exitIntentTitle", value)}
+                        helpText="Headline for the exit intent modal"
+                        autoComplete="off"
+                      />
+
+                      <TextField
+                        label="Exit Intent Message"
+                        value={formSettings.exitIntentMessage || "Get {discount}% off your order before you go!"}
+                        onChange={(value) => updateSetting("exitIntentMessage", value)}
+                        helpText="Use {discount} for the discount percentage"
+                        autoComplete="off"
+                        multiline={3}
+                      />
+
+                      <Checkbox
+                        label="Show available bundles on exit"
+                        checked={formSettings.exitIntentShowBundles}
+                        onChange={(value) => updateSetting("exitIntentShowBundles", value)}
+                        helpText="Display recommended bundles in the exit intent modal"
+                      />
+
+                      <Checkbox
+                        label="Mobile exit detection"
+                        checked={formSettings.exitIntentMobile}
+                        onChange={(value) => updateSetting("exitIntentMobile", value)}
+                        helpText="Enable exit intent on mobile devices (uses scroll and interaction patterns)"
+                      />
+                    </BlockStack>
+                  )}
+                </FormLayout>
+              </BlockStack>
+            </Card>
+
+            {/* Enhanced Bundle Display Settings */}
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">
+                  Enhanced Bundle Display
+                </Text>
+                <Text as="p" variant="bodyMd">
+                  Improve bundle presentation with social proof and visual enhancements to increase conversion rates.
+                </Text>
+
+                <FormLayout>
+                  <Checkbox
+                    label="Enable enhanced bundle display"
+                    checked={formSettings.enableEnhancedBundles}
+                    onChange={(value) => updateSetting("enableEnhancedBundles", value)}
+                    helpText="Activate improved bundle presentation with social proof elements"
+                  />
+
+                  {formSettings.enableEnhancedBundles && (
+                    <BlockStack gap="400">
+                      <Text as="h3" variant="headingMd">Social Proof Features</Text>
+                      
+                      <Checkbox
+                        label="Show purchase counts"
+                        checked={formSettings.showPurchaseCounts}
+                        onChange={(value) => updateSetting("showPurchaseCounts", value)}
+                        helpText="Display how many customers have purchased each bundle"
+                      />
+
+                      <Checkbox
+                        label="Show recently viewed indicators"
+                        checked={formSettings.showRecentlyViewed}
+                        onChange={(value) => updateSetting("showRecentlyViewed", value)}
+                        helpText="Highlight bundles that other customers recently viewed"
+                      />
+
+                      <Checkbox
+                        label="Display customer testimonials"
+                        checked={formSettings.showTestimonials}
+                        onChange={(value) => updateSetting("showTestimonials", value)}
+                        helpText="Show brief customer reviews for popular bundles"
+                      />
+
+                      <Checkbox
+                        label="Show trust badges"
+                        checked={formSettings.showTrustBadges}
+                        onChange={(value) => updateSetting("showTrustBadges", value)}
+                        helpText="Display badges like 'Most Popular', 'Best Value', 'Trending'"
+                      />
+
+                      <Text as="h3" variant="headingMd">Visual Hierarchy</Text>
+
+                      <Checkbox
+                        label="Highlight high-value bundles"
+                        checked={formSettings.highlightHighValue}
+                        onChange={(value) => updateSetting("highlightHighValue", value)}
+                        helpText="Visually emphasize bundles with higher profit margins"
+                      />
+
+                      <Checkbox
+                        label="Enhanced product images"
+                        checked={formSettings.enhancedImages}
+                        onChange={(value) => updateSetting("enhancedImages", value)}
+                        helpText="Use larger, higher quality images with hover effects"
+                      />
+
+                      <Checkbox
+                        label="Animated savings display"
+                        checked={formSettings.animatedSavings}
+                        onChange={(value) => updateSetting("animatedSavings", value)}
+                        helpText="Animate savings amounts to draw attention"
+                      />
+
+                      <TextField
+                        label="High-value threshold ($)"
+                        value={formSettings.highValueThreshold?.toString() || "150"}
+                        onChange={(value) => updateSetting("highValueThreshold", parseInt(value) || 150)}
+                        helpText="Bundle value above which to apply high-value highlighting"
+                        type="number"
+                        autoComplete="off"
+                      />
+
+                      <Select
+                        label="Bundle display priority"
+                        options={[
+                          { label: "Highest profit margin first", value: "profit" },
+                          { label: "Most popular first", value: "popular" },
+                          { label: "Highest value first", value: "value" },
+                          { label: "Recently added first", value: "recent" }
+                        ]}
+                        value={formSettings.bundlePriority || "profit"}
+                        onChange={(value) => updateSetting("bundlePriority", value)}
+                        helpText="How to order bundle recommendations"
+                      />
+
+                      <Text variant="headingMd" as="h4">Badge Text Customization</Text>
+                      
+                      <TextField
+                        label="High-value badge text"
+                        value={formSettings.badgeHighValueText || "Best Value"}
+                        onChange={(value) => updateSetting("badgeHighValueText", value)}
+                        helpText="Text displayed on high-value bundle badges"
+                        autoComplete="off"
+                      />
+
+                      <TextField
+                        label="Popular badge text"
+                        value={formSettings.badgePopularText || "Most Popular"}
+                        onChange={(value) => updateSetting("badgePopularText", value)}
+                        helpText="Text displayed on popular item badges"
+                        autoComplete="off"
+                      />
+
+                      <TextField
+                        label="Trending badge text"
+                        value={formSettings.badgeTrendingText || "Trending"}
+                        onChange={(value) => updateSetting("badgeTrendingText", value)}
+                        helpText="Text displayed on trending item badges"
+                        autoComplete="off"
+                      />
+
+                      <Text variant="headingMd" as="h4">Customer Testimonials</Text>
+                      
+                      <TextField
+                        label="Testimonials (JSON format)"
+                        value={formSettings.testimonialsList || JSON.stringify([
+                          { text: "Love this combo!", author: "Sarah M." },
+                          { text: "Perfect together!", author: "Mike R." },
+                          { text: "Great value bundle", author: "Emma K." },
+                          { text: "Exactly what I needed", author: "Alex T." },
+                          { text: "Highly recommend", author: "Lisa P." },
+                          { text: "Amazing quality", author: "James W." }
+                        ], null, 2)}
+                        onChange={(value) => updateSetting("testimonialsList", value)}
+                        helpText="JSON array of testimonials with 'text' and 'author' fields"
+                        multiline={6}
+                        autoComplete="off"
+                      />
+                    </BlockStack>
+                  )}
                 </FormLayout>
               </BlockStack>
             </Card>

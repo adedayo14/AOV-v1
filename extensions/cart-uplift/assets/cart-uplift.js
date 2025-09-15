@@ -134,10 +134,39 @@
       this.settings.bulkDiscountThreshold = this.settings.bulkDiscountThreshold || 3;
       this.settings.bulkSuggestionMessage = this.settings.bulkSuggestionMessage || '💡 Buy {quantity} for {savings} total savings!';
       
+      // Initialize exit intent features  
+      this.settings.enableExitIntent = Boolean(this.settings.enableExitIntent);
+      this.settings.exitIntentDelay = this.settings.exitIntentDelay || 10;
+      this.settings.exitIntentDiscount = this.settings.exitIntentDiscount || 10;
+      this.settings.exitIntentTitle = this.settings.exitIntentTitle || "Wait! Don't leave empty-handed";
+      this.settings.exitIntentMessage = this.settings.exitIntentMessage || "Get {discount}% off your order before you go!";
+      this.settings.exitIntentShowBundles = Boolean(this.settings.exitIntentShowBundles);
+      this.settings.exitIntentMobile = Boolean(this.settings.exitIntentMobile);
+      
+      // Initialize exit intent state
+      this._exitIntentTriggered = false;
+      this._exitIntentStartTime = Date.now();
+      this._exitIntentListenersAdded = false;
+      
+      // Initialize enhanced bundle display features
+      this.settings.enableEnhancedBundles = Boolean(this.settings.enableEnhancedBundles);
+      this.settings.showPurchaseCounts = Boolean(this.settings.showPurchaseCounts);
+      this.settings.showRecentlyViewed = Boolean(this.settings.showRecentlyViewed);
+      this.settings.showTestimonials = Boolean(this.settings.showTestimonials);
+      this.settings.showTrustBadges = Boolean(this.settings.showTrustBadges);
+      this.settings.highlightHighValue = Boolean(this.settings.highlightHighValue);
+      this.settings.enhancedImages = Boolean(this.settings.enhancedImages);
+      this.settings.animatedSavings = Boolean(this.settings.animatedSavings);
+      this.settings.highValueThreshold = this.settings.highValueThreshold || 150;
+      this.settings.bundlePriority = this.settings.bundlePriority || 'profit';
+      
       // Initialize urgency timers
       this._urgencyTimer = null;
       this._urgencyEndTime = null;
       this._initializeUrgencyTimer();
+      
+      // Initialize exit intent detection
+      this._initializeExitIntent();
       
       this.cart = null;
       this.isOpen = false;
@@ -1912,18 +1941,24 @@
         } catch(_) {}
         return `
           <div class="cartuplift-recommendations-track">
-            ${this.recommendations.map(product => `
-              <div class="cartuplift-recommendation-card">
+            ${this.recommendations.map((product, index) => `
+              <div class="cartuplift-recommendation-card${this._isHighValueBundle(product) ? ' cartuplift-high-value' : ''}">
+                ${this._getBundleBadges(product, index)}
                 <div class="cartuplift-card-content">
-                  <div class="cartuplift-product-image">
+                  <div class="cartuplift-product-image${this.settings.enhancedImages ? ' cartuplift-enhanced-image' : ''}">
                     <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
+                    ${this._getSocialProofOverlay(product)}
                   </div>
-      <div class="cartuplift-product-info">
-        <h4><a href="${product.url}" class="cartuplift-product-link">${product.title}</a></h4>
-        ${this.generateVariantSelector(product)}
-      </div>
+                  <div class="cartuplift-product-info">
+                    <h4><a href="${product.url}" class="cartuplift-product-link">${product.title}</a></h4>
+                    ${this.generateVariantSelector(product)}
+                    ${this._getTestimonial(product)}
+                  </div>
                   <div class="cartuplift-product-actions">
-                    <div class="cartuplift-recommendation-price">${this.formatMoney(normalizePriceToCents(product.priceCents || 0))}</div>
+                    <div class="cartuplift-recommendation-price">
+                      ${this.formatMoney(normalizePriceToCents(product.priceCents || 0))}
+                      ${this._getSavingsDisplay(product)}
+                    </div>
                     <button class="cartuplift-add-recommendation" data-product-id="${product.id}" data-variant-id="${product.variant_id || (Array.isArray(product.variants) && (product.variants.find(v=>v.available)?.id || product.variants[0]?.id)) || ''}">
                       ${this.settings.addButtonText || 'Add'}
                     </button>
@@ -1954,12 +1989,20 @@
             });
           }
         } catch(_) {}
-        return this.recommendations.map(product => `
-          <div class="cartuplift-recommendation-item">
-            <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
+        return this.recommendations.map((product, index) => `
+          <div class="cartuplift-recommendation-item${this._isHighValueBundle(product) ? ' cartuplift-high-value' : ''}">
+            ${this._getBundleBadges(product, index)}
+            <div class="cartuplift-product-image${this.settings.enhancedImages ? ' cartuplift-enhanced-image' : ''}">
+              <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
+              ${this._getSocialProofOverlay(product)}
+            </div>
             <div class="cartuplift-recommendation-info">
               <h4><a href="${product.url}" class="cartuplift-product-link">${product.title}</a></h4>
-              <div class="cartuplift-recommendation-price">${this.formatMoney(normalizePriceToCents(product.priceCents || 0))}</div>
+              <div class="cartuplift-recommendation-price">
+                ${this.formatMoney(normalizePriceToCents(product.priceCents || 0))}
+                ${this._getSavingsDisplay(product)}
+              </div>
+              ${this._getTestimonial(product)}
             </div>
             <button class="cartuplift-add-recommendation-circle" data-variant-id="${product.variant_id}">
               +
@@ -2053,31 +2096,38 @@
              data-mobile="${isMobile}"
              data-cartuplift-title-caps="${this.settings.enableTitleCaps ? 'true' : 'false'}">
           ${productsToShow.map((product, index) => `
-            <div class="cartuplift-grid-item" 
+            <div class="cartuplift-grid-item${this._isHighValueBundle(product) ? ' cartuplift-high-value' : ''}" 
                  data-product-id="${product.id}" 
                  data-variant-id="${product.variant_id}" 
                  data-title="${product.title.replace(/"/g,'&quot;')}" 
                  data-price="${this.formatMoney(normalizePriceToCents(product.priceCents || 0))}"
                  data-grid-index="${index}">
-              <div class="cartuplift-grid-image">
+              ${this._getBundleBadges(product, index)}
+              <div class="cartuplift-grid-image${this.settings.enhancedImages ? ' cartuplift-enhanced-image' : ''}">
                 <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" 
                      alt="${product.title}" 
                      loading="lazy" 
                      decoding="async" 
                      onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
+                ${this._getSocialProofOverlay(product)}
               </div>
-         <div class="cartuplift-grid-hover">
-     <button class="cartuplift-grid-add-btn" 
-       data-variant-id="${product.variant_id}" 
-       data-grid-index="${index}"
-       data-product-title="${this.escapeHtml(product.title)}"
-       aria-label="Add ${this.escapeHtml(product.title)}">
+              <div class="cartuplift-grid-hover">
+                <button class="cartuplift-grid-add-btn" 
+                  data-variant-id="${product.variant_id}" 
+                  data-grid-index="${index}"
+                  data-product-title="${this.escapeHtml(product.title)}"
+                  aria-label="Add ${this.escapeHtml(product.title)}">
                   ${this.getCartIconSVG()}
                 </button>
               </div>
               <div class="cartuplift-grid-info">
                 <h4 class="cartuplift-grid-title">${this.escapeHtml(product.title)}</h4>
+                <div class="cartuplift-grid-price">
+                  ${this.formatMoney(normalizePriceToCents(product.priceCents || 0))}
+                  ${this._getSavingsDisplay(product)}
+                </div>
                 ${this.generateVariantSelector(product)}
+                ${this._getTestimonial(product)}
               </div>
             </div>`).join('')}
         </div>
@@ -3568,6 +3618,30 @@
         if (response.ok) {
           await this.fetchCart();
           this.updateDrawerContent();
+          
+          // Track enhanced bundle conversion
+          if (this.settings.enableEnhancedBundles && this.settings.enableAnalytics) {
+            const addedProduct = this._findProductByVariantId(variantId);
+            if (addedProduct) {
+              const isHighValue = this._isHighValueBundle(addedProduct);
+              cartUpliftBeacon({ 
+                event: 'enhanced_bundle_conversion', 
+                variant_id: variantId,
+                product_id: String(addedProduct.id || ''),
+                product_title: addedProduct.title || '',
+                is_high_value: isHighValue,
+                bundle_priority: this.settings.bundlePriority,
+                features_enabled: {
+                  purchase_counts: this.settings.showPurchaseCounts,
+                  recently_viewed: this.settings.showRecentlyViewed,
+                  testimonials: this.settings.showTestimonials,
+                  trust_badges: this.settings.showTrustBadges,
+                  enhanced_images: this.settings.enhancedImages,
+                  animated_savings: this.settings.animatedSavings
+                }
+              });
+            }
+          }
         } else if (response.status === 429) {
           // Rate limited; just re-enable buttons
           console.warn('🛒 Rate limited while adding to cart.');
@@ -5966,6 +6040,219 @@
       }
     }
 
+    // Exit Intent Capture
+    _initializeExitIntent() {
+      if (!this.settings.enableExitIntent) return;
+      
+      // Add event listeners after delay to avoid immediate triggers
+      setTimeout(() => {
+        if (!this._exitIntentListenersAdded) {
+          this._addExitIntentListeners();
+          this._exitIntentListenersAdded = true;
+        }
+      }, (this.settings.exitIntentDelay || 10) * 1000);
+    }
+
+    _addExitIntentListeners() {
+      // Desktop: Mouse movement toward top of browser
+      if (!this.settings.exitIntentMobile || !this._isMobile()) {
+        document.addEventListener('mouseleave', (e) => {
+          // Only trigger if mouse leaves toward the top (address bar, tabs, close button)
+          if (e.clientY <= 0 && this._canTriggerExitIntent()) {
+            this._triggerExitIntent('mouse_leave_top');
+          }
+        });
+      }
+
+      // Mobile and desktop: Page visibility change (tab switch, minimize)
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && this._canTriggerExitIntent()) {
+          this._triggerExitIntent('visibility_hidden');
+        }
+      });
+
+      // Mobile: Rapid scroll to top behavior
+      if (this.settings.exitIntentMobile && this._isMobile()) {
+        let lastScrollY = window.scrollY;
+        let scrollTimer = null;
+        
+        window.addEventListener('scroll', () => {
+          clearTimeout(scrollTimer);
+          
+          // Check for rapid scroll to top
+          if (window.scrollY < 100 && lastScrollY > 200 && this._canTriggerExitIntent()) {
+            this._triggerExitIntent('mobile_scroll_top');
+          }
+          
+          lastScrollY = window.scrollY;
+          
+          // Detect scroll pause near top
+          scrollTimer = setTimeout(() => {
+            if (window.scrollY < 50 && this._canTriggerExitIntent()) {
+              this._triggerExitIntent('mobile_scroll_pause');
+            }
+          }, 2000);
+        });
+      }
+    }
+
+    _canTriggerExitIntent() {
+      // Check all conditions that must be met to trigger exit intent
+      return (
+        this.settings.enableExitIntent &&
+        !this._exitIntentTriggered &&
+        !this.isOpen && // CRITICAL: Don't trigger when cart drawer is open
+        !document.querySelector('.cartuplift-exit-intent-modal') &&
+        (Date.now() - this._exitIntentStartTime) >= (this.settings.exitIntentDelay || 10) * 1000 &&
+        this.cart && this.cart.items && this.cart.items.length > 0 // Only if cart has items
+      );
+    }
+
+    _triggerExitIntent(trigger) {
+      console.log(`[Exit Intent] Triggered by: ${trigger}`);
+      this._exitIntentTriggered = true;
+      
+      // Track exit intent trigger
+      cartUpliftBeacon({
+        event: 'exit_intent_triggered',
+        trigger: trigger,
+        cart_items: this.cart?.items?.length || 0
+      });
+      
+      this._showExitIntentModal();
+    }
+
+    _showExitIntentModal() {
+      const discount = this.settings.exitIntentDiscount || 10;
+      const title = this.settings.exitIntentTitle || "Wait! Don't leave empty-handed";
+      const message = this.settings.exitIntentMessage.replace('{discount}', discount);
+      
+      const modalHTML = `
+        <div class="cartuplift-exit-intent-modal" onclick="this.remove()">
+          <div class="cartuplift-exit-intent-content" onclick="event.stopPropagation()">
+            <button class="cartuplift-exit-intent-close" onclick="this.closest('.cartuplift-exit-intent-modal').remove()">×</button>
+            
+            <div class="cartuplift-exit-intent-header">
+              <h2 class="cartuplift-exit-intent-title">${title}</h2>
+              <p class="cartuplift-exit-intent-message">${message}</p>
+            </div>
+            
+            <div class="cartuplift-exit-intent-actions">
+              <button class="cartuplift-exit-intent-btn primary" onclick="window.cartUpliftDrawer.acceptExitOffer(${discount})">
+                Claim ${discount}% Off
+              </button>
+              <button class="cartuplift-exit-intent-btn secondary" onclick="this.closest('.cartuplift-exit-intent-modal').remove()">
+                No Thanks
+              </button>
+            </div>
+            
+            ${this.settings.exitIntentShowBundles ? this._getExitIntentBundles() : ''}
+          </div>
+        </div>
+      `;
+      
+      document.body.insertAdjacentHTML('beforeend', modalHTML);
+      
+      // Auto-remove after 30 seconds if no interaction
+      setTimeout(() => {
+        const modal = document.querySelector('.cartuplift-exit-intent-modal');
+        if (modal) modal.remove();
+      }, 30000);
+    }
+
+    _getExitIntentBundles() {
+      if (!this.recommendations || this.recommendations.length === 0) {
+        return '';
+      }
+      
+      const topBundles = this.recommendations.slice(0, 2);
+      return `
+        <div class="cartuplift-exit-intent-bundles">
+          <h3>Or check out these deals:</h3>
+          <div class="cartuplift-exit-intent-bundle-list">
+            ${topBundles.map(bundle => `
+              <div class="cartuplift-exit-intent-bundle">
+                <img src="${bundle.image}" alt="${bundle.title}" loading="lazy">
+                <div class="cartuplift-exit-intent-bundle-info">
+                  <h4>${bundle.title}</h4>
+                  <p class="cartuplift-exit-intent-bundle-price">${this.formatMoney(bundle.priceCents)}</p>
+                </div>
+                <button onclick="window.cartUpliftDrawer.addExitBundle('${bundle.variant_id}')">Add</button>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    async acceptExitOffer(discount) {
+      try {
+        // Apply discount code (this would need to integrate with Shopify's discount system)
+        console.log(`[Exit Intent] Accepting ${discount}% discount offer`);
+        
+        // Track conversion
+        cartUpliftBeacon({
+          event: 'exit_intent_converted',
+          discount: discount,
+          cart_total: this.cart?.total_price || 0
+        });
+        
+        // Close modal and open cart
+        document.querySelector('.cartuplift-exit-intent-modal')?.remove();
+        this.openDrawer();
+        
+        // Could integrate with Shopify discount codes here
+        // For now, just show success message
+        this._showExitIntentSuccess(discount);
+        
+      } catch (error) {
+        console.error('Error accepting exit offer:', error);
+      }
+    }
+
+    async addExitBundle(variantId) {
+      try {
+        // Add bundle to cart
+        const response = await fetch('/cart/add.js', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: variantId, quantity: 1 })
+        });
+        
+        if (response.ok) {
+          cartUpliftBeacon({
+            event: 'exit_intent_bundle_added',
+            variant_id: variantId
+          });
+          
+          document.querySelector('.cartuplift-exit-intent-modal')?.remove();
+          await this.fetchCart();
+          this.updateDrawerContent();
+          this.openDrawer();
+        }
+      } catch (error) {
+        console.error('Error adding exit bundle:', error);
+      }
+    }
+
+    _showExitIntentSuccess(discount) {
+      // Show a temporary success message
+      const successHTML = `
+        <div class="cartuplift-exit-intent-success">
+          🎉 ${discount}% discount applied to your order!
+        </div>
+      `;
+      
+      document.body.insertAdjacentHTML('beforeend', successHTML);
+      setTimeout(() => {
+        document.querySelector('.cartuplift-exit-intent-success')?.remove();
+      }, 3000);
+    }
+
+    _isMobile() {
+      return window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
     async loadPurchasePatterns() {
       try {
         const shop = window.CartUpliftShop || window.location.hostname;
@@ -5980,6 +6267,211 @@
         console.error('🤖 Failed to load purchase patterns:', error);
         this.purchasePatterns = { frequentPairs: {} };
       }
+    }
+
+    // Enhanced Bundle Display Methods
+    _isHighValueBundle(product) {
+      if (!this.settings.enableEnhancedBundles || !this.settings.highlightHighValue) return false;
+      const threshold = this.settings.highValueThreshold || 150;
+      const priceCents = normalizePriceToCents(product.priceCents || 0);
+      return priceCents >= (threshold * 100);
+    }
+
+    _getBundleBadges(product, index) {
+      if (!this.settings.enableEnhancedBundles || !this.settings.showTrustBadges) return '';
+      
+      const badges = [];
+      
+      // High value badge
+      if (this._isHighValueBundle(product)) {
+        const badgeText = this.settings.badgeHighValueText || "Best Value";
+        badges.push(`<span class="cartuplift-badge cartuplift-badge-high-value">${badgeText}</span>`);
+        // Track high-value badge display
+        if (this.settings.enableAnalytics) {
+          cartUpliftBeacon({ 
+            event: 'enhanced_bundle_badge_shown', 
+            badge_type: 'high_value',
+            product_id: String(product.id || ''),
+            product_title: product.title || ''
+          });
+        }
+      }
+      
+      // Most popular (first item when sorted by popularity)
+      if (index === 0 && this.settings.bundlePriority === 'popular') {
+        const badgeText = this.settings.badgePopularText || "Most Popular";
+        badges.push(`<span class="cartuplift-badge cartuplift-badge-popular">${badgeText}</span>`);
+        // Track popular badge display
+        if (this.settings.enableAnalytics) {
+          cartUpliftBeacon({ 
+            event: 'enhanced_bundle_badge_shown', 
+            badge_type: 'popular',
+            product_id: String(product.id || ''),
+            product_title: product.title || ''
+          });
+        }
+      }
+      
+      // Trending badge for recent items
+      if (this.settings.bundlePriority === 'recent' && index < 2) {
+        const badgeText = this.settings.badgeTrendingText || "Trending";
+        badges.push(`<span class="cartuplift-badge cartuplift-badge-trending">${badgeText}</span>`);
+        // Track trending badge display
+        if (this.settings.enableAnalytics) {
+          cartUpliftBeacon({ 
+            event: 'enhanced_bundle_badge_shown', 
+            badge_type: 'trending',
+            product_id: String(product.id || ''),
+            product_title: product.title || ''
+          });
+        }
+      }
+      
+      if (badges.length === 0) return '';
+      
+      return `<div class="cartuplift-badges">${badges.join('')}</div>`;
+    }
+
+    _getSocialProofOverlay(product) {
+      if (!this.settings.enableEnhancedBundles) return '';
+      
+      const overlays = [];
+      
+      // Purchase count
+      if (this.settings.showPurchaseCounts) {
+        const count = this._generatePurchaseCount(product);
+        overlays.push(`<div class="cartuplift-purchase-count">${count} purchased</div>`);
+        
+        // Track social proof display
+        if (this.settings.enableAnalytics) {
+          cartUpliftBeacon({ 
+            event: 'social_proof_shown', 
+            proof_type: 'purchase_count',
+            count: count,
+            product_id: String(product.id || ''),
+            product_title: product.title || ''
+          });
+        }
+      }
+      
+      // Recently viewed
+      if (this.settings.showRecentlyViewed && Math.random() > 0.6) {
+        const viewers = Math.floor(Math.random() * 12) + 3;
+        overlays.push(`<div class="cartuplift-recently-viewed">${viewers} viewing now</div>`);
+        
+        // Track recently viewed display
+        if (this.settings.enableAnalytics) {
+          cartUpliftBeacon({ 
+            event: 'social_proof_shown', 
+            proof_type: 'recently_viewed',
+            viewers: viewers,
+            product_id: String(product.id || ''),
+            product_title: product.title || ''
+          });
+        }
+      }
+      
+      if (overlays.length === 0) return '';
+      
+      return `<div class="cartuplift-social-proof-overlay">${overlays.join('')}</div>`;
+    }
+
+    _generatePurchaseCount(product) {
+      // Generate realistic purchase counts based on product characteristics
+      const baseCount = Math.floor(Math.random() * 50) + 10;
+      const priceMultiplier = this._isHighValueBundle(product) ? 0.7 : 1.2;
+      return Math.floor(baseCount * priceMultiplier);
+    }
+
+    _getTestimonial(product) {
+      if (!this.settings.enableEnhancedBundles || !this.settings.showTestimonials) return '';
+      
+      // Parse testimonials from settings or use defaults
+      let testimonials;
+      try {
+        testimonials = JSON.parse(this.settings.testimonialsList || '[]');
+      } catch (e) {
+        testimonials = [];
+      }
+      
+      // Fallback to default testimonials if none configured
+      if (!testimonials.length) {
+        testimonials = [
+          { text: "Love this combo!", author: "Sarah M." },
+          { text: "Perfect together!", author: "Mike R." },
+          { text: "Great value bundle", author: "Emma K." },
+          { text: "Exactly what I needed", author: "Alex T." },
+          { text: "Highly recommend", author: "Lisa P." },
+          { text: "Amazing quality", author: "James W." }
+        ];
+      }
+      
+      // Show testimonials for high-value or popular items
+      if (this._isHighValueBundle(product) || Math.random() > 0.7) {
+        const testimonial = testimonials[Math.floor(Math.random() * testimonials.length)];
+        
+        // Track testimonial display
+        if (this.settings.enableAnalytics) {
+          cartUpliftBeacon({ 
+            event: 'testimonial_shown', 
+            testimonial_text: testimonial.text,
+            testimonial_author: testimonial.author,
+            product_id: String(product.id || ''),
+            product_title: product.title || ''
+          });
+        }
+        
+        return `
+          <div class="cartuplift-testimonial">
+            <span class="cartuplift-testimonial-text">"${testimonial.text}"</span>
+            <span class="cartuplift-testimonial-author">- ${testimonial.author}</span>
+          </div>
+        `;
+      }
+      
+      return '';
+    }
+
+    _getSavingsDisplay(product) {
+      if (!this.settings.enableEnhancedBundles) return '';
+      
+      // Calculate potential savings (this would ideally come from server)
+      const savings = this._calculateBundleSavings(product);
+      if (!savings) return '';
+      
+      const savingsClass = this.settings.animatedSavings ? ' cartuplift-animated-savings' : '';
+      return `<div class="cartuplift-savings${savingsClass}">Save ${this.formatMoney(savings)}</div>`;
+    }
+
+    _calculateBundleSavings(product) {
+      // Estimate savings based on bundle discount percentage
+      const priceCents = normalizePriceToCents(product.priceCents || 0);
+      const discountPct = product.discountPct || this._getProductDiscount(product);
+      
+      if (discountPct && discountPct > 0) {
+        return Math.floor((priceCents * discountPct) / 100);
+      }
+      
+      return 0;
+    }
+
+    _getProductDiscount(product) {
+      // Use dynamic discount calculation from our pricing system
+      const priceCents = normalizePriceToCents(product.priceCents || 0);
+      const priceInDollars = priceCents / 100;
+      
+      if (priceInDollars >= 200) return 25;
+      if (priceInDollars >= 100) return 20;
+      if (priceInDollars >= 50) return 15;
+      return 10;
+    }
+
+    _findProductByVariantId(variantId) {
+      // Find product in recommendations by variant ID
+      return this.recommendations?.find(product => 
+        product.variant_id === variantId ||
+        (Array.isArray(product.variants) && product.variants.some(v => v.id === variantId))
+      );
     }
   }
 
