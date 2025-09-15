@@ -424,57 +424,163 @@ export async function loader({ request }: LoaderFunctionArgs) {
         return json({ bundles: [], reason: 'invalid_product' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
       }
 
-      // Use simple test bundles instead of complex ML system
-      console.log(`[BUNDLES API] === USING SIMPLE TEST BUNDLES ===`);
-      console.log(`[BUNDLES API] Generating bundles for product ${productId}, shop: ${shop}`);
+      console.log('[BUNDLES API] Step 6: Generating bundles...');
       
-      // Simple test bundles that match the current product
-      const testBundles = [
-        {
-          id: 'bundle_1',
-          name: 'Complete Footwear Bundle',
-          description: 'Everything you need for your active lifestyle',
-          products: [
-            { id: '10083165798739', title: 'Mens Strider', price: 89.99 },
-            { id: 'athletic_socks_001', title: 'Performance Athletic Socks', price: 19.99 },
-            { id: 'shoe_care_kit_001', title: 'Premium Shoe Care Kit', price: 29.99 }
-          ],
-          regular_total: 139.97,
-          bundle_price: 125.97,
-          discount_percent: 10,
-          savings_amount: 13.97,
-          discount_code: 'BUNDLE_FOOTWEAR_COMPLETE',
-          status: 'active',
-          source: 'test'
-        },
-        {
-          id: 'bundle_2',
-          name: 'Athletic Performance Bundle',
-          description: 'Complete gear for athletes and fitness enthusiasts',
-          products: [
-            { id: '10083165798739', title: 'Mens Strider', price: 89.99 },
-            { id: 'water_bottle_premium', title: 'Insulated Water Bottle', price: 34.99 },
-            { id: 'workout_towel', title: 'Quick-Dry Workout Towel', price: 24.99 }
-          ],
-          regular_total: 149.97,
-          bundle_price: 134.97,
-          discount_percent: 10,
-          savings_amount: 15.00,
-          discount_code: 'BUNDLE_ATHLETIC_PERFORMANCE',
-          status: 'active',
-          source: 'test'
+      // Fetch real products from the store to use in bundles
+      console.log('[BUNDLES API] Fetching real products from store...');
+      const { admin } = await unauthenticated.admin(shop);
+      
+      // Get the current product details
+      let currentProduct = null;
+      try {
+        const currentProductResp = await admin.graphql(`#graphql
+          query($id: ID!) { 
+            product(id: $id) { 
+              id 
+              title 
+              handle
+              variants(first: 1) { 
+                edges { 
+                  node { 
+                    id 
+                    price 
+                    compareAtPrice
+                  } 
+                } 
+              }
+              images(first: 1) {
+                edges {
+                  node {
+                    url
+                  }
+                }
+              }
+            } 
+          }
+        `, { variables: { id: `gid://shopify/Product/${productId}` } });
+        
+        if (currentProductResp.ok) {
+          const data = await currentProductResp.json();
+          currentProduct = data?.data?.product;
+          console.log('[BUNDLES API] Current product loaded:', currentProduct?.title);
         }
-      ];
+      } catch (e) {
+        console.error('[BUNDLES API] Failed to load current product:', e);
+      }
       
-      // Filter bundles that contain the current product
-      const bundles = testBundles.filter(bundle => 
-        bundle.products.some(product => 
-          product.id === productId || product.id.toString() === productId
-        )
-      );
+      // Get other products from the store
+      let otherProducts = [];
+      try {
+        const productsResp = await admin.graphql(`#graphql
+          query {
+            products(first: 10, query: "status:active") {
+              edges {
+                node {
+                  id
+                  title
+                  handle
+                  variants(first: 1) {
+                    edges {
+                      node {
+                        id
+                        price
+                        compareAtPrice
+                      }
+                    }
+                  }
+                  images(first: 1) {
+                    edges {
+                      node {
+                        url
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `);
+        
+        if (productsResp.ok) {
+          const data = await productsResp.json();
+          otherProducts = data?.data?.products?.edges?.map((edge: any) => edge.node) || [];
+          console.log('[BUNDLES API] Found', otherProducts.length, 'other products');
+        }
+      } catch (e) {
+        console.error('[BUNDLES API] Failed to load other products:', e);
+      }
       
-      console.log(`[BUNDLES API] === SIMPLE BUNDLE SYSTEM COMPLETED ===`);
-      console.log(`[BUNDLES API] Generated ${bundles.length} bundles:`, bundles.map(b => ({ id: b.id, name: b.name, products: b.products?.length || 0 })));
+      // Create bundles using real products
+      const bundles = [];
+      
+      if (currentProduct && otherProducts.length > 0) {
+        // Helper function to get product details
+        const getProductDetails = (product: any) => ({
+          id: product.id.replace('gid://shopify/Product/', ''),
+          title: product.title,
+          price: parseFloat(product.variants?.edges?.[0]?.node?.price || '0'),
+          image: product.images?.edges?.[0]?.node?.url || 'https://via.placeholder.com/150'
+        });
+        
+        const currentProd = getProductDetails(currentProduct);
+        
+        // Create bundle 1: Current product + 2 other products
+        if (otherProducts.length >= 2) {
+          const bundle1Products = [
+            currentProd,
+            getProductDetails(otherProducts[0]),
+            getProductDetails(otherProducts[1])
+          ];
+          
+          const regularTotal = bundle1Products.reduce((sum, p) => sum + p.price, 0);
+          const discountPercent = 10;
+          const bundlePrice = regularTotal * (1 - discountPercent / 100);
+          
+          bundles.push({
+            id: 'bundle_1_real',
+            name: 'Complete Bundle',
+            description: 'Everything you need in one package',
+            products: bundle1Products,
+            regular_total: regularTotal,
+            bundle_price: bundlePrice,
+            discount_percent: discountPercent,
+            savings_amount: regularTotal - bundlePrice,
+            discount_code: 'BUNDLE_COMPLETE_10',
+            status: 'active',
+            source: 'real_products'
+          });
+        }
+        
+        // Create bundle 2: Current product + different products
+        if (otherProducts.length >= 4) {
+          const bundle2Products = [
+            currentProd,
+            getProductDetails(otherProducts[2]),
+            getProductDetails(otherProducts[3])
+          ];
+          
+          const regularTotal = bundle2Products.reduce((sum, p) => sum + p.price, 0);
+          const discountPercent = 15;
+          const bundlePrice = regularTotal * (1 - discountPercent / 100);
+          
+          bundles.push({
+            id: 'bundle_2_real',
+            name: 'Perfect Match Bundle',
+            description: 'Carefully selected complementary products',
+            products: bundle2Products,
+            regular_total: regularTotal,
+            bundle_price: bundlePrice,
+            discount_percent: discountPercent,
+            savings_amount: regularTotal - bundlePrice,
+            discount_code: 'BUNDLE_MATCH_15',
+            status: 'active',
+            source: 'real_products'
+          });
+        }
+      }
+      
+      console.log(`[BUNDLES API] === REAL PRODUCTS BUNDLE SYSTEM COMPLETED ===`);
+      console.log(`[BUNDLES API] Generated ${bundles.length} bundles using real products:`, bundles.map(b => ({ id: b.id, name: b.name, products: b.products?.length || 0 })));
 
       // Attach a small hint when empty to help diagnose in network panel
       const payload = bundles.length ? { bundles } : { bundles, reason: 'no_candidates' };
