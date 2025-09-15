@@ -11,7 +11,7 @@ import { withAuth } from "../utils/auth.server";
 // Helper function to get ML-powered bundles from your existing AI system
 async function getMLPoweredBundles(currentProductId?: string | null, shop?: string) {
   try {
-    console.log('Fetching ML bundles for product:', currentProductId);
+    console.log('Fetching ML bundles for product:', currentProductId, 'timestamp:', Date.now());
     
     // Get all available bundles
     const allBundles = await getBundlesForShop(shop || 'default');
