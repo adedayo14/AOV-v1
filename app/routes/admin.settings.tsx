@@ -2957,6 +2957,185 @@ export default function SettingsPage() {
               </BlockStack>
             </Card>
 
+            {/* ML & Smart Bundles Settings - PROMINENT PLACEMENT */}
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">
+                  🧠 Machine Learning & Smart Bundles
+                </Text>
+                <Text as="p" variant="bodyMd">
+                  Configure AI-powered recommendations and smart bundle features to boost conversions.
+                </Text>
+                <FormLayout>
+                  <Checkbox
+                    label="Enable Smart Bundles"
+                    checked={formSettings.enableSmartBundles}
+                    onChange={(value) => updateSetting("enableSmartBundles", value)}
+                    helpText="Enable AI-powered product bundling on your store"
+                  />
+
+                  <Checkbox
+                    label="Enable ML Recommendations"
+                    checked={formSettings.enableMLRecommendations}
+                    onChange={(value) => updateSetting("enableMLRecommendations", value)}
+                    helpText="Use machine learning to personalize product recommendations"
+                  />
+
+                  {formSettings.enableMLRecommendations && (
+                    <BlockStack gap="400">
+                      <Select
+                        label="ML Personalization Mode"
+                        options={[
+                          { label: 'Basic', value: 'basic' },
+                          { label: 'Advanced', value: 'advanced' },
+                          { label: 'Custom', value: 'custom' }
+                        ]}
+                        value={formSettings.mlPersonalizationMode || "basic"}
+                        onChange={(value) => updateSetting("mlPersonalizationMode", value)}
+                        helpText="Choose the level of personalization for recommendations"
+                      />
+
+                      <Select
+                        label="Privacy Level"
+                        options={[
+                          { label: 'Basic (Anonymous)', value: 'basic' },
+                          { label: 'Standard (Session-based)', value: 'standard' },
+                          { label: 'Advanced (User tracking)', value: 'advanced' }
+                        ]}
+                        value={formSettings.mlPrivacyLevel || "basic"}
+                        onChange={(value) => updateSetting("mlPrivacyLevel", value)}
+                        helpText="Balance between personalization and privacy"
+                      />
+
+                      <Checkbox
+                        label="Advanced Personalization"
+                        checked={formSettings.enableAdvancedPersonalization}
+                        onChange={(value) => updateSetting("enableAdvancedPersonalization", value)}
+                        helpText="Enable cross-session learning and behavioral analysis"
+                      />
+
+                      <Checkbox
+                        label="Behavior Tracking"
+                        checked={formSettings.enableBehaviorTracking}
+                        onChange={(value) => updateSetting("enableBehaviorTracking", value)}
+                        helpText="Track user behavior for improved recommendations (requires privacy disclosure)"
+                      />
+
+                      <TextField
+                        label="Data Retention (Days)"
+                        value={formSettings.mlDataRetentionDays || "30"}
+                        onChange={(value) => updateSetting("mlDataRetentionDays", value)}
+                        helpText="How long to keep ML training data (affects recommendation accuracy)"
+                        type="number"
+                        min="1"
+                        max="365"
+                      />
+                    </BlockStack>
+                  )}
+
+                  {/* Smart Bundle Configuration */}
+                  {formSettings.enableSmartBundles && (
+                    <BlockStack gap="400">
+                      <Text as="h3" variant="headingSm">Bundle Placement & Display</Text>
+                      
+                      <Checkbox
+                        label="Show bundles on product pages"
+                        checked={formSettings.bundlesOnProductPages}
+                        onChange={(value) => updateSetting("bundlesOnProductPages", value)}
+                        helpText="Display smart bundles on individual product pages"
+                      />
+
+                      <Checkbox
+                        label="Show bundles on collection pages"
+                        checked={formSettings.bundlesOnCollectionPages}
+                        onChange={(value) => updateSetting("bundlesOnCollectionPages", value)}
+                        helpText="Display smart bundles on collection and category pages"
+                      />
+
+                      <Checkbox
+                        label="Show bundles on cart page"
+                        checked={formSettings.bundlesOnCartPage}
+                        onChange={(value) => updateSetting("bundlesOnCartPage", value)}
+                        helpText="Display smart bundles in the cart page"
+                      />
+
+                      <Checkbox
+                        label="Show bundles on checkout page"
+                        checked={formSettings.bundlesOnCheckoutPage}
+                        onChange={(value) => updateSetting("bundlesOnCheckoutPage", value)}
+                        helpText="Display smart bundles during checkout process"
+                      />
+
+                      <TextField
+                        label="Default Bundle Discount (%)"
+                        value={formSettings.defaultBundleDiscount || "15"}
+                        onChange={(value) => updateSetting("defaultBundleDiscount", value)}
+                        helpText="Default discount percentage for smart bundles"
+                        type="number"
+                        min="0"
+                        max="50"
+                        autoComplete="off"
+                      />
+
+                      <TextField
+                        label="Bundle Title Template"
+                        value={formSettings.bundleTitleTemplate || "Complete your setup"}
+                        onChange={(value) => updateSetting("bundleTitleTemplate", value)}
+                        helpText="Template for bundle titles (use {{products}} for product names)"
+                        autoComplete="off"
+                      />
+
+                      <TextField
+                        label="Bundle Discount Code Prefix"
+                        value={formSettings.bundleDiscountPrefix || "BUNDLE"}
+                        onChange={(value) => updateSetting("bundleDiscountPrefix", value)}
+                        helpText="Prefix for auto-generated bundle discount codes"
+                        autoComplete="off"
+                      />
+
+                      <TextField
+                        label="Bundle Confidence Threshold"
+                        value={formSettings.bundleConfidenceThreshold || "0.7"}
+                        onChange={(value) => updateSetting("bundleConfidenceThreshold", value)}
+                        helpText="Minimum AI confidence score to show a bundle (0.0 - 1.0)"
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        autoComplete="off"
+                      />
+
+                      <Select
+                        label="Savings Display Format"
+                        options={[
+                          { label: 'Show both amount and percentage', value: 'both' },
+                          { label: 'Show amount only', value: 'amount' },
+                          { label: 'Show percentage only', value: 'percentage' }
+                        ]}
+                        value={formSettings.bundleSavingsFormat || "both"}
+                        onChange={(value) => updateSetting("bundleSavingsFormat", value)}
+                        helpText="How to display savings information on bundles"
+                      />
+
+                      <Checkbox
+                        label="Show individual prices in bundles"
+                        checked={formSettings.showIndividualPricesInBundle}
+                        onChange={(value) => updateSetting("showIndividualPricesInBundle", value)}
+                        helpText="Display the original price of each product in the bundle"
+                      />
+
+                      <Checkbox
+                        label="Auto-apply bundle discounts"
+                        checked={formSettings.autoApplyBundleDiscounts}
+                        onChange={(value) => updateSetting("autoApplyBundleDiscounts", value)}
+                        helpText="Automatically apply discount codes when bundles are added to cart"
+                      />
+                    </BlockStack>
+                  )}
+                </FormLayout>
+              </BlockStack>
+            </Card>
+
             {/* Customer Incentives */}
             <Card>
               <BlockStack gap="400">
@@ -3630,185 +3809,6 @@ export default function SettingsPage() {
                 </BlockStack>
               </Card>
             )}
-
-            {/* ML & Smart Bundles Settings */}
-            <Card>
-              <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">
-                  🧠 Machine Learning & Smart Bundles
-                </Text>
-                <Text as="p" variant="bodyMd">
-                  Configure AI-powered recommendations and smart bundle features to boost conversions.
-                </Text>
-                <FormLayout>
-                  <Checkbox
-                    label="Enable Smart Bundles"
-                    checked={formSettings.enableSmartBundles}
-                    onChange={(value) => updateSetting("enableSmartBundles", value)}
-                    helpText="Enable AI-powered product bundling on your store"
-                  />
-
-                  <Checkbox
-                    label="Enable ML Recommendations"
-                    checked={formSettings.enableMLRecommendations}
-                    onChange={(value) => updateSetting("enableMLRecommendations", value)}
-                    helpText="Use machine learning to personalize product recommendations"
-                  />
-
-                  {formSettings.enableMLRecommendations && (
-                    <BlockStack gap="400">
-                      <Select
-                        label="ML Personalization Mode"
-                        options={[
-                          { label: 'Basic', value: 'basic' },
-                          { label: 'Advanced', value: 'advanced' },
-                          { label: 'Custom', value: 'custom' }
-                        ]}
-                        value={formSettings.mlPersonalizationMode || "basic"}
-                        onChange={(value) => updateSetting("mlPersonalizationMode", value)}
-                        helpText="Choose the level of personalization for recommendations"
-                      />
-
-                      <Select
-                        label="Privacy Level"
-                        options={[
-                          { label: 'Basic (Anonymous)', value: 'basic' },
-                          { label: 'Standard (Session-based)', value: 'standard' },
-                          { label: 'Advanced (User tracking)', value: 'advanced' }
-                        ]}
-                        value={formSettings.mlPrivacyLevel || "basic"}
-                        onChange={(value) => updateSetting("mlPrivacyLevel", value)}
-                        helpText="Balance between personalization and privacy"
-                      />
-
-                      <Checkbox
-                        label="Advanced Personalization"
-                        checked={formSettings.enableAdvancedPersonalization}
-                        onChange={(value) => updateSetting("enableAdvancedPersonalization", value)}
-                        helpText="Enable cross-session learning and behavioral analysis"
-                      />
-
-                      <Checkbox
-                        label="Behavior Tracking"
-                        checked={formSettings.enableBehaviorTracking}
-                        onChange={(value) => updateSetting("enableBehaviorTracking", value)}
-                        helpText="Track user behavior for improved recommendations (requires privacy disclosure)"
-                      />
-
-                      <TextField
-                        label="Data Retention (Days)"
-                        value={formSettings.mlDataRetentionDays || "30"}
-                        onChange={(value) => updateSetting("mlDataRetentionDays", value)}
-                        helpText="How long to keep ML training data (affects recommendation accuracy)"
-                        type="number"
-                        min="1"
-                        max="365"
-                      />
-                    </BlockStack>
-                  )}
-
-                  {/* Smart Bundle Configuration */}
-                  {formSettings.enableSmartBundles && (
-                    <BlockStack gap="400">
-                      <Text as="h3" variant="headingSm">Bundle Placement & Display</Text>
-                      
-                      <Checkbox
-                        label="Show bundles on product pages"
-                        checked={formSettings.bundlesOnProductPages}
-                        onChange={(value) => updateSetting("bundlesOnProductPages", value)}
-                        helpText="Display smart bundles on individual product pages"
-                      />
-
-                      <Checkbox
-                        label="Show bundles on collection pages"
-                        checked={formSettings.bundlesOnCollectionPages}
-                        onChange={(value) => updateSetting("bundlesOnCollectionPages", value)}
-                        helpText="Display smart bundles on collection and category pages"
-                      />
-
-                      <Checkbox
-                        label="Show bundles on cart page"
-                        checked={formSettings.bundlesOnCartPage}
-                        onChange={(value) => updateSetting("bundlesOnCartPage", value)}
-                        helpText="Display smart bundles in the cart page"
-                      />
-
-                      <Checkbox
-                        label="Show bundles on checkout page"
-                        checked={formSettings.bundlesOnCheckoutPage}
-                        onChange={(value) => updateSetting("bundlesOnCheckoutPage", value)}
-                        helpText="Display smart bundles during checkout process"
-                      />
-
-                      <TextField
-                        label="Default Bundle Discount (%)"
-                        value={formSettings.defaultBundleDiscount || "15"}
-                        onChange={(value) => updateSetting("defaultBundleDiscount", value)}
-                        helpText="Default discount percentage for smart bundles"
-                        type="number"
-                        min="0"
-                        max="50"
-                        autoComplete="off"
-                      />
-
-                      <TextField
-                        label="Bundle Title Template"
-                        value={formSettings.bundleTitleTemplate || "Complete your setup"}
-                        onChange={(value) => updateSetting("bundleTitleTemplate", value)}
-                        helpText="Template for bundle titles (use {{products}} for product names)"
-                        autoComplete="off"
-                      />
-
-                      <TextField
-                        label="Bundle Discount Code Prefix"
-                        value={formSettings.bundleDiscountPrefix || "BUNDLE"}
-                        onChange={(value) => updateSetting("bundleDiscountPrefix", value)}
-                        helpText="Prefix for auto-generated bundle discount codes"
-                        autoComplete="off"
-                      />
-
-                      <TextField
-                        label="Bundle Confidence Threshold"
-                        value={formSettings.bundleConfidenceThreshold || "0.7"}
-                        onChange={(value) => updateSetting("bundleConfidenceThreshold", value)}
-                        helpText="Minimum AI confidence score to show a bundle (0.0 - 1.0)"
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.1"
-                        autoComplete="off"
-                      />
-
-                      <Select
-                        label="Savings Display Format"
-                        options={[
-                          { label: 'Show both amount and percentage', value: 'both' },
-                          { label: 'Show amount only', value: 'amount' },
-                          { label: 'Show percentage only', value: 'percentage' }
-                        ]}
-                        value={formSettings.bundleSavingsFormat || "both"}
-                        onChange={(value) => updateSetting("bundleSavingsFormat", value)}
-                        helpText="How to display savings information on bundles"
-                      />
-
-                      <Checkbox
-                        label="Show individual prices in bundles"
-                        checked={formSettings.showIndividualPricesInBundle}
-                        onChange={(value) => updateSetting("showIndividualPricesInBundle", value)}
-                        helpText="Display the original price of each product in the bundle"
-                      />
-
-                      <Checkbox
-                        label="Auto-apply bundle discounts"
-                        checked={formSettings.autoApplyBundleDiscounts}
-                        onChange={(value) => updateSetting("autoApplyBundleDiscounts", value)}
-                        helpText="Automatically apply discount codes when bundles are added to cart"
-                      />
-                    </BlockStack>
-                  )}
-                </FormLayout>
-              </BlockStack>
-            </Card>
 
             {/* Additional Features */}
             <Card>

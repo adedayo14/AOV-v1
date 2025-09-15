@@ -602,80 +602,240 @@
       this.attachDrawerEvents();
     }
 
-    renderDrawerContent() {
-      const popup = document.querySelector('#cartuplift-cart-popup');
-      if (!popup) return;
-      
+    getDrawerHTML() {
       const cart = this.cart;
       const settings = this.settings;
       const itemCount = cart?.item_count || 0;
       
-      popup.innerHTML = `
+      // Determine what progress bars to show based on settings
+      const showFreeShipping = settings.enableFreeShipping && settings.freeShippingThreshold > 0;
+      const showGiftGating = settings.enableGiftGating && settings.giftThresholds?.length > 0;
+      
+      // For recommendations: only show if enabled and has items or recommendations loaded
+      const shouldShowRecommendations = settings.enableRecommendations && 
+        (cart?.items?.length > 0 || this._recommendationsLoaded);
+      
+      const hasDiscount = cart && cart.total_discount > 0;
+      const finalTotal = this.getDisplayedTotalCents();
+      
+      return `
         <div class="cartuplift-drawer">
-          <div class="cartuplift-header">
-            <h2 class="cartuplift-title">${settings.cartTitle || 'Your Cart'} (${itemCount})</h2>
-            <button class="cartuplift-close" aria-label="Close cart">×</button>
-          </div>
+          ${this.getHeaderHTML(itemCount)}
+          
+          ${showFreeShipping ? this.getFreeShippingProgressHTML() : ''}
+          ${showGiftGating ? this.getGiftProgressHTML() : ''}
           
           <div class="cartuplift-content-wrapper">
+            ${settings.urgencyPlacement === 'header' ? this._getUrgencyHTML() : ''}
             <div class="cartuplift-items">
-              ${this.getCartItemsHTML(cart, settings)}
+              ${this.getCartItemsHTML()}
             </div>
             
             <div class="cartuplift-scrollable-content">
-              ${settings.enableRecommendations ? this.getRecommendationsHTML() : ''}
+              ${settings.enableAddons ? this.getAddonsHTML() : ''}
+              ${settings.quantitySuggestionPlacement === 'recommendations' ? this._getQuantitySuggestionsHTML() : ''}
+              ${shouldShowRecommendations ? this.getRecommendationsHTML() : ''}
+              ${(() => {
+                if (!(settings.enableDiscountCode || settings.enableNotes)) return '';
+                return this.getInlineLinksHTML();
+              })()}
             </div>
           </div>
           
           <div class="cartuplift-footer">
-            ${this.getFooterHTML(cart, settings)}
+            <div class="cartuplift-subtotal">
+              <span>Subtotal${hasDiscount ? ' (after discount)' : ''}</span>
+              <span class="cartuplift-subtotal-amount">${this.formatMoney(finalTotal)}</span>
+            </div>
+            
+            ${settings.urgencyPlacement === 'footer' ? this._getUrgencyHTML() : ''}
+            
+            <button class="cartuplift-checkout-btn" onclick="window.cartUpliftDrawer.proceedToCheckout()">
+              ${settings.checkoutButtonText || 'Checkout'}
+            </button>
+            
+            ${(() => {
+              return settings.enableExpressCheckout ? this.getExpressCheckoutHTML() : '';
+            })()}
           </div>
         </div>
       `;
     }
 
-    getCartItemsHTML(cart, settings) {
-      if (!cart?.items?.length) {
-        return `
-          <div class="cartuplift-empty">
-            <p>Your cart is empty</p>
-          </div>
-        `;
+    renderDrawerContent() {
+      const popup = document.querySelector('#cartuplift-cart-popup');
+      if (!popup) return;
+      
+      popup.innerHTML = this.getDrawerHTML();
+    }
+
+    getHeaderHTML(itemCount) {
+      const messages = [];
+      
+      // Add shipping progress to header subtitle
+      if (this.settings.enableFreeShipping && this.settings.freeShippingThreshold > 0) {
+        const currentTotal = this.cart ? this.cart.total_price / 100 : 0;
+        const threshold = this.settings.freeShippingThreshold;
+        const remaining = Math.max(threshold - currentTotal, 0);
+        
+        if (remaining > 0) {
+          const message = (this.settings.progressMessage || 'You\'re {amount} away from free shipping!')
+            .replace(/\{amount\}/g, this.formatMoney(remaining * 100))
+            .replace(/\{\{amount\}\}/g, this.formatMoney(remaining * 100));
+          messages.push(message);
+        } else {
+          messages.push(this.settings.successMessage || '🎉 Congratulations! You\'ve unlocked free shipping!');
+        }
       }
 
-      return cart.items.map((item, index) => {
-        const isGift = item.properties && item.properties._is_gift === 'true';
-        const giftIcon = isGift ? '🎁' : '';
+      // Add gift progress to header subtitle  
+      if (this.settings.enableGiftGating && this.settings.giftThresholds?.length > 0) {
+        const currentTotal = this.cart ? this.cart.total_price / 100 : 0;
+        const nextThreshold = this.settings.giftThresholds.find(t => currentTotal < t.threshold);
+        
+        if (nextThreshold) {
+          const remaining = nextThreshold.threshold - currentTotal;
+          messages.push(`Add ${this.formatMoney(remaining * 100)} for ${nextThreshold.gift}`);
+        }
+      }
+
+      let progressMessage = '';
+      if (messages.length > 0) {
+        progressMessage = messages.join(' • ');
+      }
+      
+      return `
+        <div class="cartuplift-header">
+          <h2 class="cartuplift-cart-title">Cart (${itemCount})</h2>
+          ${this.settings.urgencyPlacement === 'subtitle' ? this._getUrgencyHTML() : ''}
+          ${progressMessage ? `
+            <div class="cartuplift-shipping-info">
+              <p class="cartuplift-shipping-message">${progressMessage}</p>
+            </div>
+          ` : ''}
+          <button class="cartuplift-close" aria-label="Close cart">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        
+        ${progressMessage ? `
+          <div class="cartuplift-shipping-info-mobile">
+            <p class="cartuplift-shipping-message">${progressMessage}</p>
+          </div>
+        ` : ''}
+      `;
+    }
+
+    getFreeShippingProgressHTML() {
+      const currentTotal = this.cart ? this.cart.total_price / 100 : 0;
+      const threshold = this.settings.freeShippingThreshold || 100;
+      const progress = Math.min((currentTotal / threshold) * 100, 100);
+      
+      // Use shippingBarColor (default black) consistently for the fill
+      const safeShippingColor = this.settings.shippingBarColor || '#121212';
+      
+      console.log('🛒 Cart Uplift: Free shipping progress:', {
+        progress: progress,
+        shippingColor: safeShippingColor,
+        progressBarHTML: `width: ${progress}%; background: ${safeShippingColor} !important;`
+      });
+      
+      return `
+        <div class="cartuplift-shipping-bar">
+          <div class="cartuplift-shipping-progress">
+            <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${safeShippingColor} !important; display: block;"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    getGiftProgressHTML() {
+      if (!this.settings.enableGiftGating || !this.settings.giftThresholds?.length) return '';
+      
+      const currentTotal = this.cart ? this.cart.total_price / 100 : 0;
+      const thresholds = this.settings.giftThresholds.sort((a, b) => a.threshold - b.threshold);
+      
+      if (this.settings.giftDisplayMode === 'stacked') {
+        return this.renderStackedProgress(thresholds, currentTotal);
+      } else {
+        return this.renderSingleProgress(thresholds, currentTotal);
+      }
+    }
+
+    renderStackedProgress(thresholds, currentTotal) {
+      const stackedHTML = thresholds.map((threshold, index) => {
+        const isUnlocked = currentTotal >= threshold.threshold;
+        const progress = Math.min((currentTotal / threshold.threshold) * 100, 100);
         
         return `
-          <div class="cartuplift-item" data-line="${index + 1}">
-            <div class="cartuplift-item-image">
-              <img src="${item.featured_image?.url || item.image || 'https://via.placeholder.com/80'}" alt="${Utils.escapeHtml(item.product_title)}" loading="lazy">
+          <div class="cartuplift-gift-threshold">
+            <div class="cartuplift-gift-info">
+              <span class="cartuplift-gift-title">${isUnlocked ? '✓' : ''} ${threshold.gift}</span>
+              <span class="cartuplift-gift-progress-text">${this.formatMoney(threshold.threshold * 100)}</span>
             </div>
-            <div class="cartuplift-item-details">
-              <div class="cartuplift-item-title">
-                ${giftIcon}${Utils.escapeHtml(item.product_title)}
-              </div>
-              ${item.variant_title && item.variant_title !== 'Default Title' ? `
-                <div class="cartuplift-item-variant">${Utils.escapeHtml(item.variant_title)}</div>
-              ` : ''}
-              <div class="cartuplift-item-price">${Utils.formatMoney(item.final_line_price || item.line_price || 0)}</div>
-            </div>
-            <div class="cartuplift-item-controls">
-              ${settings.enableQuantitySelectors ? `
-                <div class="cartuplift-qty-controls">
-                  <button class="cartuplift-qty-minus" data-line="${index + 1}">−</button>
-                  <span class="cartuplift-qty-display">${item.quantity}</span>
-                  <button class="cartuplift-qty-plus" data-line="${index + 1}">+</button>
-                </div>
-              ` : `<span class="cartuplift-qty-display">Qty: ${item.quantity}</span>`}
-              ${settings.enableItemRemoval ? `
-                <button class="cartuplift-item-remove-x" data-line="${index + 1}" aria-label="Remove item">×</button>
-              ` : ''}
+            <div class="cartuplift-gift-bar">
+              <div class="cartuplift-gift-fill" style="width: ${progress}%; background: ${isUnlocked ? (this.themeColors.primary || '#121212') : '#121212'};"></div>
             </div>
           </div>
         `;
       }).join('');
+      
+      return `
+        <div class="cartuplift-gift-progress-container">
+          <div class="cartuplift-stacked-progress">
+            ${stackedHTML}
+          </div>
+        </div>
+      `;
+    }
+
+    renderSingleProgress(thresholds, currentTotal) {
+      // Find next unattained threshold
+      const nextThreshold = thresholds.find(t => currentTotal < t.threshold);
+      const unlockedThresholds = thresholds.filter(t => currentTotal >= t.threshold);
+      
+      if (!nextThreshold && unlockedThresholds.length === 0) return '';
+      
+      let html = '';
+      
+      // Show unlocked gifts
+      if (unlockedThresholds.length > 0) {
+        const unlockedHTML = unlockedThresholds.map(t => 
+          `<div class="cartuplift-unlocked-item">✓ ${t.gift}</div>`
+        ).join('');
+        
+        html += `
+          <div class="cartuplift-unlocked-gifts">
+            ${unlockedHTML}
+          </div>
+        `;
+      }
+      
+      // Show next goal
+      if (nextThreshold) {
+        const progress = Math.min((currentTotal / nextThreshold.threshold) * 100, 100);
+        const remaining = nextThreshold.threshold - currentTotal;
+        
+        html += `
+          <div class="cartuplift-next-goal">
+            <div class="cartuplift-next-info">
+              ${this.formatMoney(remaining * 100)} away from ${nextThreshold.gift}
+            </div>
+            <div class="cartuplift-next-bar">
+              <div class="cartuplift-next-fill" style="width: ${progress}%;"></div>
+            </div>
+          </div>
+        `;
+      }
+      
+      return html ? `
+        <div class="cartuplift-gift-progress-container">
+          ${html}
+        </div>
+      ` : '';
     }
 
     getRecommendationsHTML() {
@@ -786,6 +946,89 @@
       }
     }
 
+    getDisplayedTotalCents() {
+      if (!this.cart) return 0;
+      
+      // Start with Shopify's calculated total
+      let total = this.cart.total_price || 0;
+      
+      // Handle discounts (they reduce the total)
+      if (this.cart.total_discount) {
+        // Shopify already includes discounts in total_price, so don't double-subtract
+      }
+      
+      return total;
+    }
+
+    formatMoney(cents) {
+      return Utils.formatMoney(cents);
+    }
+
+    _getUrgencyHTML() {
+      if (!this.settings.urgencyMessage) return '';
+      return `<div class="cartuplift-urgency">${this.settings.urgencyMessage}</div>`;
+    }
+
+    _getQuantitySuggestionsHTML() {
+      // Add quantity suggestions if enabled
+      return '';
+    }
+
+    getAddonsHTML() {
+      // Add any product addons/upsells
+      return '';
+    }
+
+    getInlineLinksHTML() {
+      const links = [];
+      
+      if (this.settings.enableDiscountCode) {
+        const linkText = this.settings.promotionLinkText || '+ Got a promotion code?';
+        links.push(`<a href="#" class="cartuplift-inline-link" onclick="window.cartUpliftDrawer.showDiscountModal(); return false;">${linkText}</a>`);
+      }
+      
+      if (this.settings.enableNotes) {
+        const linkText = this.settings.notesLinkText || '+ Add order notes';
+        links.push(`<a href="#" class="cartuplift-inline-link" onclick="window.cartUpliftDrawer.showNotesModal(); return false;">${linkText}</a>`);
+      }
+      
+      if (links.length === 0) return '';
+      
+      return `
+        <div class="cartuplift-inline-links">
+          ${links.join('<span class="cartuplift-inline-sep"> • </span>')}
+        </div>
+      `;
+    }
+
+    getExpressCheckoutHTML() {
+      return `
+        <div class="cartuplift-express-checkout">
+          <button class="cartuplift-paypal-btn" onclick="window.cartUpliftDrawer.expressCheckout('paypal')">
+            <img src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg" alt="PayPal" loading="lazy">
+          </button>
+          <button class="cartuplift-shoppay-btn" onclick="window.cartUpliftDrawer.expressCheckout('shoppay')">
+            <span>Shop Pay</span>
+          </button>
+        </div>
+      `;
+    }
+
+    showDiscountModal() {
+      console.log('Show discount modal');
+      // TODO: Implement discount modal
+    }
+
+    showNotesModal() {
+      console.log('Show notes modal');
+      // TODO: Implement notes modal  
+    }
+
+    expressCheckout(method) {
+      console.log('Express checkout with:', method);
+      // TODO: Implement express checkout
+    }
+
     getFooterHTML(cart, settings) {
       const total = this.calculateDisplayTotal(cart);
       
@@ -800,19 +1043,6 @@
         </button>
         
         ${settings.enableExpressCheckout ? this.getExpressCheckoutHTML() : ''}
-      `;
-    }
-
-    getExpressCheckoutHTML() {
-      return `
-        <div class="cartuplift-express-checkout">
-          <button class="cartuplift-paypal-btn" onclick="window.cartUpliftDrawer.proceedToPayPal()" title="Pay with PayPal">
-            PayPal
-          </button>
-          <button class="cartuplift-shoppay-btn" onclick="window.cartUpliftDrawer.proceedToShopPay()" title="Pay with Shop Pay">
-            Shop Pay
-          </button>
-        </div>
       `;
     }
 
