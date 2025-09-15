@@ -12,20 +12,26 @@ import { withAuth } from "../utils/auth.server";
 async function getMLPoweredBundles(currentProductId?: string | null, shop?: string) {
   try {
     console.log('Fetching ML bundles for product:', currentProductId, 'timestamp:', Date.now());
+    console.log('Shop parameter:', shop);
     
     // Get all available bundles
     const allBundles = await getBundlesForShop(shop || 'default');
+    console.log('Total bundles available:', allBundles.length);
     
     // If we have a specific product ID, filter bundles that contain this product
     if (currentProductId) {
-      const filteredBundles = allBundles.filter(bundle => 
-        bundle.products.some(product => 
+      console.log('Filtering bundles for product ID:', currentProductId);
+      const filteredBundles = allBundles.filter(bundle => {
+        const hasProduct = bundle.products.some(product => 
           product.id === currentProductId || 
           product.id.toString() === currentProductId
-        )
-      );
+        );
+        console.log(`Bundle "${bundle.name}" contains product ${currentProductId}:`, hasProduct);
+        return hasProduct;
+      });
       
       console.log(`Found ${filteredBundles.length} bundles containing product ${currentProductId}`);
+      console.log('Filtered bundles:', filteredBundles.map(b => ({ id: b.id, name: b.name, productCount: b.products.length })));
       return filteredBundles;
     }
     
