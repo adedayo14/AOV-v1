@@ -334,20 +334,31 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // GET /apps/proxy/api/bundles
   // Returns simple, high-confidence bundles for PDP based on recent co-purchases.
   if (path.includes('/api/bundles')) {
+    console.log('[BUNDLES API] === STARTING BUNDLES REQUEST ===');
+    console.log('[BUNDLES API] Request URL:', request.url);
+    console.log('[BUNDLES API] Request method:', request.method);
     try {
+      console.log('[BUNDLES API] Step 1: Authenticating app proxy...');
       const { session } = await authenticate.public.appProxy(request);
       const shop = session?.shop;
-      if (!shop) return json({ error: 'Unauthorized' }, { status: 401 });
+      console.log('[BUNDLES API] Step 2: Shop authenticated:', shop);
+      
+      if (!shop) {
+        console.log('[BUNDLES API] ERROR: No shop found, returning unauthorized');
+        return json({ error: 'Unauthorized' }, { status: 401 });
+      }
 
+      console.log('[BUNDLES API] Step 3: Parsing parameters...');
       const context = url.searchParams.get('context') || 'product';
       const productIdParam = url.searchParams.get('product_id') || undefined;
-      const limit = Math.min(2, Math.max(1, parseInt(url.searchParams.get('limit') || '2', 10)));
+      console.log('[BUNDLES API] Context:', context, 'Product ID:', productIdParam);
 
+      console.log('[BUNDLES API] Step 4: Loading settings...');
       // Feature flag check
       let settings: any = undefined;
       try { 
         settings = await getSettings(shop);
-        console.log('[BUNDLES API] Settings loaded for shop', shop, ':', {
+        console.log('[BUNDLES API] Settings loaded successfully:', {
           enableSmartBundles: settings?.enableSmartBundles,
           bundlesOnProductPages: settings?.bundlesOnProductPages,
           settingsKeys: Object.keys(settings || {})
@@ -356,6 +367,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         console.error('[BUNDLES API] Failed to load settings:', e);
       }
       
+      console.log('[BUNDLES API] Step 5: Checking feature flags...');
       // Temporarily bypass the setting check for testing
       console.log('[BUNDLES API] Bypassing enableSmartBundles check for testing');
       /*
@@ -365,10 +377,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }
       */
       if (context === 'product' && !settings?.bundlesOnProductPages) {
+        console.log('[BUNDLES API] Bundles on product pages disabled');
         return json({ bundles: [], reason: 'disabled_page' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
       }
 
       if (context !== 'product' || !productIdParam) {
+        console.log('[BUNDLES API] Invalid context or missing product ID');
         return json({ bundles: [] }, { headers: { 'Access-Control-Allow-Origin': '*' } });
       }
 
