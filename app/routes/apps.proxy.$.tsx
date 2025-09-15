@@ -356,10 +356,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
         console.error('[BUNDLES API] Failed to load settings:', e);
       }
       
+      // Temporarily bypass the setting check for testing
+      console.log('[BUNDLES API] Bypassing enableSmartBundles check for testing');
+      /*
       if (!settings?.enableSmartBundles) {
         console.log('[BUNDLES API] Smart bundles disabled, enableSmartBundles:', settings?.enableSmartBundles);
         return json({ bundles: [], reason: 'disabled' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
       }
+      */
       if (context === 'product' && !settings?.bundlesOnProductPages) {
         return json({ bundles: [], reason: 'disabled_page' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
       }
