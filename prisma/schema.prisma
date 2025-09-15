@@ -102,6 +102,22 @@ model Settings {
   themeEmbedEnabled       Boolean  @default(false)
   themeEmbedLastSeen      DateTime?
   
+  // Enhanced Bundle Display Settings
+  enableEnhancedBundles   Boolean  @default(false)
+  showPurchaseCounts      Boolean  @default(false)
+  showRecentlyViewed      Boolean  @default(false)
+  showTestimonials        Boolean  @default(false)
+  showTrustBadges         Boolean  @default(false)
+  highlightHighValue      Boolean  @default(false)
+  enhancedImages          Boolean  @default(false)
+  animatedSavings         Boolean  @default(false)
+  highValueThreshold      Int      @default(150)
+  bundlePriority          String   @default("value")
+  badgeHighValueText      String   @default("Best Value")
+  badgePopularText        String   @default("Most Popular")
+  badgeTrendingText       String   @default("Trending")
+  testimonialsList        String   @default("[]")
+  
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
