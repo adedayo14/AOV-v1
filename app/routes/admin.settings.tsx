@@ -261,6 +261,14 @@ export default function SettingsPage() {
 
   const [formSettings, setFormSettings] = useState(validateSettings(settings));
 
+  // DEBUG: Log form settings to see if ML settings are present
+  console.log('🔍 Admin Settings Debug - formSettings:', {
+    enableMLRecommendations: formSettings.enableMLRecommendations,
+    enableSmartBundles: formSettings.enableSmartBundles,
+    mlPersonalizationMode: formSettings.mlPersonalizationMode,
+    hasAllMLSettings: !!(formSettings.enableMLRecommendations !== undefined && formSettings.enableSmartBundles !== undefined)
+  });
+
   // Use theme colors for better defaults  
   const themeColors = detectThemeColors();
 

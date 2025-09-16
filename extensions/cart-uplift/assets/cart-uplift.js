@@ -487,8 +487,16 @@
       this.updateDrawerContent();
       
       // Handle sticky cart
+      console.log('🛒 Cart Uplift: Checking sticky cart settings...', {
+        enableStickyCart: this.settings.enableStickyCart,
+        allSettings: this.settings
+      });
+      
       if (this.settings.enableStickyCart) {
+        console.log('🛒 Cart Uplift: Creating sticky cart...');
         this.createStickyCart();
+      } else {
+        console.log('🛒 Cart Uplift: Sticky cart disabled in settings');
       }
       
       // Set up interceptors
@@ -609,7 +617,17 @@
       
       // Determine what progress bars to show based on settings
       const showFreeShipping = settings.enableFreeShipping && settings.freeShippingThreshold > 0;
-      const showGiftGating = settings.enableGiftGating && settings.giftThresholds?.length > 0;
+      
+      // Parse giftThresholds safely for checking
+      let giftThresholds = [];
+      try {
+        giftThresholds = typeof settings.giftThresholds === 'string' ? 
+          JSON.parse(settings.giftThresholds) : (settings.giftThresholds || []);
+      } catch (e) {
+        console.warn('Failed to parse giftThresholds:', e);
+        giftThresholds = [];
+      }
+      const showGiftGating = settings.enableGiftGating && giftThresholds.length > 0;
       
       // For recommendations: only show if enabled and has items or recommendations loaded
       const shouldShowRecommendations = settings.enableRecommendations && 
@@ -689,13 +707,19 @@
       }
 
       // Add gift progress to header subtitle  
-      if (this.settings.enableGiftGating && this.settings.giftThresholds?.length > 0) {
+      if (this.settings.enableGiftGating && this.settings.giftThresholds) {
         const currentTotal = this.cart ? this.cart.total_price / 100 : 0;
-        const nextThreshold = this.settings.giftThresholds.find(t => currentTotal < t.threshold);
+        // Parse giftThresholds if it's a string
+        const giftThresholds = typeof this.settings.giftThresholds === 'string' ? 
+          JSON.parse(this.settings.giftThresholds) : this.settings.giftThresholds;
         
-        if (nextThreshold) {
-          const remaining = nextThreshold.threshold - currentTotal;
-          messages.push(`Add ${this.formatMoney(remaining * 100)} for ${nextThreshold.gift}`);
+        if (giftThresholds?.length > 0) {
+          const nextThreshold = giftThresholds.find(t => currentTotal < t.threshold);
+        
+          if (nextThreshold) {
+            const remaining = nextThreshold.threshold - currentTotal;
+            messages.push(`Add ${this.formatMoney(remaining * 100)} for ${nextThreshold.gift}`);
+          }
         }
       }
 
@@ -753,10 +777,20 @@
     }
 
     getGiftProgressHTML() {
-      if (!this.settings.enableGiftGating || !this.settings.giftThresholds?.length) return '';
+      // Parse giftThresholds safely
+      let giftThresholds = [];
+      try {
+        giftThresholds = typeof this.settings.giftThresholds === 'string' ? 
+          JSON.parse(this.settings.giftThresholds) : (this.settings.giftThresholds || []);
+      } catch (e) {
+        console.warn('Failed to parse giftThresholds in getGiftProgressHTML:', e);
+        return '';
+      }
+      
+      if (!this.settings.enableGiftGating || !giftThresholds.length) return '';
       
       const currentTotal = this.cart ? this.cart.total_price / 100 : 0;
-      const thresholds = this.settings.giftThresholds.sort((a, b) => a.threshold - b.threshold);
+      const thresholds = giftThresholds.sort((a, b) => a.threshold - b.threshold);
       
       if (this.settings.giftDisplayMode === 'stacked') {
         return this.renderStackedProgress(thresholds, currentTotal);
@@ -1058,13 +1092,20 @@
     }
 
     createStickyCart() {
+      console.log('🛒 Cart Uplift: createStickyCart called');
+      
       const existing = document.getElementById('cartuplift-sticky');
-      if (existing) existing.remove();
+      if (existing) {
+        console.log('🛒 Cart Uplift: Removing existing sticky cart');
+        existing.remove();
+      }
 
       const stickyCart = DOMManager.createElement('div', {
         id: 'cartuplift-sticky',
         className: `cartuplift-sticky ${this.settings.cartPosition || 'bottom-right'}`
       });
+      
+      console.log('🛒 Cart Uplift: Created sticky cart element with class:', stickyCart.className);
       
       let buttonContent = '';
       
@@ -1087,10 +1128,15 @@
         </button>
       `;
       
+      console.log('🛒 Cart Uplift: Adding sticky cart to body');
       document.body.appendChild(stickyCart);
+      
+      console.log('🛒 Cart Uplift: Sticky cart added to DOM:', document.getElementById('cartuplift-sticky'));
       
       const btn = stickyCart.querySelector('.cartuplift-sticky-btn');
       btn.addEventListener('click', () => this.openDrawer());
+      
+      console.log('🛒 Cart Uplift: Sticky cart setup complete');
     }
 
     getCartIcon(type = 'cart') {
