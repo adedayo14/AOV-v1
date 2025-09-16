@@ -10,48 +10,47 @@
   'use strict';
 
   // ============================================================================
-  // MODULE 1: Version Control and Utilities
+  // MODULE 1: Utilities
   // ============================================================================
   const Utils = {
-    version: 'grid-2025-09-15-modular',
-    
+    version: '2.0.0',
+
     escapeHtml(str) {
-      if (str === undefined || str === null) return '';
+      if (str == null) return '';
       return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+  .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
     },
 
-    normalizePriceToCents(val) {
-      if (val === null || val === undefined) return 0;
-      if (typeof val === 'number') return Math.round(val);
-      const s = String(val).trim();
-      if (!s) return 0;
-      if (s.includes('.')) {
-        const n = parseFloat(s);
-        return isNaN(n) ? 0 : Math.round(n * 100);
+    normalizePriceToCents(value) {
+      if (typeof value === 'number') {
+        return Math.round(value * 100);
       }
-      const cents = parseInt(s, 10);
-      return isNaN(cents) ? 0 : cents;
+      if (typeof value === 'string') {
+        const cleaned = value.replace(/[^0-9.,-]/g, '').replace(/,/g, '');
+        const num = parseFloat(cleaned);
+        if (isNaN(num)) return 0;
+        return Math.round(num * 100);
+      }
+      return 0;
     },
 
     formatMoney(cents) {
-      // Ensure we have a valid number, default to 0 if not
-      const validCents = (typeof cents === 'number' && !isNaN(cents)) ? cents : 0;
-      const amount = (validCents / 100).toFixed(2);
-      
-      if (window.CartUpliftMoneyFormat) {
-        try {
-          return window.CartUpliftMoneyFormat.replace(/\{\{\s*amount\s*\}\}/g, amount);
-        } catch {
-          // Fallback
+      try {
+        if (typeof window !== 'undefined' && window.Shopify && typeof window.Shopify.formatMoney === 'function') {
+          return window.Shopify.formatMoney(cents);
         }
+      } catch(_) {}
+      const amount = (Number(cents || 0) / 100);
+      try {
+        const currency = (window.Shopify && window.Shopify.currency && window.Shopify.currency.active) || 'USD';
+        return amount.toLocaleString(undefined, { style: 'currency', currency });
+      } catch(_) {
+        return `$${amount.toFixed(2)}`;
       }
-      
-      return '$' + amount;
     },
 
     beacon(payload) {
@@ -741,9 +740,8 @@
             </div>
           ` : ''}
           <button class="cartuplift-close" aria-label="Close cart">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 24px; height: 24px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
@@ -1250,6 +1248,13 @@
           z-index: 2147483647; /* on top of most theme UI */
           pointer-events: auto;
         }
+        /* Hide sticky when drawer is open */
+        .cartuplift-open #cartuplift-sticky,
+        .cartuplift-open .cartuplift-sticky {
+          display: none !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
         .cartuplift-sticky.bottom-right { right: 16px; bottom: 16px; }
         .cartuplift-sticky.bottom-left { left: 16px; bottom: 16px; }
         .cartuplift-sticky.top-right { right: 16px; top: 16px; }
@@ -1580,6 +1585,8 @@
       container.classList.add('active');
       document.documentElement.classList.add('cartuplift-no-scroll');
       document.body.classList.add('cartuplift-no-scroll');
+  document.documentElement.classList.add('cartuplift-open');
+  document.body.classList.add('cartuplift-open');
       
       setTimeout(() => {
         this._isAnimating = false;
@@ -1604,6 +1611,8 @@
       container.classList.remove('active');
       document.documentElement.classList.remove('cartuplift-no-scroll');
       document.body.classList.remove('cartuplift-no-scroll');
+  document.documentElement.classList.remove('cartuplift-open');
+  document.body.classList.remove('cartuplift-open');
       
       setTimeout(() => {
         container.style.display = 'none';
