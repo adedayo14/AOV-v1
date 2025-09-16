@@ -119,6 +119,14 @@ export const action = withAuthAction(async ({ request, auth }) => {
     enableGiftGating: settings.enableGiftGating === 'true',
     giftProgressStyle: String(settings.giftProgressStyle) || "single-next",
     giftThresholds: String(settings.giftThresholds) || "[]",
+  // ML / Smart Bundles
+  enableMLRecommendations: settings.enableMLRecommendations === 'true',
+  enableSmartBundles: settings.enableSmartBundles === 'true',
+  mlPersonalizationMode: String(settings.mlPersonalizationMode) || 'basic',
+  mlPrivacyLevel: String(settings.mlPrivacyLevel) || 'basic',
+  enableAdvancedPersonalization: settings.enableAdvancedPersonalization === 'true',
+  enableBehaviorTracking: settings.enableBehaviorTracking === 'true',
+  mlDataRetentionDays: String(settings.mlDataRetentionDays) || '30',
   };
   
   try {
@@ -2910,6 +2918,99 @@ export default function SettingsPage() {
                     onChange={(value) => updateSetting("enableAnalytics", value)}
                     helpText="Optional. Tracks cart opens, clicks on recommendations, and checkout starts. No PII collected."
                   />
+                </FormLayout>
+              </BlockStack>
+            </Card>
+
+            {/* ML & Smart Bundles Settings - PROMINENT PLACEMENT */}
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">🧠 Machine Learning & Smart Bundles</Text>
+                <Text as="p" variant="bodyMd">Configure AI-powered recommendations and smart bundle features to boost conversions.</Text>
+                <FormLayout>
+                  <Checkbox
+                    label="Enable Smart Bundles"
+                    checked={(formSettings as any).enableSmartBundles}
+                    onChange={(value) => updateSetting("enableSmartBundles", value)}
+                    helpText="Enable AI-powered product bundling on your store"
+                  />
+
+                  <Checkbox
+                    label="Enable ML Recommendations"
+                    checked={(formSettings as any).enableMLRecommendations}
+                    onChange={(value) => updateSetting("enableMLRecommendations", value)}
+                    helpText="Use machine learning to personalize product recommendations"
+                  />
+
+                  {(formSettings as any).enableMLRecommendations && (
+                    <BlockStack gap="400">
+                      <Select
+                        label="ML Personalization Mode"
+                        options={[
+                          { label: 'Basic', value: 'basic' },
+                          { label: 'Advanced', value: 'advanced' },
+                          { label: 'Custom', value: 'custom' }
+                        ]}
+                        value={(formSettings as any).mlPersonalizationMode || "basic"}
+                        onChange={(value) => updateSetting("mlPersonalizationMode", value)}
+                        helpText="Choose the level of personalization for recommendations"
+                      />
+
+                      <Select
+                        label="Privacy Level"
+                        options={[
+                          { label: 'Basic (Anonymous)', value: 'basic' },
+                          { label: 'Standard (Session-based)', value: 'standard' },
+                          { label: 'Advanced (User tracking)', value: 'advanced' }
+                        ]}
+                        value={(formSettings as any).mlPrivacyLevel || "basic"}
+                        onChange={(value) => updateSetting("mlPrivacyLevel", value)}
+                        helpText="Balance between personalization and privacy"
+                      />
+
+                      <Checkbox
+                        label="Advanced Personalization"
+                        checked={(formSettings as any).enableAdvancedPersonalization}
+                        onChange={(value) => updateSetting("enableAdvancedPersonalization", value)}
+                        helpText="Enable cross-session learning and behavioral analysis"
+                      />
+
+                      <Checkbox
+                        label="Behavior Tracking"
+                        checked={(formSettings as any).enableBehaviorTracking}
+                        onChange={(value) => updateSetting("enableBehaviorTracking", value)}
+                        helpText="Track user behavior for improved recommendations (requires privacy disclosure)"
+                      />
+
+                      <TextField
+                        label="Data Retention (Days)"
+                        value={(formSettings as any).mlDataRetentionDays || "30"}
+                        onChange={(value) => updateSetting("mlDataRetentionDays", value)}
+                        helpText="How long to keep ML training data (affects recommendation accuracy)"
+                        type="number"
+                        autoComplete="off"
+                      />
+                    </BlockStack>
+                  )}
+
+                  {/* Smart Bundle Configuration */}
+                  {(formSettings as any).enableSmartBundles && (
+                    <BlockStack gap="400">
+                      <Text as="h3" variant="headingSm">Bundle Placement & Display</Text>
+                      <Checkbox
+                        label="Show bundles on product pages"
+                        checked={(formSettings as any).bundlesOnProductPages}
+                        onChange={(value) => updateSetting("bundlesOnProductPages", value)}
+                        helpText="Display smart bundles on individual product pages"
+                      />
+                      <Checkbox
+                        label="Show bundles in cart drawer"
+                        checked={(formSettings as any).bundlesInCartDrawer}
+                        onChange={(value) => updateSetting("bundlesInCartDrawer", value)}
+                        helpText="Show bundle suggestions inside the cart drawer"
+                      />
+                    </BlockStack>
+                  )}
                 </FormLayout>
               </BlockStack>
             </Card>

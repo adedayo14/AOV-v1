@@ -250,7 +250,8 @@
       normalized.enableQuantitySelectors = Boolean(normalized.enableQuantitySelectors);
       normalized.enableItemRemoval = Boolean(normalized.enableItemRemoval);
       normalized.enableAnalytics = Boolean(normalized.enableAnalytics);
-      normalized.autoOpenCart = Boolean(normalized.autoOpenCart);
+  // Default to true so our drawer opens unless explicitly disabled
+  normalized.autoOpenCart = normalized.autoOpenCart !== false;
       normalized.enableTitleCaps = Boolean(normalized.enableTitleCaps);
       normalized.enableRecommendationTitleCaps = Boolean(normalized.enableRecommendationTitleCaps);
       
@@ -522,6 +523,8 @@
     installEarlyInterceptors() {
       this.setupCartInterception();
       this.installAddToCartMonitoring();
+    this.installXHRMonitoring();
+    this.installFormSubmitInterception();
     }
 
     setupCartInterception() {
@@ -1977,6 +1980,86 @@
       hideNotifications();
       setInterval(hideNotifications, 1000);
     }
+
+    // Some themes use XMLHttpRequest for cart add/change; monitor these as well
+    installXHRMonitoring() {
+      try {
+        const OrigXHR = window.XMLHttpRequest;
+        const self = this;
+        function WrappedXHR() {
+          const xhr = new OrigXHR();
+          let _url = '';
+          const origOpen = xhr.open;
+          const origSend = xhr.send;
+          xhr.open = function(method, url, ...rest) {
+            try { _url = (url || '').toString(); } catch(_) {}
+            return origOpen.call(xhr, method, url, ...rest);
+          };
+          xhr.send = function(body) {
+            try {
+              xhr.addEventListener('load', async function() {
+                const ok = (xhr.status >= 200 && xhr.status < 300);
+                const isCartAdd = (_url || '').includes('/cart/add');
+                if (ok && isCartAdd) {
+                  try {
+                    await self.fetchCart();
+                    self.updateDrawerContent();
+                    if (self.settings.enableApp) {
+                      self.hideThemeNotifications();
+                      if (self.settings.autoOpenCart) {
+                        self.openDrawer();
+                      }
+                    }
+                  } catch (e) {
+                    console.warn('[CartUplift] XHR monitor error', e);
+                  }
+                }
+              }, { once: true });
+            } catch(_) {}
+            return origSend.call(xhr, body);
+          };
+          return xhr;
+        }
+        window.XMLHttpRequest = WrappedXHR;
+      } catch (e) {
+        console.warn('[CartUplift] Failed to install XHR monitoring', e);
+      }
+    }
+  }
+
+  // Intercept native form submissions to /cart/add and route through our flow
+  installFormSubmitInterception() {
+    document.addEventListener('submit', async (e) => {
+      try {
+        const form = e.target;
+        if (!(form instanceof HTMLFormElement)) return;
+        const action = (form.getAttribute('action') || form.action || '').toString();
+        if (!action.includes('/cart/add')) return;
+
+        // Only intercept when our app is enabled
+        if (!this.settings.enableApp) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const formData = new FormData(form);
+        // Submit to Shopify cart add endpoint
+        await fetch('/cart/add.js', {
+          method: 'POST',
+          headers: { 'Accept': 'application/json' },
+          body: formData
+        });
+
+        await this.fetchCart();
+        this.updateDrawerContent();
+        this.hideThemeNotifications();
+        if (this.settings.autoOpenCart) {
+          this.openDrawer();
+        }
+      } catch (err) {
+        console.warn('[CartUplift] submit interception failed', err);
+      }
+    }, true);
   }
 
   // ============================================================================
