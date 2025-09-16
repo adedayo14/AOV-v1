@@ -1193,6 +1193,67 @@
           display: none !important;
         }` : ''}
       `;
+
+      // Ensure sticky cart is visible and positioned
+      css += `
+        /* Sticky cart: base positioning and visibility */
+        #cartuplift-sticky,
+        .cartuplift-sticky {
+          position: fixed;
+          z-index: 2147483647; /* on top of most theme UI */
+          pointer-events: auto;
+        }
+        .cartuplift-sticky.bottom-right { right: 16px; bottom: 16px; }
+        .cartuplift-sticky.bottom-left { left: 16px; bottom: 16px; }
+        .cartuplift-sticky.top-right { right: 16px; top: 16px; }
+        .cartuplift-sticky.top-left { left: 16px; top: 16px; }
+
+        /* Sticky button styles */
+        .cartuplift-sticky .cartuplift-sticky-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 14px;
+          border-radius: 999px;
+          border: none;
+          cursor: pointer;
+          background: var(--cartuplift-button-color) !important;
+          color: var(--cartuplift-button-text-color, #ffffff) !important;
+          box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+          font-weight: 600;
+          line-height: 1;
+        }
+        .cartuplift-sticky .cartuplift-sticky-btn svg {
+          display: block;
+        }
+        .cartuplift-sticky .cartuplift-sticky-count {
+          background: rgba(255,255,255,0.15);
+          color: inherit;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 12px;
+          line-height: 1.6;
+        }
+        .cartuplift-sticky .cartuplift-sticky-total {
+          font-size: 14px;
+          font-weight: 600;
+        }
+        @keyframes cartupliftPulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.08); }
+          100% { transform: scale(1); }
+        }
+        .cartuplift-sticky .cartuplift-sticky-btn.cartuplift-pulse {
+          animation: cartupliftPulse 450ms ease-out;
+        }
+        @media (max-width: 768px) {
+          .cartuplift-sticky.bottom-right { right: 12px; bottom: 12px; }
+          .cartuplift-sticky.bottom-left { left: 12px; bottom: 12px; }
+          .cartuplift-sticky.top-right { right: 12px; top: 12px; }
+          .cartuplift-sticky.top-left { left: 12px; top: 12px; }
+          .cartuplift-sticky .cartuplift-sticky-btn { padding: 12px 14px; }
+        }
+      `;
       
       DOMManager.injectStyles(css);
     }
@@ -2028,7 +2089,7 @@
   }
 
   // Intercept native form submissions to /cart/add and route through our flow
-  installFormSubmitInterception() {
+  CartUpliftDrawer.prototype.installFormSubmitInterception = function() {
     document.addEventListener('submit', async (e) => {
       try {
         const form = e.target;
