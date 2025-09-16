@@ -756,6 +756,53 @@
       `;
     }
 
+    getCartItemsHTML() {
+      try {
+        const cart = this.cart || { items: [] };
+        const items = Array.isArray(cart.items) ? cart.items : [];
+
+        if (items.length === 0) {
+          return `
+            <div class="cartuplift-empty">
+              <p>Your cart is empty.</p>
+            </div>
+          `;
+        }
+
+        return items.map((item, idx) => {
+          const line = idx + 1;
+          const title = Utils.escapeHtml(item.product_title || item.title || 'Untitled');
+          const variantTitle = item.variant_title && item.variant_title !== 'Default Title' ? ` — ${Utils.escapeHtml(item.variant_title)}` : '';
+          const imgSrc = item.image || item.featured_image?.url || item.featured_image || (item.images && item.images[0] && item.images[0].src) || 'https://via.placeholder.com/80';
+          const linePrice = (typeof item.final_line_price === 'number' ? item.final_line_price : (typeof item.line_price === 'number' ? item.line_price : (item.price || 0) * (item.quantity || 1)));
+          const isGift = item.properties && item.properties._is_gift === 'true';
+
+          return `
+            <div class="cartuplift-item" data-line="${line}">
+              <div class="cartuplift-item-image">
+                <img src="${imgSrc}" alt="${title}" loading="lazy"/>
+              </div>
+              <div class="cartuplift-item-info">
+                <div class="cartuplift-item-title">${title}${variantTitle}${isGift ? ' <span class="cartuplift-gift-tag">(Gift)</span>' : ''}</div>
+                <div class="cartuplift-item-meta">
+                  <div class="cartuplift-item-qty">
+                    <button class="cartuplift-qty-minus" data-line="${line}" aria-label="Decrease quantity">−</button>
+                    <span class="cartuplift-qty-display">${item.quantity || 1}</span>
+                    <button class="cartuplift-qty-plus" data-line="${line}" aria-label="Increase quantity">＋</button>
+                  </div>
+                  <div class="cartuplift-price">${Utils.formatMoney(linePrice)}</div>
+                </div>
+              </div>
+              <button class="cartuplift-item-remove-x" data-line="${line}" aria-label="Remove item">×</button>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        console.warn('CartUplift: getCartItemsHTML failed', e);
+        return '';
+      }
+    }
+
     getFreeShippingProgressHTML() {
       const currentTotal = this.cart ? this.cart.total_price / 100 : 0;
       const threshold = this.settings.freeShippingThreshold || 100;
