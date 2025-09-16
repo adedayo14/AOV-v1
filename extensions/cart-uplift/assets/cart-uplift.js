@@ -926,6 +926,9 @@
       const layout = this.settings.recommendationLayout || 'column';
       const title = this.settings.recommendationsTitle || 'You might also like';
       const capsEnabled = !!(this.settings.enableTitleCaps || this.settings.enableRecommendationTitleCaps);
+      const collapsed = (function(){
+        try { return window.localStorage.getItem('cartuplift:recs:collapsed') === '1'; } catch(_) { return false; }
+      })();
 
       // For row layout, render controls outside the scroll container so they don't scroll
       const controlsHTML = layout === 'row' ? `
@@ -944,18 +947,16 @@
       ` : '';
 
       return `
-        <div class="cartuplift-recommendations cartuplift-recommendations-${layout}">
+        <div class="cartuplift-recommendations cartuplift-recommendations-${layout}${collapsed ? ' collapsed' : ''}">
           <div class="cartuplift-recommendations-header">
             <h3 class="cartuplift-recommendations-title">${capsEnabled ? title.toUpperCase() : title}</h3>
-            ${layout === 'row' ? `
-              <button class="cartuplift-recommendations-toggle" aria-label="Toggle recommendations">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M6 1v10M1 6h10"/>
-                </svg>
-              </button>
-            ` : ''}
+            <button class="cartuplift-recommendations-toggle" aria-label="Toggle recommendations" aria-controls="cartuplift-recommendations-content" aria-expanded="${collapsed ? 'false' : 'true'}">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 1v10M1 6h10"/>
+              </svg>
+            </button>
           </div>
-          <div class="cartuplift-recommendations-content" id="cartuplift-recommendations-content">
+          <div class="cartuplift-recommendations-content" id="cartuplift-recommendations-content" aria-hidden="${collapsed ? 'true' : 'false'}">
             ${this.getRecommendationItems()}
           </div>
           ${controlsHTML}
@@ -1196,7 +1197,7 @@
       return icons[type] || icons.cart;
     }
 
-    applyCustomColors() {
+  applyCustomColors() {
       const themeColors = this.themeColors || ThemeDetector.detectColors();
       
       const safeThemeColor = ThemeDetector.isGreenColor(themeColors.primary) ? '#121212' : themeColors.primary;
@@ -1207,7 +1208,7 @@
         ? this.settings.shippingBarColor 
         : safeThemeColor;
       
-      let css = `
+  let css = `
         :root {
           --cartuplift-success-color: ${safeThemeColor} !important;
           --cartuplift-button-color: ${safeButtonColor} !important;
@@ -1240,7 +1241,7 @@
       `;
 
       // Ensure sticky cart is visible and positioned
-      css += `
+  css += `
         /* Sticky cart: base positioning and visibility */
         #cartuplift-sticky,
         .cartuplift-sticky {
@@ -1305,6 +1306,48 @@
           .cartuplift-sticky.top-left { left: 12px; top: 12px; }
           .cartuplift-sticky .cartuplift-sticky-btn { padding: 12px 14px; }
         }
+      `;
+
+      // Recommendations styles (row/carousel, grid, and column) + collapse behavior
+      css += `
+        .cartuplift-recommendations { margin-top: 12px; }
+        .cartuplift-recommendations-header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+        .cartuplift-recommendations-title { margin:0; font-size:14px; font-weight:600; }
+        .cartuplift-recommendations-toggle { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; border:1px solid rgba(0,0,0,0.08); background: transparent; cursor:pointer; }
+        .cartuplift-recommendations-toggle svg { transition: transform .2s ease; transform: rotate(45deg); }
+        .cartuplift-recommendations.collapsed .cartuplift-recommendations-toggle svg { transform: rotate(0deg); }
+        .cartuplift-recommendations-content { transition: height .2s ease, opacity .2s ease; }
+        .cartuplift-recommendations.collapsed .cartuplift-recommendations-content { display:none; opacity:0; }
+
+        /* Row/carousel */
+        .cartuplift-recommendations-row .cartuplift-recommendations-track { display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; scroll-snap-type: x mandatory; }
+        .cartuplift-recommendation-card { min-width:280px; max-width:280px; scroll-snap-align: start; border:1px solid rgba(0,0,0,0.06); border-radius:10px; overflow:hidden; background: var(--cartuplift-background, #fff); }
+        .cartuplift-card-content { display:grid; grid-template-columns: 84px 1fr; gap:10px; padding:10px; align-items:center; }
+        .cartuplift-product-image img { width:84px; height:84px; object-fit:cover; border-radius:8px; background:#f6f6f6; }
+        .cartuplift-product-info h4 { margin:0 0 6px 0; font-size:13px; line-height:1.2; font-weight:600; }
+        .cartuplift-product-variation select { width:100%; padding:6px 8px; font-size:12px; border-radius:6px; border:1px solid rgba(0,0,0,0.12); }
+        .cartuplift-product-actions { display:flex; align-items:center; gap:8px; }
+        .cartuplift-recommendation-price { font-weight:600; font-size:13px; }
+        .cartuplift-add-recommendation { border:none; border-radius:8px; padding:8px 10px; color: var(--cartuplift-button-text-color, #fff); cursor:pointer; font-size:12px; font-weight:600; }
+        .cartuplift-carousel-controls { display:flex; align-items:center; gap:6px; justify-content:flex-end; margin-top:6px; }
+        .cartuplift-carousel-nav { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; border:1px solid rgba(0,0,0,0.08); background:#fff; cursor:pointer; }
+
+        /* Grid */
+        .cartuplift-recommendations-grid .cartuplift-grid-container { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; }
+        @media (max-width: 768px) { .cartuplift-recommendations-grid .cartuplift-grid-container { display:flex; gap:8px; overflow-x:auto; } }
+        .cartuplift-grid-item { position:relative; border-radius:10px; overflow:hidden; background:#f6f6f6; min-width:140px; }
+        .cartuplift-grid-item img { width:100%; height:140px; object-fit:cover; display:block; }
+        .cartuplift-grid-overlay { position:absolute; left:0; right:0; bottom:0; padding:8px; background:linear-gradient(180deg, rgba(0,0,0,0.0), rgba(0,0,0,0.55)); color:#fff; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+        .cartuplift-grid-title { font-size:12px; font-weight:600; line-height:1.2; }
+        .cartuplift-grid-price { font-size:12px; opacity:0.95; }
+        .cartuplift-grid-add-btn { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:999px; border:1px solid rgba(255,255,255,0.6); background:transparent; color:#fff; cursor:pointer; }
+
+        /* Column list */
+        .cartuplift-recommendations-column .cartuplift-recommendation-item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); }
+        .cartuplift-recommendation-image img { width:56px; height:56px; object-fit:cover; border-radius:8px; background:#f2f2f2; }
+        .cartuplift-recommendation-title { font-size:13px; font-weight:600; margin-bottom:3px; }
+        .cartuplift-recommendation-price { font-size:12px; opacity:0.9; }
+        .cartuplift-add-recommendation-circle { margin-left:auto; width:28px; height:28px; border-radius:999px; border:1px solid rgba(0,0,0,0.12); background:#fff; color: var(--cartuplift-button-color); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
       `;
       
       DOMManager.injectStyles(css);
@@ -2036,10 +2079,17 @@
 
       recommendations.classList.toggle('collapsed');
       
-      const toggle = recommendations.querySelector('.cartuplift-recommendations-toggle svg');
-      if (toggle) {
-        const isCollapsed = recommendations.classList.contains('collapsed');
-        toggle.style.transform = isCollapsed ? 'rotate(0deg)' : 'rotate(45deg)';
+      const isCollapsed = recommendations.classList.contains('collapsed');
+      try { window.localStorage.setItem('cartuplift:recs:collapsed', isCollapsed ? '1' : '0'); } catch(_) {}
+
+      const toggleBtn = recommendations.querySelector('.cartuplift-recommendations-toggle');
+      if (toggleBtn) toggleBtn.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+      const contentEl = recommendations.querySelector('.cartuplift-recommendations-content');
+      if (contentEl) contentEl.setAttribute('aria-hidden', isCollapsed ? 'true' : 'false');
+      
+      const toggleIcon = recommendations.querySelector('.cartuplift-recommendations-toggle svg');
+      if (toggleIcon) {
+        toggleIcon.style.transform = isCollapsed ? 'rotate(0deg)' : 'rotate(45deg)';
       }
     }
 
