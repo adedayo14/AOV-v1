@@ -1,25 +1,8 @@
 {% comment %}
-Smart Bundles Block - Displays ML-powered product bundles on product p{%- comment -%}
-  {%- comment -%}
-  Ensure the bundle rend  tryInit();
-});
-</script>
-
-{% endif %}t is available on product pages using this block.
-  This is a safe fallback in case the app-embed delayed loader hasn't run yet.
-{%- endcomment -%}
-<script src="{{ 'bundle-renderer.js' | asset_url }}" defer onload="console.log('[SmartBundles] bundle-renderer.js loaded successfully')" onerror="console.error('[SmartBundles] Failed to load bundle-renderer.js')"></script>e the bundle renderer script is available on product pages using this block.
-  This is a safe fallback in case the app-embed delayed loader hasn't run yet.
-  Check if script is already loaded to prevent duplicate loading.
-{%- endcomment -%}
-<script>
-if (!document.querySelector('script[src*="bundle-renderer.js"]')) {
-  const script = document.createElement('script');
-  script.src = '{{ 'bundle-renderer.js' | asset_url }}';
-  script.defer = true;
-  document.head.appendChild(script);
-}
-</script>{% endcomment %}
+  Smart Bundles Block - Displays ML-powered product bundles.
+  This block should be placed on product pages where you want bundles to appear.
+  The associated 'bundle-renderer.js' asset will handle fetching and rendering.
+{% endcomment %}
 
 {% if block.settings.enable_smart_bundles %}
 <div class="cart-uplift-smart-bundles" 
@@ -252,7 +235,6 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
     `;
   }
-  };
 
   // Manual bundle rendering fallback
   function renderBundlesManually(bundles, container) {
