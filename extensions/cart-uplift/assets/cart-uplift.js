@@ -391,6 +391,9 @@
 
     async setup() {
       
+      // PREWARMING: Start preloading cart data immediately to reduce first-click delay
+      this.prewarmCart();
+      
       // Fetch initial cart data FIRST
       await this.fetchCart();
       
@@ -471,6 +474,45 @@
         }
         this.updateDrawerContent();
       };
+    }
+
+    // Prewarm cart data to reduce first-click delay
+    prewarmCart() {
+      console.log('🛒 Cart Uplift: Prewarming cart data...');
+      
+      // Start preloading cart data in background
+      if (!this._prewarmPromise) {
+        this._prewarmPromise = fetch('/cart.js', {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(cart => {
+          console.log('🛒 Cart Uplift: Cart prewarmed successfully');
+          this._prewarmData = cart;
+          return cart;
+        })
+        .catch(error => {
+          console.warn('🛒 Cart Uplift: Cart prewarm failed:', error);
+          this._prewarmData = null;
+        });
+      }
+      
+      // Also prewarm recommendations API
+      if (this.settings.enableRecommendations && !this._recommendationsPrewarmed) {
+        this._recommendationsPrewarmed = true;
+        fetch('/recommendations/products.json?limit=20', {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+          console.log('🛒 Cart Uplift: Recommendations prewarmed successfully');
+        })
+        .catch(error => {
+          console.warn('🛒 Cart Uplift: Recommendations prewarm failed:', error);
+        });
+      }
     }
 
     // Track last meaningful click to derive animation source
@@ -2981,10 +3023,23 @@
 
     async fetchCart() {
       try {
-        const response = await fetch('/cart.js');
-        this.cart = await response.json();
-  // Recompute visible recommendations against fixed master list whenever cart changes
-  this.rebuildRecommendationsFromMaster();
+        // Use prewarmed data if available for faster initial load
+        if (this._prewarmData) {
+          console.log('🛒 Cart Uplift: Using prewarmed cart data');
+          this.cart = this._prewarmData;
+          this._prewarmData = null; // Use only once
+        } else if (this._prewarmPromise) {
+          console.log('🛒 Cart Uplift: Waiting for prewarm data...');
+          this.cart = await this._prewarmPromise;
+          this._prewarmPromise = null; // Use only once
+        } else {
+          // Fallback to normal fetch
+          const response = await fetch('/cart.js');
+          this.cart = await response.json();
+        }
+        
+        // Recompute visible recommendations against fixed master list whenever cart changes
+        this.rebuildRecommendationsFromMaster();
       } catch (error) {
         console.error('🛒 Error fetching cart:', error);
         this.cart = { items: [], item_count: 0, total_price: 0 };
