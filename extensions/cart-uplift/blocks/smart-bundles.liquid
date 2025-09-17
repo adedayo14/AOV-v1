@@ -66,9 +66,18 @@ if (!document.querySelector('script[src*="bundle-renderer.js"]')) {
 
 <script>
 // Initialize Smart Bundles for this product
+console.log('[SmartBundles] Script block executing for product {{ product.id }}');
+
 document.addEventListener('DOMContentLoaded', function() {
   const productId = {{ product.id }};
   const bundleContainer = document.getElementById('smart-bundles-container-' + productId);
+
+  console.log('[SmartBundles] DOM loaded, productId:', productId, 'container:', bundleContainer);
+
+  if (!bundleContainer) {
+    console.error('[SmartBundles] Bundle container not found!');
+    return;
+  }
 
   const tryInit = (attempt = 1) => {
     if (!bundleContainer) {

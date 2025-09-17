@@ -87,13 +87,28 @@ class BundleRenderer {
         // Check if smart bundle blocks exist on the page
         const smartBundleBlocks = document.querySelectorAll('.cart-uplift-smart-bundles');
         if (smartBundleBlocks.length > 0) {
-            console.log('[BundleRenderer] Smart bundle blocks found on page, automatic placement disabled');
-            // Theme blocks will handle bundle rendering, don't auto-place
+            console.log('[BundleRenderer] Smart bundle blocks found on page, checking if they succeed...');
+            
+            // Wait 4 seconds to see if theme blocks successfully render bundles
+            setTimeout(() => {
+                const loadedBlocks = document.querySelectorAll('.smart-bundles-loaded');
+                if (loadedBlocks.length === 0) {
+                    console.log('[BundleRenderer] Theme blocks failed to load, falling back to automatic placement');
+                    this.performAutomaticPlacement(productId);
+                } else {
+                    console.log('[BundleRenderer] Theme blocks loaded successfully, skipping automatic placement');
+                }
+            }, 4000);
             return;
         }
 
+        // No theme blocks found, proceed with automatic placement
+        this.performAutomaticPlacement(productId);
+    }
+
+    async performAutomaticPlacement(productId) {
         try {
-            console.log('[BundleRenderer] No theme blocks found, fetching bundles for automatic placement');
+            console.log('[BundleRenderer] Fetching bundles for automatic placement');
             const bundles = await this.fetchBundlesForProduct(productId);
             console.log('[BundleRenderer] Received bundles:', bundles);
             
