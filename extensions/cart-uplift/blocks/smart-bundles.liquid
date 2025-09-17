@@ -14,7 +14,7 @@
   <div id="smart-bundles-container-{{ product.id }}" class="smart-bundles-loading">
     <div class="smart-bundles-placeholder" style="text-align: center; padding: 20px; color: #666;">
       <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.1.8-{{ "now" | date: "%Y%m%d%H%M%S" }}</p>
+  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.1.9-{{ "now" | date: "%Y%m%d%H%M%S" }}</p>
     </div>
   </div>
 </div>
@@ -157,10 +157,10 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
       console.log('[SmartBundles] All attempts failed, trying direct API call...');
       
-      // Final attempt: Manual test bundles as absolute fallback
+      // Final attempt: Friendly empty state as absolute fallback
       setTimeout(() => {
-        console.log('[SmartBundles] Rendering test bundles as final fallback...');
-        renderTestBundles(bundleContainer);
+        console.log('[SmartBundles] Rendering empty state as final fallback...');
+        showNoBundlesMessage(bundleContainer);
       }, 1000);
       
       // Direct API fallback
@@ -180,14 +180,14 @@ document.addEventListener('DOMContentLoaded', function() {
           // Manually render bundles since BundleRenderer failed
           renderBundlesManually(data.bundles, bundleContainer);
         } else {
-          console.log('[SmartBundles] No bundles from API, showing test bundles');
-          renderTestBundles(bundleContainer);
+          console.log('[SmartBundles] No bundles from API, showing empty state');
+          showNoBundlesMessage(bundleContainer);
         }
       })
       .catch(error => {
         console.error('[SmartBundles] Direct API error:', error);
-        console.log('[SmartBundles] API failed, showing test bundles');
-        renderTestBundles(bundleContainer);
+        console.log('[SmartBundles] API failed, showing empty state');
+        showNoBundlesMessage(bundleContainer);
       });
     }
   };
