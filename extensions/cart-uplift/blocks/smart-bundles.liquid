@@ -71,10 +71,16 @@ document.addEventListener('DOMContentLoaded', function() {
   const bundleContainer = document.getElementById('smart-bundles-container-' + productId);
 
   const tryInit = (attempt = 1) => {
-    if (!bundleContainer) return;
+    if (!bundleContainer) {
+      console.error('[SmartBundles] Bundle container not found');
+      return;
+    }
+
+    console.log('[SmartBundles] Attempt', attempt, 'to initialize bundles for product:', productId);
 
     // Preferred path via CartUplift facade
     if (typeof window.CartUplift !== 'undefined' && window.CartUplift.initSmartBundles) {
+      console.log('[SmartBundles] Using CartUplift facade');
       window.CartUplift.initSmartBundles(productId, bundleContainer);
       return;
     }
@@ -84,16 +90,26 @@ document.addEventListener('DOMContentLoaded', function() {
       console.log('[SmartBundles] BundleRenderer class found, initializing...');
       if (!window.cartUpliftBundleRenderer) {
         try {
-          window.cartUpliftBundleRenderer = new window.BundleRenderer(window.CartUpliftSettings || window.cartUpliftSettings || {});
-          console.log('[SmartBundles] BundleRenderer instance created');
+          const settings = window.CartUpliftSettings || window.cartUpliftSettings || {};
+          console.log('[SmartBundles] Creating BundleRenderer with settings:', settings);
+          window.cartUpliftBundleRenderer = new window.BundleRenderer(settings);
+          console.log('[SmartBundles] BundleRenderer instance created successfully');
         } catch (e) {
           console.error('[SmartBundles] Error creating BundleRenderer:', e);
+          return;
         }
       }
       if (window.cartUpliftBundleRenderer && typeof window.cartUpliftBundleRenderer.initProductPage === 'function') {
         console.log('[SmartBundles] Calling initProductPage for product:', productId);
-        window.cartUpliftBundleRenderer.initProductPage(productId, bundleContainer);
-        return;
+        try {
+          window.cartUpliftBundleRenderer.initProductPage(productId, bundleContainer);
+          console.log('[SmartBundles] initProductPage call completed');
+          return;
+        } catch (e) {
+          console.error('[SmartBundles] Error calling initProductPage:', e);
+        }
+      } else {
+        console.warn('[SmartBundles] BundleRenderer missing initProductPage method');
       }
     } else {
       console.log('[SmartBundles] BundleRenderer class not found, waiting... (attempt ' + attempt + ')');
@@ -126,22 +142,80 @@ document.addEventListener('DOMContentLoaded', function() {
     if (attempt <= 6) {
       setTimeout(() => tryInit(attempt + 1), 500);
     } else {
-      // Fallback: Try direct API call to test if the issue is script loading or API
-      console.log('[SmartBundles] All attempts failed, trying direct API call test...');
+      console.log('[SmartBundles] All attempts failed, trying direct API call...');
+      
+      // Direct API fallback
       fetch('/apps/cart-uplift/api/bundles?product_id=' + productId + '&context=product', {
         headers: { 'Accept': 'application/json' }
       })
       .then(response => {
-        console.log('[SmartBundles] Direct API test response status:', response.status);
+        console.log('[SmartBundles] Direct API response status:', response.status);
+        if (!response.ok) {
+          throw new Error('API response not ok: ' + response.status);
+        }
         return response.json();
       })
       .then(data => {
-        console.log('[SmartBundles] Direct API test data:', data);
+        console.log('[SmartBundles] Direct API data:', data);
+        if (data.bundles && data.bundles.length > 0) {
+          // Manually render bundles since BundleRenderer failed
+          renderBundlesManually(data.bundles, bundleContainer);
+        } else {
+          showNoBundlesMessage(bundleContainer);
+        }
       })
       .catch(error => {
-        console.error('[SmartBundles] Direct API test error:', error);
+        console.error('[SmartBundles] Direct API error:', error);
+        showErrorMessage(bundleContainer, error.message);
       });
     }
+  };
+
+  // Manual bundle rendering fallback
+  function renderBundlesManually(bundles, container) {
+    console.log('[SmartBundles] Manually rendering', bundles.length, 'bundles');
+    container.classList.add('smart-bundles-loaded');
+    container.innerHTML = '';
+    
+    bundles.slice(0, 2).forEach(bundle => {
+      const bundleHtml = `
+        <div class="cart-uplift-bundle manual-render" style="border: 2px solid #007c89; border-radius: 8px; padding: 20px; margin: 15px 0; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <h3 style="color: #007c89; margin: 0 0 10px 0; font-size: 18px; font-weight: bold;">${bundle.name || 'Bundle Deal'}</h3>
+          <p style="color: #d73027; font-weight: bold; margin: 0 0 15px 0; font-size: 16px;">${bundle.discount_percent || 10}% off - Save ${bundle.savings_amount || '$10'}</p>
+          <div style="margin: 15px 0;">
+            ${bundle.products ? bundle.products.map(product => `
+              <div style="display: flex; align-items: center; margin: 8px 0; padding: 8px; background: #f8f9fa; border-radius: 4px;">
+                <span style="font-weight: 500;">${product.title}</span>
+                <span style="margin-left: auto; color: #666;">$${product.price}</span>
+              </div>
+            `).join('') : ''}
+          </div>
+          <button onclick="addBundleToCart('${bundle.id}')" style="background: #007c89; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%; transition: background 0.2s;">
+            Add Bundle to Cart
+          </button>
+          ${bundle.discount_code ? `<p style="margin: 10px 0 0 0; font-size: 14px; color: #666; text-align: center;">Use discount code: <strong style="color: #007c89;">${bundle.discount_code}</strong></p>` : ''}
+        </div>
+      `;
+      container.innerHTML += bundleHtml;
+    });
+  }
+
+  function showNoBundlesMessage(container) {
+    container.classList.add('smart-bundles-loaded');
+    container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No bundles available for this product.</p>';
+  }
+
+  function showErrorMessage(container, error) {
+    container.classList.add('smart-bundles-loaded');
+    container.innerHTML = `<p style="text-align: center; color: #d73027; padding: 20px;">Unable to load bundles: ${error}</p>`;
+  }
+
+  // Global function for manual bundle add to cart
+  window.addBundleToCart = function(bundleId) {
+    console.log('Adding bundle to cart:', bundleId);
+    // This would typically integrate with your cart system
+    alert('Bundle functionality coming soon! Bundle ID: ' + bundleId);
+  };
   };
 
   tryInit();
