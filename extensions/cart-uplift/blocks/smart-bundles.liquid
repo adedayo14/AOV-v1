@@ -66,10 +66,10 @@ if (!document.querySelector('script[src*="bundle-renderer.js"]')) {
 
 <script>
 // Initialize Smart Bundles for this product
-console.log('[SmartBundles] Script block executing for product {{ product.id }}');
+console.log('[SmartBundles] Script block executing for product {{ product.id | json }}');
 
 document.addEventListener('DOMContentLoaded', function() {
-  const productId = {{ product.id }};
+  const productId = {{ product.id | json }};
   const bundleContainer = document.getElementById('smart-bundles-container-' + productId);
 
   console.log('[SmartBundles] DOM loaded, productId:', productId, 'container:', bundleContainer);
