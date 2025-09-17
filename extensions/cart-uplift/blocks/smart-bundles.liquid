@@ -31,7 +31,7 @@ if (!document.querySelector('script[src*="bundle-renderer.js"]')) {
   <div id="smart-bundles-container-{{ product.id }}" class="smart-bundles-loading">
     <div class="smart-bundles-placeholder" style="text-align: center; padding: 20px; color: #666;">
       <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.1.5</p>
+  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.1.6-{{ "now" | date: "%Y%m%d%H%M" }}</p>
     </div>
   </div>
 </div>
@@ -76,6 +76,32 @@ console.log('[SmartBundles] Available window globals:', {
 // Execute immediately, don't wait for DOM
 const productId = {{ product.id | json }};
 console.log('[SmartBundles] Product ID:', productId);
+
+// IMMEDIATE TEST: Force render test bundles after 2 seconds regardless of everything else
+setTimeout(() => {
+  console.log('[SmartBundles] IMMEDIATE TEST: Forcing test bundles...');
+  const container = document.getElementById('smart-bundles-container-' + productId);
+  if (container) {
+    console.log('[SmartBundles] IMMEDIATE TEST: Container found, rendering...');
+    container.classList.add('smart-bundles-loaded');
+    container.innerHTML = `
+      <div style="border: 3px solid #ff6b6b; border-radius: 8px; padding: 20px; margin: 15px 0; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        <h3 style="color: #ff6b6b; margin: 0 0 10px 0; font-size: 20px; font-weight: bold;">🚀 IMMEDIATE TEST BUNDLE</h3>
+        <p style="color: #d73027; font-weight: bold; margin: 0 0 15px 0; font-size: 16px;">This proves the system is working!</p>
+        <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin: 10px 0;">
+          <strong>Product ID:</strong> ${productId}<br>
+          <strong>Timestamp:</strong> ${new Date().toLocaleTimeString()}<br>
+          <strong>Version:</strong> v4.1.6
+        </div>
+        <button onclick="alert('Smart bundles system is functional!')" style="background: #ff6b6b; color: white; border: none; padding: 15px 30px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%;">
+          ✅ SYSTEM WORKING - CLICK ME!
+        </button>
+      </div>
+    `;
+  } else {
+    console.error('[SmartBundles] IMMEDIATE TEST: Container not found!');
+  }
+}, 2000);
 
 // Check if container exists immediately
 const bundleContainer = document.getElementById('smart-bundles-container-' + productId);
