@@ -14,7 +14,7 @@
   <div id="smart-bundles-container-{{ product.id }}" class="smart-bundles-loading">
     <div class="smart-bundles-placeholder" style="text-align: center; padding: 20px; color: #666;">
       <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.1.6-{{ "now" | date: "%Y%m%d%H%M" }}</p>
+  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.1.7-{{ "now" | date: "%Y%m%d%H%M%S" }}</p>
     </div>
   </div>
 </div>
@@ -74,7 +74,7 @@ setTimeout(() => {
         <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin: 10px 0;">
           <strong>Product ID:</strong> ${productId}<br>
           <strong>Timestamp:</strong> ${new Date().toLocaleTimeString()}<br>
-          <strong>Version:</strong> v4.1.6
+          <strong>Version:</strong> v4.1.7-{{ "now" | date: "%H:%M:%S" }}
         </div>
         <button onclick="alert('Smart bundles system is functional!')" style="background: #ff6b6b; color: white; border: none; padding: 15px 30px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%;">
           ✅ SYSTEM WORKING - CLICK ME!
@@ -280,7 +280,6 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Adding bundle to cart:', bundleId);
     // This would typically integrate with your cart system
     alert('Bundle functionality coming soon! Bundle ID: ' + bundleId);
-  };
   };
 
   tryInit();
