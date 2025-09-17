@@ -84,8 +84,16 @@ class BundleRenderer {
             return;
         }
 
+        // Check if smart bundle blocks exist on the page
+        const smartBundleBlocks = document.querySelectorAll('.cart-uplift-smart-bundles');
+        if (smartBundleBlocks.length > 0) {
+            console.log('[BundleRenderer] Smart bundle blocks found on page, automatic placement disabled');
+            // Theme blocks will handle bundle rendering, don't auto-place
+            return;
+        }
+
         try {
-            console.log('[BundleRenderer] Fetching bundles for product:', productId);
+            console.log('[BundleRenderer] No theme blocks found, fetching bundles for automatic placement');
             const bundles = await this.fetchBundlesForProduct(productId);
             console.log('[BundleRenderer] Received bundles:', bundles);
             
