@@ -476,19 +476,19 @@ class BundleRenderer {
         const ctaText = this.getBundleCTA(context);
 
         bundleContainer.innerHTML = `
-            <div class="cart-uplift-bundle__content" style="border: 2px solid #007c89; border-radius: 8px; padding: 20px; margin: 20px 0; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div class="cart-uplift-bundle__content">
                 <div class="cart-uplift-bundle__header">
-                    <h3 class="cart-uplift-bundle__title" style="color: #007c89; margin: 0 0 10px 0; font-size: 18px; font-weight: bold;">${title}</h3>
-                    <p class="cart-uplift-bundle__savings" style="color: #d73027; font-weight: bold; margin: 0 0 15px 0; font-size: 16px;">${savingsText}</p>
+                    <h3 class="cart-uplift-bundle__title">${title}</h3>
+                    <p class="cart-uplift-bundle__savings">${savingsText}</p>
                 </div>
-                <div class="cart-uplift-bundle__products" style="margin: 15px 0;">
+                <div class="cart-uplift-bundle__products">
                     ${productsHtml}
                 </div>
-                <div class="cart-uplift-bundle__actions" style="margin-top: 15px;">
-                    <button class="cart-uplift-bundle__cta" data-bundle-id="${bundle.id}" style="background: #007c89; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%; transition: background 0.2s;">
+                <div class="cart-uplift-bundle__actions">
+                    <button class="cart-uplift-bundle__cta" data-bundle-id="${bundle.id}">
                         ${ctaText}
                     </button>
-                    ${bundle.discount_code ? `<p style="margin: 10px 0 0 0; font-size: 14px; color: #666; text-align: center;">Use discount code: <strong style="color: #007c89;">${bundle.discount_code}</strong></p>` : ''}
+                    ${bundle.discount_code ? `<p class="cart-uplift-bundle__note">Use discount code: <strong>${bundle.discount_code}</strong></p>` : ''}
                 </div>
             </div>
         `;
@@ -545,11 +545,11 @@ class BundleRenderer {
 
     createProductsHtml(products) {
         return products.map(product => `
-            <div style="display: flex; align-items: center; margin: 8px 0; padding: 8px; background: #f8f9fa; border-radius: 4px;">
-                <div style="flex: 1;">
-                    <div style="font-weight: 500; color: #333; margin-bottom: 4px;">${product.title}</div>
+            <div class="cart-uplift-product">
+                <div class="cart-uplift-product__info">
+                    <div class="cart-uplift-product__title">${product.title}</div>
                     ${this.settings.showIndividualPricesInBundle ? 
-                        `<div style="color: #666; font-size: 14px;">$${parseFloat(product.price).toFixed(2)}</div>` : ''}
+                        `<div class="cart-uplift-product__price">$${parseFloat(product.price).toFixed(2)}</div>` : ''}
                 </div>
             </div>
         `).join('');

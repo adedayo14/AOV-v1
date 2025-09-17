@@ -14,10 +14,12 @@
   <div id="smart-bundles-container-{{ product.id }}" class="smart-bundles-loading">
     <div class="smart-bundles-placeholder" style="text-align: center; padding: 20px; color: #666;">
       <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.1.7-{{ "now" | date: "%Y%m%d%H%M%S" }}</p>
+  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.1.8-{{ "now" | date: "%Y%m%d%H%M%S" }}</p>
     </div>
   </div>
 </div>
+
+<link rel="stylesheet" href="{{ 'bundles.css' | asset_url }}">
 
 <style>
 @keyframes spin {
@@ -60,31 +62,7 @@ console.log('[SmartBundles] Available window globals:', {
 const productId = {{ product.id | json }};
 console.log('[SmartBundles] Product ID:', productId);
 
-// IMMEDIATE TEST: Force render test bundles after 2 seconds regardless of everything else
-setTimeout(() => {
-  console.log('[SmartBundles] IMMEDIATE TEST: Forcing test bundles...');
-  const container = document.getElementById('smart-bundles-container-' + productId);
-  if (container) {
-    console.log('[SmartBundles] IMMEDIATE TEST: Container found, rendering...');
-    container.classList.add('smart-bundles-loaded');
-    container.innerHTML = `
-      <div style="border: 3px solid #ff6b6b; border-radius: 8px; padding: 20px; margin: 15px 0; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-        <h3 style="color: #ff6b6b; margin: 0 0 10px 0; font-size: 20px; font-weight: bold;">🚀 IMMEDIATE TEST BUNDLE</h3>
-        <p style="color: #d73027; font-weight: bold; margin: 0 0 15px 0; font-size: 16px;">This proves the system is working!</p>
-        <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin: 10px 0;">
-          <strong>Product ID:</strong> ${productId}<br>
-          <strong>Timestamp:</strong> ${new Date().toLocaleTimeString()}<br>
-          <strong>Version:</strong> v4.1.7-{{ "now" | date: "%H:%M:%S" }}
-        </div>
-        <button onclick="alert('Smart bundles system is functional!')" style="background: #ff6b6b; color: white; border: none; padding: 15px 30px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%;">
-          ✅ SYSTEM WORKING - CLICK ME!
-        </button>
-      </div>
-    `;
-  } else {
-    console.error('[SmartBundles] IMMEDIATE TEST: Container not found!');
-  }
-}, 2000);
+// Test bundle removed
 
 // Check if container exists immediately
 const bundleContainer = document.getElementById('smart-bundles-container-' + productId);
@@ -215,26 +193,7 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
   // Test bundles to ensure something always shows
-  function renderTestBundles(container) {
-    console.log('[SmartBundles] Rendering test bundles...');
-    container.classList.add('smart-bundles-loaded');
-    container.innerHTML = `
-      <div style="border: 2px solid #007c89; border-radius: 8px; padding: 20px; margin: 15px 0; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-        <h3 style="color: #007c89; margin: 0 0 10px 0; font-size: 18px; font-weight: bold;">Test Bundle - System Working!</h3>
-        <p style="color: #d73027; font-weight: bold; margin: 0 0 15px 0; font-size: 16px;">15% off - Save $25</p>
-        <div style="margin: 15px 0;">
-          <div style="display: flex; align-items: center; margin: 8px 0; padding: 8px; background: #f8f9fa; border-radius: 4px;">
-            <span style="font-weight: 500;">Current Product + Add-on</span>
-            <span style="margin-left: auto; color: #666;">Bundle Price</span>
-          </div>
-        </div>
-        <button onclick="alert('Test bundle - system is working!')" style="background: #007c89; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%; transition: background 0.2s;">
-          Test Bundle - Click Me!
-        </button>
-        <p style="margin: 10px 0 0 0; font-size: 14px; color: #666; text-align: center;">This is a test to confirm the smart bundles system is working.</p>
-      </div>
-    `;
-  }
+  // Test bundle renderer removed
 
   // Manual bundle rendering fallback
   function renderBundlesManually(bundles, container) {
@@ -244,21 +203,27 @@ document.addEventListener('DOMContentLoaded', function() {
     
     bundles.slice(0, 2).forEach(bundle => {
       const bundleHtml = `
-        <div class="cart-uplift-bundle manual-render" style="border: 2px solid #007c89; border-radius: 8px; padding: 20px; margin: 15px 0; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-          <h3 style="color: #007c89; margin: 0 0 10px 0; font-size: 18px; font-weight: bold;">${bundle.name || 'Bundle Deal'}</h3>
-          <p style="color: #d73027; font-weight: bold; margin: 0 0 15px 0; font-size: 16px;">${bundle.discount_percent || 10}% off - Save ${bundle.savings_amount || '$10'}</p>
-          <div style="margin: 15px 0;">
-            ${bundle.products ? bundle.products.map(product => `
-              <div style="display: flex; align-items: center; margin: 8px 0; padding: 8px; background: #f8f9fa; border-radius: 4px;">
-                <span style="font-weight: 500;">${product.title}</span>
-                <span style="margin-left: auto; color: #666;">$${product.price}</span>
-              </div>
-            `).join('') : ''}
+        <div class="cart-uplift-bundle manual-render">
+          <div class="cart-uplift-bundle__content">
+            <div class="cart-uplift-bundle__header">
+              <h3 class="cart-uplift-bundle__title">${bundle.name || 'Bundle Deal'}</h3>
+              <p class="cart-uplift-bundle__savings">${bundle.discount_percent || 10}% off - Save ${bundle.savings_amount || '$10'}</p>
+            </div>
+            <div class="cart-uplift-bundle__products">
+              ${bundle.products ? bundle.products.map(product => `
+                <div class="cart-uplift-product">
+                  <div class="cart-uplift-product__info">
+                    <div class="cart-uplift-product__title">${product.title}</div>
+                    <div class="cart-uplift-product__price">$${parseFloat(product.price).toFixed(2)}</div>
+                  </div>
+                </div>
+              `).join('') : ''}
+            </div>
+            <div class="cart-uplift-bundle__actions">
+              <button class="cart-uplift-bundle__cta" onclick="addBundleToCart('${bundle.id}')">Add Bundle to Cart</button>
+              ${bundle.discount_code ? `<p class="cart-uplift-bundle__note">Use discount code: <strong>${bundle.discount_code}</strong></p>` : ''}
+            </div>
           </div>
-          <button onclick="addBundleToCart('${bundle.id}')" style="background: #007c89; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%; transition: background 0.2s;">
-            Add Bundle to Cart
-          </button>
-          ${bundle.discount_code ? `<p style="margin: 10px 0 0 0; font-size: 14px; color: #666; text-align: center;">Use discount code: <strong style="color: #007c89;">${bundle.discount_code}</strong></p>` : ''}
         </div>
       `;
       container.innerHTML += bundleHtml;
