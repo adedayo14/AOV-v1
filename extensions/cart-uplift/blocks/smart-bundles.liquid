@@ -14,7 +14,7 @@
   <div id="smart-bundles-container-{{ product.id }}" class="smart-bundles-loading">
     <div class="smart-bundles-placeholder" style="text-align: center; padding: 20px; color: #666;">
       <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.1.9-{{ "now" | date: "%Y%m%d%H%M%S" }}</p>
+  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.2.0-{{ "now" | date: "%Y%m%d%H%M%S" }}</p>
     </div>
   </div>
 </div>
@@ -60,6 +60,16 @@ console.log('[SmartBundles] Available window globals:', {
 
 // Execute immediately, don't wait for DOM
 const productId = {{ product.id | json }};
+// Pass store currency and locale into global settings for currency-safe formatting
+try {
+  window.CartUpliftSettings = Object.assign({}, window.CartUpliftSettings || {}, {
+    shopCurrency: {{ shop.currency | json }},
+  });
+  // Also set document language if theme hasn't
+  if (!document.documentElement.lang) {
+    document.documentElement.lang = {{ request.locale | default: shop.locale | json }};
+  }
+} catch (_) {}
 console.log('[SmartBundles] Product ID:', productId);
 
 // Signal globally that a theme Smart Bundles block is present on this page.
@@ -163,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
   console.log('[SmartBundles] All attempts failed, trying direct API call before showing empty state...');
 
-      // Direct API fallback
+  // Direct API fallback
       fetch('/apps/cart-uplift/api/bundles?product_id=' + productId + '&context=product', {
         headers: { 'Accept': 'application/json' }
       })

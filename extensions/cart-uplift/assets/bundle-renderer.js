@@ -635,11 +635,21 @@ class BundleRenderer {
     }
 
     formatMoney(amount, currency = 'USD') {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: currency,
-            minimumFractionDigits: 2
-        }).format(amount);
+        try {
+            // Try to infer locale from document or Shopify settings
+            const lang = (document.documentElement && document.documentElement.lang) || 'en';
+            return new Intl.NumberFormat(lang, {
+                style: 'currency',
+                currency: currency,
+                minimumFractionDigits: 2
+            }).format(amount);
+        } catch (_) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: currency,
+                minimumFractionDigits: 2
+            }).format(amount);
+        }
     }
 
     async handleBundleAdd(bundle) {
@@ -818,3 +828,110 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 } // End of duplicate prevention check
+
+function renderBundlesManually(bundles, container) {
+    if (container.dataset.cuManualRendered === 'true') return; // guard duplicate
+    container.dataset.cuManualRendered = 'true';
+    console.log('[SmartBundles] Manually rendering', bundles.length, 'bundles');
+    container.classList.add('smart-bundles-loaded');
+    container.innerHTML = '';
+    const best = (bundles || []).slice().sort((a,b) => (b.discount_percent||0) - (a.discount_percent||0) || (b.savings_amount||0) - (a.savings_amount||0))[0];
+    if (!best) { showNoBundlesMessage(container); return; }
+    window.__cuManualBundles = [best];
+
+    const docLang = (document.documentElement && document.documentElement.lang) || 'en';
+    const shopCurrency = (window.CartUpliftSettings && window.CartUpliftSettings.shopCurrency) || (window.cartUpliftSettings && window.cartUpliftSettings.shopCurrency) || 'USD';
+    const currencyFmt = (v) => new Intl.NumberFormat(docLang, { style: 'currency', currency: shopCurrency }).format(v);
+
+    const gridItems = (best.products||[]).map((p, idx) => {
+      const img = p.image || 'https://via.placeholder.com/120';
+      const title = p.title || '';
+      const price = typeof p.price === 'number' ? currencyFmt(p.price) : '';
+      const variantTitle = p.variant_title && p.variant_title !== 'Default Title' ? `<div class="cart-uplift-product__variant">${p.variant_title}</div>` : '';
+      const pills = Array.isArray(p.options) ? p.options.map(o => `<span class="cu-pill" title="${(o?.name||'')}: ${(o?.value||'')}">${(o?.value||'')}</span>`).join('') : '';
+      return `
+      <div class="cu-item" data-index="${idx}">
+        <div class="cu-item__image-wrap"><img class="cu-item__image" src="${img}" alt="${title}"></div>
+        <div class="cu-item__title">${title}</div>
+        <div class="cu-item__price">${price}</div>
+        <div class="cu-item__options">${variantTitle}${pills}</div>
+      </div>`;
+    }).join('');
+
+    const total = currencyFmt(best.bundle_price || (best.products||[]).reduce((s,p)=>s+(p.price||0),0));
+    const regular = typeof best.regular_total === 'number' ? currencyFmt(best.regular_total) : '';
+    const savePct = best.discount_percent != null ? best.discount_percent : '';
+    const saveAmt = typeof best.savings_amount === 'number' ? currencyFmt(best.savings_amount) : '';
+    const saveText = savePct && saveAmt ? `${savePct}% (${saveAmt})` : (savePct || '');
+
+    const bundleHtml = `
+      <div class="cart-uplift-bundle manual-render">
+        <div class="cart-uplift-bundle__content">
+          <div class="cart-uplift-bundle__header">
+            <h3 class="cart-uplift-bundle__title">${best.name || 'Bundle Deal'}</h3>
+          </div>
+          <div class="cu-grid">${gridItems}</div>
+          <div class="cu-total">
+            <div class="cu-total__label">Total price</div>
+            <div class="cu-total__values">
+              <span class="cu-total__price">${total}</span>
+              ${regular ? `<span class="cu-total__regular">${regular}</span>` : ''}
+              ${saveText ? `<span class="cu-total__save">You save ${saveText}</span>` : ''}
+            </div>
+          </div>
+          <div class="cart-uplift-bundle__actions">
+            <button class="cart-uplift-bundle__cta" data-cu-bundle-id="${best.id}">Add bundle — Save ${best.discount_percent || 0}%</button>
+          </div>
+        </div>
+      </div>`;
+    container.innerHTML = bundleHtml;
+
+    const btn = container.querySelector('.cart-uplift-bundle__cta');
+    if (btn) {
+      btn.addEventListener('click', async () => {
+        const bundle = (window.__cuManualBundles || [])[0];
+        if (!bundle) return;
+        try {
+          const items = (bundle.products||[]).map(p => ({ id: p.variant_id || p.id, quantity: 1 })).filter(i => !!i.id);
+          let ok = true;
+          try {
+            const r = await fetch('/cart/add.js', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ items }) });
+            if (!r.ok) throw new Error('batch failed');
+          } catch (_) {
+            ok = false;
+          }
+          if (!ok) {
+            for (const it of items) {
+              const r = await fetch('/cart/add.js', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: it.id, quantity: it.quantity||1 }) });
+              if (!r.ok) throw new Error('add failed');
+            }
+          }
+          if (bundle.discount_code) {
+            try { await fetch('/discount/' + bundle.discount_code, { method: 'POST' }); } catch(_) {}
+          }
+          alert('Bundle added to cart');
+        } catch (err) {
+          console.error('[SmartBundles] Manual add failed:', err);
+          try {
+            const first = (bundle.products||[])[0];
+            const vid = first?.variant_id || first?.id;
+            if (vid) {
+              const form = document.createElement('form');
+              form.method = 'POST';
+              form.action = '/cart/add';
+              form.style.display = 'none';
+              const idInput = document.createElement('input');
+              idInput.name = 'id'; idInput.value = String(vid);
+              const qtyInput = document.createElement('input');
+              qtyInput.name = 'quantity'; qtyInput.value = '1';
+              form.appendChild(idInput); form.appendChild(qtyInput);
+              document.body.appendChild(form);
+              form.submit();
+              return;
+            }
+          } catch(_) {}
+          alert('Failed to add bundle, please try again');
+        }
+      });
+    }
+  }

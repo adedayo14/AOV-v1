@@ -516,11 +516,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
         console.error('[BUNDLES API] Failed to load other products:', e);
       }
       
-      // Create bundles using real products
-      const bundles = [];
-      
-      if (currentProduct && otherProducts.length > 0) {
-        // Helper function to get product details
+      // Create bundles using context-aware recommendations
+      const bundles = [] as any[];
+
+      if (currentProduct) {
+        // Helper function to normalize product with first available variant
         const getProductDetails = (product: any) => {
           const variantEdges = Array.isArray(product?.variants?.edges) ? product.variants.edges : [];
           const firstAvailable = variantEdges.find((e:any)=>e?.node?.availableForSale)?.node || variantEdges[0]?.node;
@@ -538,60 +538,142 @@ export async function loader({ request }: LoaderFunctionArgs) {
             image: product.images?.edges?.[0]?.node?.url || 'https://via.placeholder.com/150'
           };
         };
-        
+
         const currentProd = getProductDetails(currentProduct);
-        
-        // Create bundle 1: Current product + 2 other products
-        if (otherProducts.length >= 2) {
-          const bundle1Products = [
-            currentProd,
-            getProductDetails(otherProducts[0]),
-            getProductDetails(otherProducts[1])
-          ];
-          
-          const regularTotal = bundle1Products.reduce((sum, p) => sum + p.price, 0);
-          const discountPercent = 10;
-          const bundlePrice = regularTotal * (1 - discountPercent / 100);
-          
-          bundles.push({
-            id: 'bundle_1_real',
-            name: 'Complete Bundle',
-            description: 'Everything you need in one package',
-            products: bundle1Products,
-            regular_total: regularTotal,
-            bundle_price: bundlePrice,
-            discount_percent: discountPercent,
-            savings_amount: regularTotal - bundlePrice,
-            discount_code: 'BUNDLE_COMPLETE_10',
-            status: 'active',
-            source: 'real_products'
-          });
+
+        // Compute related products from recent orders (focused on this anchor)
+        const { admin } = await unauthenticated.admin(shop);
+        const ordersResp = await admin.graphql(`
+          #graphql
+          query getOrders($first: Int!) {
+            orders(first: $first, sortKey: CREATED_AT, reverse: true) {
+              edges { node {
+                id
+                createdAt
+                lineItems(first: 30) { edges { node {
+                  product { id title handle images(first: 1) { edges { node { url } } } vendor }
+                  variant { id price }
+                } } }
+              } }
+            }
+          }
+        `, { variables: { first: 200 } });
+        let relatedIds: string[] = [];
+        try {
+          const ok = ordersResp.ok;
+          const ordersData: any = ok ? await ordersResp.json() : null;
+          const orderEdges: any[] = ordersData?.data?.orders?.edges || [];
+          const getPid = (gid?: string) => (gid||'').replace('gid://shopify/Product/','');
+          // Decay setup similar to recommendations endpoint
+          const HALF_LIFE_DAYS = 60;
+          const LN2_OVER_HL = Math.log(2) / HALF_LIFE_DAYS;
+          const wAppear: Record<string, number> = {};
+          const assoc: Record<string, { with: Record<string, { wco:number }>, wAppear:number } > = {};
+          for (const e of orderEdges) {
+            const n = e.node;
+            const createdAt = new Date(n.createdAt);
+            const ageDays = Math.max(0, (Date.now() - createdAt.getTime()) / 86400000);
+            const w = Math.exp(-LN2_OVER_HL * ageDays);
+            const items: Array<{pid:string}> = [];
+            for (const ie of (n.lineItems?.edges||[])) {
+              const p = ie.node.product; if (!p?.id) continue;
+              const pid = getPid(p.id);
+              items.push({ pid });
+            }
+            if (items.length < 2) continue;
+            const seen = new Set<string>();
+            for (const it of items) { if (!seen.has(it.pid)) { wAppear[it.pid] = (wAppear[it.pid]||0)+w; seen.add(it.pid); } }
+            for (let i=0;i<items.length;i++) for (let j=i+1;j<items.length;j++) {
+              const a = items[i].pid, b = items[j].pid;
+              assoc[a] = assoc[a] || { with: {}, wAppear: 0 };
+              assoc[b] = assoc[b] || { with: {}, wAppear: 0 };
+              assoc[a].with[b] = assoc[a].with[b] || { wco: 0 };
+              assoc[b].with[a] = assoc[b].with[a] || { wco: 0 };
+              assoc[a].with[b].wco += w;
+              assoc[b].with[a].wco += w;
+              assoc[a].wAppear += w; assoc[b].wAppear += w;
+            }
+          }
+          const anchor = String(productId);
+          const cand: Record<string, number> = {};
+          const aStats = assoc[anchor];
+          const totalW = Object.values(wAppear).reduce((a,b)=>a+b,0) || 1;
+          if (aStats) {
+            for (const [b, ab] of Object.entries(aStats.with)) {
+              if (b === anchor) continue;
+              const wB = wAppear[b] || 0; if (wB <= 0) continue;
+              const confidence = ab.wco / Math.max(1e-6, aStats.wAppear || 1);
+              const probB = wB / totalW;
+              const lift = probB > 0 ? confidence / probB : 0;
+              // score blend
+              const liftCap = 2.0; const liftNorm = Math.min(liftCap, lift) / liftCap;
+              const popNorm = Math.min(1, wB / (totalW * 0.05));
+              cand[b] = Math.max(cand[b]||0, 0.6*liftNorm + 0.4*popNorm);
+            }
+          }
+          relatedIds = Object.entries(cand).sort((a,b)=>b[1]-a[1]).slice(0, 4).map(([id])=>id);
+        } catch { relatedIds = []; }
+
+        // Fallback: if we don’t have any order-based related ids, prefer same-vendor products; else any active excluding current
+        if (relatedIds.length === 0 && otherProducts.length > 0) {
+          const curVendor = currentProduct?.vendor;
+          const byVendor = otherProducts.filter((p:any)=>p?.vendor && p.vendor === curVendor);
+          const baseList = (byVendor.length ? byVendor : otherProducts)
+            .map((p:any)=>String(p.id).replace('gid://shopify/Product/',''))
+            .filter((id:string)=>id !== String(productId));
+          // ensure uniqueness
+          const seen = new Set<string>();
+          relatedIds = baseList.filter((id:string)=>{ if (seen.has(id)) return false; seen.add(id); return true; }).slice(0, 4);
         }
-        
-        // Create bundle 2: Current product + different products
-        if (otherProducts.length >= 4) {
-          const bundle2Products = [
-            currentProd,
-            getProductDetails(otherProducts[2]),
-            getProductDetails(otherProducts[3])
-          ];
-          
-          const regularTotal = bundle2Products.reduce((sum, p) => sum + p.price, 0);
-          const discountPercent = 15;
-          const bundlePrice = regularTotal * (1 - discountPercent / 100);
-          
+
+        // Fetch details for related products
+        let relatedProducts: any[] = [];
+        if (relatedIds.length) {
+          const prodGids = relatedIds.map(id => `gid://shopify/Product/${id}`);
+          const nodesResp = await admin.graphql(`
+            #graphql
+            query rel($ids: [ID!]!) { nodes(ids: $ids) { ... on Product { id title handle variants(first: 10) { edges { node { id title price compareAtPrice availableForSale selectedOptions { name value } } } } images(first:1){edges{node{url}}} } } }
+          `, { variables: { ids: prodGids } });
+          const nodesData: any = nodesResp.ok ? await nodesResp.json() : null;
+          relatedProducts = nodesData?.data?.nodes?.filter((n:any)=>n?.id) || [];
+        }
+
+        // Choose top 2 complements, exclude subscription/selling-plan only products heuristically
+        const filteredRelated = relatedProducts.filter((p:any)=>{
+          const t = (p?.title||'').toLowerCase();
+          const h = (p?.handle||'').toLowerCase();
+          if (t.includes('selling plan') || h.includes('selling-plan') || t.includes('subscription')) return false;
+          const vEdges = Array.isArray(p?.variants?.edges) ? p.variants.edges : [];
+          // keep if any variant is available for sale
+          return vEdges.some((e:any)=>e?.node?.availableForSale);
+        });
+        // ensure unique products by id
+        const uniq: any[] = [];
+        const used = new Set<string>([String(currentProd.id)]);
+        for (const rp of filteredRelated) {
+          const id = String(rp.id).replace('gid://shopify/Product/','');
+          if (used.has(id)) continue; used.add(id); uniq.push(rp);
+          if (uniq.length >= 2) break;
+        }
+        const complementProducts = uniq;
+        const bundleProducts = [ currentProd, ...complementProducts.map(getProductDetails) ];
+        if (bundleProducts.length >= 2) {
+          const regularTotal = bundleProducts.reduce((sum, p) => sum + (p.price||0), 0);
+          // Discount policy: higher if we have 2 complements
+          const discountPercent = bundleProducts.length >= 3 ? 15 : 10;
+          const bundlePrice = +(regularTotal * (1 - discountPercent / 100)).toFixed(2);
           bundles.push({
-            id: 'bundle_2_real',
+            id: `bundle_dynamic_${productId}`,
             name: 'Perfect Match Bundle',
-            description: 'Carefully selected complementary products',
-            products: bundle2Products,
+            description: 'Curated to pair well with this product',
+            products: bundleProducts,
             regular_total: regularTotal,
             bundle_price: bundlePrice,
             discount_percent: discountPercent,
-            savings_amount: regularTotal - bundlePrice,
-            discount_code: 'BUNDLE_MATCH_15',
+            savings_amount: +(regularTotal - bundlePrice).toFixed(2),
+            discount_code: discountPercent >= 15 ? 'BUNDLE_MATCH_15' : 'BUNDLE_MATCH_10',
             status: 'active',
-            source: 'real_products'
+            source: 'orders_based'
           });
         }
       }
