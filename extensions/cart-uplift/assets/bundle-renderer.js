@@ -31,6 +31,19 @@ class BundleRenderer {
         this.init();
     }
 
+    chooseBestBundle(bundles) {
+        if (!Array.isArray(bundles) || bundles.length === 0) return null;
+        const sorted = bundles.slice().sort((a, b) => {
+            const ad = typeof a.discount_percent === 'number' ? a.discount_percent : 0;
+            const bd = typeof b.discount_percent === 'number' ? b.discount_percent : 0;
+            if (bd !== ad) return bd - ad;
+            const as = typeof a.savings_amount === 'number' ? a.savings_amount : 0;
+            const bs = typeof b.savings_amount === 'number' ? b.savings_amount : 0;
+            return bs - as;
+        });
+        return sorted[0] || null;
+    }
+
     init() {
         if (!this.settings.enableSmartBundles) return;
         
@@ -111,7 +124,34 @@ class BundleRenderer {
             return;
         }
 
-        // No theme blocks found, proceed with automatic placement
+        // If a theme block has signaled presence but isn't in DOM yet, poll briefly
+        if (window.CartUpliftHasSmartBundleBlock) {
+            console.log('[BundleRenderer] Block presence signaled; waiting up to 2.5s for DOM block to mount');
+            let attempts = 0;
+            const poll = setInterval(() => {
+                attempts++;
+                const blocks = document.querySelectorAll('.cart-uplift-smart-bundles');
+                if (blocks.length > 0) {
+                    clearInterval(poll);
+                    console.log('[BundleRenderer] Found block after wait; initializing block flow');
+                    blocks.forEach(block => {
+                        const blockProductId = block.getAttribute('data-product-id') || productId;
+                        const container = block.querySelector(`#smart-bundles-container-${blockProductId}`) || block;
+                        if (!container) return;
+                        if (container.dataset.cuInitialized === 'true' || container.classList.contains('smart-bundles-loaded')) return;
+                        container.dataset.cuInitialized = 'true';
+                        this.initProductPage(blockProductId, container);
+                    });
+                } else if (attempts >= 5) {
+                    clearInterval(poll);
+                    console.log('[BundleRenderer] No block found after grace period; falling back to automatic placement');
+                    this.performAutomaticPlacement(productId);
+                }
+            }, 500);
+            return;
+        }
+
+        // No theme blocks and no signal, proceed with automatic placement
         this.performAutomaticPlacement(productId);
     }
 
@@ -329,42 +369,30 @@ class BundleRenderer {
 
     renderProductPageBundles(bundles) {
         console.log('[BundleRenderer] Rendering product page bundles:', bundles.length);
-        
         const insertionPoint = this.findBundleInsertionPoint('product');
         console.log('[BundleRenderer] Insertion point found:', !!insertionPoint);
-        
         if (!insertionPoint) {
             console.warn('[BundleRenderer] No insertion point found for product page bundles');
             return;
         }
-
-        bundles.forEach((bundle, index) => {
-            if (index > 1) return; // Limit to 2 bundles on product pages
-            
-            console.log('[BundleRenderer] Creating bundle element for:', bundle.name);
-            const bundleElement = this.createBundleElement(bundle, 'product');
-            insertionPoint.appendChild(bundleElement);
-            this.renderedBundles.add(bundle.id);
-            console.log('[BundleRenderer] Bundle rendered successfully');
-        });
+        const best = this.chooseBestBundle(bundles);
+        if (!best) return;
+        const bundleElement = this.createBundleElement(best, 'product');
+        insertionPoint.appendChild(bundleElement);
+        this.renderedBundles.add(best.id);
+        console.log('[BundleRenderer] Best bundle rendered successfully');
     }
 
     renderBundlesInContainer(bundles, container) {
         console.log('[BundleRenderer] Rendering bundles in theme block container:', bundles.length);
-        
-        // Clear the container
         container.innerHTML = '';
         container.classList.add('smart-bundles-loaded');
-        
-        bundles.forEach((bundle, index) => {
-            if (index > 1) return; // Limit to 2 bundles
-            
-            console.log('[BundleRenderer] Creating bundle element for theme block:', bundle.name);
-            const bundleElement = this.createBundleElement(bundle, 'theme-block');
-            container.appendChild(bundleElement);
-            this.renderedBundles.add(bundle.id);
-            console.log('[BundleRenderer] Bundle rendered in theme block successfully');
-        });
+        const best = this.chooseBestBundle(bundles);
+        if (!best) { container.style.display = 'none'; return; }
+        const bundleElement = this.createBundleElement(best, 'theme-block');
+        container.appendChild(bundleElement);
+        this.renderedBundles.add(best.id);
+        console.log('[BundleRenderer] Best bundle rendered in theme block successfully');
     }
 
     renderCollectionPageBundles(bundles) {
@@ -465,42 +493,34 @@ class BundleRenderer {
 
     createBundleElement(bundle, context) {
         console.log('[BundleRenderer] Creating bundle element for:', bundle.name);
-        
         const bundleContainer = document.createElement('div');
         bundleContainer.className = `cart-uplift-bundle cart-uplift-bundle--${context}`;
         bundleContainer.dataset.bundleId = bundle.id;
 
         const title = this.getBundleTitle(bundle, context);
-        const savingsText = this.formatSavings(bundle);
-        const productsHtml = this.createProductsHtml(bundle.products);
-        const ctaText = this.getBundleCTA(context);
+        const gridHtml = this.createProductsGridHtml(bundle.products);
+        const totalHtml = this.createTotalPriceHtml(bundle);
+        const ctaLabel = `Add bundle — Save ${bundle.discount_percent}%`;
 
         bundleContainer.innerHTML = `
             <div class="cart-uplift-bundle__content">
                 <div class="cart-uplift-bundle__header">
                     <h3 class="cart-uplift-bundle__title">${title}</h3>
-                    <p class="cart-uplift-bundle__savings">${savingsText}</p>
                 </div>
-                <div class="cart-uplift-bundle__products">
-                    ${productsHtml}
-                </div>
+                ${gridHtml}
+                ${totalHtml}
                 <div class="cart-uplift-bundle__actions">
-                    <button class="cart-uplift-bundle__cta" data-bundle-id="${bundle.id}">
-                        ${ctaText}
-                    </button>
-                    ${bundle.discount_code ? `<p class="cart-uplift-bundle__note">Use discount code: <strong>${bundle.discount_code}</strong></p>` : ''}
+                    <button class="cart-uplift-bundle__cta" data-bundle-id="${bundle.id}">${ctaLabel}</button>
                 </div>
             </div>
         `;
 
-        // Add click handler
         const ctaButton = bundleContainer.querySelector('.cart-uplift-bundle__cta');
         if (ctaButton) {
             ctaButton.addEventListener('click', () => this.handleBundleAdd(bundle));
             ctaButton.addEventListener('mouseenter', (e) => e.target.style.background = '#005f66');
             ctaButton.addEventListener('mouseleave', (e) => e.target.style.background = '#007c89');
         }
-
         return bundleContainer;
     }
 
@@ -543,16 +563,49 @@ class BundleRenderer {
         }
     }
 
-    createProductsHtml(products) {
-        return products.map(product => `
-            <div class="cart-uplift-product">
-                <div class="cart-uplift-product__info">
-                    <div class="cart-uplift-product__title">${product.title}</div>
-                    ${this.settings.showIndividualPricesInBundle ? 
-                        `<div class="cart-uplift-product__price">$${parseFloat(product.price).toFixed(2)}</div>` : ''}
-                </div>
+    createProductsGridHtml(products) {
+        const items = products.map((p, idx) => {
+            const img = p.image || 'https://via.placeholder.com/120';
+            const price = (typeof p.price === 'number') ? this.formatMoney(p.price, this.settings.shopCurrency) : '';
+            const opts = Array.isArray(p.options) ? p.options : [];
+            const pills = opts.map(o => `<span class="cu-pill" title="${(o?.name||'')}: ${(o?.value||'')}">${(o?.value||'')}</span>`).join('');
+            const variant = p.variant_title && p.variant_title !== 'Default Title' ? `<div class="cart-uplift-product__variant">${p.variant_title}</div>` : '';
+            return `
+            <div class="cu-item" data-index="${idx}">
+                <div class="cu-item__image-wrap"><img class="cu-item__image" src="${img}" alt="${this.escapeHtml(p.title||'Product')}" loading="lazy"></div>
+                <div class="cu-item__title">${this.escapeHtml(p.title||'')}</div>
+                <div class="cu-item__price">${price}</div>
+                <div class="cu-item__options">${variant}${pills}</div>
+            </div>`;
+        }).join('');
+        return `<div class="cu-grid">${items}</div>`;
+    }
+
+    createTotalPriceHtml(bundle) {
+        const currency = this.settings.shopCurrency;
+        const total = this.formatMoney(bundle.bundle_price, currency);
+        const regular = typeof bundle.regular_total === 'number' ? this.formatMoney(bundle.regular_total, currency) : undefined;
+        const savePct = typeof bundle.discount_percent === 'number' ? bundle.discount_percent : undefined;
+        const saveAmt = typeof bundle.savings_amount === 'number' ? this.formatMoney(bundle.savings_amount, currency) : undefined;
+        const saveText = savePct != null && saveAmt != null ? `${savePct}% (${saveAmt})` : (savePct != null ? `${savePct}%` : '');
+        return `
+        <div class="cu-total">
+            <div class="cu-total__label">Total price</div>
+            <div class="cu-total__values">
+                <span class="cu-total__price">${total}</span>
+                ${regular ? `<span class="cu-total__regular">${regular}</span>` : ''}
+                ${saveText ? `<span class="cu-total__save">You save ${saveText}</span>` : ''}
             </div>
-        `).join('');
+        </div>`;
+    }
+
+    escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     createPricingHtml(bundle) {
@@ -594,12 +647,11 @@ class BundleRenderer {
             // Track bundle interaction
             this.trackBundleInteraction(bundle.id, 'clicked');
             
-            // Add all products to cart
-            const addPromises = bundle.products.map(product => 
-                this.addProductToCart(product.variant_id || product.id, 1)
-            );
-            
-            await Promise.all(addPromises);
+            // Add products to cart (single call if possible)
+            const items = bundle.products
+                .map(p => ({ id: p.variant_id || p.id, quantity: 1 }))
+                .filter(it => !!it.id);
+            await this.addItemsToCart(items);
             
             // Auto-apply discount code if enabled
             if (this.settings.autoApplyBundleDiscounts && bundle.discount_code) {
@@ -623,7 +675,9 @@ class BundleRenderer {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
+            credentials: 'same-origin',
             body: JSON.stringify({
                 id: variantId,
                 quantity: quantity
@@ -631,10 +685,30 @@ class BundleRenderer {
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to add product ${variantId} to cart`);
+            let detail = '';
+            try { const j = await response.json(); detail = j?.description || j?.message || ''; } catch(_) {}
+            throw new Error(`Failed to add product ${variantId} to cart ${detail?`- ${detail}`:''}`);
         }
-
         return response.json();
+    }
+
+    async addItemsToCart(items) {
+        // Try batch add first
+        try {
+            const resp = await fetch('/cart/add.js', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ items })
+            });
+            if (!resp.ok) throw new Error('batch_add_failed');
+            return await resp.json();
+        } catch (e) {
+            // Fallback to sequential adds
+            for (const it of items) {
+                await this.addProductToCart(it.id, it.quantity || 1);
+            }
+        }
     }
 
     async applyDiscountCode(code) {

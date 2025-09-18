@@ -433,18 +433,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
       // Get the current product details
       let currentProduct = null;
       try {
-        const currentProductResp = await admin.graphql(`#graphql
+    const currentProductResp = await admin.graphql(`#graphql
           query($id: ID!) { 
             product(id: $id) { 
               id 
               title 
               handle
-              variants(first: 1) { 
+      variants(first: 10) { 
                 edges { 
                   node { 
                     id 
+                    title
                     price 
                     compareAtPrice
+        availableForSale
+                    selectedOptions { name value }
                   } 
                 } 
               }
@@ -471,7 +474,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       // Get other products from the store
       let otherProducts = [];
       try {
-        const productsResp = await admin.graphql(`#graphql
+    const productsResp = await admin.graphql(`#graphql
           query {
             products(first: 10, query: "status:active") {
               edges {
@@ -479,12 +482,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
                   id
                   title
                   handle
-                  variants(first: 1) {
+      variants(first: 10) {
                     edges {
                       node {
                         id
+                        title
                         price
                         compareAtPrice
+        availableForSale
+                        selectedOptions { name value }
                       }
                     }
                   }
@@ -515,12 +521,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
       
       if (currentProduct && otherProducts.length > 0) {
         // Helper function to get product details
-        const getProductDetails = (product: any) => ({
-          id: product.id.replace('gid://shopify/Product/', ''),
-          title: product.title,
-          price: parseFloat(product.variants?.edges?.[0]?.node?.price || '0'),
-          image: product.images?.edges?.[0]?.node?.url || 'https://via.placeholder.com/150'
-        });
+        const getProductDetails = (product: any) => {
+          const variantEdges = Array.isArray(product?.variants?.edges) ? product.variants.edges : [];
+          const firstAvailable = variantEdges.find((e:any)=>e?.node?.availableForSale)?.node || variantEdges[0]?.node;
+          const firstVariant = firstAvailable;
+          const opts = Array.isArray(firstVariant?.selectedOptions)
+            ? firstVariant.selectedOptions.map((o: any) => ({ name: o?.name, value: o?.value }))
+            : [];
+          return {
+            id: String(product.id).replace('gid://shopify/Product/', ''),
+            variant_id: firstVariant?.id ? String(firstVariant.id).replace('gid://shopify/ProductVariant/', '') : undefined,
+            variant_title: firstVariant?.title,
+            options: opts,
+            title: product.title,
+            price: parseFloat(firstVariant?.price || '0'),
+            image: product.images?.edges?.[0]?.node?.url || 'https://via.placeholder.com/150'
+          };
+        };
         
         const currentProd = getProductDetails(currentProduct);
         
