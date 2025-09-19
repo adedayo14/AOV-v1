@@ -190,16 +190,97 @@ class BundleRenderer {
                 console.log('[BundleRenderer] Rendering bundles in theme block container');
                 this.renderBundlesInContainer(bundles, container);
             } else {
-                console.log('[BundleRenderer] No bundles available, hiding container');
-                // Do not hide if our fallback is active
-                if (container.dataset.cuFallbackActive !== 'true') {
-                    container.style.display = 'none';
+                console.log('[BundleRenderer] No ML bundles available, attempting Shopify native recommendations fallback');
+                try {
+                    const recs = await this.fetchShopifyRecommendations(productId, 4);
+                    if (Array.isArray(recs) && recs.length > 0) {
+                        console.log('[BundleRenderer] Rendering Shopify recommendations fallback');
+                        this.renderShopifyRecommendationsInContainer(recs, container);
+                    } else {
+                        console.log('[BundleRenderer] No Shopify recommendations; hiding container');
+                        if (container.dataset.cuFallbackActive !== 'true') {
+                            container.style.display = 'none';
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[BundleRenderer] Shopify recommendations fallback failed:', e);
+                    if (container.dataset.cuFallbackActive !== 'true') {
+                        container.style.display = 'none';
+                    }
                 }
             }
         } catch (error) {
             console.warn('[BundleRenderer] Failed to load bundles for theme block:', error);
             container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">Unable to load bundle recommendations</p>';
         }
+    }
+
+    async fetchShopifyRecommendations(productId, limit = 4) {
+        // Shopify Online Store native recommendations endpoint
+        // Returns an array of product objects
+        const url = `/recommendations/products.json?product_id=${encodeURIComponent(productId)}&limit=${encodeURIComponent(limit)}`;
+        const resp = await fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+        if (!resp.ok) throw new Error(`Shopify recs HTTP ${resp.status}`);
+        const data = await resp.json();
+        // Some themes return { products: [...] }
+        const products = Array.isArray(data) ? data : (Array.isArray(data?.products) ? data.products : []);
+        return products;
+    }
+
+    renderShopifyRecommendationsInContainer(products, container) {
+        if (!Array.isArray(products) || products.length === 0) return;
+        // Respect manual render if already present
+        if (container.classList.contains('cu-manual-rendered')) return;
+        container.classList.add('smart-bundles-loaded');
+        container.innerHTML = '';
+
+        const docLang = (document.documentElement && document.documentElement.lang) || 'en';
+        const shopCurrency = (window.CartUpliftSettings && window.CartUpliftSettings.shopCurrency) || (window.cartUpliftSettings && window.cartUpliftSettings.shopCurrency) || 'USD';
+        const fmt = (v) => new Intl.NumberFormat(docLang, { style: 'currency', currency: shopCurrency }).format(v);
+
+        // Normalize product shape across themes
+        const norm = (p) => {
+            const id = p?.id || p?.product_id || p?.gid || null;
+            const handle = p?.handle || '';
+            const title = p?.title || '';
+            const priceCents = typeof p?.price === 'number' ? p.price : (typeof p?.price_min === 'number' ? p.price_min : null);
+            const price = priceCents != null ? priceCents / 100 : null;
+            const img = p?.featured_image?.url || p?.featured_image || p?.images?.[0] || p?.image || null;
+            const url = handle ? (`/products/${handle}`) : (p?.url || '#');
+            return { id, handle, title, price, image: img, url };
+        };
+
+        const itemsHtml = products.slice(0, 4).map((p, idx) => {
+            const pr = norm(p);
+            const svgPh = encodeURIComponent(
+                `<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'>`
+                + `<rect width='100%' height='100%' fill='${['#007c89','#d73027','#28a745','#6f42c1'][idx%4]}'/>`
+                + `<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='12'>${(pr.title||'').slice(0,10)}</text>`
+                + `</svg>`
+            );
+            const imgUrl = (pr.image && typeof pr.image === 'string') ? pr.image : `data:image/svg+xml,${svgPh}`;
+            const priceHtml = (typeof pr.price === 'number') ? `<div class="cu-item__price">${fmt(pr.price)}</div>` : '';
+            return `
+            <a class="cu-item" href="${pr.url}" aria-label="${pr.title}">
+              <div class="cu-item__image-wrap"><img class="cu-item__image" src="${imgUrl}" alt="${pr.title}"></div>
+              <div class="cu-item__title">${pr.title}</div>
+              ${priceHtml}
+            </a>`;
+        }).join('');
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'cart-uplift-recs';
+        wrapper.innerHTML = `
+          <div class="cart-uplift-bundle">
+            <div class="cart-uplift-bundle__content">
+              <div class="cart-uplift-bundle__header">
+                <h3 class="cart-uplift-bundle__title">You may also like</h3>
+              </div>
+              <div class="cu-grid">${itemsHtml}</div>
+            </div>
+          </div>`;
+
+        container.appendChild(wrapper);
     }
 
     async initCollectionPageBundles() {
@@ -857,114 +938,7 @@ class BundleRenderer {
 
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = BundleRenderer;
+        module.exports = BundleRenderer;
 }
 
 } // End of duplicate prevention check
-
-function renderBundlesManually(bundles, container) {
-    if (container.dataset.cuManualRendered === 'true') return; // guard duplicate
-    container.dataset.cuManualRendered = 'true';
-    console.log('[SmartBundles] Manually rendering', bundles.length, 'bundles');
-    container.classList.add('smart-bundles-loaded');
-    container.innerHTML = '';
-    const best = (bundles || []).slice().sort((a,b) => (b.discount_percent||0) - (a.discount_percent||0) || (b.savings_amount||0) - (a.savings_amount||0))[0];
-    if (!best) { showNoBundlesMessage(container); return; }
-    window.__cuManualBundles = [best];
-
-    const docLang = (document.documentElement && document.documentElement.lang) || 'en';
-    const shopCurrency = (window.CartUpliftSettings && window.CartUpliftSettings.shopCurrency) || (window.cartUpliftSettings && window.cartUpliftSettings.shopCurrency) || 'USD';
-    const currencyFmt = (v) => new Intl.NumberFormat(docLang, { style: 'currency', currency: shopCurrency }).format(v);
-
-    const gridItems = (best.products||[]).map((p, idx) => {
-      const img = p.image || 'https://via.placeholder.com/120';
-      const title = p.title || '';
-      const price = typeof p.price === 'number' ? currencyFmt(p.price) : '';
-      const variantTitle = p.variant_title && p.variant_title !== 'Default Title' ? `<div class="cart-uplift-product__variant">${p.variant_title}</div>` : '';
-      const pills = Array.isArray(p.options) ? p.options.map(o => `<span class="cu-pill" title="${(o?.name||'')}: ${(o?.value||'')}">${(o?.value||'')}</span>`).join('') : '';
-      return `
-      <div class="cu-item" data-index="${idx}">
-        <div class="cu-item__image-wrap"><img class="cu-item__image" src="${img}" alt="${title}"></div>
-        <div class="cu-item__title">${title}</div>
-        <div class="cu-item__price">${price}</div>
-        <div class="cu-item__options">${variantTitle}${pills}</div>
-      </div>`;
-    }).join('');
-
-    const total = currencyFmt(best.bundle_price || (best.products||[]).reduce((s,p)=>s+(p.price||0),0));
-    const regular = typeof best.regular_total === 'number' ? currencyFmt(best.regular_total) : '';
-    const savePct = best.discount_percent != null ? best.discount_percent : '';
-    const saveAmt = typeof best.savings_amount === 'number' ? currencyFmt(best.savings_amount) : '';
-    const saveText = savePct && saveAmt ? `${savePct}% (${saveAmt})` : (savePct || '');
-
-    const bundleHtml = `
-      <div class="cart-uplift-bundle manual-render">
-        <div class="cart-uplift-bundle__content">
-          <div class="cart-uplift-bundle__header">
-            <h3 class="cart-uplift-bundle__title">${best.name || 'Bundle Deal'}</h3>
-          </div>
-          <div class="cu-grid">${gridItems}</div>
-          <div class="cu-total">
-            <div class="cu-total__label">Total price</div>
-            <div class="cu-total__values">
-              <span class="cu-total__price">${total}</span>
-              ${regular ? `<span class="cu-total__regular">${regular}</span>` : ''}
-              ${saveText ? `<span class="cu-total__save">You save ${saveText}</span>` : ''}
-            </div>
-          </div>
-          <div class="cart-uplift-bundle__actions">
-            <button class="cart-uplift-bundle__cta" data-cu-bundle-id="${best.id}">Add bundle — Save ${best.discount_percent || 0}%</button>
-          </div>
-        </div>
-      </div>`;
-    container.innerHTML = bundleHtml;
-
-    const btn = container.querySelector('.cart-uplift-bundle__cta');
-    if (btn) {
-      btn.addEventListener('click', async () => {
-        const bundle = (window.__cuManualBundles || [])[0];
-        if (!bundle) return;
-        try {
-          const items = (bundle.products||[]).map(p => ({ id: p.variant_id || p.id, quantity: 1 })).filter(i => !!i.id);
-          let ok = true;
-          try {
-            const r = await fetch('/cart/add.js', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ items }) });
-            if (!r.ok) throw new Error('batch failed');
-          } catch (_) {
-            ok = false;
-          }
-          if (!ok) {
-            for (const it of items) {
-              const r = await fetch('/cart/add.js', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: it.id, quantity: it.quantity||1 }) });
-              if (!r.ok) throw new Error('add failed');
-            }
-          }
-          if (bundle.discount_code) {
-            try { await fetch('/discount/' + bundle.discount_code, { method: 'POST' }); } catch(_) {}
-          }
-          alert('Bundle added to cart');
-        } catch (err) {
-          console.error('[SmartBundles] Manual add failed:', err);
-          try {
-            const first = (bundle.products||[])[0];
-            const vid = first?.variant_id || first?.id;
-            if (vid) {
-              const form = document.createElement('form');
-              form.method = 'POST';
-              form.action = '/cart/add';
-              form.style.display = 'none';
-              const idInput = document.createElement('input');
-              idInput.name = 'id'; idInput.value = String(vid);
-              const qtyInput = document.createElement('input');
-              qtyInput.name = 'quantity'; qtyInput.value = '1';
-              form.appendChild(idInput); form.appendChild(qtyInput);
-              document.body.appendChild(form);
-              form.submit();
-              return;
-            }
-          } catch(_) {}
-          alert('Failed to add bundle, please try again');
-        }
-      });
-    }
-  }

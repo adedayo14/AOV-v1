@@ -18,8 +18,8 @@
     data-layout="{{ block.settings.bundle_layout }}"
   >
     <div class="smart-bundles-placeholder" style="text-align: center; padding: 20px; color: #666;">
-      <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.3</p>
+    <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.4</p>
     </div>
   </div>
 </div>
@@ -214,8 +214,22 @@ document.addEventListener('DOMContentLoaded', function() {
           renderBundlesManually(data.bundles, bundleContainer);
           setTimeout(applyThemeEditorSettings, 50);
         } else {
-          console.log('[SmartBundles] No bundles from API; hiding container');
-          bundleContainer.style.display = 'none';
+          console.log('[SmartBundles] No ML bundles from API; attempting Shopify native recommendations fallback');
+          fetchShopifyRecommendations(productId, 4)
+            .then(products => {
+              if (Array.isArray(products) && products.length > 0) {
+                console.log('[SmartBundles] Rendering Shopify recommendations fallback');
+                renderShopifyRecommendationsInContainer(products, bundleContainer);
+                setTimeout(applyThemeEditorSettings, 50);
+              } else {
+                console.log('[SmartBundles] No Shopify recommendations found; hiding container');
+                bundleContainer.style.display = 'none';
+              }
+            })
+            .catch(err => {
+              console.warn('[SmartBundles] Shopify recommendations fallback failed:', err);
+              bundleContainer.style.display = 'none';
+            });
         }
       })
       .catch(error => {
@@ -237,7 +251,7 @@ document.addEventListener('DOMContentLoaded', function() {
     container.innerHTML = '';
     // Choose best bundle (max discount, then savings)
     const best = (bundles || []).slice().sort((a,b) => (b.discount_percent||0) - (a.discount_percent||0) || (b.savings_amount||0) - (a.savings_amount||0))[0];
-    if (!best) { showNoBundlesMessage(container); return; }
+  if (!best) { container.innerHTML = ''; return; }
     window.__cuManualBundles = [best];
 
     const docLang = (document.documentElement && document.documentElement.lang) || 'en';
@@ -364,6 +378,69 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
     }
+  }
+
+  // Fetch Shopify native product recommendations
+  function fetchShopifyRecommendations(productId, limit) {
+    const url = '/recommendations/products.json?product_id=' + encodeURIComponent(productId) + '&limit=' + encodeURIComponent(limit || 4);
+    return fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(data => Array.isArray(data) ? data : (Array.isArray(data && data.products) ? data.products : []));
+  }
+
+  // Render Shopify native recommendations into the same container
+  function renderShopifyRecommendationsInContainer(products, container) {
+    if (!Array.isArray(products) || products.length === 0) return;
+    container.classList.add('smart-bundles-loaded');
+    container.innerHTML = '';
+
+    const docLang = (document.documentElement && document.documentElement.lang) || 'en';
+    const shopCurrency = (window.CartUpliftSettings && window.CartUpliftSettings.shopCurrency) || (window.cartUpliftSettings && window.cartUpliftSettings.shopCurrency) || {{ shop.currency | json }};
+    const fmt = (v) => new Intl.NumberFormat(docLang, { style: 'currency', currency: shopCurrency }).format(v);
+
+    const norm = function(p) {
+      const id = p && (p.id || p.product_id || p.gid) || null;
+      const handle = (p && p.handle) || '';
+      const title = (p && p.title) || '';
+      const priceCents = (p && typeof p.price === 'number') ? p.price : ((p && typeof p.price_min === 'number') ? p.price_min : null);
+      const price = priceCents != null ? priceCents / 100 : null;
+      const img = (p && (p.featured_image && (p.featured_image.url || p.featured_image)) ) || (p && p.images && p.images[0]) || (p && p.image) || null;
+      const url = handle ? ('/products/' + handle) : (p && p.url) || '#';
+      return { id, handle, title, price, image: img, url };
+    };
+
+    const itemsHtml = products.slice(0, 4).map(function(p, idx) {
+      const pr = norm(p);
+      const svgPh = encodeURIComponent(
+        "<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'>"
+        + "<rect width='100%' height='100%' fill='" + ['#007c89','#d73027','#28a745','#6f42c1'][idx%4] + "'/>"
+        + "<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='12'>" + (pr.title||'').slice(0,10) + "</text>"
+        + "</svg>"
+      );
+      const imgUrl = (pr.image && typeof pr.image === 'string') ? pr.image : ('data:image/svg+xml,' + svgPh);
+      const priceHtml = (typeof pr.price === 'number') ? ('<div class="cu-item__price">' + fmt(pr.price) + '</div>') : '';
+      return (
+        '<a class="cu-item" href="' + pr.url + '" aria-label="' + pr.title + '">'
+        + '<div class="cu-item__image-wrap"><img class="cu-item__image" src="' + imgUrl + '" alt="' + pr.title + '"></div>'
+        + '<div class="cu-item__title">' + pr.title + '</div>'
+        + priceHtml
+        + '</a>'
+      );
+    }).join('');
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'cart-uplift-recs';
+    wrapper.innerHTML = (
+      '<div class="cart-uplift-bundle">'
+      + '<div class="cart-uplift-bundle__content">'
+      + '<div class="cart-uplift-bundle__header">'
+      + '<h3 class="cart-uplift-bundle__title">You may also like</h3>'
+      + '</div>'
+      + '<div class="cu-grid">' + itemsHtml + '</div>'
+      + '</div>'
+      + '</div>'
+    );
+    container.appendChild(wrapper);
   }
 
   // Legacy no-op kept for backward compatibility
