@@ -19,7 +19,7 @@
   >
     <div class="smart-bundles-placeholder" style="text-align: center; padding: 20px; color: #666;">
       <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.2.0-{{ "now" | date: "%Y%m%d%H%M%S" }}</p>
+  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.3</p>
     </div>
   </div>
 </div>
@@ -214,30 +214,17 @@ document.addEventListener('DOMContentLoaded', function() {
           renderBundlesManually(data.bundles, bundleContainer);
           setTimeout(applyThemeEditorSettings, 50);
         } else {
-          console.log('[SmartBundles] No bundles from API, using fallback test bundles');
-          // Add a guard to prevent the main renderer from hiding the container
-          bundleContainer.dataset.cuFallbackActive = 'true';
-          // Create fallback test bundles to ensure something shows
-          const fallbackBundles = createFallbackTestBundles(productId);
-          renderBundlesManually(fallbackBundles, bundleContainer);
-          setTimeout(applyThemeEditorSettings, 50);
+          console.log('[SmartBundles] No bundles from API; hiding container');
+          bundleContainer.style.display = 'none';
         }
       })
       .catch(error => {
         console.error('[SmartBundles] Direct API error:', error);
-        console.log('[SmartBundles] API failed, using fallback test bundles');
-        // Add a guard to prevent the main renderer from hiding the container
-        bundleContainer.dataset.cuFallbackActive = 'true';
-        // Create fallback test bundles when API completely fails
-        const fallbackBundles = createFallbackTestBundles(productId);
-        renderBundlesManually(fallbackBundles, bundleContainer);
-        setTimeout(applyThemeEditorSettings, 50);
+        // Hide container when API fails
+        bundleContainer.style.display = 'none';
       });
     }
   };
-
-  // Test bundles to ensure something always shows
-  // Test bundle renderer removed
 
   // Manual bundle rendering fallback
   function renderBundlesManually(bundles, container) {
@@ -379,79 +366,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Create fallback test bundles for development/testing when API fails
-  function createFallbackTestBundles(currentProductId) {
-    console.log('[SmartBundles] Creating fallback test bundles for product:', currentProductId);
-    
-    // Generate different bundles based on product ID to simulate dynamic behavior
-    const productVariations = [
-      {
-        id: 'test-bundle-' + currentProductId + '-premium',
-        name: 'Premium Bundle Deal',
-        products: [
-          {
-            id: String(currentProductId),
-            variant_id: String(currentProductId) + '001',
-            title: 'Current Product',
-            price: 29.99,
-            image: 'https://via.placeholder.com/120/007c89/ffffff?text=Product+1'
-          },
-          {
-            id: String(currentProductId + 1),
-            variant_id: String(currentProductId + 1) + '001', 
-            title: 'Recommended Accessory',
-            price: 19.99,
-            image: 'https://via.placeholder.com/120/d73027/ffffff?text=Product+2'
-          },
-          {
-            id: String(currentProductId + 2),
-            variant_id: String(currentProductId + 2) + '001',
-            title: 'Complementary Item',
-            price: 15.99,
-            image: 'https://via.placeholder.com/120/28a745/ffffff?text=Product+3'
-          }
-        ],
-        regular_total: 65.97,
-        bundle_price: 55.97,
-        discount_percent: 15,
-        savings_amount: 10.00,
-        discount_code: 'BUNDLE15'
-      }
-    ];
-    
-    // Use product ID to select which bundle variation to show (simulates dynamic behavior)
-    const variationIndex = Math.abs(parseInt(String(currentProductId).slice(-4)) || 0) % productVariations.length;
-    const selectedBundle = productVariations[variationIndex];
-    
-    // Modify product titles to include product ID for uniqueness
-    selectedBundle.products = selectedBundle.products.map((p, idx) => ({
-      ...p,
-      title: p.title.replace('Product', `P-${String(currentProductId).slice(-4)}`),
-      id: String(parseInt(String(currentProductId).slice(0, 8)) + idx),
-      variant_id: String(parseInt(String(currentProductId).slice(0, 8)) + idx) + '001',
-      image: '' // Force placeholder
-    }));
-    
-    console.log('[SmartBundles] Generated fallback bundle:', selectedBundle);
-    return [selectedBundle];
-  }
-
-  function showNoBundlesMessage(container) {
-    container.classList.add('smart-bundles-loaded');
-    container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No bundles available for this product.</p>';
-  }
-
-  function showErrorMessage(container, error) {
-    container.classList.add('smart-bundles-loaded');
-    container.innerHTML = `<p style="text-align: center; color: #d73027; padding: 20px;">Unable to load bundles: ${error}</p>`;
-  }
-
   // Legacy no-op kept for backward compatibility
   window.addBundleToCart = function(bundleId) {
     console.log('[SmartBundles] Deprecated addBundleToCart called for', bundleId);
   };
 
   tryInit();
+  // Set a timeout to ensure that if nothing has rendered after a few seconds, we force the fallback.
+  // setTimeout(ensureVisibilityFallback, 3000); // Removed: do not force placeholder fallback in production
 });
 </script>
 

@@ -2,7 +2,7 @@ import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-r
 import { getSettings, saveSettings } from "../models/settings.server";
 import db from "../db.server";
 import { authenticate, unauthenticated } from "../shopify.server";
-import { generateBundlesFromOrders } from "../services/ml.server";
+// import { generateBundlesFromOrders } from "../services/ml.server";
 
 // Lightweight in-memory cache for recommendations (per worker)
 // Keyed by shop + product/cart context + limit; TTL ~60s
@@ -529,7 +529,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       try {
     const productsResp = await admin.graphql(`#graphql
           query {
-            products(first: 10, query: "status:active") {
+            products(first: 50, query: "status:active") {
               edges {
                 node {
                   id
@@ -595,7 +595,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
             options: opts,
             title: product.title,
             price: parseFloat(firstVariant?.price || '0'),
-            image: product.images?.edges?.[0]?.node?.url || 'https://via.placeholder.com/150'
+            image: product.images?.edges?.[0]?.node?.url || undefined
           };
         };
 
@@ -628,7 +628,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           }
         `, { variables: { first: 200 } });
         let relatedIds: string[] = [];
-        let debugInfo = { method: 'none', anchor: String(productId), orderCount: 0, assocCount: 0 };
+        let debugInfo = { method: 'none', anchor: String(productId), orderCount: 0, assocCount: 0 } as any;
         try {
           const ok = ordersResp.ok;
           const ordersData: any = ok ? await ordersResp.json() : null;
@@ -657,27 +657,27 @@ export async function loader({ request }: LoaderFunctionArgs) {
             for (const it of items) { if (!seen.has(it.pid)) { wAppear[it.pid] = (wAppear[it.pid]||0)+w; seen.add(it.pid); } }
             for (let i=0;i<items.length;i++) for (let j=i+1;j<items.length;j++) {
               const a = items[i].pid, b = items[j].pid;
-              assoc[a] = assoc[a] || { with: {}, wAppear: 0 };
-              assoc[b] = assoc[b] || { with: {}, wAppear: 0 };
-              assoc[a].with[b] = assoc[a].with[b] || { wco: 0 };
-              assoc[b].with[a] = assoc[b].with[a] || { wco: 0 };
+              assoc[a] = assoc[a] || { with: {}, wAppear: 0 } as any;
+              assoc[b] = assoc[b] || { with: {}, wAppear: 0 } as any;
+              assoc[a].with[b] = assoc[a].with[b] || { wco: 0 } as any;
+              assoc[b].with[a] = assoc[b].with[a] || { wco: 0 } as any;
               assoc[a].with[b].wco += w;
               assoc[b].with[a].wco += w;
-              assoc[a].wAppear += w; assoc[b].wAppear += w;
+              (assoc[a].wAppear as number) += w; (assoc[b].wAppear as number) += w;
             }
           }
           debugInfo.assocCount = Object.keys(assoc).length;
           console.log(`[BUNDLES API] Built associations for ${debugInfo.assocCount} products`);
           const anchor = String(productId);
           const cand: Record<string, number> = {};
-          const aStats = assoc[anchor];
+          const aStats = assoc[anchor] as any;
           const totalW = Object.values(wAppear).reduce((a,b)=>a+b,0) || 1;
           if (aStats) {
             console.log(`[BUNDLES API] Anchor product ${anchor} found in ${Object.keys(aStats.with).length} associations`);
             for (const [b, ab] of Object.entries(aStats.with)) {
               if (b === anchor) continue;
               const wB = wAppear[b] || 0; if (wB <= 0) continue;
-              const confidence = ab.wco / Math.max(1e-6, aStats.wAppear || 1);
+              const confidence = (ab as any).wco / Math.max(1e-6, (aStats.wAppear as number) || 1);
               const probB = wB / totalW;
               const lift = probB > 0 ? confidence / probB : 0;
               // score blend
@@ -696,22 +696,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
           relatedIds = []; 
         }
 
-                // Fallback: if we don't have any order-based related ids, prefer same-vendor products; else any active excluding current
+        // Fallback: vendor-based or catalog-based when orders are insufficient
         if (relatedIds.length === 0 && otherProducts.length > 0) {
           const curVendor = currentProduct?.vendor;
           console.log(`[BUNDLES API] No orders-based results, falling back. Current vendor: ${curVendor}`);
-          const byVendor = otherProducts.filter((p:any)=>p?.vendor && p.vendor === curVendor);
-          console.log(`[BUNDLES API] Found ${byVendor.length} products by same vendor`);
-          const baseList = (byVendor.length ? byVendor : otherProducts)
-            .map((p:any)=>String(p.id).replace('gid://shopify/Product/',''))
-            .filter((id:string)=>id !== String(productId));
-          console.log(`[BUNDLES API] Base list has ${baseList.length} candidates`);
-          // Add some randomness to avoid always getting the same products
-          const shuffled = baseList.sort(() => Math.random() - 0.5);
-          // ensure uniqueness
-          const seen = new Set<string>();
-          relatedIds = shuffled.filter((id:string)=>{ if (seen.has(id)) return false; seen.add(id); return true; }).slice(0, 4);
-          debugInfo.method = curVendor ? 'vendor' : 'random';
+          const byVendor = curVendor ? otherProducts.filter((p:any)=>p?.vendor && p.vendor === curVendor) : [];
+          const candidates = (byVendor.length ? byVendor : otherProducts)
+            .filter((p:any)=>String(p.id).replace('gid://shopify/Product/','') !== String(productId));
+          console.log(`[BUNDLES API] Catalog fallback candidate count: ${candidates.length}`);
+          // Shuffle and take up to 4
+          const shuffled = candidates.slice().sort(() => Math.random() - 0.5);
+          relatedIds = shuffled.map((p:any)=>String(p.id).replace('gid://shopify/Product/','')).slice(0, 4);
+          debugInfo.method = byVendor.length ? 'vendor' : 'catalog';
           console.log(`[BUNDLES API] Fallback method '${debugInfo.method}' selected IDs:`, relatedIds);
         }
 
@@ -723,12 +719,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
             #graphql
             query rel($ids: [ID!]!) { nodes(ids: $ids) { ... on Product { id title handle variants(first: 10) { edges { node { id title price compareAtPrice availableForSale selectedOptions { name value } } } } images(first:1){edges{node{url}}} } } }
           `, { variables: { ids: prodGids } });
-          const nodesData: any = nodesResp.ok ? await nodesResp.json() : null;
-          relatedProducts = nodesData?.data?.nodes?.filter((n:any)=>n?.id) || [];
+          if (nodesResp.ok) {
+            const nodesData: any = await nodesResp.json();
+            relatedProducts = nodesData?.data?.nodes?.filter((n:any)=>n?.id) || [];
+          } else {
+            console.warn('[BUNDLES API] Related products fetch failed with status', nodesResp.status);
+          }
         }
 
         // Choose top 2 complements, exclude subscription/selling-plan only products heuristically
-        const filteredRelated = relatedProducts.filter((p:any)=>{
+        let filteredRelated = relatedProducts.filter((p:any)=>{
           const t = (p?.title||'').toLowerCase();
           const h = (p?.handle||'').toLowerCase();
           if (t.includes('selling plan') || h.includes('selling-plan') || t.includes('subscription')) return false;
@@ -736,6 +736,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
           // keep if any variant is available for sale
           return vEdges.some((e:any)=>e?.node?.availableForSale);
         });
+        // If filtering removed everything, relax to any product with at least one variant
+        if (filteredRelated.length === 0) {
+          filteredRelated = relatedProducts.filter((p:any)=>Array.isArray(p?.variants?.edges) && p.variants.edges.length > 0);
+        }
         // ensure unique products by id
         const uniq: any[] = [];
         const used = new Set<string>([String(currentProd.id)]);
@@ -744,7 +748,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
           if (used.has(id)) continue; used.add(id); uniq.push(rp);
           if (uniq.length >= 2) break;
         }
-        const complementProducts = uniq;
+        let complementProducts = uniq;
+        // Second-tier fallback: build complements from other active products
+        if (complementProducts.length === 0 && otherProducts.length) {
+          const candidates = otherProducts.filter((p:any)=>String(p.id).replace('gid://shopify/Product/','') !== String(currentProd.id));
+          const mapped = candidates.map(getProductDetails).filter((p:any)=>p && typeof p.price === 'number' && p.price >= 0);
+          complementProducts = mapped.slice(0, 2);
+        }
         const bundleProducts = [ currentProd, ...complementProducts.map(getProductDetails) ].filter(p => p !== null);
         if (bundleProducts.length >= 2) {
           const regularTotal = bundleProducts.reduce((sum, p) => sum + (p!.price||0), 0);
