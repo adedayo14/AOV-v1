@@ -657,10 +657,29 @@ class BundleRenderer {
             // Track bundle interaction
             this.trackBundleInteraction(bundle.id, 'clicked');
             
-            // Add products to cart (single call if possible)
+            // Add products to cart (single call if possible) - ensure we use variant IDs
             const items = bundle.products
-                .map(p => ({ id: p.variant_id || p.id, quantity: 1 }))
-                .filter(it => !!it.id);
+                .map(p => {
+                    let variantId = p.variant_id;
+                    // Ensure we have a variant ID, not a product ID
+                    if (!variantId && p.id) {
+                        console.warn(`[BundleRenderer] Product ${p.title || p.id} missing variant_id, cannot add to cart`);
+                        return null;
+                    }
+                    // Parse variant ID as integer (Shopify expects numbers)
+                    const id = parseInt(String(variantId), 10);
+                    if (isNaN(id)) {
+                        console.warn(`[BundleRenderer] Invalid variant ID for ${p.title || p.id}: ${variantId}`);
+                        return null;
+                    }
+                    return { id, quantity: 1 };
+                })
+                .filter(it => it !== null);
+            
+            if (items.length === 0) {
+                throw new Error('No valid variants found in bundle products');
+            }
+            
             await this.addItemsToCart(items);
             
             // Auto-apply discount code if enabled

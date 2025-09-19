@@ -5,13 +5,18 @@
 {% endcomment %}
 
 {% if block.settings.enable_smart_bundles %}
-<div class="cart-uplift-smart-bundles" 
-     data-product-id="{{ product.id }}"
-     data-bundle-settings='{{ block.settings | json }}'
-     style="margin: {{ block.settings.margin_top }}px 0 {{ block.settings.margin_bottom }}px 0;">
+<div class="cart-uplift-smart-bundles"
+  data-product-id="{{ product.id }}"
+  data-bundle-settings='{{ block.settings | json }}'
+  style="margin-top: {{ block.settings.margin_top | default: 20 }}px; margin-bottom: {{ block.settings.margin_bottom | default: 20 }}px;">
   
   {% comment %} Smart Bundles will be dynamically loaded here {% endcomment %}
-  <div id="smart-bundles-container-{{ product.id }}" class="smart-bundles-loading">
+  <div
+    id="smart-bundles-container-{{ product.id }}"
+    class="smart-bundles-loading cu-layout-{{ block.settings.bundle_layout }}"
+    data-bundle-title="{{ block.settings.bundle_title | escape }}"
+    data-layout="{{ block.settings.bundle_layout }}"
+  >
     <div class="smart-bundles-placeholder" style="text-align: center; padding: 20px; color: #666;">
       <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
   <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.2.0-{{ "now" | date: "%Y%m%d%H%M%S" }}</p>
@@ -84,7 +89,7 @@ try {
 const bundleContainer = document.getElementById('smart-bundles-container-' + productId);
 console.log('[SmartBundles] Container element:', bundleContainer);
 
-if (!bundleContainer) {
+  if (!bundleContainer) {
   console.error('[SmartBundles] Container not found immediately, will retry on DOM ready');
 }
 
@@ -99,6 +104,22 @@ document.addEventListener('DOMContentLoaded', function() {
     return;
   }
 
+  // Apply theme editor settings (title, layout) after markup is rendered
+  function applyThemeEditorSettings() {
+    try {
+      const titleOverride = bundleContainer.dataset.bundleTitle;
+      const titleEl = bundleContainer.querySelector('.cart-uplift-bundle__title');
+      if (titleOverride && titleEl && titleEl.textContent !== titleOverride) {
+        titleEl.textContent = titleOverride;
+      }
+      const layout = bundleContainer.dataset.layout || 'horizontal';
+      bundleContainer.classList.toggle('cu-layout-horizontal', layout === 'horizontal');
+      bundleContainer.classList.toggle('cu-layout-vertical', layout === 'vertical');
+    } catch (e) {
+      console.warn('[SmartBundles] Failed to apply theme editor settings', e);
+    }
+  }
+
   const tryInit = (attempt = 1) => {
     if (!bundleContainer) {
       console.error('[SmartBundles] Bundle container not found');
@@ -111,6 +132,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof window.CartUplift !== 'undefined' && window.CartUplift.initSmartBundles) {
       console.log('[SmartBundles] Using CartUplift facade');
       window.CartUplift.initSmartBundles(productId, bundleContainer);
+      setTimeout(applyThemeEditorSettings, 100);
       return;
     }
 
@@ -132,6 +154,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('[SmartBundles] Calling initProductPage for product:', productId);
         try {
           window.cartUpliftBundleRenderer.initProductPage(productId, bundleContainer);
+          setTimeout(applyThemeEditorSettings, 100);
           console.log('[SmartBundles] initProductPage call completed');
           return;
         } catch (e) {
@@ -189,6 +212,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (data.bundles && data.bundles.length > 0) {
           // Manually render bundles since BundleRenderer failed
           renderBundlesManually(data.bundles, bundleContainer);
+          setTimeout(applyThemeEditorSettings, 50);
         } else {
           console.log('[SmartBundles] No bundles from API, showing empty state');
           showNoBundlesMessage(bundleContainer);
@@ -207,6 +231,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Manual bundle rendering fallback
   function renderBundlesManually(bundles, container) {
+    if (container.dataset.cuManualRendered === 'true') return;
+    container.dataset.cuManualRendered = 'true';
     console.log('[SmartBundles] Manually rendering', bundles.length, 'bundles');
     container.classList.add('smart-bundles-loaded');
     container.innerHTML = '';
@@ -215,10 +241,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!best) { showNoBundlesMessage(container); return; }
     window.__cuManualBundles = [best];
 
+    const docLang = (document.documentElement && document.documentElement.lang) || 'en';
+    const shopCurrency = (window.CartUpliftSettings && window.CartUpliftSettings.shopCurrency) || (window.cartUpliftSettings && window.cartUpliftSettings.shopCurrency) || {{ shop.currency | json }};
+    const fmt = (v) => new Intl.NumberFormat(docLang, { style: 'currency', currency: shopCurrency }).format(v);
+
     const gridItems = (best.products||[]).map((p, idx) => {
       const img = p.image || 'https://via.placeholder.com/120';
       const title = p.title || '';
-      const price = typeof p.price === 'number' ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(p.price) : '';
+      const price = typeof p.price === 'number' ? fmt(p.price) : '';
       const variantTitle = p.variant_title && p.variant_title !== 'Default Title' ? `<div class="cart-uplift-product__variant">${p.variant_title}</div>` : '';
       const pills = Array.isArray(p.options) ? p.options.map(o => `<span class="cu-pill" title="${(o?.name||'')}: ${(o?.value||'')}">${(o?.value||'')}</span>`).join('') : '';
       return `
@@ -230,11 +260,10 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>`;
     }).join('');
 
-    const currencyFmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
-    const total = currencyFmt(best.bundle_price || (best.products||[]).reduce((s,p)=>s+(p.price||0),0));
-    const regular = typeof best.regular_total === 'number' ? currencyFmt(best.regular_total) : '';
+  const total = fmt(best.bundle_price || (best.products||[]).reduce((s,p)=>s+(p.price||0),0));
+  const regular = typeof best.regular_total === 'number' ? fmt(best.regular_total) : '';
     const savePct = best.discount_percent != null ? best.discount_percent : '';
-    const saveAmt = typeof best.savings_amount === 'number' ? currencyFmt(best.savings_amount) : '';
+  const saveAmt = typeof best.savings_amount === 'number' ? fmt(best.savings_amount) : '';
     const saveText = savePct && saveAmt ? `${savePct}% (${saveAmt})` : (savePct || '');
 
     const bundleHtml = `
@@ -257,7 +286,8 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
       </div>`;
-    container.innerHTML = bundleHtml;
+  container.innerHTML = bundleHtml;
+  try { applyThemeEditorSettings(); } catch(_) {}
 
     const btn = container.querySelector('.cart-uplift-bundle__cta');
     if (btn) {
@@ -265,7 +295,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const bundle = (window.__cuManualBundles || [])[0];
         if (!bundle) return;
         try {
-          const items = (bundle.products||[]).map(p => ({ id: p.variant_id || p.id, quantity: 1 })).filter(i => !!i.id);
+          const items = (bundle.products||[]).map(p => {
+            let variantId = p.variant_id;
+            // Ensure we have a variant ID, not a product ID
+            if (!variantId && p.id) {
+              console.warn(`[SmartBundles] Product ${p.title || p.id} missing variant_id, cannot add to cart`);
+              return null;
+            }
+            // Parse variant ID as integer (Shopify expects numbers)
+            const id = parseInt(String(variantId), 10);
+            if (isNaN(id)) {
+              console.warn(`[SmartBundles] Invalid variant ID for ${p.title || p.id}: ${variantId}`);
+              return null;
+            }
+            return { id, quantity: 1 };
+          }).filter(i => i !== null);
+          
+          if (items.length === 0) {
+            throw new Error('No valid variants found in bundle products');
+          }
           // Try batch add
           let ok = true;
           try {

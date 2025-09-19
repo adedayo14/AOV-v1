@@ -41,3 +41,7 @@
 .cu-total__price{font-weight:800;color:#111827}
 .cu-total__regular{text-decoration:line-through;color:#6b7280}
 .cu-total__save{color:var(--cu-accent);font-weight:600}
+
+/* Layout variants toggled via container classes */
+.cu-layout-vertical .cu-grid{grid-template-columns:1fr !important}
+.cu-layout-horizontal .cu-grid{grid-template-columns:repeat(3,1fr)}

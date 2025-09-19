@@ -525,12 +525,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
           const variantEdges = Array.isArray(product?.variants?.edges) ? product.variants.edges : [];
           const firstAvailable = variantEdges.find((e:any)=>e?.node?.availableForSale)?.node || variantEdges[0]?.node;
           const firstVariant = firstAvailable;
+          
+          // Ensure we have a valid variant
+          if (!firstVariant?.id) {
+            console.warn(`[BUNDLES API] Product ${product?.title || product?.id} has no valid variants`);
+            return null;
+          }
+          
           const opts = Array.isArray(firstVariant?.selectedOptions)
             ? firstVariant.selectedOptions.map((o: any) => ({ name: o?.name, value: o?.value }))
             : [];
           return {
             id: String(product.id).replace('gid://shopify/Product/', ''),
-            variant_id: firstVariant?.id ? String(firstVariant.id).replace('gid://shopify/ProductVariant/', '') : undefined,
+            variant_id: String(firstVariant.id).replace('gid://shopify/ProductVariant/', ''),
             variant_title: firstVariant?.title,
             options: opts,
             title: product.title,
@@ -540,6 +547,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
         };
 
         const currentProd = getProductDetails(currentProduct);
+        
+        // Skip bundle creation if current product doesn't have valid variants
+        if (!currentProd) {
+          console.warn('[BUNDLES API] Current product has no valid variants, skipping bundle creation');
+          console.log(`[BUNDLES API] === BUNDLE GENERATION COMPLETED (NO VARIANTS) ===`);
+          return json({ bundles: [], reason: 'no_variants' }, {
+            headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=30' }
+          });
+        }
 
         // Compute related products from recent orders (focused on this anchor)
         const { admin } = await unauthenticated.admin(shop);
@@ -559,10 +575,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
           }
         `, { variables: { first: 200 } });
         let relatedIds: string[] = [];
+        let debugInfo = { method: 'none', anchor: String(productId), orderCount: 0, assocCount: 0 };
         try {
           const ok = ordersResp.ok;
           const ordersData: any = ok ? await ordersResp.json() : null;
           const orderEdges: any[] = ordersData?.data?.orders?.edges || [];
+          debugInfo.orderCount = orderEdges.length;
+          console.log(`[BUNDLES API] Processing ${orderEdges.length} orders for anchor product ${productId}`);
           const getPid = (gid?: string) => (gid||'').replace('gid://shopify/Product/','');
           // Decay setup similar to recommendations endpoint
           const HALF_LIFE_DAYS = 60;
@@ -594,11 +613,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
               assoc[a].wAppear += w; assoc[b].wAppear += w;
             }
           }
+          debugInfo.assocCount = Object.keys(assoc).length;
+          console.log(`[BUNDLES API] Built associations for ${debugInfo.assocCount} products`);
           const anchor = String(productId);
           const cand: Record<string, number> = {};
           const aStats = assoc[anchor];
           const totalW = Object.values(wAppear).reduce((a,b)=>a+b,0) || 1;
           if (aStats) {
+            console.log(`[BUNDLES API] Anchor product ${anchor} found in ${Object.keys(aStats.with).length} associations`);
             for (const [b, ab] of Object.entries(aStats.with)) {
               if (b === anchor) continue;
               const wB = wAppear[b] || 0; if (wB <= 0) continue;
@@ -610,20 +632,34 @@ export async function loader({ request }: LoaderFunctionArgs) {
               const popNorm = Math.min(1, wB / (totalW * 0.05));
               cand[b] = Math.max(cand[b]||0, 0.6*liftNorm + 0.4*popNorm);
             }
+            debugInfo.method = 'orders';
+          } else {
+            console.log(`[BUNDLES API] Anchor product ${anchor} not found in order associations`);
           }
           relatedIds = Object.entries(cand).sort((a,b)=>b[1]-a[1]).slice(0, 4).map(([id])=>id);
-        } catch { relatedIds = []; }
+          console.log(`[BUNDLES API] Orders-based related IDs:`, relatedIds);
+        } catch { 
+          console.log(`[BUNDLES API] Orders processing failed, falling back`);
+          relatedIds = []; 
+        }
 
-        // Fallback: if we don’t have any order-based related ids, prefer same-vendor products; else any active excluding current
+                // Fallback: if we don't have any order-based related ids, prefer same-vendor products; else any active excluding current
         if (relatedIds.length === 0 && otherProducts.length > 0) {
           const curVendor = currentProduct?.vendor;
+          console.log(`[BUNDLES API] No orders-based results, falling back. Current vendor: ${curVendor}`);
           const byVendor = otherProducts.filter((p:any)=>p?.vendor && p.vendor === curVendor);
+          console.log(`[BUNDLES API] Found ${byVendor.length} products by same vendor`);
           const baseList = (byVendor.length ? byVendor : otherProducts)
             .map((p:any)=>String(p.id).replace('gid://shopify/Product/',''))
             .filter((id:string)=>id !== String(productId));
+          console.log(`[BUNDLES API] Base list has ${baseList.length} candidates`);
+          // Add some randomness to avoid always getting the same products
+          const shuffled = baseList.sort(() => Math.random() - 0.5);
           // ensure uniqueness
           const seen = new Set<string>();
-          relatedIds = baseList.filter((id:string)=>{ if (seen.has(id)) return false; seen.add(id); return true; }).slice(0, 4);
+          relatedIds = shuffled.filter((id:string)=>{ if (seen.has(id)) return false; seen.add(id); return true; }).slice(0, 4);
+          debugInfo.method = curVendor ? 'vendor' : 'random';
+          console.log(`[BUNDLES API] Fallback method '${debugInfo.method}' selected IDs:`, relatedIds);
         }
 
         // Fetch details for related products
@@ -656,9 +692,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
           if (uniq.length >= 2) break;
         }
         const complementProducts = uniq;
-        const bundleProducts = [ currentProd, ...complementProducts.map(getProductDetails) ];
+        const bundleProducts = [ currentProd, ...complementProducts.map(getProductDetails) ].filter(p => p !== null);
         if (bundleProducts.length >= 2) {
-          const regularTotal = bundleProducts.reduce((sum, p) => sum + (p.price||0), 0);
+          const regularTotal = bundleProducts.reduce((sum, p) => sum + (p!.price||0), 0);
           // Discount policy: higher if we have 2 complements
           const discountPercent = bundleProducts.length >= 3 ? 15 : 10;
           const bundlePrice = +(regularTotal * (1 - discountPercent / 100)).toFixed(2);
@@ -673,7 +709,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
             savings_amount: +(regularTotal - bundlePrice).toFixed(2),
             discount_code: discountPercent >= 15 ? 'BUNDLE_MATCH_15' : 'BUNDLE_MATCH_10',
             status: 'active',
-            source: 'orders_based'
+            source: 'orders_based',
+            debug: debugInfo
           });
         }
       }
