@@ -172,6 +172,53 @@ export default defineConfig({
 ```
 
 ## Troubleshooting
+## Test data helpers (ML)
+
+To quickly generate signal for ML and unblock out-of-stock issues, the workspace includes two helper scripts.
+
+1) Increase inventory across all variants and locations
+
+- Command:
+
+```bash
+npm run inv:increase -- --shop your-store.myshopify.com --token shpat_xxx --by 100 --intervalMs 300
+```
+
+- Flags/env:
+  - `--shop` or `SHOPIFY_SHOP`
+  - `--token` or `SHOPIFY_ADMIN_TOKEN`
+  - `--by` or `INVENTORY_INCREMENT` (default 100)
+  - `--intervalMs` or `INTERVAL_MS` (default 300)
+  - `--dry-run` or `DRY_RUN=true`
+
+2) Seed randomized test orders
+
+- Command:
+
+```bash
+npm run ml:seed -- \
+  --shop your-store.myshopify.com \
+  --token shpat_xxx \
+  --count 100 \
+  --variants 1234567890,2345678901,3456789012 \
+  --windowDays 90 \
+  --intervalMs 600 \
+  --dry-run
+```
+
+- Flags/env:
+  - `--shop` or `SHOPIFY_SHOP`
+  - `--token` or `SHOPIFY_ADMIN_TOKEN`
+  - `--count` or `ORDER_COUNT` (default 10)
+  - `--variants` or `VARIANT_IDS` (comma-separated; optional, script can fetch)
+  - `--windowDays` or `WINDOW_DAYS` (default 90)
+  - `--intervalMs` or `INTERVAL_MS` (default 600)
+  - `--dry-run` or `DRY_RUN=true`
+
+Notes:
+- Orders are marked `test: true` and tagged `ML_SEED,CartUplift` for cleanup.
+- Prefer running on a development store. Respect rate limits; adjust intervals if needed.
+
 
 ### Database tables don't exist
 

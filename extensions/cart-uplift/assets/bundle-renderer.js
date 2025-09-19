@@ -227,61 +227,113 @@ class BundleRenderer {
         return products;
     }
 
-    renderShopifyRecommendationsInContainer(products, container) {
-        if (!Array.isArray(products) || products.length === 0) return;
-        // Respect manual render if already present
-        if (container.classList.contains('cu-manual-rendered')) return;
-        container.classList.add('smart-bundles-loaded');
-        container.innerHTML = '';
+        renderShopifyRecommendationsInContainer(products, container) {
+                if (!Array.isArray(products) || products.length === 0) return;
+                // Respect manual render if already present
+                if (container.classList.contains('cu-manual-rendered')) return;
+                container.classList.add('smart-bundles-loaded');
+                container.innerHTML = '';
 
-        const docLang = (document.documentElement && document.documentElement.lang) || 'en';
-        const shopCurrency = (window.CartUpliftSettings && window.CartUpliftSettings.shopCurrency) || (window.cartUpliftSettings && window.cartUpliftSettings.shopCurrency) || 'USD';
-        const fmt = (v) => new Intl.NumberFormat(docLang, { style: 'currency', currency: shopCurrency }).format(v);
+                const docLang = (document.documentElement && document.documentElement.lang) || 'en';
+                const shopCurrency = (window.CartUpliftSettings && window.CartUpliftSettings.shopCurrency) || (window.cartUpliftSettings && window.cartUpliftSettings.shopCurrency) || 'USD';
+                const fmt = (v) => new Intl.NumberFormat(docLang, { style: 'currency', currency: shopCurrency }).format(v);
 
-        // Normalize product shape across themes
-        const norm = (p) => {
-            const id = p?.id || p?.product_id || p?.gid || null;
-            const handle = p?.handle || '';
-            const title = p?.title || '';
-            const priceCents = typeof p?.price === 'number' ? p.price : (typeof p?.price_min === 'number' ? p.price_min : null);
-            const price = priceCents != null ? priceCents / 100 : null;
-            const img = p?.featured_image?.url || p?.featured_image || p?.images?.[0] || p?.image || null;
-            const url = handle ? (`/products/${handle}`) : (p?.url || '#');
-            return { id, handle, title, price, image: img, url };
-        };
+                // Normalize product shape across themes
+                const norm = (p) => {
+                        const id = p?.id || p?.product_id || p?.gid || null;
+                        const handle = p?.handle || '';
+                        const title = p?.title || '';
+                        const priceCents = typeof p?.price === 'number' ? p.price : (typeof p?.price_min === 'number' ? p.price_min : null);
+                        const price = priceCents != null ? priceCents / 100 : null;
+                        const img = p?.featured_image?.url || p?.featured_image || p?.images?.[0] || p?.image || null;
+                        const url = handle ? (`/products/${handle}`) : (p?.url || '#');
+                        const variants = Array.isArray(p?.variants) ? p.variants : null;
+                        return { id, handle, title, price, image: img, url, variants };
+                };
 
-        const itemsHtml = products.slice(0, 4).map((p, idx) => {
-            const pr = norm(p);
-            const svgPh = encodeURIComponent(
-                `<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'>`
-                + `<rect width='100%' height='100%' fill='${['#007c89','#d73027','#28a745','#6f42c1'][idx%4]}'/>`
-                + `<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='12'>${(pr.title||'').slice(0,10)}</text>`
-                + `</svg>`
-            );
-            const imgUrl = (pr.image && typeof pr.image === 'string') ? pr.image : `data:image/svg+xml,${svgPh}`;
-            const priceHtml = (typeof pr.price === 'number') ? `<div class="cu-item__price">${fmt(pr.price)}</div>` : '';
-            return `
-            <a class="cu-item" href="${pr.url}" aria-label="${pr.title}">
-              <div class="cu-item__image-wrap"><img class="cu-item__image" src="${imgUrl}" alt="${pr.title}"></div>
-              <div class="cu-item__title">${pr.title}</div>
-              ${priceHtml}
-            </a>`;
-        }).join('');
+                const recItems = products.slice(0, 3).map((p, idx) => ({ raw: p, pr: norm(p), idx }));
+                const itemsHtml = recItems.map(({ pr, idx }) => {
+                        const svgPh = encodeURIComponent(
+                                `<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'>`
+                                + `<rect width='100%' height='100%' fill='${['#007c89','#d73027','#28a745','#6f42c1'][idx%4]}'/>`
+                                + `<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='12'>${(pr.title||'').slice(0,10)}</text>`
+                                + `</svg>`
+                        );
+                        const imgUrl = (pr.image && typeof pr.image === 'string') ? pr.image : `data:image/svg+xml,${svgPh}`;
+                        const priceHtml = (typeof pr.price === 'number') ? `<div class="cu-item__price">${fmt(pr.price)}</div>` : '';
+                        return `
+                        <a class="cu-item" href="${pr.url}" aria-label="${pr.title}">
+                            <div class="cu-item__image-wrap"><img class="cu-item__image" src="${imgUrl}" alt="${pr.title}"></div>
+                            <div class="cu-item__title">${pr.title}</div>
+                            ${priceHtml}
+                        </a>`;
+                }).join('');
 
-        const wrapper = document.createElement('div');
-        wrapper.className = 'cart-uplift-recs';
-        wrapper.innerHTML = `
-          <div class="cart-uplift-bundle">
-            <div class="cart-uplift-bundle__content">
-              <div class="cart-uplift-bundle__header">
-                <h3 class="cart-uplift-bundle__title">You may also like</h3>
-              </div>
-              <div class="cu-grid">${itemsHtml}</div>
-            </div>
-          </div>`;
+                const total = recItems.reduce((s, it) => s + (typeof it.pr.price === 'number' ? it.pr.price : 0), 0);
 
-        container.appendChild(wrapper);
-    }
+                const wrapper = document.createElement('div');
+                wrapper.className = 'cart-uplift-recs';
+                wrapper.innerHTML = `
+                    <div class="cart-uplift-bundle">
+                        <div class="cart-uplift-bundle__content">
+                            <div class="cart-uplift-bundle__header">
+                                <h3 class="cart-uplift-bundle__title">You may also like</h3>
+                            </div>
+                            <div class="cu-grid">${itemsHtml}</div>
+                            <div class="cu-total">
+                                <div class="cu-total__label">Total price</div>
+                                <div class="cu-total__values">
+                                    <span class="cu-total__price">${fmt(total)}</span>
+                                </div>
+                            </div>
+                            <div class="cart-uplift-bundle__actions">
+                                <button class="cart-uplift-bundle__cta" data-cu-recs-cta="true">Add all to cart</button>
+                            </div>
+                        </div>
+                    </div>`;
+
+                container.appendChild(wrapper);
+
+                const resolveVariantId = async (item) => {
+                        // Prefer first available from provided variants
+                        const vlist = Array.isArray(item?.raw?.variants) ? item.raw.variants : Array.isArray(item?.pr?.variants) ? item.pr.variants : null;
+                        if (vlist && vlist.length > 0) {
+                                const avail = vlist.find(v => v?.available) || vlist[0];
+                                if (avail?.id) return avail.id;
+                        }
+                        // Fallback: fetch product JSON by handle to get variants
+                        if (item?.pr?.handle) {
+                                try {
+                                        const r = await fetch(`/products/${item.pr.handle}.js`, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+                                        if (r.ok) {
+                                                const j = await r.json();
+                                                const v = Array.isArray(j?.variants) ? (j.variants.find(v => v?.available) || j.variants[0]) : null;
+                                                if (v?.id) return v.id;
+                                        }
+                                } catch(_) {}
+                        }
+                        return null;
+                };
+
+                const cta = wrapper.querySelector('[data-cu-recs-cta="true"]');
+                if (cta) {
+                        cta.addEventListener('click', async () => {
+                                try {
+                                        cta.disabled = true;
+                                        const variantIds = (await Promise.all(recItems.map(it => resolveVariantId(it)))).filter(Boolean);
+                                        if (variantIds.length === 0) throw new Error('No variants');
+                                        const items = variantIds.map(id => ({ id, quantity: 1 }));
+                                        await this.addItemsToCart(items);
+                                        this.showBundleAddedMessage({});
+                                } catch (e) {
+                                        console.warn('[BundleRenderer] Failed to add recommendations to cart:', e);
+                                        this.showBundleErrorMessage({});
+                                } finally {
+                                        cta.disabled = false;
+                                }
+                        });
+                }
+        }
 
     async initCollectionPageBundles() {
         const collectionId = this.getCurrentCollectionId();

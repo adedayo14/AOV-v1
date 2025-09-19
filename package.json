@@ -19,7 +19,9 @@
     "shopify": "shopify",
     "prisma": "prisma",
     "graphql-codegen": "graphql-codegen",
-    "vite": "vite"
+    "vite": "vite",
+    "ml:seed": "node scripts/ml-seed-orders.js",
+    "inv:increase": "node scripts/bulk-inventory-increase.js"
   },
   "type": "module",
   "engines": {

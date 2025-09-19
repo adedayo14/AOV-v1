@@ -223,57 +223,101 @@ document.addEventListener('DOMContentLoaded', function() {
               if (Array.isArray(products) && products.length > 0) {
                 console.log('[SmartBundles] Rendering Shopify recommendations fallback');
                 renderShopifyRecommendationsInContainer(products, bundleContainer);
-                setTimeout(applyThemeEditorSettings, 50);
-              } else {
-                console.log('[SmartBundles] No Shopify recommendations found; hiding container');
-                bundleContainer.style.display = 'none';
-              }
-            })
-            .catch(err => {
-              console.warn('[SmartBundles] Shopify recommendations fallback failed:', err);
-              bundleContainer.style.display = 'none';
-            });
-        }
-      })
-      .catch(error => {
-        console.error('[SmartBundles] Direct API error:', error);
-        // Hide container when API fails
-        bundleContainer.style.display = 'none';
-      });
-    }
-  };
+                  if (!Array.isArray(products) || products.length === 0) return;
+                  container.classList.add('smart-bundles-loaded');
+                  container.innerHTML = '';
 
-  // Manual bundle rendering fallback
-  function renderBundlesManually(bundles, container) {
-    // Persist manual render and prevent other initializers from clearing it
-    if (container.dataset.cuManualRendered === 'true') return;
-    container.dataset.cuManualRendered = 'true';
-    container.classList.add('cu-manual-rendered');
-    console.log('[SmartBundles] Manually rendering', bundles.length, 'bundles');
-    container.classList.add('smart-bundles-loaded');
-    container.innerHTML = '';
-    // Choose best bundle (max discount, then savings)
-    const best = (bundles || []).slice().sort((a,b) => (b.discount_percent||0) - (a.discount_percent||0) || (b.savings_amount||0) - (a.savings_amount||0))[0];
-  if (!best) { container.innerHTML = ''; return; }
-    window.__cuManualBundles = [best];
+                  const docLang = (document.documentElement && document.documentElement.lang) || 'en';
+                  const shopCurrency = (window.CartUpliftSettings && window.CartUpliftSettings.shopCurrency) || (window.cartUpliftSettings && window.cartUpliftSettings.shopCurrency) || {{ shop.currency | json }};
+                  const fmt = (v) => new Intl.NumberFormat(docLang, { style: 'currency', currency: shopCurrency }).format(v);
 
-    const docLang = (document.documentElement && document.documentElement.lang) || 'en';
-    const shopCurrency = (window.CartUpliftSettings && window.CartUpliftSettings.shopCurrency) || (window.cartUpliftSettings && window.cartUpliftSettings.shopCurrency) || {{ shop.currency | json }};
-    const fmt = (v) => new Intl.NumberFormat(docLang, { style: 'currency', currency: shopCurrency }).format(v);
+                  const norm = function(p) {
+                    const id = p && (p.id || p.product_id || p.gid) || null;
+                    const handle = (p && p.handle) || '';
+                    const title = (p && p.title) || '';
+                    const priceCents = (p && typeof p.price === 'number') ? p.price : ((p && typeof p.price_min === 'number') ? p.price_min : null);
+                    const price = priceCents != null ? priceCents / 100 : null;
+                    const img = (p && (p.featured_image && (p.featured_image.url || p.featured_image)) ) || (p && p.images && p.images[0]) || (p && p.image) || null;
+                    const url = handle ? ('/products/' + handle) : (p && p.url) || '#';
+                    return { id, handle, title, price, image: img, url, raw: p };
+                  };
 
-    const gridItems = (best.products||[]).map((p, idx) => {
-      // Use a safe inline SVG placeholder to avoid broken external images
-      const svgPh = encodeURIComponent(
-        `<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'>`
-        + `<rect width='100%' height='100%' fill='${['#007c89','#d73027','#28a745','#6f42c1'][idx%4]}'/>`
-        + `<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='12'>Product ${idx+1}</text>`
-        + `</svg>`
-      );
-      const img = (p.image && typeof p.image === 'string' && p.image.startsWith('http')) ? p.image : `data:image/svg+xml,${svgPh}`;
-      const title = p.title || '';
-      const price = typeof p.price === 'number' ? fmt(p.price) : '';
-      const variantTitle = p.variant_title && p.variant_title !== 'Default Title' ? `<div class="cart-uplift-product__variant">${p.variant_title}</div>` : '';
-      const pills = Array.isArray(p.options) ? p.options.map(o => `<span class="cu-pill" title="${(o?.name||'')}: ${(o?.value||'')}">${(o?.value||'')}</span>`).join('') : '';
+                  const recs = (products || []).slice(0, 3).map(function(p, idx){ return { pr: norm(p), idx: idx }; });
+                  const itemsHtml = recs.map(function(item){
+                    const pr = item.pr; const idx = item.idx;
+                    const svgPh = encodeURIComponent(
+                      "<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'>"
+                      + "<rect width='100%' height='100%' fill='" + ['#007c89','#d73027','#28a745','#6f42c1'][idx%4] + "'/>"
+                      + "<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='12'>" + (pr.title||'').slice(0,10) + "</text>"
+                      + "</svg>"
+                    );
+                    const imgUrl = (pr.image && typeof pr.image === 'string') ? pr.image : ('data:image/svg+xml,' + svgPh);
+                    const priceHtml = (typeof pr.price === 'number') ? ('<div class="cu-item__price">' + fmt(pr.price) + '</div>') : '';
+                    return (
+                      '<a class="cu-item" href="' + pr.url + '" aria-label="' + pr.title + '">' +
+                      '<div class="cu-item__image-wrap"><img class="cu-item__image" src="' + imgUrl + '" alt="' + pr.title + '"></div>' +
+                      '<div class="cu-item__title">' + pr.title + '</div>' +
+                      priceHtml +
+                      '</a>'
+                    );
+                  }).join('');
+
+                  var total = recs.reduce(function(s, it){ return s + (typeof it.pr.price === 'number' ? it.pr.price : 0); }, 0);
+
+                  const wrapper = document.createElement('div');
+                  wrapper.className = 'cart-uplift-recs';
+                  wrapper.innerHTML = (
+                    '<div class="cart-uplift-bundle">'
+                    + '<div class="cart-uplift-bundle__content">'
+                    + '<div class="cart-uplift-bundle__header">'
+                    + '<h3 class="cart-uplift-bundle__title">You may also like</h3>'
+                    + '</div>'
+                    + '<div class="cu-grid">' + itemsHtml + '</div>'
+                    + '<div class="cu-total">'
+                    +   '<div class="cu-total__label">Total price</div>'
+                    +   '<div class="cu-total__values"><span class="cu-total__price">' + fmt(total) + '</span></div>'
+                    + '</div>'
+                    + '<div class="cart-uplift-bundle__actions">'
+                    +   '<button class="cart-uplift-bundle__cta" data-cu-recs-cta="true">Add all to cart</button>'
+                    + '</div>'
+                    + '</div>'
+                    + '</div>'
+                  );
+                  container.appendChild(wrapper);
+
+                  async function resolveVariantId(item){
+                    try {
+                      if (item && item.pr && item.pr.handle) {
+                        const r = await fetch('/products/' + item.pr.handle + '.js', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+                        if (r.ok) {
+                          const j = await r.json();
+                          const v = Array.isArray(j && j.variants) ? (j.variants.find(function(v){ return v && v.available; }) || j.variants[0]) : null;
+                          if (v && v.id) return v.id;
+                        }
+                      }
+                    } catch(_){ }
+                    return null;
+                  }
+
+                  const cta = wrapper.querySelector('[data-cu-recs-cta="true"]');
+                  if (cta) {
+                    cta.addEventListener('click', async function(){
+                      try {
+                        cta.disabled = true;
+                        const vids = (await Promise.all(recs.map(resolveVariantId))).filter(Boolean);
+                        if (vids.length === 0) throw new Error('No variants');
+                        const items = vids.map(function(id){ return { id: id, quantity: 1 }; });
+                        const resp = await fetch('/cart/add.js', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ items: items }) });
+                        if (!resp.ok) throw new Error('batch failed');
+                        alert('Products added to cart');
+                      } catch (e) {
+                        console.warn('[SmartBundles] Failed to add recommendations to cart:', e);
+                        alert('Failed to add products to cart');
+                      } finally {
+                        cta.disabled = false;
+                      }
+                    });
+                  }
       return `
       <div class="cu-item" data-index="${idx}">
         <div class="cu-item__image-wrap"><img class="cu-item__image" src="${img}" alt="${title}"></div>
