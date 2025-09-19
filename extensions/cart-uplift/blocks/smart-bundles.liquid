@@ -217,12 +217,8 @@ document.addEventListener('DOMContentLoaded', function() {
           console.log('[SmartBundles] No bundles from API, using fallback test bundles');
           // Create fallback test bundles to ensure something shows
           const fallbackBundles = createFallbackTestBundles(productId);
-          if (fallbackBundles.length > 0) {
-            renderBundlesManually(fallbackBundles, bundleContainer);
-            setTimeout(applyThemeEditorSettings, 50);
-          } else {
-            showNoBundlesMessage(bundleContainer);
-          }
+          renderBundlesManually(fallbackBundles, bundleContainer);
+          setTimeout(applyThemeEditorSettings, 50);
         }
       })
       .catch(error => {
@@ -230,12 +226,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('[SmartBundles] API failed, using fallback test bundles');
         // Create fallback test bundles when API completely fails
         const fallbackBundles = createFallbackTestBundles(productId);
-        if (fallbackBundles.length > 0) {
-          renderBundlesManually(fallbackBundles, bundleContainer);
-          setTimeout(applyThemeEditorSettings, 50);
-        } else {
-          showNoBundlesMessage(bundleContainer);
-        }
+        renderBundlesManually(fallbackBundles, bundleContainer);
+        setTimeout(applyThemeEditorSettings, 50);
       });
     }
   };
@@ -245,8 +237,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Manual bundle rendering fallback
   function renderBundlesManually(bundles, container) {
+    // Persist manual render and prevent other initializers from clearing it
     if (container.dataset.cuManualRendered === 'true') return;
     container.dataset.cuManualRendered = 'true';
+    container.classList.add('cu-manual-rendered');
     console.log('[SmartBundles] Manually rendering', bundles.length, 'bundles');
     container.classList.add('smart-bundles-loaded');
     container.innerHTML = '';
@@ -260,7 +254,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const fmt = (v) => new Intl.NumberFormat(docLang, { style: 'currency', currency: shopCurrency }).format(v);
 
     const gridItems = (best.products||[]).map((p, idx) => {
-      const img = p.image || 'https://via.placeholder.com/120';
+      // Use a safe inline SVG placeholder to avoid broken external images
+      const svgPh = encodeURIComponent(
+        `<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'>`
+        + `<rect width='100%' height='100%' fill='${['#007c89','#d73027','#28a745','#6f42c1'][idx%4]}'/>`
+        + `<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='12'>Product ${idx+1}</text>`
+        + `</svg>`
+      );
+      const img = (p.image && typeof p.image === 'string') ? p.image : `data:image/svg+xml,${svgPh}`;
       const title = p.title || '';
       const price = typeof p.price === 'number' ? fmt(p.price) : '';
       const variantTitle = p.variant_title && p.variant_title !== 'Default Title' ? `<div class="cart-uplift-product__variant">${p.variant_title}</div>` : '';
