@@ -37,6 +37,52 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
   }
 
+  // GET /apps/proxy/api/diag
+  // Diagnostics: verify App Proxy signature, Admin API reachability, and required scopes
+  if (path.includes('/api/diag')) {
+    const hdrs = { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' } as Record<string,string>;
+    try {
+      const { session } = await authenticate.public.appProxy(request);
+      const shop = session?.shop;
+      if (!shop) return json({ ok: false, proxyAuth: false, reason: 'no_shop' }, { status: 401, headers: hdrs });
+
+      let adminOk = false; let hasReadOrders = false; let hasReadProducts = false; let details: any = {};
+      try {
+        const { admin } = await unauthenticated.admin(shop);
+        // Lightweight shop query
+        const shopResp = await admin.graphql(`#graphql\n          query { shop { name myshopifyDomain } }\n        `);
+        adminOk = shopResp.ok === true;
+        const shopJson: any = adminOk ? await shopResp.json() : null;
+        details.shopQuery = { ok: adminOk, data: !!shopJson?.data };
+      } catch (e) {
+        details.shopQuery = { ok: false, error: String(e) };
+      }
+      try {
+        const { admin } = await unauthenticated.admin(shop);
+        // Minimal orders query to infer read_orders
+        const ordersResp = await admin.graphql(`#graphql\n          query { orders(first: 1) { edges { node { id } } } }\n        `);
+        const j: any = await ordersResp.json();
+        hasReadOrders = !!j?.data || ordersResp.status !== 403; // 403 often indicates missing scope; presence of data implies scope
+        details.ordersProbe = { status: ordersResp.status, hasData: !!j?.data, errors: j?.errors };
+      } catch (e) {
+        details.ordersProbe = { error: String(e) };
+      }
+      try {
+        const { admin } = await unauthenticated.admin(shop);
+        const productsResp = await admin.graphql(`#graphql\n          query { products(first: 1) { edges { node { id } } } }\n        `);
+        const j: any = await productsResp.json();
+        hasReadProducts = !!j?.data || productsResp.status !== 403;
+        details.productsProbe = { status: productsResp.status, hasData: !!j?.data, errors: j?.errors };
+      } catch (e) {
+        details.productsProbe = { error: String(e) };
+      }
+
+      return json({ ok: true, proxyAuth: true, shop, adminOk, scopes: { read_orders: hasReadOrders, read_products: hasReadProducts }, details }, { headers: hdrs });
+    } catch (e) {
+      return json({ ok: false, proxyAuth: false, reason: 'invalid_signature' }, { status: 401, headers: hdrs });
+    }
+  }
+
   // GET /apps/proxy/api/recommendations
   // Minimal, conservative AOV-focused recs: decayed confidence/lift + popularity, OOS + price-gap guardrails
   if (path.includes('/api/recommendations')) {
@@ -345,7 +391,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       
       if (!shop) {
         console.log('[BUNDLES API] ERROR: No shop found, returning unauthorized');
-        return json({ error: 'Unauthorized' }, { status: 401 });
+        return json({ error: 'Unauthorized' }, { status: 401, headers: { 'Access-Control-Allow-Origin': '*', 'X-Bundles-Reason': 'unauthorized' } });
       }
 
       console.log('[BUNDLES API] Step 3: Parsing parameters...');
@@ -376,14 +422,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
         return json({ bundles: [], reason: 'disabled' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
       }
       */
-      if (context === 'product' && !settings?.bundlesOnProductPages) {
-        console.log('[BUNDLES API] Bundles on product pages disabled');
-        return json({ bundles: [], reason: 'disabled_page' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
+      if (context === 'product' && settings && settings.hasOwnProperty('bundlesOnProductPages') && settings.bundlesOnProductPages === false) {
+        console.log('[BUNDLES API] Bundles on product pages explicitly disabled in settings');
+        return json({ bundles: [], reason: 'disabled_page' }, { headers: { 'Access-Control-Allow-Origin': '*', 'X-Bundles-Gated': '1', 'X-Bundles-Reason': 'disabled_page', 'X-Bundles-Context': context, 'Vary': 'X-Bundles-Gated' } });
       }
 
       if (context !== 'product' || !productIdParam) {
         console.log('[BUNDLES API] Invalid context or missing product ID');
-        return json({ bundles: [] }, { headers: { 'Access-Control-Allow-Origin': '*' } });
+        return json({ bundles: [], reason: 'invalid_params' }, { headers: { 'Access-Control-Allow-Origin': '*', 'X-Bundles-Reason': 'invalid_params', 'X-Bundles-Context': String(context) } });
       }
 
       // Resolve product id: accept numeric id; if not numeric, try as handle via Admin API
@@ -421,7 +467,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
       // Guard: unresolved or invalid product id
       if (!productId || !/^[0-9]+$/.test(productId)) {
-        return json({ bundles: [], reason: 'invalid_product' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
+        return json({ bundles: [], reason: 'invalid_product' }, { headers: { 'Access-Control-Allow-Origin': '*', 'X-Bundles-Reason': 'invalid_product', 'X-Bundles-Context': context } });
       }
 
       console.log('[BUNDLES API] Step 6: Generating bundles...');
@@ -724,7 +770,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
       return json(payload, {
         headers: {
           'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 'public, max-age=30'
+          'Cache-Control': 'public, max-age=30',
+          'X-Bundles-Reason': bundles.length ? 'ok' : 'no_candidates',
+          'X-Bundles-Context': context,
+          'X-Bundles-Shop': shop
         }
       });
     } catch (error) {
@@ -734,7 +783,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       console.error('[BUNDLES API] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       console.error('[BUNDLES API] Error type:', typeof error);
       console.error('[BUNDLES API] Error constructor:', error?.constructor?.name);
-      return json({ bundles: [], reason: 'unavailable' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
+      return json({ bundles: [], reason: 'unavailable' }, { headers: { 'Access-Control-Allow-Origin': '*', 'X-Bundles-Reason': 'unavailable' } });
     }
   }
 

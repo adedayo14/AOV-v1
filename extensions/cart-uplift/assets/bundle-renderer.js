@@ -109,7 +109,7 @@ class BundleRenderer {
                     return;
                 }
                 // Avoid duplicate init
-                if (container.dataset.cuInitialized === 'true' || container.classList.contains('smart-bundles-loaded')) {
+                if (container.dataset.cuInitialized === 'true' || container.classList.contains('smart-bundles-loaded') || container.classList.contains('cu-manual-rendered')) {
                     console.log('[BundleRenderer] Skipping already initialized container');
                     return;
                 }
@@ -138,7 +138,7 @@ class BundleRenderer {
                         const blockProductId = block.getAttribute('data-product-id') || productId;
                         const container = block.querySelector(`#smart-bundles-container-${blockProductId}`) || block;
                         if (!container) return;
-                        if (container.dataset.cuInitialized === 'true' || container.classList.contains('smart-bundles-loaded')) return;
+                        if (container.dataset.cuInitialized === 'true' || container.classList.contains('smart-bundles-loaded') || container.classList.contains('cu-manual-rendered')) return;
                         container.dataset.cuInitialized = 'true';
                         this.initProductPage(blockProductId, container);
                     });
@@ -385,8 +385,13 @@ class BundleRenderer {
 
     renderBundlesInContainer(bundles, container) {
         console.log('[BundleRenderer] Rendering bundles in theme block container:', bundles.length);
-        container.innerHTML = '';
-        container.classList.add('smart-bundles-loaded');
+                if (!container.classList.contains('cu-manual-rendered')) {
+                    container.innerHTML = '';
+                    container.classList.add('smart-bundles-loaded');
+                } else {
+                    console.log('[BundleRenderer] Respecting manual render; not clearing container');
+                    return;
+                }
         const best = this.chooseBestBundle(bundles);
         if (!best) { container.style.display = 'none'; return; }
         const bundleElement = this.createBundleElement(best, 'theme-block');
