@@ -7,6 +7,15 @@
 			"command": "shopify app deploy",
 			"isBackground": false,
 			"group": "build"
+		},
+		{
+			"label": "Build theme extension assets",
+			"type": "shell",
+			"command": "npm run build",
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"group": "build"
 		}
 	]
 }
