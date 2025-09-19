@@ -191,7 +191,10 @@ class BundleRenderer {
                 this.renderBundlesInContainer(bundles, container);
             } else {
                 console.log('[BundleRenderer] No bundles available, hiding container');
-                container.style.display = 'none';
+                // Do not hide if our fallback is active
+                if (container.dataset.cuFallbackActive !== 'true') {
+                    container.style.display = 'none';
+                }
             }
         } catch (error) {
             console.warn('[BundleRenderer] Failed to load bundles for theme block:', error);
@@ -385,19 +388,25 @@ class BundleRenderer {
 
     renderBundlesInContainer(bundles, container) {
         console.log('[BundleRenderer] Rendering bundles in theme block container:', bundles.length);
-                if (!container.classList.contains('cu-manual-rendered')) {
-                    container.innerHTML = '';
-                    container.classList.add('smart-bundles-loaded');
-                } else {
-                    console.log('[BundleRenderer] Respecting manual render; not clearing container');
-                    return;
-                }
+        if (!container.classList.contains('cu-manual-rendered')) {
+            container.innerHTML = '';
+            container.classList.add('smart-bundles-loaded');
+        } else {
+            console.log('[BundleRenderer] Respecting manual render; not clearing container');
+            return;
+        }
         const best = this.chooseBestBundle(bundles);
-        if (!best) { container.style.display = 'none'; return; }
-        const bundleElement = this.createBundleElement(best, 'theme-block');
-        container.appendChild(bundleElement);
-        this.renderedBundles.add(best.id);
-        console.log('[BundleRenderer] Best bundle rendered in theme block successfully');
+        if (best) {
+            const bundleElement = this.createBundleElement(best, 'theme-block');
+            container.appendChild(bundleElement);
+            this.renderedBundles.add(best.id);
+            console.log('[BundleRenderer] Best bundle rendered in theme block successfully');
+        } else if (container.dataset.cuFallbackActive !== 'true') {
+            console.log('[BundleRenderer] No bundles and no fallback, hiding container');
+            container.style.display = 'none';
+        } else {
+            console.log('[BundleRenderer] No bundles, but fallback is active. Leaving container visible.');
+        }
     }
 
     renderCollectionPageBundles(bundles) {

@@ -427,6 +427,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
         return json({ bundles: [], reason: 'disabled_page' }, { headers: { 'Access-Control-Allow-Origin': '*', 'X-Bundles-Gated': '1', 'X-Bundles-Reason': 'disabled_page', 'X-Bundles-Context': context, 'Vary': 'X-Bundles-Gated' } });
       }
 
+      // Relaxed gating: only gate if settings are loaded AND bundlesOnProductPages is explicitly false.
+      // If settings fail to load, proceed with defaults.
+      if (context === 'product' && settings?.bundlesOnProductPages === false) {
+        console.log('[BUNDLES API] Bundles on product pages explicitly disabled in settings');
+        return json({ bundles: [], reason: 'disabled_page' }, { headers: { 'Access-Control-Allow-Origin': '*', 'X-Bundles-Gated': '1', 'X-Bundles-Reason': 'disabled_page', 'X-Bundles-Context': context, 'Vary': 'X-Bundles-Gated' } });
+      }
+
       if (context !== 'product' || !productIdParam) {
         console.log('[BUNDLES API] Invalid context or missing product ID');
         return json({ bundles: [], reason: 'invalid_params' }, { headers: { 'Access-Control-Allow-Origin': '*', 'X-Bundles-Reason': 'invalid_params', 'X-Bundles-Context': String(context) } });
@@ -554,7 +561,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         `);
         
         if (productsResp.ok) {
-          const data = await productsResp.json();
+          const data: any = await productsResp.json();
           otherProducts = data?.data?.products?.edges?.map((edge: any) => edge.node) || [];
           console.log('[BUNDLES API] Found', otherProducts.length, 'other products');
         }

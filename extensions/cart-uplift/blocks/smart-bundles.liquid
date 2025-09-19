@@ -215,6 +215,8 @@ document.addEventListener('DOMContentLoaded', function() {
           setTimeout(applyThemeEditorSettings, 50);
         } else {
           console.log('[SmartBundles] No bundles from API, using fallback test bundles');
+          // Add a guard to prevent the main renderer from hiding the container
+          bundleContainer.dataset.cuFallbackActive = 'true';
           // Create fallback test bundles to ensure something shows
           const fallbackBundles = createFallbackTestBundles(productId);
           renderBundlesManually(fallbackBundles, bundleContainer);
@@ -224,6 +226,8 @@ document.addEventListener('DOMContentLoaded', function() {
       .catch(error => {
         console.error('[SmartBundles] Direct API error:', error);
         console.log('[SmartBundles] API failed, using fallback test bundles');
+        // Add a guard to prevent the main renderer from hiding the container
+        bundleContainer.dataset.cuFallbackActive = 'true';
         // Create fallback test bundles when API completely fails
         const fallbackBundles = createFallbackTestBundles(productId);
         renderBundlesManually(fallbackBundles, bundleContainer);
@@ -261,7 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
         + `<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='12'>Product ${idx+1}</text>`
         + `</svg>`
       );
-      const img = (p.image && typeof p.image === 'string') ? p.image : `data:image/svg+xml,${svgPh}`;
+      const img = (p.image && typeof p.image === 'string' && p.image.startsWith('http')) ? p.image : `data:image/svg+xml,${svgPh}`;
       const title = p.title || '';
       const price = typeof p.price === 'number' ? fmt(p.price) : '';
       const variantTitle = p.variant_title && p.variant_title !== 'Default Title' ? `<div class="cart-uplift-product__variant">${p.variant_title}</div>` : '';
@@ -416,15 +420,16 @@ document.addEventListener('DOMContentLoaded', function() {
     ];
     
     // Use product ID to select which bundle variation to show (simulates dynamic behavior)
-    const variationIndex = Math.abs(parseInt(currentProductId) || 0) % productVariations.length;
+    const variationIndex = Math.abs(parseInt(String(currentProductId).slice(-4)) || 0) % productVariations.length;
     const selectedBundle = productVariations[variationIndex];
     
     // Modify product titles to include product ID for uniqueness
     selectedBundle.products = selectedBundle.products.map((p, idx) => ({
       ...p,
-      title: p.title + ` (for Product ${currentProductId})`,
-      id: String(parseInt(currentProductId) + idx),
-      variant_id: String(parseInt(currentProductId) + idx) + '001'
+      title: p.title.replace('Product', `P-${String(currentProductId).slice(-4)}`),
+      id: String(parseInt(String(currentProductId).slice(0, 8)) + idx),
+      variant_id: String(parseInt(String(currentProductId).slice(0, 8)) + idx) + '001',
+      image: '' // Force placeholder
     }));
     
     console.log('[SmartBundles] Generated fallback bundle:', selectedBundle);
