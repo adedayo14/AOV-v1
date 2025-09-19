@@ -4,10 +4,12 @@
   The associated 'bundle-renderer.js' asset will handle fetching and rendering.
 {% endcomment %}
 
+{% assign cu_version = '4.4' %}
 {% if block.settings.enable_smart_bundles %}
 <div class="cart-uplift-smart-bundles"
   data-product-id="{{ product.id }}"
   data-bundle-settings='{{ block.settings | json }}'
+  data-cu-version="{{ cu_version }}"
   style="margin-top: {{ block.settings.margin_top | default: 20 }}px; margin-bottom: {{ block.settings.margin_bottom | default: 20 }}px;">
   
   {% comment %} Smart Bundles will be dynamically loaded here {% endcomment %}
@@ -24,7 +26,7 @@
   </div>
 </div>
 
-<link rel="stylesheet" href="{{ 'bundles.css' | asset_url }}">
+<link rel="stylesheet" href="{{ 'bundles.css' | asset_url }}?v={{ cu_version }}">
 
 <style>
 @keyframes spin {
@@ -56,7 +58,7 @@
 
 <script>
 // Initialize Smart Bundles for this product
-console.log('[SmartBundles] Script block executing for product {{ product.id | json }}');
+console.log('[SmartBundles] Script block executing for product {{ product.id | json }} (v{{ cu_version }})');
 console.log('[SmartBundles] Available window globals:', {
   BundleRenderer: typeof window.BundleRenderer,
   CartUplift: typeof window.CartUplift,
@@ -70,6 +72,7 @@ try {
   window.CartUpliftSettings = Object.assign({}, window.CartUpliftSettings || {}, {
     shopCurrency: {{ shop.currency | json }},
   });
+  window.CartUpliftVersion = {{ cu_version | json }};
   // Also set document language if theme hasn't
   if (!document.documentElement.lang) {
     document.documentElement.lang = {{ request.locale | default: shop.locale | json }};
@@ -458,7 +461,7 @@ document.addEventListener('DOMContentLoaded', function() {
   Ensure the bundle renderer script is available on product pages using this block.
   This is a safe fallback in case the app-embed delayed loader hasn’t run yet.
 {%- endcomment -%}
-<script src="{{ 'bundle-renderer.js' | asset_url }}" defer></script>
+<script src="{{ 'bundle-renderer.js' | asset_url }}?v={{ cu_version }}" defer></script>
 {% endif %}
 
 {% schema %}
