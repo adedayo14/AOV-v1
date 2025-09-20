@@ -4,7 +4,7 @@
   The associated 'bundle-renderer.js' asset will handle fetching and rendering.
 {% endcomment %}
 
-{% assign cu_version = '4.5' %}
+{% assign cu_version = '4.6' %}
 {% if block.settings.enable_smart_bundles %}
 <div class="cart-uplift-smart-bundles"
   data-product-id="{{ product.id }}"
@@ -21,7 +21,7 @@
   >
     <div class="smart-bundles-placeholder" style="text-align: center; padding: 20px; color: #666;">
     <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.5</p>
+  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v4.6</p>
     </div>
   </div>
 </div>
@@ -99,7 +99,7 @@ console.log('[SmartBundles] Container element:', bundleContainer);
 // Ensure renderer won't hide the container if it doesn't find data
 try { if (bundleContainer) bundleContainer.dataset.cuFallbackActive = 'true'; } catch(_) {}
 
-document.addEventListener('DOMContentLoaded', function() {
+function onSmartBundlesDomReady() {
   console.log('[SmartBundles] DOM Content Loaded event fired');
   const bundleContainer = document.getElementById('smart-bundles-container-' + productId);
 
@@ -453,7 +453,15 @@ document.addEventListener('DOMContentLoaded', function() {
   tryInit();
   setTimeout(ensureRecommendationsFallbackSoon, 2000);
   setTimeout(ensureRecommendationsFallbackWatchdog, 4500);
-});
+}
+
+// Run immediately if DOMContentLoaded already fired (e.g., block injected dynamically),
+// otherwise wait for DOMContentLoaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', onSmartBundlesDomReady);
+} else {
+  try { onSmartBundlesDomReady(); } catch (e) { console.warn('[SmartBundles] Init failed:', e); }
+}
 </script>
 
 {%- comment -%}
