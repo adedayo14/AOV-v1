@@ -396,7 +396,13 @@ document.addEventListener('DOMContentLoaded', function() {
   function ensureRecommendationsFallbackSoon() {
     try {
       const container = document.getElementById('smart-bundles-container-' + productId);
-      if (!container || container.classList.contains('smart-bundles-loaded')) return; // Already handled
+      // If the container is still showing the placeholder or is empty, force a fallback render.
+      if (!container || (container.classList.contains('smart-bundles-loaded') && container.innerHTML.trim() === '')) {
+        console.log('[SmartBundles] Timed fallback triggered: container is empty, forcing render.');
+      } else if (container.classList.contains('smart-bundles-loaded')) {
+        return; // Already handled by renderer or previous fallback
+      }
+
       loadAnyFallbackProducts(productId, 4)
         .then(function(products){
           if (Array.isArray(products) && products.length > 0) {
