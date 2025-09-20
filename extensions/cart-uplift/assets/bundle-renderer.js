@@ -197,15 +197,19 @@ class BundleRenderer {
                         console.log('[BundleRenderer] Rendering Shopify recommendations fallback');
                         this.renderShopifyRecommendationsInContainer(recs, container);
                     } else {
-                        console.log('[BundleRenderer] No Shopify recommendations; hiding container');
+                        console.log('[BundleRenderer] No Shopify recommendations; leaving container for Liquid fallback');
+                        // Do not hide the container; let the Liquid timed fallback take over.
+                        // This prevents a race condition where the renderer hides the container
+                        // just before the Liquid script decides to show a fallback.
                         if (container.dataset.cuFallbackActive !== 'true') {
-                            container.style.display = 'none';
+                            container.innerHTML = ''; // Clear loading placeholder
                         }
                     }
                 } catch (e) {
                     console.warn('[BundleRenderer] Shopify recommendations fallback failed:', e);
+                    // Do not hide, let Liquid fallback handle it.
                     if (container.dataset.cuFallbackActive !== 'true') {
-                        container.style.display = 'none';
+                        container.innerHTML = ''; // Clear loading placeholder
                     }
                 }
             }
