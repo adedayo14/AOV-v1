@@ -288,7 +288,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // Render Shopify native recommendations into the same container (3 items + total + Add all CTA)
   function renderShopifyRecommendationsInContainer(products, container) {
     if (!Array.isArray(products) || products.length === 0) return;
-    container.classList.add('smart-bundles-loaded');
+    // Mark as manually rendered so the JS renderer won't override later
+    container.classList.add('smart-bundles-loaded', 'cu-manual-rendered');
     container.innerHTML = '';
 
     const docLang = (document.documentElement && document.documentElement.lang) || 'en';
@@ -396,12 +397,15 @@ document.addEventListener('DOMContentLoaded', function() {
   function ensureRecommendationsFallbackSoon() {
     try {
       const container = document.getElementById('smart-bundles-container-' + productId);
-      // If the container is still showing the placeholder or is empty, force a fallback render.
-      if (!container || (container.classList.contains('smart-bundles-loaded') && container.innerHTML.trim() === '')) {
-        console.log('[SmartBundles] Timed fallback triggered: container is empty, forcing render.');
-      } else if (container.classList.contains('smart-bundles-loaded')) {
-        return; // Already handled by renderer or previous fallback
+      // Determine if real content has been rendered (bundle or recs)
+      const hasRealContent = !!(container && (container.querySelector('.cart-uplift-recs') || container.querySelector('.cart-uplift-bundle')));
+      // If the container is missing or already has real content, do nothing
+      if (!container || hasRealContent) {
+        if (!container) console.warn('[SmartBundles] Timed fallback: container not found');
+        if (hasRealContent) console.log('[SmartBundles] Timed fallback: content already present, skipping');
+        return;
       }
+      console.log('[SmartBundles] Timed fallback triggered: rendering Shopify fallback now');
 
       loadAnyFallbackProducts(productId, 4)
         .then(function(products){
@@ -410,13 +414,34 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(applyThemeEditorSettings, 50);
           } else {
             // Gracefully clear placeholder if nothing to recommend
-            container.classList.add('smart-bundles-loaded');
+            container.classList.add('smart-bundles-loaded', 'cu-manual-rendered');
             container.innerHTML = '<div class="smart-bundles-placeholder" style="text-align:center;padding:16px;color:#777;">No recommendations right now</div>';
           }
         })
         .catch(function(err){
           console.warn('[SmartBundles] Timed fallback failed:', err);
         });
+    } catch(_) {}
+  }
+
+  // Watchdog: try a second time in case something cleared the container later
+  function ensureRecommendationsFallbackWatchdog() {
+    try {
+      const container = document.getElementById('smart-bundles-container-' + productId);
+      const hasRealContent = !!(container && (container.querySelector('.cart-uplift-recs') || container.querySelector('.cart-uplift-bundle')));
+      if (container && !hasRealContent) {
+        console.log('[SmartBundles] Watchdog fallback: still empty, attempting render again');
+        loadAnyFallbackProducts(productId, 4)
+          .then(function(products){
+            if (Array.isArray(products) && products.length > 0) {
+              renderShopifyRecommendationsInContainer(products, container);
+            } else {
+              container.classList.add('smart-bundles-loaded', 'cu-manual-rendered');
+              container.innerHTML = '<div class="smart-bundles-placeholder" style="text-align:center;padding:16px;color:#777;">No recommendations right now</div>';
+            }
+          })
+          .catch(function(err){ console.warn('[SmartBundles] Watchdog fallback failed:', err); });
+      }
     } catch(_) {}
   }
 
@@ -427,6 +452,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   tryInit();
   setTimeout(ensureRecommendationsFallbackSoon, 2000);
+  setTimeout(ensureRecommendationsFallbackWatchdog, 4500);
 });
 </script>
 
