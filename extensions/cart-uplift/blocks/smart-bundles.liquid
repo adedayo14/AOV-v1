@@ -96,6 +96,9 @@ console.log('[SmartBundles] Container element:', bundleContainer);
   console.error('[SmartBundles] Container not found immediately, will retry on DOM ready');
 }
 
+// Ensure renderer won't hide the container if it doesn't find data
+try { if (bundleContainer) bundleContainer.dataset.cuFallbackActive = 'true'; } catch(_) {}
+
 document.addEventListener('DOMContentLoaded', function() {
   console.log('[SmartBundles] DOM Content Loaded event fired');
   const bundleContainer = document.getElementById('smart-bundles-container-' + productId);
@@ -215,12 +218,12 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .then(data => {
         console.log('[SmartBundles] Direct API data:', data);
-        // Regardless of ML bundles presence, use Shopify native recommendations as a safe, always-rendering fallback
-        console.log('[SmartBundles] Attempting Shopify native recommendations fallback');
-        return fetchShopifyRecommendations(productId, 4)
+        // Regardless of ML bundles presence, try recommendations, then storewide fallback
+        console.log('[SmartBundles] Attempting Shopify recommendations, then storewide fallback');
+        return loadAnyFallbackProducts(productId, 4)
           .then(products => ({ products }))
           .catch(err => {
-            console.warn('[SmartBundles] Failed to fetch Shopify recommendations:', err);
+            console.warn('[SmartBundles] Fallback fetch failed:', err);
             return { products: [] };
           });
       })
@@ -230,10 +233,10 @@ document.addEventListener('DOMContentLoaded', function() {
           renderShopifyRecommendationsInContainer(products, bundleContainer);
           setTimeout(applyThemeEditorSettings, 50);
         } else {
-          console.log('[SmartBundles] No recommendations available; showing empty state');
+          console.log('[SmartBundles] No fallback products available; showing empty state');
           try {
             bundleContainer.classList.add('smart-bundles-loaded');
-            bundleContainer.innerHTML = '';
+            bundleContainer.innerHTML = '<div class="smart-bundles-placeholder" style="text-align:center;padding:16px;color:#777;">No recommendations right now</div>';
           } catch(_) {}
         }
       })
@@ -241,7 +244,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('[SmartBundles] Direct fallback failed:', err);
         try {
           bundleContainer.classList.add('smart-bundles-loaded');
-          bundleContainer.innerHTML = '';
+          bundleContainer.innerHTML = '<div class="smart-bundles-placeholder" style="text-align:center;padding:16px;color:#777;">No recommendations right now</div>';
         } catch(_) {}
       });
 
@@ -251,6 +254,35 @@ document.addEventListener('DOMContentLoaded', function() {
     return fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
       .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(data => Array.isArray(data) ? data : (Array.isArray(data && data.products) ? data.products : []));
+  }
+
+  // Storewide fallback: grab a few products if recs are empty
+  function fetchStorewideProducts(limit) {
+    const url = '/products.json?limit=' + encodeURIComponent(limit || 4);
+    return fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(j => Array.isArray(j && j.products) ? j.products : [])
+      .then(products => products.map(function(p){
+        return {
+          id: p && p.id,
+          handle: p && p.handle,
+          title: p && p.title,
+          price: (function(){ try { var v=p && p.variants && p.variants[0]; return v && v.price ? Math.round(parseFloat(v.price)*100) : null; } catch(_) { return null; } })(),
+          featured_image: (p && p.image && (p.image.src || p.image)) || (p && p.images && p.images[0] && (p.images[0].src || p.images[0])) || null,
+          images: (p && Array.isArray(p.images)) ? p.images.map(function(i){ return i && (i.src || i); }) : [],
+          variants: Array.isArray(p && p.variants) ? p.variants.map(function(v){ return { id: v && v.id, available: v ? (v.available !== false) : false }; }) : []
+        };
+      }));
+  }
+
+  // Unified loader: try recs then storewide products
+  function loadAnyFallbackProducts(productId, limit) {
+    return fetchShopifyRecommendations(productId, limit).then(function(recs){
+      if (Array.isArray(recs) && recs.length > 0) return recs;
+      return fetchStorewideProducts(limit).then(function(list){ return list; }).catch(function(){ return []; });
+    }).catch(function(){
+      return fetchStorewideProducts(limit).catch(function(){ return []; });
+    });
   }
 
   // Render Shopify native recommendations into the same container (3 items + total + Add all CTA)
@@ -360,12 +392,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // If the renderer doesn't populate within 2s, render Shopify recs here as a safety net
+  // If the renderer doesn't populate within 2s, render fallback products here as a safety net
   function ensureRecommendationsFallbackSoon() {
     try {
       const container = document.getElementById('smart-bundles-container-' + productId);
       if (!container || container.classList.contains('smart-bundles-loaded')) return; // Already handled
-      fetchShopifyRecommendations(productId, 4)
+      loadAnyFallbackProducts(productId, 4)
         .then(function(products){
           if (Array.isArray(products) && products.length > 0) {
             renderShopifyRecommendationsInContainer(products, container);
@@ -373,7 +405,7 @@ document.addEventListener('DOMContentLoaded', function() {
           } else {
             // Gracefully clear placeholder if nothing to recommend
             container.classList.add('smart-bundles-loaded');
-            container.innerHTML = '';
+            container.innerHTML = '<div class="smart-bundles-placeholder" style="text-align:center;padding:16px;color:#777;">No recommendations right now</div>';
           }
         })
         .catch(function(err){
