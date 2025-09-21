@@ -13,7 +13,7 @@
     data-product-id="{{ product.id }}"
     data-cu-version="{{ cu_version }}"
     data-manual-count="{{ manual_products_count }}"
-    data-has-manual="{{ manual_products_count > 0 }}"
+    data-has-manual="{% if manual_products_count > 0 %}true{% else %}false{% endif %}"
     style="margin-top: {{ block.settings.margin_top | default: 20 }}px; margin-bottom: {{ block.settings.margin_bottom | default: 20 }}px;">
     
     <div id="smart-bundles-container-{{ product.id }}-{{ block.id }}"
@@ -856,4 +856,99 @@
                 fill='#999' font-family='Arial' font-size='14'>${shortTitle}</text>
             </svg>`
           );
+        }
+      }
+
+      // Initialize when DOM is ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          const manager = new BundleManager(CONFIG);
+          manager.init();
+        });
+      } else {
+        const manager = new BundleManager(CONFIG);
+        manager.init();
+      }
+    })();
+  </script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Smart Bundles",
+  "target": "section",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_smart_bundles",
+      "label": "Enable Smart Bundles",
+      "default": true,
+      "info": "Show AI-powered product bundles on this product page"
+    },
+    {
+      "type": "text",
+      "id": "bundle_title",
+      "label": "Bundle Title",
+      "default": "Complete your setup",
+      "info": "Title shown above the bundle recommendations"
+    },
+    {
+      "type": "text",
+      "id": "bundle_subtitle",
+      "label": "Bundle Subtitle",
+      "info": "Optional subtitle shown below the title"
+    },
+    {
+      "type": "select",
+      "id": "bundle_layout",
+      "label": "Bundle Layout",
+      "options": [
+        {
+          "value": "horizontal",
+          "label": "Horizontal (side by side)"
+        },
+        {
+          "value": "vertical",
+          "label": "Vertical (stacked)"
+        }
+      ],
+      "default": "horizontal"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_plus_separator",
+      "label": "Show Plus Separators",
+      "default": true,
+      "info": "Show + symbols between items to indicate bundle"
+    },
+    {
+      "type": "product_list",
+      "id": "manual_bundle_products",
+      "label": "Manual Fallback Bundle",
+      "limit": 4,
+      "info": "Select products for a manual bundle if no ML recommendations are found"
+    },
+    {
+      "type": "range",
+      "id": "margin_top",
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "unit": "px",
+      "label": "Top margin",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "margin_bottom", 
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "unit": "px",
+      "label": "Bottom margin",
+      "default": 20
+    }
+  ]
+}
+{% endschema %}
         }
