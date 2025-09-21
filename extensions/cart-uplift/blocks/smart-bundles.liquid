@@ -398,6 +398,18 @@
       margin: 0;
       font-size: 16px;
     }
+
+    /* Content protection - force visibility when locked */
+    .smart-bundles-container[data-cu-lock="manual"] {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+
+    .smart-bundles-container[data-cu-manual-rendered="true"] {
+      display: block !important;
+      visibility: visible !important;
+    }
   </style>
 
   <script>
@@ -459,10 +471,12 @@
 
         async loadBundles() {
           try {
+            console.log('[SmartBundles v6] Loading bundles...');
+            
             // First priority: Manual bundles
             const manualBundles = this.getManualBundles();
             if (manualBundles.length > 0) {
-              console.log('[SmartBundles] Rendering manual bundles');
+              console.log('[SmartBundles v6] Rendering manual bundles:', manualBundles);
               this.renderBundle(manualBundles[0]);
               return;
             }
@@ -470,7 +484,7 @@
             // Second priority: ML bundles from API
             const mlBundles = await this.fetchMLBundles();
             if (mlBundles.length > 0) {
-              console.log('[SmartBundles] Rendering ML bundles');
+              console.log('[SmartBundles v6] Rendering ML bundles:', mlBundles);
               this.renderBundle(mlBundles[0]);
               return;
             }
@@ -478,15 +492,16 @@
             // Third priority: Shopify recommendations
             const recommendations = await this.fetchRecommendations();
             if (recommendations.length > 0) {
-              console.log('[SmartBundles] Rendering Shopify recommendations as bundle');
+              console.log('[SmartBundles v6] Rendering Shopify recommendations as bundle');
               this.renderRecommendationsBundle(recommendations);
               return;
             }
 
             // No bundles available
+            console.log('[SmartBundles v6] No bundles available - showing empty state');
             this.showEmptyState();
           } catch (error) {
-            console.error('[SmartBundles] Error loading bundles:', error);
+            console.error('[SmartBundles v6] Error loading bundles:', error);
             this.showEmptyState();
           }
         }
@@ -622,8 +637,17 @@
         }
 
         renderBundle(bundle) {
+          console.log('[SmartBundles v6] Rendering bundle:', bundle);
+          
           this.container.classList.remove('loading');
           this.container.classList.add('loaded');
+          
+          // Prevent external scripts from overriding this content
+          this.container.dataset.cuLock = 'manual';
+          this.container.dataset.cuManualRendered = 'true';
+          window.CartUpliftManualGuard = true;
+          
+          console.log('[SmartBundles v6] Container protection flags set');
           
           const layout = this.settings.bundle_layout || 'horizontal';
           this.container.classList.add('cu-layout-' + layout);
@@ -721,7 +745,61 @@
           `;
           
           this.container.innerHTML = bundleHtml;
+          console.log('[SmartBundles v6] Bundle HTML rendered to container');
+          
           this.attachEventListeners(bundle);
+          
+          // Protect content from being cleared by other scripts
+          this.protectContent(bundle);
+          
+          console.log('[SmartBundles v6] Bundle render complete with protection');
+        }
+
+        protectContent(bundle) {
+          // Force visibility
+          this.container.style.setProperty('display', 'block', 'important');
+          this.container.style.setProperty('visibility', 'visible', 'important');
+          this.container.style.setProperty('opacity', '1', 'important');
+          
+          // Store bundle data for restoration
+          this.container.dataset.bundleCache = JSON.stringify(bundle);
+          
+          // Set up MutationObserver to restore content if cleared
+          if (!this.container.__cuProtectionObserver) {
+            const observer = new MutationObserver(() => {
+              try {
+                const hasContent = !!this.container.querySelector('.cart-uplift-bundle');
+                const isHidden = this.container.hidden || 
+                  window.getComputedStyle(this.container).display === 'none';
+                
+                if (isHidden) {
+                  console.warn('[SmartBundles] Container hidden - forcing visible');
+                  this.container.hidden = false;
+                  this.container.style.setProperty('display', 'block', 'important');
+                  this.container.style.setProperty('visibility', 'visible', 'important');
+                  this.container.style.setProperty('opacity', '1', 'important');
+                }
+                
+                if (!hasContent && this.container.dataset.cuLock === 'manual') {
+                  console.warn('[SmartBundles] Content cleared - restoring bundle');
+                  const cached = JSON.parse(this.container.dataset.bundleCache || '{}');
+                  if (cached.id) {
+                    this.renderBundle(cached);
+                  }
+                }
+              } catch (e) {
+                console.warn('[SmartBundles] Protection observer error:', e);
+              }
+            });
+            
+            observer.observe(this.container, { 
+              childList: true, 
+              attributes: true, 
+              attributeFilter: ['style', 'hidden', 'class'] 
+            });
+            
+            this.container.__cuProtectionObserver = observer;
+          }
         }
 
         renderVariantSelector(product) {
@@ -864,10 +942,18 @@
         document.addEventListener('DOMContentLoaded', () => {
           const manager = new BundleManager(CONFIG);
           manager.init();
+          
+          // Signal that Smart Bundles v6 is active
+          window.CartUpliftV6Active = true;
+          window.CartUpliftHasSmartBundleBlock = true;
         });
       } else {
         const manager = new BundleManager(CONFIG);
         manager.init();
+        
+        // Signal that Smart Bundles v6 is active
+        window.CartUpliftV6Active = true;
+        window.CartUpliftHasSmartBundleBlock = true;
       }
     })();
   </script>
