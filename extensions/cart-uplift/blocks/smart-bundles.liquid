@@ -1,864 +1,859 @@
 {% comment %}
-  Smart Bundles Block - Displays ML-powered product bundles.
-  This block should be placed on product pages where you want bundles to appear.
-  The associated 'bundle-renderer.js' asset will handle fetching and rendering.
+  Smart Bundles Block - Displays ML-powered product bundles
+  Version 6.0 - Modern style with optional plus separators
 {% endcomment %}
 
-{% assign cu_version = '4.8' %}
+{% assign cu_version = '6.0' %}
+
 {% if block.settings.enable_smart_bundles %}
-<div class="cart-uplift-smart-bundles"
-  data-product-id="{{ product.id }}"
-  data-bundle-settings='{{ block.settings | json }}'
-  data-cu-version="{{ cu_version }}"
-  style="margin-top: {{ block.settings.margin_top | default: 20 }}px; margin-bottom: {{ block.settings.margin_bottom | default: 20 }}px;">
+  {% comment %} Calculate manual products count {% endcomment %}
+  {% assign manual_products_count = block.settings.manual_bundle_products | size %}
   
-  {% comment %} Smart Bundles will be dynamically loaded here {% endcomment %}
-  <div
-    id="smart-bundles-container-{{ product.id }}"
-    class="smart-bundles-loading cu-layout-{{ block.settings.bundle_layout }}"
-    data-bundle-title="{{ block.settings.bundle_title | escape }}"
-    data-layout="{{ block.settings.bundle_layout }}"
-  >
-    <div class="smart-bundles-placeholder" style="text-align: center; padding: 20px; color: #666;">
-    <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-  <p style="margin-top: 10px; font-size: 14px;">Loading smart bundles... v{{ cu_version }}</p>
+  <div class="cart-uplift-smart-bundles"
+    data-product-id="{{ product.id }}"
+    data-cu-version="{{ cu_version }}"
+    data-manual-count="{{ manual_products_count }}"
+    data-has-manual="{{ manual_products_count > 0 }}"
+    style="margin-top: {{ block.settings.margin_top | default: 20 }}px; margin-bottom: {{ block.settings.margin_bottom | default: 20 }}px;">
+    
+    <div id="smart-bundles-container-{{ product.id }}-{{ block.id }}"
+      class="smart-bundles-container loading"
+      data-bundle-title="{{ block.settings.bundle_title | escape }}"
+      data-layout="{{ block.settings.bundle_layout }}"
+      data-show-plus="{{ block.settings.show_plus_separator }}"
+      data-block-id="{{ block.id }}"
+      data-settings="{{ block.settings | json | escape }}">
+      
+      {% comment %} Loading state {% endcomment %}
+      <div class="smart-bundles-loader">
+        <div class="spinner"></div>
+        <p>Loading recommendations...</p>
+      </div>
     </div>
   </div>
-</div>
 
-<link rel="stylesheet" href="{{ 'bundles.css' | asset_url }}?v={{ cu_version }}">
-
-<style>
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.cart-uplift-smart-bundles {
-  width: 100%;
-  max-width: 100%;
-}
-
-.smart-bundles-loading {
-  min-height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.smart-bundles-placeholder {
-  opacity: 0.7;
-}
-
-/* Hide loading when bundles are loaded */
-.smart-bundles-loaded .smart-bundles-placeholder {
-  display: none;
-}
-</style>
-
-<script>
-// Initialize Smart Bundles for this product
-console.log('[SmartBundles] Script block executing for product {{ product.id | json }} (v{{ cu_version }})');
-console.log('[SmartBundles] Available window globals:', {
-  BundleRenderer: typeof window.BundleRenderer,
-  CartUplift: typeof window.CartUplift,
-  CartUpliftSettings: typeof window.CartUpliftSettings
-});
-
-// Execute immediately, don't wait for DOM
-const productId = {{ product.id | json }};
-// Pass store currency and locale into global settings for currency-safe formatting
-try {
-  window.CartUpliftSettings = Object.assign({}, window.CartUpliftSettings || {}, {
-    shopCurrency: {{ shop.currency | json }},
-  });
-  window.CartUpliftVersion = {{ cu_version | json }};
-  // Also set document language if theme hasn't
-  if (!document.documentElement.lang) {
-    document.documentElement.lang = {{ request.locale | default: shop.locale | json }};
-  }
-} catch (_) {}
-console.log('[SmartBundles] Product ID:', productId);
-
-// Signal globally that a theme Smart Bundles block is present on this page.
-// This helps the renderer avoid auto-placement and race conditions.
-try {
-  window.CartUpliftHasSmartBundleBlock = true;
-} catch (_) {}
-
-// Test bundle removed
-
-// Check if container exists immediately
-const bundleContainer = document.getElementById('smart-bundles-container-' + productId);
-console.log('[SmartBundles] Container element:', bundleContainer);
-
-  if (!bundleContainer) {
-  console.error('[SmartBundles] Container not found immediately, will retry on DOM ready');
-}
-
-// Ensure renderer won't hide the container if it doesn't find data
-try { if (bundleContainer) bundleContainer.dataset.cuFallbackActive = 'true'; } catch(_) {}
-
-function onSmartBundlesDomReady() {
-  console.log('[SmartBundles] DOM Content Loaded event fired');
-  const bundleContainer = document.getElementById('smart-bundles-container-' + productId);
-
-  console.log('[SmartBundles] DOM loaded, productId:', productId, 'container:', bundleContainer);
-
-  if (!bundleContainer) {
-    console.error('[SmartBundles] Bundle container not found!');
-    return;
-  }
-
-  // Apply theme editor settings (title, layout) after markup is rendered
-  function applyThemeEditorSettings() {
-    try {
-      const titleOverride = bundleContainer.dataset.bundleTitle;
-      const titleEl = bundleContainer.querySelector('.cart-uplift-bundle__title');
-      if (titleOverride && titleEl && titleEl.textContent !== titleOverride) {
-        titleEl.textContent = titleOverride;
-      }
-      const layout = bundleContainer.dataset.layout || 'horizontal';
-      bundleContainer.classList.toggle('cu-layout-horizontal', layout === 'horizontal');
-      bundleContainer.classList.toggle('cu-layout-vertical', layout === 'vertical');
-    } catch (e) {
-      console.warn('[SmartBundles] Failed to apply theme editor settings', e);
+  <style>
+    /* Core bundle container styles */
+    .cart-uplift-smart-bundles {
+      width: auto;
+      max-width: 100%;
     }
-  }
 
-  // Mark fallback active so renderer won't hide the container if it finds no data
-  try { if (bundleContainer) bundleContainer.dataset.cuFallbackActive = 'true'; } catch(_) {}
+    .smart-bundles-container {
+      min-height: 60px;
+      position: relative;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
 
-  // Consolidated fallback function that tries ML bundles, manual bundles, then Shopify recommendations
-  async function tryFallbackBundles(container, source = 'unknown') {
-    console.log('[SmartBundles] Starting fallback process from:', source);
-    
-    try {
-      // First: Try to get ML bundles from API
-      const response = await fetch('/apps/cart-uplift/api/bundles?product_id=' + productId + '&context=product', {
-        headers: { 'Accept': 'application/json' }
-      });
+    /* Loading state */
+    .smart-bundles-container.loading .smart-bundles-loader {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      gap: 12px;
+    }
+
+    .smart-bundles-container:not(.loading) .smart-bundles-loader {
+      display: none;
+    }
+
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid #f0f0f0;
+      border-top: 3px solid #333;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Bundle card styles */
+    .cart-uplift-bundle {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+      margin: 24px 0;
+    }
+
+    .cart-uplift-bundle__header {
+      margin-bottom: 32px;
+      text-align: center;
+    }
+
+    .cart-uplift-bundle__title {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+      color: #1a1a1a;
+      letter-spacing: -0.5px;
+    }
+
+    .cart-uplift-bundle__subtitle {
+      margin: 8px 0 0;
+      font-size: 16px;
+      color: #666;
+      font-weight: 400;
+    }
+
+    /* Product grid */
+    .cu-grid {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      justify-content: center;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+
+    /* Product item */
+    .cu-item {
+      flex: 0 1 200px;
+      text-align: center;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.2s ease;
+    }
+
+    .cu-item:hover {
+      transform: translateY(-4px);
+    }
+
+    .cu-item--current {
+      position: relative;
+    }
+
+    .cu-item--current::before {
+      content: 'This item:';
+      position: absolute;
+      top: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      font-weight: 500;
+      color: #666;
+      white-space: nowrap;
+    }
+
+    .cu-item__image-wrap {
+      width: 180px;
+      height: 180px;
+      margin: 0 auto 16px;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #f8f8f8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cu-item__image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .cu-item__title {
+      font-size: 15px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      line-height: 1.4;
+      color: #333;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      min-height: 42px;
+    }
+
+    .cu-item__price-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .cu-item__price {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .cu-item__price--original {
+      font-size: 16px;
+      color: #999;
+      text-decoration: line-through;
+      font-weight: 400;
+    }
+
+    /* Variant selector (optional) */
+    .cu-item__variant-select {
+      width: 100%;
+      margin-top: 12px;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      background: white;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .cu-item__variant-select:hover {
+      border-color: #999;
+    }
+
+    /* Plus separator */
+    .cu-plus {
+      flex: 0 0 auto;
+      font-size: 28px;
+      font-weight: 300;
+      color: #999;
+      padding: 0 8px;
+      align-self: center;
+      margin-top: -40px;
+    }
+
+    .smart-bundles-container[data-show-plus="false"] .cu-plus {
+      display: none;
+    }
+
+    /* Bundle footer */
+    .cu-bundle-footer {
+      border-top: 1px solid #f0f0f0;
+      padding-top: 24px;
+      margin-top: 24px;
+    }
+
+    /* Total price section */
+    .cu-total {
+      display: flex;
+      justify-content: center;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 24px;
+      font-size: 20px;
+    }
+
+    .cu-total__label {
+      color: #666;
+      font-weight: 400;
+    }
+
+    .cu-total__price {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+
+    .cu-total__price--original {
+      font-size: 22px;
+      color: #999;
+      text-decoration: line-through;
+      font-weight: 400;
+    }
+
+    /* Savings badge */
+    .cu-savings-badge {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .cu-savings-badge__text {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    /* CTA Button */
+    .cart-uplift-bundle__cta {
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
+      display: block;
+      background: #1a1a1a;
+      color: white;
+      border: none;
+      padding: 16px 32px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cart-uplift-bundle__cta:hover {
+      background: #333;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .cart-uplift-bundle__cta:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .cart-uplift-bundle__cta--loading::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      right: 24px;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .cart-uplift-bundle {
+        padding: 24px 16px;
+      }
+
+      .cart-uplift-bundle__title {
+        font-size: 24px;
+      }
+
+      .cu-grid {
+        gap: 16px;
+      }
+
+      .cu-item {
+        flex: 0 1 140px;
+      }
       
-      if (response.ok) {
-        const data = await response.json();
-        console.log('[SmartBundles] Fallback API data:', data);
-        
-        if (data && data.bundles && data.bundles.length > 0) {
-          console.log('[SmartBundles] Rendering ML bundles from fallback');
-          renderMLBundles(data.bundles, container);
-          setTimeout(applyThemeEditorSettings, 50);
-          return true;
+      .cu-item__image-wrap {
+        width: 140px;
+        height: 140px;
+      }
+
+      .cu-plus {
+        font-size: 24px;
+      }
+
+      .cu-total__price {
+        font-size: 24px;
+      }
+    }
+
+    /* Vertical layout option */
+    .cu-layout-vertical .cu-grid {
+      flex-direction: column;
+      max-width: 600px;
+      margin: 0 auto 32px;
+    }
+
+    .cu-layout-vertical .cu-item {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      text-align: left;
+      flex: 1 1 100%;
+      padding: 16px;
+      border: 1px solid #f0f0f0;
+      border-radius: 12px;
+    }
+
+    .cu-layout-vertical .cu-item__image-wrap {
+      flex-shrink: 0;
+      width: 100px;
+      height: 100px;
+      margin: 0;
+    }
+
+    .cu-layout-vertical .cu-item__content {
+      flex: 1;
+    }
+
+    .cu-layout-vertical .cu-plus {
+      display: none;
+    }
+
+    /* Empty state */
+    .smart-bundles-empty {
+      padding: 60px 20px;
+      text-align: center;
+      color: #666;
+    }
+
+    .smart-bundles-empty p {
+      margin: 0;
+      font-size: 16px;
+    }
+  </style>
+
+  <script>
+    (function() {
+      'use strict';
+      
+      const CONFIG = {
+        version: '{{ cu_version }}',
+        productId: {{ product.id | json }},
+        containerId: 'smart-bundles-container-{{ product.id }}-{{ block.id }}',
+        shopCurrency: {{ shop.currency | json }},
+        locale: {{ request.locale | default: shop.locale | json }},
+        currentProduct: {
+          id: {{ product.id | json }},
+          title: {{ product.title | json }},
+          price: {{ product.price | json }},
+          comparePrice: {{ product.compare_at_price | json }},
+          image: {{ product.featured_image | image_url: width: 400 | json }},
+          handle: {{ product.handle | json }},
+          variants: {{ product.variants | json }}
         }
-      }
-      
-      // Second: Try manual bundles from theme settings
-      console.log('[SmartBundles] No ML bundles, checking manual bundles...');
-      const manualBundles = getManualBundlesFromSettings();
-      if (manualBundles && manualBundles.length > 0) {
-        console.log('[SmartBundles] Rendering manual bundles from fallback');
-        renderManualBundles(manualBundles, container);
-        setTimeout(applyThemeEditorSettings, 50);
-        return true;
-      }
-      
-      // Third: Try Shopify product recommendations
-      console.log('[SmartBundles] No manual bundles, trying Shopify recommendations...');
-      const products = await loadAnyFallbackProducts(productId, 4);
-      if (Array.isArray(products) && products.length > 0) {
-        console.log('[SmartBundles] Rendering Shopify recommendations from fallback');
-        renderShopifyRecommendationsInContainer(products, container);
-        setTimeout(applyThemeEditorSettings, 50);
-        return true;
-      }
-      
-      // Last resort: Show empty state
-      console.log('[SmartBundles] No fallback products available; showing empty state');
-      container.classList.add('smart-bundles-loaded');
-      container.innerHTML = '<div class="smart-bundles-placeholder" style="text-align:center;padding:16px;color:#777;">No recommendations right now</div>';
-      return false;
-      
-    } catch (error) {
-      console.error('[SmartBundles] Fallback failed:', error);
-      container.classList.add('smart-bundles-loaded');
-      container.innerHTML = '<div class="smart-bundles-placeholder" style="text-align:center;padding:16px;color:#777;">No recommendations right now</div>';
-      return false;
-    }
-  }
+      };
 
-  const tryInit = (attempt = 1) => {
-    if (!bundleContainer) {
-      console.error('[SmartBundles] Bundle container not found');
-      return;
-    }
-
-    console.log('[SmartBundles] Attempt', attempt, 'to initialize bundles for product:', productId);
-
-    // Preferred path via CartUplift facade
-    if (typeof window.CartUplift !== 'undefined' && window.CartUplift.initSmartBundles) {
-      console.log('[SmartBundles] Using CartUplift facade');
-      window.CartUplift.initSmartBundles(productId, bundleContainer);
-      setTimeout(applyThemeEditorSettings, 100);
-      return;
-    }
-
-    // Direct path if renderer is already present
-    if (window.BundleRenderer) {
-      console.log('[SmartBundles] BundleRenderer class found, initializing...');
-      if (!window.cartUpliftBundleRenderer) {
-        try {
-          const settings = window.CartUpliftSettings || window.cartUpliftSettings || {};
-          console.log('[SmartBundles] Creating BundleRenderer with settings:', settings);
-          window.cartUpliftBundleRenderer = new window.BundleRenderer(settings);
-          console.log('[SmartBundles] BundleRenderer instance created successfully');
-        } catch (e) {
-          console.error('[SmartBundles] Error creating BundleRenderer:', e);
-          return;
-        }
-      }
-      if (window.cartUpliftBundleRenderer && typeof window.cartUpliftBundleRenderer.initProductPage === 'function') {
-        console.log('[SmartBundles] Calling initProductPage for product:', productId);
-        try {
-          window.cartUpliftBundleRenderer.initProductPage(productId, bundleContainer);
-          setTimeout(applyThemeEditorSettings, 100);
-          console.log('[SmartBundles] initProductPage call completed');
-          return;
-        } catch (e) {
-          console.error('[SmartBundles] Error calling initProductPage:', e);
-        }
-      } else {
-        console.warn('[SmartBundles] BundleRenderer missing initProductPage method');
-      }
-    } else {
-      console.log('[SmartBundles] BundleRenderer class not found, waiting... (attempt ' + attempt + ')');
-      console.log('[SmartBundles] Available globals:', {
-        CartUplift: typeof window.CartUplift,
-        CartUpliftAssets: window.CartUpliftAssets,
-        CartUpliftSettings: typeof window.CartUpliftSettings,
-        BundleRenderer: typeof window.BundleRenderer
-      });
-      
-      // Try to load the script if we have the asset URL but no script tag
-      if (window.CartUpliftAssets && window.CartUpliftAssets.bundleRenderer && attempt === 1) {
-        console.log('[SmartBundles] Loading bundle renderer from app-embed asset URL...');
-        const existing = document.querySelector('script[data-cartuplift="bundle-renderer"]');
-        if (!existing) {
-          const script = document.createElement('script');
-          script.src = window.CartUpliftAssets.bundleRenderer;
-          script.defer = true;
-          script.setAttribute('data-cartuplift', 'bundle-renderer');
-          script.onload = () => console.log('[SmartBundles] Bundle renderer script loaded successfully');
-          script.onerror = () => console.error('[SmartBundles] Failed to load bundle renderer script');
-          document.head.appendChild(script);
-          console.log('[SmartBundles] Bundle renderer script added to DOM');
-        } else {
-          console.log('[SmartBundles] Bundle renderer script already exists in DOM');
-        }
-      }
-    }
-
-    if (attempt <= 6) {
-      setTimeout(() => tryInit(attempt + 1), 500);
-    } else {
-  } else {
-      console.log('[SmartBundles] All attempts failed, trying consolidated fallback...');
-      tryFallbackBundles(bundleContainer, 'tryInit');
-    }
-
-  // Render ML bundles from API response
-  function renderMLBundles(bundles, container) {
-    if (!Array.isArray(bundles) || bundles.length === 0) return;
-    
-    container.classList.add('smart-bundles-loaded', 'cu-manual-rendered');
-    container.innerHTML = '';
-
-    const bundle = bundles[0]; // Use first/best bundle
-    const docLang = (document.documentElement && document.documentElement.lang) || 'en';
-    const shopCurrency = (window.CartUpliftSettings && window.CartUpliftSettings.shopCurrency) || (window.cartUpliftSettings && window.cartUpliftSettings.shopCurrency) || {{ shop.currency | json }};
-    const fmt = (v) => new Intl.NumberFormat(docLang, { style: 'currency', currency: shopCurrency }).format(v);
-
-    // Normalize bundle products
-    const bundleProducts = (bundle.products || []).map(function(p, idx) {
-      const price = typeof p.price === 'number' ? p.price : 0;
-      const image = p.image || generatePlaceholderSvg(p.title || 'Product', idx);
-      return { ...p, price, image };
-    });
-
-    const itemsHtml = bundleProducts.map(function(product, idx) {
-      return (
-        '<div class="cu-item">' +
-        '<div class="cu-item__image-wrap"><img class="cu-item__image" src="' + product.image + '" alt="' + (product.title || '') + '"></div>' +
-        '<div class="cu-item__title">' + (product.title || '') + '</div>' +
-        '<div class="cu-item__price">' + fmt(product.price) + '</div>' +
-        '</div>'
-      );
-    }).join('');
-
-    const bundlePrice = typeof bundle.bundle_price === 'number' ? bundle.bundle_price : 0;
-    const regularPrice = typeof bundle.regular_total === 'number' ? bundle.regular_total : bundlePrice;
-    const discountPercent = typeof bundle.discount_percent === 'number' ? bundle.discount_percent : 0;
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'cart-uplift-bundle';
-    wrapper.innerHTML = (
-      '<div class="cart-uplift-bundle__content">'
-      + '<div class="cart-uplift-bundle__header">'
-      + '<h3 class="cart-uplift-bundle__title">' + (bundle.name || bundle.title || 'Perfect Match Bundle') + '</h3>'
-      + '</div>'
-      + '<div class="cu-grid">' + itemsHtml + '</div>'
-      + '<div class="cu-total">'
-      +   '<div class="cu-total__label">Bundle price</div>'
-      +   '<div class="cu-total__values">'
-      +     '<span class="cu-total__price">' + fmt(bundlePrice) + '</span>'
-      +     (regularPrice > bundlePrice ? '<span class="cu-total__regular">' + fmt(regularPrice) + '</span>' : '')
-      +     (discountPercent > 0 ? '<span class="cu-total__save">Save ' + discountPercent + '%</span>' : '')
-      +   '</div>'
-      + '</div>'
-      + '<div class="cart-uplift-bundle__actions">'
-      +   '<button class="cart-uplift-bundle__cta" data-cu-ml-bundle="' + (bundle.id || '') + '">Add bundle to cart</button>'
-      + '</div>'
-      + '</div>'
-    );
-    container.appendChild(wrapper);
-
-    const cta = wrapper.querySelector('[data-cu-ml-bundle]');
-    if (cta) {
-      cta.addEventListener('click', async function() {
-        try {
-          cta.disabled = true;
-          const bundleId = cta.getAttribute('data-cu-ml-bundle');
-          
-          // Try to add bundle via specific API first
-          let success = false;
-          try {
-            const resp = await fetch('/apps/cart-uplift/api/bundles/add', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-              credentials: 'same-origin',
-              body: JSON.stringify({ bundle_id: bundleId })
-            });
-            if (resp.ok) {
-              success = true;
-              alert('Bundle added to cart!');
-              // Optionally redirect to cart
-              if (confirm('View cart now?')) window.location.href = '/cart';
-            }
-          } catch (e) {
-            console.warn('[SmartBundles] Bundle API add failed, trying individual products:', e);
-          }
-          
-          // Fallback: add individual products
-          if (!success) {
-            const items = bundleProducts.map(function(p) {
-              const variantId = p.variant_id || p.id;
-              return { id: parseInt(variantId, 10), quantity: 1 };
-            }).filter(function(item) { return !isNaN(item.id); });
-            
-            if (items.length > 0) {
-              const resp = await fetch('/cart/add.js', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify({ items: items })
-              });
-              if (resp.ok) {
-                alert('Bundle products added to cart!');
-              } else {
-                throw new Error('Failed to add bundle products');
-              }
-            } else {
-              throw new Error('No valid products in bundle');
-            }
-          }
-        } catch (e) {
-          console.warn('[SmartBundles] Failed to add ML bundle to cart:', e);
-          alert('Failed to add bundle to cart');
-        } finally {
-          cta.disabled = false;
-        }
-      });
-    }
-  }
-
-  // Get manual bundles from theme settings
-  function getManualBundlesFromSettings() {
-    try {
-      const bundleSettings = bundleContainer.dataset.bundleSettings;
-      if (bundleSettings) {
-        const settings = JSON.parse(bundleSettings);
-        // The new setting is `manual_bundle_products` which is an array of product objects
-        if (settings.manual_bundle_products && Array.isArray(settings.manual_bundle_products) && settings.manual_bundle_products.length > 0) {
-          
-          // We need to format this into a bundle structure that renderManualBundles expects.
-          // Let's create one bundle object containing these products.
-          const products = settings.manual_bundle_products.map(p => {
-            // The product object from product_list is a bit different. We need to adapt it.
-            // The price from the product_list setting is already in cents (integer).
-            return {
-              id: p.id,
-              variant_id: p.variants[0].id, // Use first variant
-              title: p.title,
-              price: p.price, // price is in cents
-              image: p.featured_image,
-              quantity: 1
-            };
+      // Bundle Manager Class
+      class BundleManager {
+        constructor(config) {
+          this.config = config;
+          this.container = null;
+          this.settings = null;
+          this.initialized = false;
+          this.formatter = new Intl.NumberFormat(config.locale, {
+            style: 'currency',
+            currency: config.shopCurrency
           });
+        }
 
-          const regularTotal = products.reduce((sum, p) => sum + (p.price || 0), 0);
+        init() {
+          console.log('[SmartBundles v' + this.config.version + '] Initializing for product:', this.config.productId);
+          
+          this.container = document.getElementById(this.config.containerId);
+          if (!this.container) {
+            console.error('[SmartBundles] Container not found:', this.config.containerId);
+            return;
+          }
 
-          const manualBundle = {
-            id: 'manual-bundle-1',
-            name: 'Our Handpicked Bundle',
-            products: products,
-            bundle_price: regularTotal, // By default, no discount for manual bundle
-            regular_total: regularTotal,
-            discount_percent: 0
+          this.settings = this.parseSettings();
+          this.loadBundles();
+        }
+
+        parseSettings() {
+          try {
+            const settingsJson = this.container.dataset.settings;
+            return settingsJson ? JSON.parse(settingsJson) : {};
+          } catch (e) {
+            console.warn('[SmartBundles] Failed to parse settings:', e);
+            return {};
+          }
+        }
+
+        async loadBundles() {
+          try {
+            // First priority: Manual bundles
+            const manualBundles = this.getManualBundles();
+            if (manualBundles.length > 0) {
+              console.log('[SmartBundles] Rendering manual bundles');
+              this.renderBundle(manualBundles[0]);
+              return;
+            }
+
+            // Second priority: ML bundles from API
+            const mlBundles = await this.fetchMLBundles();
+            if (mlBundles.length > 0) {
+              console.log('[SmartBundles] Rendering ML bundles');
+              this.renderBundle(mlBundles[0]);
+              return;
+            }
+
+            // Third priority: Shopify recommendations
+            const recommendations = await this.fetchRecommendations();
+            if (recommendations.length > 0) {
+              console.log('[SmartBundles] Rendering Shopify recommendations as bundle');
+              this.renderRecommendationsBundle(recommendations);
+              return;
+            }
+
+            // No bundles available
+            this.showEmptyState();
+          } catch (error) {
+            console.error('[SmartBundles] Error loading bundles:', error);
+            this.showEmptyState();
+          }
+        }
+
+        getManualBundles() {
+          if (!this.settings.manual_bundle_products || !Array.isArray(this.settings.manual_bundle_products)) {
+            return [];
+          }
+
+          // Always include current product as first item
+          const currentProductData = {
+            id: this.config.currentProduct.id,
+            variant_id: this.config.currentProduct.variants[0].id,
+            title: this.config.currentProduct.title,
+            price: this.config.currentProduct.price,
+            comparePrice: this.config.currentProduct.comparePrice,
+            image: this.config.currentProduct.image,
+            handle: this.config.currentProduct.handle,
+            isCurrentProduct: true
           };
 
-          // renderManualBundles expects an array of bundles
-          return [manualBundle];
-        }
-      }
-    } catch (e) {
-      console.warn('[SmartBundles] Failed to parse or process manual bundle settings:', e);
-    }
-    return null;
-  }
+          const manualProducts = this.settings.manual_bundle_products
+            .filter(p => p.id !== this.config.currentProduct.id)
+            .map(p => ({
+              id: p.id,
+              variant_id: p.variants && p.variants[0] ? p.variants[0].id : p.id,
+              title: p.title,
+              price: p.price,
+              comparePrice: p.compare_at_price,
+              image: p.featured_image,
+              handle: p.handle,
+              variants: p.variants,
+              isCurrentProduct: false
+            }));
 
-  // Render manual bundles from settings
-  function renderManualBundles(manualBundles, container) {
-    if (!Array.isArray(manualBundles) || manualBundles.length === 0) return;
-    
-    container.classList.add('smart-bundles-loaded', 'cu-manual-rendered');
-    container.innerHTML = '';
-
-    const bundle = manualBundles[0]; // Use first manual bundle
-    const docLang = (document.documentElement && document.documentElement.lang) || 'en';
-    const shopCurrency = (window.CartUpliftSettings && window.CartUpliftSettings.shopCurrency) || (window.cartUpliftSettings && window.cartUpliftSettings.shopCurrency) || {{ shop.currency | json }};
-    // Manual bundles come with prices in cents, so we need to divide by 100 before formatting
-    const fmt = (v) => new Intl.NumberFormat(docLang, { style: 'currency', currency: shopCurrency }).format(v / 100);
-
-    // Manual bundles might have different data structure
-    const bundleProducts = (bundle.products || []).map(function(p, idx) {
-      const price = typeof p.price === 'number' ? p.price : 0; // price is in cents from theme editor
-      const image = p.image || generatePlaceholderSvg(p.title || 'Product', idx);
-      return { ...p, price, image };
-    });
-
-    const itemsHtml = bundleProducts.map(function(product, idx) {
-      return (
-        '<div class="cu-item">' +
-        '<div class="cu-item__image-wrap"><img class="cu-item__image" src="' + product.image + '" alt="' + (product.title || '') + '"></div>' +
-        '<div class="cu-item__title">' + (product.title || '') + '</div>' +
-        '<div class="cu-item__price">' + fmt(product.price) + '</div>' +
-        '</div>'
-      );
-    }).join('');
-
-    const bundlePrice = typeof bundle.bundle_price === 'number' ? bundle.bundle_price : bundleProducts.reduce(function(sum, p) { return sum + p.price; }, 0);
-    const regularPrice = typeof bundle.regular_total === 'number' ? bundle.regular_total : bundlePrice;
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'cart-uplift-bundle cart-uplift-manual-bundle';
-    wrapper.innerHTML = (
-      '<div class="cart-uplift-bundle__content">'
-      + '<div class="cart-uplift-bundle__header">'
-      + '<h3 class="cart-uplift-bundle__title">' + (bundle.name || bundle.title || 'Curated Bundle') + '</h3>'
-      + '</div>'
-      + '<div class="cu-grid">' + itemsHtml + '</div>'
-      + '<div class="cu-total">'
-      +   '<div class="cu-total__label">Bundle price</div>'
-      +   '<div class="cu-total__values">'
-      +     '<span class="cu-total__price">' + fmt(bundlePrice) + '</span>'
-      +     (regularPrice > bundlePrice ? '<span class="cu-total__regular">' + fmt(regularPrice) + '</span>' : '')
-      +   '</div>'
-      + '</div>'
-      + '<div class="cart-uplift-bundle__actions">'
-      +   '<button class="cart-uplift-bundle__cta" data-cu-manual-bundle="true">Add bundle to cart</button>'
-      + '</div>'
-      + '</div>'
-    );
-    container.appendChild(wrapper);
-
-    const cta = wrapper.querySelector('[data-cu-manual-bundle]');
-    if (cta) {
-      cta.addEventListener('click', async function() {
-        try {
-          cta.disabled = true;
-          const items = bundleProducts.map(function(p) {
-            const variantId = p.variant_id || p.id;
-            return { id: parseInt(variantId, 10), quantity: 1 };
-          }).filter(function(item) { return !isNaN(item.id); });
+          const bundleProducts = [currentProductData, ...manualProducts];
+          const totalPrice = bundleProducts.reduce((sum, p) => sum + (p.price || 0), 0);
+          const totalComparePrice = bundleProducts.reduce((sum, p) => sum + (p.comparePrice || p.price || 0), 0);
           
-          if (items.length > 0) {
-            const resp = await fetch('/cart/add.js', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-              credentials: 'same-origin',
-              body: JSON.stringify({ items: items })
+          // Calculate discount percentage
+          const discountPercent = totalComparePrice > totalPrice 
+            ? Math.round(((totalComparePrice - totalPrice) / totalComparePrice) * 100)
+            : 0;
+
+          return [{
+            id: 'manual-bundle',
+            name: this.settings.bundle_title || 'Complete your setup',
+            subtitle: this.settings.bundle_subtitle,
+            products: bundleProducts,
+            bundle_price: totalPrice,
+            regular_total: totalComparePrice,
+            discount_percent: discountPercent
+          }];
+        }
+
+        async fetchMLBundles() {
+          try {
+            const response = await fetch('/apps/cart-uplift/api/bundles?product_id=' + this.config.productId + '&context=product', {
+              headers: { 'Accept': 'application/json' }
             });
-            if (resp.ok) {
-              alert('Manual bundle added to cart!');
-            } else {
-              throw new Error('Failed to add manual bundle');
+            
+            if (!response.ok) return [];
+            
+            const data = await response.json();
+            
+            if (data && data.bundles && Array.isArray(data.bundles)) {
+              return data.bundles.map(bundle => {
+                // Ensure current product is marked and is first
+                const hasCurrentProduct = bundle.products.some(p => p.id === this.config.currentProduct.id);
+                
+                if (!hasCurrentProduct) {
+                  bundle.products = [{
+                    id: this.config.currentProduct.id,
+                    variant_id: this.config.currentProduct.variants[0].id,
+                    title: this.config.currentProduct.title,
+                    price: this.config.currentProduct.price,
+                    comparePrice: this.config.currentProduct.comparePrice,
+                    image: this.config.currentProduct.image,
+                    isCurrentProduct: true
+                  }, ...bundle.products];
+                  
+                  bundle.regular_total = (bundle.regular_total || 0) + (this.config.currentProduct.comparePrice || this.config.currentProduct.price);
+                  bundle.bundle_price = (bundle.bundle_price || 0) + this.config.currentProduct.price;
+                } else {
+                  // Mark the current product
+                  bundle.products = bundle.products.map(p => ({
+                    ...p,
+                    isCurrentProduct: p.id === this.config.currentProduct.id
+                  }));
+                  
+                  // Ensure current product is first
+                  bundle.products.sort((a, b) => {
+                    if (a.isCurrentProduct) return -1;
+                    if (b.isCurrentProduct) return 1;
+                    return 0;
+                  });
+                }
+                
+                return bundle;
+              });
             }
-          } else {
-            throw new Error('No valid products in manual bundle');
-          }
-        } catch (e) {
-          console.warn('[SmartBundles] Failed to add manual bundle to cart:', e);
-          alert('Failed to add bundle to cart');
-        } finally {
-          cta.disabled = false;
-        }
-      });
-    }
-  }
-
-  // Generate placeholder SVG for products without images
-  function generatePlaceholderSvg(title, idx) {
-    const colors = ['#007c89','#d73027','#28a745','#6f42c1'];
-    const color = colors[idx % colors.length];
-    const shortTitle = (title || '').slice(0, 10);
-    return 'data:image/svg+xml,' + encodeURIComponent(
-      "<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'>"
-      + "<rect width='100%' height='100%' fill='" + color + "'/>"
-      + "<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='12'>" + shortTitle + "</text>"
-      + "</svg>"
-    );
-  }
-
-  // Fetch Shopify native product recommendations
-  function fetchShopifyRecommendations(productId, limit) {
-    const url = '/recommendations/products.json?product_id=' + encodeURIComponent(productId) + '&limit=' + encodeURIComponent(limit || 4);
-    return fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
-      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-      .then(data => Array.isArray(data) ? data : (Array.isArray(data && data.products) ? data.products : []));
-  }
-
-  // Storewide fallback: grab a few products if recs are empty
-  function fetchStorewideProducts(limit) {
-    const url = '/products.json?limit=' + encodeURIComponent(limit || 4);
-    return fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
-      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-      .then(j => Array.isArray(j && j.products) ? j.products : [])
-      .then(products => products.map(function(p){
-        return {
-          id: p && p.id,
-          handle: p && p.handle,
-          title: p && p.title,
-          price: (function(){ try { var v=p && p.variants && p.variants[0]; return v && v.price ? Math.round(parseFloat(v.price)*100) : null; } catch(_) { return null; } })(),
-          featured_image: (p && p.image && (p.image.src || p.image)) || (p && p.images && p.images[0] && (p.images[0].src || p.images[0])) || null,
-          images: (p && Array.isArray(p.images)) ? p.images.map(function(i){ return i && (i.src || i); }) : [],
-          variants: Array.isArray(p && p.variants) ? p.variants.map(function(v){ return { id: v && v.id, available: v ? (v.available !== false) : false }; }) : []
-        };
-      }));
-  }
-
-  // Unified loader: try recs then storewide products
-  function loadAnyFallbackProducts(productId, limit) {
-    return fetchShopifyRecommendations(productId, limit).then(function(recs){
-      if (Array.isArray(recs) && recs.length > 0) return recs;
-      return fetchStorewideProducts(limit).then(function(list){ return list; }).catch(function(){ return []; });
-    }).catch(function(){
-      return fetchStorewideProducts(limit).catch(function(){ return []; });
-    });
-  }
-
-  // Render Shopify native recommendations into the same container (3 items + total + Add all CTA)
-  function renderShopifyRecommendationsInContainer(products, container) {
-    if (!Array.isArray(products) || products.length === 0) return;
-    // Mark as manually rendered so the JS renderer won't override later
-    container.classList.add('smart-bundles-loaded', 'cu-manual-rendered');
-    container.innerHTML = '';
-
-    const docLang = (document.documentElement && document.documentElement.lang) || 'en';
-    const shopCurrency = (window.CartUpliftSettings && window.CartUpliftSettings.shopCurrency) || (window.cartUpliftSettings && window.cartUpliftSettings.shopCurrency) || {{ shop.currency | json }};
-    const fmt = (v) => new Intl.NumberFormat(docLang, { style: 'currency', currency: shopCurrency }).format(v);
-
-    const norm = function(p) {
-      const id = p && (p.id || p.product_id || p.gid) || null;
-      const handle = (p && p.handle) || '';
-      const title = (p && p.title) || '';
-      const priceCents = (p && typeof p.price === 'number') ? p.price : ((p && typeof p.price_min === 'number') ? p.price_min : null);
-      const price = priceCents != null ? priceCents / 100 : null;
-      const image = (p && (p.featured_image && (p.featured_image.url || p.featured_image)) ) || (p && p.images && p.images[0]) || (p && p.image) || null;
-      const url = handle ? ('/products/' + handle) : (p && p.url) || '#';
-      const variants = Array.isArray(p && p.variants) ? p.variants : null;
-      return { id, handle, title, price, image, url, variants };
-    };
-
-    const recs = (products || []).slice(0, 3).map(function(p, idx){ return { pr: norm(p), idx: idx, raw: p }; });
-    const itemsHtml = recs.map(function(item){
-      const pr = item.pr; const idx = item.idx;
-      const svgPh = encodeURIComponent(
-        "<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'>"
-        + "<rect width='100%' height='100%' fill='" + ['#007c89','#d73027','#28a745','#6f42c1'][idx%4] + "'/>"
-        + "<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='12'>" + (pr.title||'').slice(0,10) + "</text>"
-        + "</svg>"
-      );
-      const imgUrl = (pr.image && typeof pr.image === 'string') ? pr.image : ('data:image/svg+xml,' + svgPh);
-      const priceHtml = (typeof pr.price === 'number') ? ('<div class="cu-item__price">' + fmt(pr.price) + '</div>') : '';
-      return (
-        '<a class="cu-item" href="' + pr.url + '" aria-label="' + pr.title + '">' +
-        '<div class="cu-item__image-wrap"><img class="cu-item__image" src="' + imgUrl + '" alt="' + pr.title + '"></div>' +
-        '<div class="cu-item__title">' + pr.title + '</div>' +
-        priceHtml +
-        '</a>'
-      );
-    }).join('');
-
-    var total = recs.reduce(function(s, it){ return s + (typeof it.pr.price === 'number' ? it.pr.price : 0); }, 0);
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'cart-uplift-recs';
-    wrapper.innerHTML = (
-      '<div class="cart-uplift-bundle">'
-      + '<div class="cart-uplift-bundle__content">'
-      + '<div class="cart-uplift-bundle__header">'
-      + '<h3 class="cart-uplift-bundle__title">You may also like</h3>'
-      + '</div>'
-      + '<div class="cu-grid">' + itemsHtml + '</div>'
-      + '<div class="cu-total">'
-      +   '<div class="cu-total__label">Total price</div>'
-      +   '<div class="cu-total__values"><span class="cu-total__price">' + fmt(total) + '</span></div>'
-      + '</div>'
-      + '<div class="cart-uplift-bundle__actions">'
-      +   '<button class="cart-uplift-bundle__cta" data-cu-recs-cta="true">Add all to cart</button>'
-      + '</div>'
-      + '</div>'
-      + '</div>'
-    );
-    container.appendChild(wrapper);
-
-    async function resolveVariantId(item){
-      // Prefer first available from provided variants
-      const vlist = Array.isArray(item && item.raw && item.raw.variants) ? item.raw.variants : (Array.isArray(item && item.pr && item.pr.variants) ? item.pr.variants : null);
-      if (vlist && vlist.length > 0) {
-        const avail = vlist.find(function(v){ return v && v.available; }) || vlist[0];
-        if (avail && avail.id) return avail.id;
-      }
-      // Fallback: fetch product JSON by handle to get variants
-      try {
-        if (item && item.pr && item.pr.handle) {
-          const r = await fetch('/products/' + item.pr.handle + '.js', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
-          if (r.ok) {
-            const j = await r.json();
-            const v = Array.isArray(j && j.variants) ? (j.variants.find(function(v){ return v && v.available; }) || j.variants[0]) : null;
-            if (v && v.id) return v.id;
+            
+            return [];
+          } catch (error) {
+            console.warn('[SmartBundles] Failed to fetch ML bundles:', error);
+            return [];
           }
         }
-      } catch(_){ }
-      return null;
-    }
 
-    const cta = wrapper.querySelector('[data-cu-recs-cta="true"]');
-    if (cta) {
-      cta.addEventListener('click', async function(){
-        try {
-          cta.disabled = true;
-          const vids = (await Promise.all(recs.map(resolveVariantId))).filter(Boolean);
-          if (vids.length === 0) throw new Error('No variants');
-          const items = vids.map(function(id){ return { id: id, quantity: 1 }; });
-          const resp = await fetch('/cart/add.js', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ items: items }) });
-          if (!resp.ok) throw new Error('batch failed');
-          alert('Products added to cart');
-        } catch (e) {
-          console.warn('[SmartBundles] Failed to add recommendations to cart:', e);
-          alert('Failed to add products to cart');
-        } finally {
-          cta.disabled = false;
+        async fetchRecommendations() {
+          try {
+            const response = await fetch('/recommendations/products.json?product_id=' + this.config.productId + '&limit=2');
+            if (!response.ok) return [];
+            
+            const data = await response.json();
+            const products = Array.isArray(data) ? data : (data.products || []);
+            
+            // Add current product as first item
+            return [{
+              id: this.config.currentProduct.id,
+              title: this.config.currentProduct.title,
+              price: this.config.currentProduct.price / 100,
+              compare_at_price: this.config.currentProduct.comparePrice ? this.config.currentProduct.comparePrice / 100 : null,
+              featured_image: this.config.currentProduct.image,
+              handle: this.config.currentProduct.handle,
+              variants: this.config.currentProduct.variants,
+              isCurrentProduct: true
+            }, ...products.slice(0, 2).map(p => ({ ...p, isCurrentProduct: false }))];
+          } catch (error) {
+            console.warn('[SmartBundles] Failed to fetch recommendations:', error);
+            return [];
+          }
         }
-      });
-    }
-  }
 
-  // Smart fallback system with progressive checks
-  let fallbackAttempts = 0;
-  const maxFallbackAttempts = 3;
-  
-  function smartFallbackCheck() {
-    try {
-      const container = document.getElementById('smart-bundles-container-' + productId);
-      if (!container) return;
-      
-      const hasRealContent = !!(container && (container.querySelector('.cart-uplift-recs') || container.querySelector('.cart-uplift-bundle')));
-      
-      if (!hasRealContent && fallbackAttempts < maxFallbackAttempts) {
-        fallbackAttempts++;
-        console.log('[SmartBundles] Smart fallback check attempt', fallbackAttempts);
-        
-        // Use the consolidated fallback function
-        tryFallbackBundles(container, 'smartFallbackCheck');
-      }
-    } catch (e) {
-      console.warn('[SmartBundles] Smart fallback check failed:', e);
-    }
-  }
+        renderBundle(bundle) {
+          this.container.classList.remove('loading');
+          this.container.classList.add('loaded');
+          
+          const layout = this.settings.bundle_layout || 'horizontal';
+          this.container.classList.add('cu-layout-' + layout);
+          
+          const showPlus = this.settings.show_plus_separator !== false;
+          
+          const itemsHtml = bundle.products.map((product, index) => {
+            const priceInDollars = product.price / 100;
+            const comparePriceInDollars = product.comparePrice ? product.comparePrice / 100 : null;
+            
+            const priceHtml = comparePriceInDollars && comparePriceInDollars > priceInDollars
+              ? `<div class="cu-item__price-group">
+                  <span class="cu-item__price">${this.formatter.format(priceInDollars)}</span>
+                  <span class="cu-item__price--original">${this.formatter.format(comparePriceInDollars)}</span>
+                </div>`
+              : `<div class="cu-item__price-group">
+                  <span class="cu-item__price">${this.formatter.format(priceInDollars)}</span>
+                </div>`;
+            
+            const itemContent = layout === 'vertical' 
+              ? `<div class="cu-item__image-wrap">
+                  <img class="cu-item__image" 
+                    src="${product.image || this.getPlaceholderImage(product.title)}" 
+                    alt="${product.title || ''}"
+                    loading="lazy">
+                </div>
+                <div class="cu-item__content">
+                  <div class="cu-item__title">${product.title || ''}</div>
+                  ${priceHtml}
+                  ${product.variants && product.variants.length > 1 && !product.isCurrentProduct ? this.renderVariantSelector(product) : ''}
+                </div>`
+              : `<div class="cu-item__image-wrap">
+                  <img class="cu-item__image" 
+                    src="${product.image || this.getPlaceholderImage(product.title)}" 
+                    alt="${product.title || ''}"
+                    loading="lazy">
+                </div>
+                <div class="cu-item__title">${product.title || ''}</div>
+                ${priceHtml}
+                ${product.variants && product.variants.length > 1 && !product.isCurrentProduct ? this.renderVariantSelector(product) : ''}`;
+            
+            const itemHtml = product.isCurrentProduct
+              ? `<div class="cu-item cu-item--current" data-product-id="${product.id}">${itemContent}</div>`
+              : `<a class="cu-item" href="/products/${product.handle || ''}" data-product-id="${product.id}">${itemContent}</a>`;
+            
+            const plusSeparator = showPlus && index < bundle.products.length - 1 
+              ? '<div class="cu-plus">+</div>' 
+              : '';
+            
+            return itemHtml + plusSeparator;
+          }).join('');
+          
+          const bundlePriceInDollars = bundle.bundle_price / 100;
+          const regularPriceInDollars = bundle.regular_total / 100;
+          const hasDiscount = bundle.discount_percent > 0;
+          
+          const savingsBadge = hasDiscount 
+            ? `<div class="cu-savings-badge">
+                <span class="cu-savings-badge__text">Save ${bundle.discount_percent}%</span>
+              </div>`
+            : '';
+          
+          const totalSection = regularPriceInDollars > bundlePriceInDollars
+            ? `<div class="cu-total">
+                <span class="cu-total__label">Total Price:</span>
+                <span class="cu-total__price">${this.formatter.format(bundlePriceInDollars)}</span>
+                <span class="cu-total__price--original">${this.formatter.format(regularPriceInDollars)}</span>
+              </div>`
+            : `<div class="cu-total">
+                <span class="cu-total__label">Total Price:</span>
+                <span class="cu-total__price">${this.formatter.format(bundlePriceInDollars)}</span>
+              </div>`;
+          
+          const subtitle = bundle.subtitle 
+            ? `<p class="cart-uplift-bundle__subtitle">${bundle.subtitle}</p>`
+            : '';
+          
+          const bundleHtml = `
+            <div class="cart-uplift-bundle">
+              <div class="cart-uplift-bundle__content">
+                <div class="cart-uplift-bundle__header">
+                  <h3 class="cart-uplift-bundle__title">${bundle.name || this.settings.bundle_title || 'Get the Collection!'}</h3>
+                  ${subtitle}
+                </div>
+                <div class="cu-grid">${itemsHtml}</div>
+                <div class="cu-bundle-footer">
+                  ${savingsBadge}
+                  ${totalSection}
+                  <button class="cart-uplift-bundle__cta" data-bundle-id="${bundle.id}">
+                    ${hasDiscount ? 'Add Bundle & Save ' + bundle.discount_percent + '%' : 'Add to Cart'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+          
+          this.container.innerHTML = bundleHtml;
+          this.attachEventListeners(bundle);
+        }
 
-  // If the renderer doesn't populate within progressive timing, use smart fallback
-  function ensureRecommendationsFallbackSoon() {
-    smartFallbackCheck();
-  }
+        renderVariantSelector(product) {
+          if (!product.variants || product.variants.length <= 1) return '';
+          
+          const options = product.variants.map(v => 
+            `<option value="${v.id}">${v.title}</option>`
+          ).join('');
+          
+          return `<select class="cu-item__variant-select" data-product-id="${product.id}">
+            ${options}
+          </select>`;
+        }
 
-  // Watchdog: try a second time in case something cleared the container later
-  function ensureRecommendationsFallbackWatchdog() {
-    smartFallbackCheck();
-  }
+        renderRecommendationsBundle(products) {
+          // Create a pseudo-bundle from recommendations
+          const totalPrice = products.reduce((sum, p) => sum + (p.price || 0), 0);
+          const totalComparePrice = products.reduce((sum, p) => sum + (p.compare_at_price || p.price || 0), 0);
+          const discountPercent = totalComparePrice > totalPrice 
+            ? Math.round(((totalComparePrice - totalPrice) / totalComparePrice) * 100)
+            : 10; // Default 10% discount for recommendations bundle
+          
+          const bundle = {
+            id: 'recommendations-bundle',
+            name: this.settings.bundle_title || 'Save 10%, Make it a Bundle',
+            subtitle: 'Frequently bought together',
+            products: products.map(p => ({
+              ...p,
+              price: (p.price || 0) * 100, // Convert to cents for consistency
+              comparePrice: p.compare_at_price ? p.compare_at_price * 100 : null,
+              image: p.featured_image,
+              isCurrentProduct: p.isCurrentProduct
+            })),
+            bundle_price: totalPrice * 100 * 0.9, // Apply 10% discount
+            regular_total: totalComparePrice * 100,
+            discount_percent: discountPercent
+          };
+          
+          this.renderBundle(bundle);
+        }
 
-  // Debug helper to check ML bundle status
-  window.debugCartUpliftBundles = async function() {
-    const currentProductId = productId;
-    
-    console.group('Cart Uplift Bundle Debug (v{{ cu_version }})');
-    
-    // Check if bundle renderer is loaded
-    console.log('BundleRenderer loaded:', typeof window.BundleRenderer !== 'undefined');
-    console.log('CartUplift facade loaded:', typeof window.CartUplift !== 'undefined');
-    console.log('Product ID:', currentProductId);
-    
-    // Check container state
-    const container = document.getElementById('smart-bundles-container-' + currentProductId);
-    console.log('Container found:', !!container);
-    if (container) {
-      console.log('Container classes:', container.className);
-      console.log('Container innerHTML length:', container.innerHTML.length);
-      console.log('Has real content:', !!(container.querySelector('.cart-uplift-recs') || container.querySelector('.cart-uplift-bundle')));
-    }
-    
-    // Check API response
-    try {
-      const response = await fetch('/apps/cart-uplift/api/bundles?product_id=' + currentProductId + '&context=product');
-      const data = await response.json();
-      
-      console.log('API Response Status:', response.status);
-      console.log('API Response Headers:', Object.fromEntries(response.headers.entries()));
-      console.log('API Response Data:', data);
-      
-      if (data.bundles && data.bundles.length > 0) {
-        console.log('✅ ML Bundles Available:', data.bundles.length);
-        data.bundles.forEach((b, i) => {
-          console.log(`Bundle ${i + 1}:`, {
-            id: b.id,
-            name: b.name || b.title,
-            products: b.products?.length || 0,
-            bundle_price: b.bundle_price,
-            regular_total: b.regular_total,
-            discount_percent: b.discount_percent
+        attachEventListeners(bundle) {
+          const button = this.container.querySelector('[data-bundle-id]');
+          if (!button) return;
+          
+          button.addEventListener('click', async (e) => {
+            e.preventDefault();
+            button.disabled = true;
+            button.classList.add('cart-uplift-bundle__cta--loading');
+            
+            try {
+              // Get selected variants
+              const items = bundle.products.map(p => {
+                const variantSelect = this.container.querySelector(`[data-product-id="${p.id}"] select`);
+                const variantId = variantSelect ? variantSelect.value : (p.variant_id || p.id);
+                
+                return {
+                  id: parseInt(variantId, 10),
+                  quantity: 1
+                };
+              }).filter(item => !isNaN(item.id));
+              
+              if (items.length === 0) {
+                throw new Error('No valid products in bundle');
+              }
+              
+              const response = await fetch('/cart/add.js', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json'
+                },
+                body: JSON.stringify({ items })
+              });
+              
+              if (!response.ok) {
+                throw new Error('Failed to add bundle to cart');
+              }
+              
+              // Success feedback
+              button.textContent = '✓ Added to Cart';
+              
+              // Trigger cart update events
+              document.dispatchEvent(new CustomEvent('cart:updated'));
+              
+              if (window.Shopify && window.Shopify.onItemAdded) {
+                window.Shopify.onItemAdded(await response.json());
+              }
+              
+              // Reset button after delay
+              setTimeout(() => {
+                button.textContent = bundle.discount_percent > 0 
+                  ? 'Add Bundle & Save ' + bundle.discount_percent + '%'
+                  : 'Add to Cart';
+                button.disabled = false;
+              }, 2000);
+              
+            } catch (error) {
+              console.error('[SmartBundles] Error adding bundle to cart:', error);
+              button.textContent = 'Failed - Try Again';
+              setTimeout(() => {
+                button.textContent = bundle.discount_percent > 0 
+                  ? 'Add Bundle & Save ' + bundle.discount_percent + '%'
+                  : 'Add to Cart';
+                button.disabled = false;
+              }, 2000);
+            } finally {
+              button.classList.remove('cart-uplift-bundle__cta--loading');
+            }
           });
-        });
-      } else {
-        console.log('❌ No ML Bundles Available');
-        console.log('Reason:', data.reason || 'Unknown');
-        console.log('Possible reasons:');
-        console.log('- Insufficient order history with this product');
-        console.log('- Product not frequently bought with others');
-        console.log('- ML model still training');
-        console.log('- Bundle feature not enabled in Cart Uplift app');
-      }
-    } catch (error) {
-      console.error('API Error:', error);
-    }
-    
-    // Check manual bundles
-    const manualBundles = getManualBundlesFromSettings();
-    console.log('Manual bundles from settings:', manualBundles);
-    
-    console.groupEnd();
-  };
-
-  // Auto-run debug in development or with debug flag
-  if (window.location.hostname.includes('localhost') || window.location.search.includes('debug=true') || window.location.search.includes('cu_debug=1')) {
-    setTimeout(() => window.debugCartUpliftBundles(), 2000);
-  }
-
-  // Legacy no-op kept for backward compatibility
-  window.addBundleToCart = function(bundleId) {
-    console.log('[SmartBundles] Deprecated addBundleToCart called for', bundleId);
-  };
-
-  tryInit();
-  setTimeout(ensureRecommendationsFallbackSoon, 2000);
-  setTimeout(ensureRecommendationsFallbackWatchdog, 4500);
-}
-
-// Run immediately if DOMContentLoaded already fired (e.g., block injected dynamically),
-// otherwise wait for DOMContentLoaded
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', onSmartBundlesDomReady);
-} else {
-  try { onSmartBundlesDomReady(); } catch (e) { console.warn('[SmartBundles] Init failed:', e); }
-}
-</script>
-
-{%- comment -%}
-  Ensure the bundle renderer script is available on product pages using this block.
-  This is a safe fallback in case the app-embed delayed loader hasn’t run yet.
-{%- endcomment -%}
-<script src="{{ 'bundle-renderer.js' | asset_url }}?v={{ cu_version }}" defer></script>
-{% endif %}
-
-{% schema %}
-{
-  "name": "Smart Bundles",
-  "target": "section",
-  "settings": [
-    {
-      "type": "checkbox",
-      "id": "enable_smart_bundles",
-      "label": "Enable Smart Bundles",
-      "default": true,
-      "info": "Show AI-powered product bundles on this product page"
-    },
-    {
-      "type": "text",
-      "id": "bundle_title",
-      "label": "Bundle Title",
-      "default": "Complete your setup",
-      "info": "Title shown above the bundle recommendations"
-    },
-    {
-      "type": "select",
-      "id": "bundle_layout",
-      "label": "Bundle Layout",
-      "options": [
-        {
-          "value": "horizontal",
-          "label": "Horizontal (side by side)"
-        },
-        {
-          "value": "vertical",
-          "label": "Vertical (stacked)"
         }
-      ],
-      "default": "horizontal"
-    },
-    {
-      "type": "product_list",
-      "id": "manual_bundle_products",
-      "label": "Manual Fallback Bundle",
-      "limit": 4,
-      "info": "Select products for a manual bundle if no ML recommendations are found. The first product is the main product."
-    },
-    {
-      "type": "range",
-      "id": "margin_top",
-      "min": 0,
-      "max": 50,
-      "step": 5,
-      "unit": "px",
-      "label": "Top margin",
-      "default": 20
-    },
-    {
-      "type": "range",
-      "id": "margin_bottom", 
-      "min": 0,
-      "max": 50,
-      "step": 5,
-      "unit": "px",
-      "label": "Bottom margin",
-      "default": 20
-    }
-  ]
-}
-{% endschema %}
+
+        showEmptyState() {
+          this.container.classList.remove('loading');
+          this.container.classList.add('loaded', 'empty');
+          this.container.innerHTML = `
+            <div class="smart-bundles-empty">
+              <p>No recommendations available at this time.</p>
+            </div>
+          `;
+        }
+
+        getPlaceholderImage(title) {
+          const colors = ['#f8f8f8'];
+          const color = colors[0];
+          const shortTitle = (title || 'Product').slice(0, 10);
+          
+          return 'data:image/svg+xml,' + encodeURIComponent(
+            `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'>
+              <rect width='100%' height='100%' fill='${color}'/>
+              <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' 
+                fill='#999' font-family='Arial' font-size='14'>${shortTitle}</text>
+            </svg>`
+          );
+        }

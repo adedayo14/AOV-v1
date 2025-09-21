@@ -103,11 +103,24 @@ class BundleRenderer {
             console.log('[BundleRenderer] Smart bundle blocks found on page, initializing them directly');
             smartBundleBlocks.forEach(block => {
                 const blockProductId = block.getAttribute('data-product-id') || productId;
-                const container = block.querySelector(`#smart-bundles-container-${blockProductId}`) || block;
+                // Support both legacy id and new per-block id patterns
+                const container = block.querySelector(`#smart-bundles-container-${blockProductId}`)
+                    || block.querySelector(`[id^=smart-bundles-container-${blockProductId}-]`)
+                    || block.querySelector('[data-container-id]')
+                    || block;
                 if (!container) {
                     console.warn('[BundleRenderer] No container found inside smart bundle block');
                     return;
                 }
+                // Respect manual guard: skip if this block is marked manual-only or already has manual content
+                try {
+                    const manualOnly = block.dataset.cuManualOnly === 'true';
+                    const manualRendered = container.classList.contains('cu-manual-rendered') || container.dataset.cuLock === 'manual' || container.dataset.cuManualRendered === 'true';
+                    if (manualOnly || manualRendered) {
+                        console.log('[BundleRenderer] Skipping container due to manual guard/manual content present');
+                        return;
+                    }
+                } catch(_) {}
                 // Avoid duplicate init
                 if (container.dataset.cuInitialized === 'true' || container.classList.contains('smart-bundles-loaded') || container.classList.contains('cu-manual-rendered')) {
                     console.log('[BundleRenderer] Skipping already initialized container');
@@ -136,8 +149,16 @@ class BundleRenderer {
                     console.log('[BundleRenderer] Found block after wait; initializing block flow');
                     blocks.forEach(block => {
                         const blockProductId = block.getAttribute('data-product-id') || productId;
-                        const container = block.querySelector(`#smart-bundles-container-${blockProductId}`) || block;
+                        const container = block.querySelector(`#smart-bundles-container-${blockProductId}`)
+                            || block.querySelector(`[id^=smart-bundles-container-${blockProductId}-]`)
+                            || block.querySelector('[data-container-id]')
+                            || block;
                         if (!container) return;
+                        try {
+                            const manualOnly = block.dataset.cuManualOnly === 'true';
+                            const manualRendered = container.classList.contains('cu-manual-rendered') || container.dataset.cuLock === 'manual' || container.dataset.cuManualRendered === 'true';
+                            if (manualOnly || manualRendered) return;
+                        } catch(_) {}
                         if (container.dataset.cuInitialized === 'true' || container.classList.contains('smart-bundles-loaded') || container.classList.contains('cu-manual-rendered')) return;
                         container.dataset.cuInitialized = 'true';
                         this.initProductPage(blockProductId, container);
@@ -181,6 +202,16 @@ class BundleRenderer {
             return;
         }
 
+        // If manual has already rendered or block is manual-only, do nothing
+        try {
+            const manualRendered = container.classList.contains('cu-manual-rendered') || container.dataset.cuLock === 'manual' || container.dataset.cuManualRendered === 'true';
+            const manualOnly = (container.closest && container.closest('.cart-uplift-smart-bundles') && container.closest('.cart-uplift-smart-bundles').dataset.cuManualOnly === 'true');
+            if (manualRendered || manualOnly) {
+                console.log('[BundleRenderer] Manual content/guard detected; skipping init for this container');
+                return;
+            }
+        } catch(_) {}
+
         try {
             console.log('[BundleRenderer] Fetching bundles for theme block...');
             const bundles = await this.fetchBundlesForProduct(productId);
@@ -201,14 +232,18 @@ class BundleRenderer {
                         // Do not hide the container; let the Liquid timed fallback take over.
                         // This prevents a race condition where the renderer hides the container
                         // just before the Liquid script decides to show a fallback.
-                        if (container.dataset.cuFallbackActive !== 'true') {
+                        const wrapper = (container.closest && container.closest('.cart-uplift-smart-bundles')) || null;
+                        const manualGuard = (wrapper && wrapper.dataset && wrapper.dataset.cuManualOnly === 'true') || container.classList.contains('cu-manual-rendered') || container.dataset.cuLock === 'manual';
+                        if (container.dataset.cuFallbackActive !== 'true' && !manualGuard) {
                             container.innerHTML = ''; // Clear loading placeholder
                         }
                     }
                 } catch (e) {
                     console.warn('[BundleRenderer] Shopify recommendations fallback failed:', e);
                     // Do not hide, let Liquid fallback handle it.
-                    if (container.dataset.cuFallbackActive !== 'true') {
+                    const wrapper = (container.closest && container.closest('.cart-uplift-smart-bundles')) || null;
+                    const manualGuard = (wrapper && wrapper.dataset && wrapper.dataset.cuManualOnly === 'true') || container.classList.contains('cu-manual-rendered') || container.dataset.cuLock === 'manual';
+                    if (container.dataset.cuFallbackActive !== 'true' && !manualGuard) {
                         container.innerHTML = ''; // Clear loading placeholder
                     }
                 }
