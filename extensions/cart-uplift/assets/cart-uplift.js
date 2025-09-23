@@ -74,6 +74,9 @@
       
       // Set default gift price text if not provided
       this.settings.giftPriceText = this.settings.giftPriceText || 'FREE';
+  // Combined success template (merchant-editable via app embed)
+  // Updated concise default with parentheses for value; ensures explicit free shipping phrasing.
+  this.settings.combinedSuccessTemplate = this.settings.allRewardsAchievedText || '✓ You\'re getting free shipping + {{ title }} ({{ value }})!';
       
       this.cart = null;
       this.isOpen = false;
@@ -85,6 +88,8 @@
       this._updateDebounceTimer = null; // STABILITY: Debounce rapid updates
       this.recommendations = [];
       this._allRecommendations = []; // Master list to allow re-show after removal from cart
+  // Track if free shipping was ever achieved in this session (for soft fallback message)
+  this._freeShippingHadUnlocked = false;
   
       // Immediately intercept cart notifications if app is enabled
       if (this.settings.enableApp) {
@@ -991,6 +996,7 @@
                 return this.getInlineLinksHTML();
               })()}
             </div>
+            ${this.getMobileProgressHTML()}
           </div>
           
           <div class="cartuplift-footer">
@@ -1023,121 +1029,16 @@
     }
       
     getHeaderHTML(itemCount) {
-      const currentTotal = this.getDisplayedTotalCents();
-      let progressMessage = '';
-      
-      // Check if we have gift thresholds
-      let giftThresholds = [];
-      let hasSingleGiftThreshold = false;
-      
-      if (this.settings.enableGiftGating && this.settings.giftThresholds) {
-        try {
-          giftThresholds = JSON.parse(this.settings.giftThresholds);
-          hasSingleGiftThreshold = giftThresholds.length === 1;
-        } catch (error) {
-          console.error('🎁 Error parsing gift thresholds:', error);
-        }
-      }
-      
-      const progressBarMode = this.settings.progressBarMode || 'free-shipping';
-      
-      // Logic for message area (where free shipping message usually appears)
-  if (progressBarMode === 'gift-gating' && hasSingleGiftThreshold) {
-        // SINGLE GIFT THRESHOLD: Show gift message in the simple shipping message area
-        const threshold = giftThresholds[0];
-        const thresholdInCents = threshold.amount * 100;
-        const currentTotalInMajorUnits = currentTotal / 100;
-        
-        if (currentTotalInMajorUnits < threshold.amount) {
-          const remaining = thresholdInCents - currentTotal;
-          progressMessage = (this.settings.giftProgressText || `Spend {{ amount }} more to unlock {{ title }}!`)
-            .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(remaining))
-            .replace(/\{\{\s*title\s*\}\}/g, String(threshold.title || 'Gift'))
-            .replace(/\{amount\}/g, this.formatMoney(remaining))
-            .replace(/\{title\}/g, String(threshold.title || 'Gift'));
-        } else {
-          progressMessage = (this.settings.giftAchievedText || `🎉 {{ title }} unlocked!`)
-            .replace(/\{\{\s*title\s*\}\}/g, String(threshold.title || 'Gift'))
-            .replace(/\{title\}/g, String(threshold.title || 'Gift'));
-        }
-      } else if (progressBarMode === 'free-shipping' && this.settings.enableFreeShipping) {
-        // FREE SHIPPING: Use the existing free shipping logic
-        let threshold = this.settings.freeShippingThreshold || 100;
-        const thresholdInSmallestUnit = threshold * 100;
-        const remaining = Math.max(0, thresholdInSmallestUnit - currentTotal);
-        
-        if (!this.cart || currentTotal === 0) {
-          progressMessage = (this.settings.freeShippingText || "Spend {{ amount }} more for free shipping!")
-            .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(thresholdInSmallestUnit))
-            .replace(/{amount}/g, this.formatMoney(thresholdInSmallestUnit));
-        } else if (remaining > 0) {
-          progressMessage = (this.settings.freeShippingText || "Spend {{ amount }} more for free shipping!")
-            .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(remaining))
-            .replace(/{amount}/g, this.formatMoney(remaining));
-        } else {
-          progressMessage = this.settings.freeShippingAchievedText || "🎉 Free shipping unlocked!";
-        }
-      } else if (progressBarMode === 'combined') {
-        // COMBINED: Show both messages
-        let messages = [];
-        
-        // Free shipping message
-        if (this.settings.enableFreeShipping) {
-          let threshold = this.settings.freeShippingThreshold || 100;
-          const thresholdInSmallestUnit = threshold * 100;
-          const remaining = Math.max(0, thresholdInSmallestUnit - currentTotal);
-          
-          if (remaining > 0) {
-            messages.push((this.settings.freeShippingText || "Spend {{ amount }} more for free shipping!")
-              .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(remaining))
-              .replace(/{amount}/g, this.formatMoney(remaining)));
-          } else {
-            messages.push(this.settings.freeShippingAchievedText || "🎉 Free shipping unlocked!");
-          }
-        }
-        
-        // Single gift threshold message (if applicable)
-        if (hasSingleGiftThreshold) {
-          const threshold = giftThresholds[0];
-          const thresholdInCents = threshold.amount * 100;
-          const currentTotalInMajorUnits = currentTotal / 100;
-          
-          if (currentTotalInMajorUnits < threshold.amount) {
-            const remaining = thresholdInCents - currentTotal;
-            messages.push((this.settings.giftProgressText || `Spend {{ amount }} more to unlock {{ title }}!`)
-              .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(remaining))
-              .replace(/\{\{\s*title\s*\}\}/g, String(threshold.title || 'Gift'))
-              .replace(/\{amount\}/g, this.formatMoney(remaining))
-              .replace(/\{title\}/g, String(threshold.title || 'Gift')));
-          } else {
-            messages.push((this.settings.giftAchievedText || `🎉 {{ title }} unlocked!`)
-              .replace(/\{\{\s*title\s*\}\}/g, String(threshold.title || 'Gift'))
-              .replace(/\{title\}/g, String(threshold.title || 'Gift')));
-          }
-        }
-        
-        progressMessage = messages.join(' • ');
-      }
-      
       return `
         <div class="cartuplift-header">
           <h2 class="cartuplift-cart-title">Cart (${itemCount})</h2>
-          ${progressMessage ? `
-            <div class="cartuplift-shipping-info">
-              <p class="cartuplift-shipping-message">${progressMessage}</p>
-            </div>
-          ` : ''}
+          
           <button class="cartuplift-close" aria-label="Close cart">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 24px; height: 24px;">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        ${progressMessage ? `
-          <div class="cartuplift-shipping-info-mobile">
-            <p class="cartuplift-shipping-message">${progressMessage}</p>
-          </div>
-        ` : ''}
         ${this.getUnifiedProgressHTML()}
       `;
     }
@@ -1247,19 +1148,37 @@
           count: sortedThresholds.length
         });
 
-        // For single threshold, use the simple free shipping bar design
+        // For single threshold, use the clean progress block design (same as free shipping)
         if (sortedThresholds.length === 1) {
           const threshold = sortedThresholds[0];
           const progress = Math.min((currentTotal / threshold.amount) * 100, 100);
           // Use shippingBarColor for all progress fills; default to black
           const safeShippingColor = (this.settings.shippingBarColor || '#121212');
+          const bgColor = this.settings.shippingBarBackgroundColor || '#f3f4f6';
+          const remainingCents = Math.max(0, Math.round(threshold.amount * 100) - Math.round(currentTotal * 100));
+          const achieved = remainingCents === 0 || (currentTotal >= threshold.amount);
+          const thresholdLabel = this.formatMoney(Math.round(threshold.amount * 100));
+          const msg = achieved
+            ? (this.settings.giftAchievedText || '🎉 {{ title }} unlocked!')
+                .replace(/\{\{\s*title\s*\}\}/g, String(threshold.title || 'Gift'))
+                .replace(/\{title\}/g, String(threshold.title || 'Gift'))
+            : (this.settings.giftProgressText || 'Spend {{ amount }} more to unlock {{ title }}!')
+                .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(remainingCents))
+                .replace(/\{amount\}/g, this.formatMoney(remainingCents))
+                .replace(/\{\{\s*title\s*\}\}/g, String(threshold.title || 'Gift'))
+                .replace(/\{title\}/g, String(threshold.title || 'Gift'));
           
           return `
             <div class="cartuplift-section cartuplift-section--gift">
-              <div class="cartuplift-section-header">Gift</div>
-              <div class="cartuplift-shipping-bar">
-                <div class="cartuplift-shipping-progress">
-                  <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${safeShippingColor} !important; display: block;"></div>
+              <div class="cartuplift-progress-section">
+                <div class="cartuplift-progress-bar" style="background:${bgColor};">
+                  <div class="cartuplift-progress-fill" style="width: ${progress}%; background: ${safeShippingColor};"></div>
+                </div>
+                <div class="cartuplift-progress-info">
+                  ${achieved
+                    ? `<span class="cartuplift-success-badge">✓ ${String(threshold.title || 'Gift')} unlocked</span>`
+                    : `<span class="cartuplift-progress-message">${msg}</span>`}
+                  <span class="cartuplift-progress-threshold">${thresholdLabel}</span>
                 </div>
               </div>
             </div>
@@ -1377,36 +1296,313 @@
 
     getUnifiedProgressHTML() {
       try {
-        const progressBarMode = this.settings.progressBarMode || 'free-shipping';
-        const currentTotal = this.cart ? this.cart.total_price / 100 : 0;
-        
-        console.log('🛒 Cart Uplift: Unified progress data:', {
-          mode: progressBarMode,
-          enableFreeShipping: this.settings.enableFreeShipping,
-          enableGiftGating: this.settings.enableGiftGating,
-          currentTotal: currentTotal
-        });
+        const mode = this.settings.progressBarMode || 'free-shipping';
+        const currentCents = this.cart ? this.cart.total_price : 0;
+        const freeEnabled = !!this.settings.enableFreeShipping;
+        const giftEnabled = !!this.settings.enableGiftGating;
+        if (!freeEnabled && !giftEnabled) return '';
 
-        // Return empty if no progress bars are enabled
-        if (!this.settings.enableFreeShipping && !this.settings.enableGiftGating) {
-          return '';
+        const shippingColor = this.settings.shippingBarColor || '#10b981';
+        const bgColor = this.settings.shippingBarBackgroundColor || '#f3f4f6';
+        const freeThresholdCents = freeEnabled && this.settings.freeShippingThreshold ? Math.round(this.settings.freeShippingThreshold * 100) : null;
+        const freeRemaining = freeThresholdCents ? Math.max(0, freeThresholdCents - currentCents) : null;
+        const freeAchieved = freeThresholdCents != null ? (currentCents >= freeThresholdCents) : false;
+        // Update session flag
+        if (freeAchieved) {
+          this._freeShippingHadUnlocked = true;
         }
 
-        switch (progressBarMode) {
-          case 'free-shipping':
-            return this.settings.enableFreeShipping ? this.getFreeShippingProgressHTML() : '';
-          
-          case 'gift-gating':
-            return this.settings.enableGiftGating ? this.getGiftProgressHTML() : '';
-          
-          case 'combined':
-            return this.getCombinedProgressHTML();
-          
-          default:
-            return this.settings.enableFreeShipping ? this.getFreeShippingProgressHTML() : '';
+        let giftThresholds = [];
+        if (giftEnabled && this.settings.giftThresholds) {
+          try { giftThresholds = JSON.parse(this.settings.giftThresholds) || []; } catch {}
         }
+        const sortedGifts = giftThresholds.sort((a,b) => a.amount - b.amount);
+        // Next gift threshold above current total
+        const nextGift = sortedGifts.find(t => currentCents < Math.round(t.amount * 100));
+        const nextGiftCents = nextGift ? Math.round(nextGift.amount * 100) : null;
+        const giftRemaining = nextGiftCents != null ? Math.max(0, nextGiftCents - currentCents) : null;
+        const giftAchieved = nextGiftCents != null ? (currentCents >= nextGiftCents) : false;
+
+        // Decide what to show as primary progress
+        let labelRight = '';
+        let messageHTML = '';
+        let successTopRowHTML = '';
+        let widthPct = 0;
+        let fillStyle = `background:${shippingColor};`;
+
+        const formatMoney = (c) => this.formatMoney(Math.max(0, c));
+
+        const freeMsg = () => {
+          if (!freeThresholdCents) return '';
+          const remaining = Math.max(0, freeThresholdCents - currentCents);
+          return (this.settings.freeShippingText || 'Add {{ amount }} for free shipping')
+            .replace(/\{\{\s*amount\s*\}\}/g, formatMoney(remaining))
+            .replace(/\{amount\}/g, formatMoney(remaining));
+        };
+        const freeSuccess = this.settings.freeShippingAchievedText || '✓ Free shipping';
+
+        const giftMsg = (t) => {
+          if (!t) return '';
+          const remaining = Math.max(0, Math.round(t.amount*100) - currentCents);
+          return (this.settings.giftProgressText || 'Add {{ amount }} to unlock {{ title }}')
+              .replace(/\{\{\s*amount\s*\}\}/g, formatMoney(remaining))
+              .replace(/\{amount\}/g, formatMoney(remaining))
+              .replace(/\{\{\s*title\s*\}\}/g, String(t.title || 'reward'))
+              .replace(/\{title\}/g, String(t.title || 'reward'));
+        };
+        const giftSuccess = (t) => (this.settings.giftAchievedText || '✓ {{ title }} unlocked!')
+              .replace(/\{\{\s*title\s*\}\}/g, String(t?.title || 'reward'))
+              .replace(/\{title\}/g, String(t?.title || 'reward'));
+
+        const getGiftValueAndTitle = (t) => {
+          try {
+            if (!t) return { value: '', title: '' };
+            const cents = typeof t.price === 'number' ? t.price : (t.price && t.price.amount ? Math.round(t.price.amount * 100) : null);
+            const value = cents != null ? this.formatMoney(cents) : '';
+            const baseTitle = String(t.title || 'gift');
+            const vTitle = (t.variantTitle && t.variantTitle !== 'Default Title') ? ` (${t.variantTitle})` : '';
+            // Truncate long names for UI neatness
+            const fullTitle = `${baseTitle}${vTitle}`;
+            const max = 30;
+            const title = fullTitle.length > max ? (fullTitle.slice(0, max - 1) + '…') : fullTitle;
+            return { value, title };
+          } catch { return { value: '', title: '' }; }
+        };
+
+        // Near-threshold emphasis color
+        const nearColor = '#f59e0b';
+        const baseMsgColor = shippingColor;
+
+        const renderMessage = (text, remainingCents, thresholdCents) => {
+          let style = `color:${baseMsgColor}; font-weight:500;`;
+          if (thresholdCents && remainingCents != null && thresholdCents > 0) {
+            const ratio = remainingCents / thresholdCents;
+            if (ratio <= 0.2 && remainingCents > 0) {
+              style = `color:${nearColor}; font-weight:600;`;
+            }
+          }
+          return `<span class="cartuplift-progress-message" style="${style}">${text}</span>`;
+        };
+
+        // Build scenarios
+        if (mode === 'free-shipping' || (mode !== 'gift-gating' && giftThresholds.length === 0)) {
+          if (!freeEnabled || !freeThresholdCents) return '';
+          widthPct = Math.min(100, (currentCents / freeThresholdCents) * 100);
+          labelRight = formatMoney(freeThresholdCents);
+          if (freeAchieved) {
+            messageHTML = `<span class="cartuplift-success-badge">${freeSuccess}</span>`;
+            labelRight = '';
+          } else {
+            // If user previously unlocked free shipping this session and dropped below, show maintain message
+            if (this._freeShippingHadUnlocked && freeRemaining > 0) {
+              const maintainTemplate = this.settings.freeShippingMaintainText || 'Keep your cart above {threshold} to maintain free shipping';
+              const maintainMsg = maintainTemplate
+                .replace(/\{\{\s*threshold\s*\}\}/g, formatMoney(freeThresholdCents))
+                .replace(/\{threshold\}/g, formatMoney(freeThresholdCents));
+              messageHTML = renderMessage(maintainMsg, freeRemaining, freeThresholdCents);
+            } else {
+              messageHTML = renderMessage(freeMsg(), freeRemaining, freeThresholdCents);
+            }
+          }
+        } else if (mode === 'gift-gating' && giftEnabled) {
+          // Single gift bar
+          if (!nextGift) {
+            // All gifts unlocked: show last achieved state
+            messageHTML = `<span class="cartuplift-success-badge">${giftSuccess(sortedGifts[sortedGifts.length-1])}</span>`;
+            widthPct = 100; labelRight = '';
+          } else {
+            widthPct = Math.min(100, (currentCents / nextGiftCents) * 100);
+            labelRight = formatMoney(nextGiftCents);
+            if (giftAchieved) {
+              messageHTML = `<span class="cartuplift-success-badge">${giftSuccess(nextGift)}</span>`;
+              labelRight = '';
+            } else {
+              messageHTML = renderMessage(giftMsg(nextGift), giftRemaining, nextGiftCents);
+            }
+          }
+        } else {
+          // combined: one bar only
+          if (!freeAchieved) {
+            // show free shipping until achieved
+            widthPct = freeThresholdCents ? Math.min(100, (currentCents / freeThresholdCents) * 100) : 0;
+            labelRight = freeThresholdCents ? formatMoney(freeThresholdCents) : '';
+            messageHTML = renderMessage(freeMsg(), freeRemaining, freeThresholdCents || 0);
+          } else {
+            // show next reward (gift)
+            const topNote = nextGift ? `Next reward at ${formatMoney(nextGiftCents)}` : '';
+            const allText = (() => {
+              // Prefer dynamic combined success template with gift value when possible
+              if (!nextGift) {
+                const lastGift = sortedGifts[sortedGifts.length - 1];
+                if (lastGift) {
+                  const gv = getGiftValueAndTitle(lastGift);
+                  // Build normalized template, remove legacy verbose phrasing, ensure single leading check & free shipping mention
+                  let tpl = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ You\'re getting free shipping + {{ title }} ({{ value }})!';
+                  if (/All rewards unlocked!?/i.test(tpl)) {
+                    tpl = tpl.replace(/All rewards unlocked!?/ig,'').trim();
+                  }
+                  if (!/free shipping/i.test(tpl)) {
+                    tpl = 'You\'re getting free shipping + ' + tpl.replace(/^✓\s*/,'');
+                  }
+                  if (!/^✓/.test(tpl)) tpl = '✓ ' + tpl;
+                  tpl = tpl.replace(/\+\s*\+/g,'+').replace(/\s{2,}/g,' ').replace(/\s*\+\s*/g,' + ');
+                  let out = tpl
+                    .replace(/\{\{\s*title\s*\}\}/g, gv.title)
+                    .replace(/\{title\}/g, gv.title)
+                    .replace(/\{\{\s*value\s*\}\}/g, gv.value)
+                    .replace(/\{value\}/g, gv.value)
+                    .replace(/\bworth\s+\(/i,'(');
+                  out = out
+                    .replace(/\{\{?\s*(title|value)\s*\}?\}/g,'')
+                    .replace(/\s{2,}/g,' ')
+                    .replace(/\(\s*\)/g,'')
+                    .replace(/\s*!/g,'!')
+                    .trim();
+                  out = out.replace(/(free shipping[^+]+) free shipping/gi,'$1');
+                  return out;
+                }
+              }
+              // No lastGift case (rare) – fallback generic
+              let base = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ You\'re getting free shipping + your gift unlocked!';
+              if (/All rewards unlocked!?/i.test(base)) base = base.replace(/All rewards unlocked!?/ig,'').trim();
+              if (!/free shipping/i.test(base)) base = '✓ You\'re getting free shipping + ' + base.replace(/^✓\s*/,'');
+              base = base.replace(/\s{2,}/g,' ').replace(/\+\s*\+/g,'+').replace(/\s*\+\s*/g,' + ');
+              return base;
+            })();
+            // If no next gift remains, everything is achieved; show a single unified success message
+            if (!nextGift) {
+              widthPct = 100; labelRight = '';
+              successTopRowHTML = '';
+              messageHTML = `<span class="cartuplift-success-badge">${allText}</span>`;
+            } else {
+              successTopRowHTML = `<div class="cartuplift-progress-toprow"><span class="cartuplift-success-badge">${freeSuccess}</span>${topNote ? `<span class="cartuplift-next-note">${topNote}</span>` : ''}</div>`;
+              widthPct = Math.min(100, (currentCents / nextGiftCents) * 100);
+              labelRight = formatMoney(nextGiftCents);
+              // gradient fill to signal tier 2
+              fillStyle = `background: linear-gradient(90deg, ${shippingColor} 0%, ${nearColor} 100%);`;
+              messageHTML = renderMessage(giftMsg(nextGift), giftRemaining, nextGiftCents);
+            }
+          }
+        }
+
+        return `
+          <div class="cartuplift-progress-section">
+            ${successTopRowHTML}
+            <div class="cartuplift-progress-bar" style="background:${bgColor};">
+              <div class="cartuplift-progress-fill" style="width:${widthPct}%; ${fillStyle}"></div>
+            </div>
+            <div class="cartuplift-progress-info">
+              ${messageHTML}
+              <span class="cartuplift-progress-threshold">${labelRight}</span>
+            </div>
+          </div>
+        `;
       } catch (error) {
         console.error('🛒 Unified Progress Error:', error);
+        return '';
+      }
+    }
+
+    // Mobile-only sticky progress at the bottom (shows primary goal)
+    getMobileProgressHTML() {
+      try {
+        // Only on mobile: render container; CSS will hide on desktop
+        // Determine which progress to show: prefer free shipping if enabled, else single gift, else next gift milestone
+        const currentTotalCents = this.cart ? this.cart.total_price : 0;
+        const safeShippingColor = this.settings.shippingBarColor || '#121212';
+        const bgColor = this.settings.shippingBarBackgroundColor || '#f3f4f6';
+        let progress = 0;
+        let msg = '';
+        let thresholdLabel = '';
+        let show = false;
+
+        const freeEnabled = !!this.settings.enableFreeShipping && !!this.settings.freeShippingThreshold;
+        const freeThresholdCents = freeEnabled ? Math.round(this.settings.freeShippingThreshold * 100) : null;
+        const freeRemaining = freeThresholdCents != null ? Math.max(0, freeThresholdCents - currentTotalCents) : null;
+        const freeAchieved = freeThresholdCents != null ? (currentTotalCents >= freeThresholdCents) : false;
+
+        let thresholds = [];
+        if (this.settings.enableGiftGating && this.settings.giftThresholds) {
+          try { thresholds = JSON.parse(this.settings.giftThresholds).sort((a,b) => a.amount - b.amount); } catch {}
+        }
+  const next = thresholds.length ? thresholds.find(t => currentTotalCents < Math.round(t.amount * 100)) : null;
+  const allAchieved = (freeAchieved || !freeEnabled) && (!thresholds.length || !next);
+
+        if (allAchieved && (freeEnabled || thresholds.length)) {
+          progress = 100; thresholdLabel = ''; show = true;
+          const lastGift = thresholds.length ? thresholds[thresholds.length - 1] : null;
+          if (lastGift) {
+            const cents = typeof lastGift.price === 'number' ? lastGift.price : (lastGift.price && lastGift.price.amount ? Math.round(lastGift.price.amount * 100) : null);
+            const value = cents != null ? this.formatMoney(cents) : '';
+            const baseTitle = String(lastGift.title || 'gift');
+            const vTitle = (lastGift.variantTitle && lastGift.variantTitle !== 'Default Title') ? ` (${lastGift.variantTitle})` : '';
+            const fullTitle = `${baseTitle}${vTitle}`;
+            const title = fullTitle.length > 30 ? (fullTitle.slice(0, 29) + '…') : fullTitle;
+            msg = (this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ You\'re getting free shipping + {{ title }} ({{ value }})!');
+            if (/All rewards unlocked!?/i.test(msg)) msg = msg.replace(/All rewards unlocked!?/ig,'').trim();
+            if (!/free shipping/i.test(msg)) msg = 'You\'re getting free shipping + ' + msg.replace(/^✓\s*/,'');
+            if (!/^✓/.test(msg)) msg = '✓ ' + msg;
+            msg = msg
+              .replace(/\{\{\s*title\s*\}\}/g, title)
+              .replace(/\{title\}/g, title)
+              .replace(/\{\{\s*value\s*\}\}/g, value)
+              .replace(/\{value\}/g, value)
+              .replace(/\bworth\s+\(/i,'(')
+              .replace(/\{\{?\s*(title|value)\s*\}?\}/g,'')
+              .replace(/\s{2,}/g,' ')
+              .replace(/\(\s*\)/g,'')
+              .replace(/\s*!/g,'!')
+              .trim();
+          } else {
+            // Fallback when no last gift object is available; keep messaging consistent
+            msg = (this.settings.allRewardsAchievedText && /free shipping/i.test(this.settings.allRewardsAchievedText))
+              ? this.settings.allRewardsAchievedText
+              : '✓ You\'re getting free shipping!';
+          }
+        } else if (freeEnabled && !freeAchieved) {
+          const thresholdCents = freeThresholdCents; const remaining = freeRemaining;
+          progress = Math.min((currentTotalCents / thresholdCents) * 100, 100);
+          thresholdLabel = this.formatMoney(thresholdCents);
+          msg = (this.settings.freeShippingText || 'Spend {{ amount }} more for free shipping!')
+                .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(remaining))
+                .replace(/\{amount\}/g, this.formatMoney(remaining));
+          show = true;
+        } else if (thresholds.length) {
+          const target = next || thresholds[0];
+          const nextCents = Math.round(target.amount * 100);
+          const remaining = Math.max(0, nextCents - currentTotalCents);
+          progress = Math.min((currentTotalCents / nextCents) * 100, 100);
+          thresholdLabel = this.formatMoney(nextCents);
+          const achieved = remaining === 0 && currentTotalCents >= nextCents;
+          msg = achieved
+            ? (this.settings.giftAchievedText || '🎉 {{ title }} unlocked!')
+                .replace(/\{\{\s*title\s*\}\}/g, String(target.title || 'Gift'))
+                .replace(/\{title\}/g, String(target.title || 'Gift'))
+            : (this.settings.giftProgressText || 'Spend {{ amount }} more to unlock {{ title }}!')
+                .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(remaining))
+                .replace(/\{amount\}/g, this.formatMoney(remaining))
+                .replace(/\{\{\s*title\s*\}\}/g, String(target.title || 'Gift'))
+                .replace(/\{title\}/g, String(target.title || 'Gift'));
+          show = true;
+        }
+
+        if (!show) return '';
+        return `
+          <div class="cartuplift-mobile-progress" role="region" aria-live="polite">
+            <div class="cartuplift-mobile-progress-inner">
+              <div class="cartuplift-progress-section">
+                <div class="cartuplift-progress-bar" style="background:${bgColor};">
+                  <div class="cartuplift-progress-fill" style="width:${progress}%; background:${safeShippingColor};"></div>
+                </div>
+                <div class="cartuplift-progress-info">
+                  <span class="cartuplift-progress-message">${msg.replace(/\$?([0-9]+(?:\.[0-9]{2})?)/, '<span class=\\"cartuplift-mobile-amount\\">$$1</span>')}</span>
+                  <span class="cartuplift-progress-threshold">${thresholdLabel}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } catch {
         return '';
       }
     }
@@ -1418,6 +1614,15 @@
       
       // Use shippingBarColor (default black) consistently for the fill
       const safeShippingColor = this.settings.shippingBarColor || '#121212';
+      const bgColor = this.settings.shippingBarBackgroundColor || '#f3f4f6';
+      const remaining = Math.max(0, (threshold * 100) - (this.cart ? this.cart.total_price : 0));
+      const achieved = remaining === 0 && currentTotal >= threshold;
+      const thresholdLabel = this.formatMoney(threshold * 100);
+      const msg = achieved
+        ? (this.settings.freeShippingAchievedText || '✓ Free shipping')
+        : (this.settings.freeShippingText || 'Spend {{ amount }} more for free shipping!')
+            .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(remaining))
+            .replace(/\{amount\}/g, this.formatMoney(remaining));
       
       console.log('🛒 Cart Uplift: Free shipping progress:', {
         progress: progress,
@@ -1427,28 +1632,22 @@
       
       return `
         <div class="cartuplift-section cartuplift-section--free-shipping">
-          <div class="cartuplift-section-header">Free Shipping</div>
-          <div class="cartuplift-shipping-bar">
-            <div class="cartuplift-shipping-progress">
-              <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${safeShippingColor} !important; display: block;"></div>
+          <div class="cartuplift-progress-section">
+            <div class="cartuplift-progress-bar" style="background:${bgColor};">
+              <div class="cartuplift-progress-fill" style="width: ${progress}%; background: ${safeShippingColor};"></div>
+            </div>
+            <div class="cartuplift-progress-info">
+              ${achieved
+                ? `<span class="cartuplift-success-badge">✓ Free shipping</span>`
+                : `<span class="cartuplift-progress-message">${msg}</span>`}
+              <span class="cartuplift-progress-threshold">${thresholdLabel}</span>
             </div>
           </div>
         </div>
       `;
     }
 
-    getCombinedProgressHTML() {
-      // For clarity, show distinct sections for Free Shipping and Gift
-      const freeHTML = this.settings.enableFreeShipping ? this.getFreeShippingProgressHTML() : '';
-      const giftHTML = this.settings.enableGiftGating ? this.getGiftProgressHTML() : '';
-      if (!freeHTML && !giftHTML) return '';
-      return `
-        <div class="cartuplift-section cartuplift-section--combined">
-          ${freeHTML}
-          ${giftHTML}
-        </div>
-      `;
-    }
+    getCombinedProgressHTML() { return this.getUnifiedProgressHTML(); }
 
     renderStackedProgress(thresholds, currentTotal) {
       const stackedHTML = thresholds.map(threshold => {
@@ -3559,7 +3758,7 @@
 
         if (addResponse.ok) {
           await this.fetchCart();
-          this.updateCartDisplay();
+          this.updateDrawerContent();
           return true;
         } else {
           console.error(`🎁 Failed to add gift variant:`, addResponseData);
@@ -3616,7 +3815,7 @@
           const updatedCart = await response.json();
           
           this.cart = updatedCart;
-          this.updateCartDisplay();
+          this.updateDrawerContent();
           return true;
         } else {
           const errorData = await response.json();
@@ -3658,7 +3857,7 @@
           if (response.ok) {
             // Refresh cart after removing gift
             await this.fetchCart();
-            this.updateCartDisplay();
+            this.updateDrawerContent();
             return true;
           } else {
             console.error(`🎁 Failed to remove gift`, response.status);
@@ -3947,6 +4146,11 @@
       const go = () => {
         const attrs = this.cart?.attributes || {};
         const code = attrs['discount_code'];
+        const isDesign = !!(window.Shopify && window.Shopify.designMode);
+        if (isDesign) {
+          console.info('[CartUplift] Design mode: suppressing real checkout redirect.', { code });
+          return; // Do not navigate in editor to avoid iframe redirect errors
+        }
         // If a code is present, include it in the checkout URL so Shopify applies it immediately
         if (code) {
           // Avoid duplicate application: Shopify ignores duplicates server-side, but we still pass once

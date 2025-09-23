@@ -301,32 +301,71 @@ body.cartuplift-no-scroll {
 /* ========================================
    Free Shipping Progress Bar - Compact
    ======================================== */
-.cartuplift-shipping-bar {
-  padding: 0 16px 8px;
+/* New unified progress section */
+.cartuplift-progress-section {
+  padding: 16px 16px;
   background: var(--cartuplift-background);
-  flex-shrink: 0;
+  border-bottom: 1px solid #e5e5e5;
 }
 
-.cartuplift-shipping-progress {
+.cartuplift-progress-bar {
   width: 100%;
   height: 6px;
   background: #f0f0f0;
-  border-radius: 3px;
+  border-radius: 100px;
   overflow: hidden;
-  position: relative;
+  margin-bottom: 8px;
 }
 
-.cartuplift-shipping-progress-fill {
+.cartuplift-progress-fill {
   height: 100%;
-  background: #000000; /* Force black progress */
-  border-radius: 3px;
-  transition: width 0.5s ease, background 0.3s ease;
+  background: #10b981;
+  border-radius: 100px;
+  transition: width 0.4s ease;
   min-width: 2px;
 }
 
-.cartuplift-shipping-progress-fill.complete {
-  background: #000000 !important;
-  width: 100% !important;
+.cartuplift-progress-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0;
+  font-size: 13px;
+}
+
+.cartuplift-progress-message {
+  font-size: 13px;
+  color: #111111; /* Changed from green to black for standard progress text */
+  font-weight: 500;
+}
+
+.cartuplift-progress-threshold {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.cartuplift-success-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #dcfce7;
+  color: #166534;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.cartuplift-progress-toprow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.cartuplift-next-note {
+  font-size: 12px;
+  color: #6b7280;
 }
 
 /* ========================================
@@ -502,6 +541,12 @@ body.cartuplift-no-scroll {
 
 /* Mobile Responsive Adjustments for Gift Progress */
 @media (max-width: 768px) {
+  .cartuplift-progress-section {
+    padding: 0 12px 8px;
+  }
+  .cartuplift-progress-message {
+    font-size: 11px;
+  }
   .cartuplift-gift-progress-container {
     padding: 0 12px 6px;
   }
@@ -528,6 +573,64 @@ body.cartuplift-no-scroll {
   }
   .cartuplift-next-info {
     font-size: 11px;
+  }
+}
+
+/* ========================================
+   Mobile Sticky Progress Bar at Bottom
+   ======================================== */
+.cartuplift-mobile-progress {
+  position: fixed;
+  bottom: 60px;
+  left: 0;
+  right: 0;
+  background: transparent;
+  padding: 0 16px 0;
+  z-index: 2;
+  display: none;
+}
+
+.cartuplift-mobile-progress-inner {
+  max-width: var(--cartuplift-drawer-width);
+  margin: 0 auto;
+}
+
+.cartuplift-mobile-progress .cartuplift-progress-section {
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+.cartuplift-progress-toprow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.cartuplift-next-note {
+  font-size: 12px;
+  color: #6b7280;
+}
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+  padding: 10px 12px;
+}
+
+.cartuplift-mobile-progress .cartuplift-progress-bar {
+  height: 4px;
+}
+
+.cartuplift-mobile-progress .cartuplift-progress-message {
+  color: #111;
+  font-weight: 500;
+}
+
+.cartuplift-mobile-progress .cartuplift-progress-threshold {
+  display: none;
+}
+
+.cartuplift-mobile-amount { color: #10b981; font-weight: 600; }
+
+@media (max-width: 768px) {
+  .cartuplift-mobile-progress {
+    display: block;
   }
 }
 

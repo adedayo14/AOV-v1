@@ -47,6 +47,9 @@
     // Preload settings BEFORE loading the main script so it can auto-initialize
     (function(){
       try {
+        // Detect Shopify theme editor design mode as early as possible
+        var __isDesignMode = !!(window.Shopify && window.Shopify.designMode);
+
         window.CartUpliftSettings = Object.assign({}, window.CartUpliftSettings || {}, {
           // Incentives
           incentiveType: {{ block.settings.incentive_type | json }},
@@ -54,11 +57,19 @@
           enableFreeShipping: {{ block.settings.enable_free_shipping_progress | json }},
           freeShippingText: {{ block.settings.progress_message | json }},
           freeShippingAchievedText: {{ block.settings.success_message | json }},
+          freeShippingMaintainText: {{ block.settings.free_shipping_maintain_message | json }},
           freeShippingThreshold: {{ block.settings.free_shipping_threshold | json }},
           shippingBarBackgroundColor: {{ block.settings.progress_background_color | json }},
           shippingBarColor: {{ block.settings.progress_bar_color | json }},
           // gift gating (only used when incentive type is gifts/combined)
           // giftThresholds will be set below as a JSON string when applicable
+
+          // Combined success text (when all rewards are achieved)
+          allRewardsAchievedText: {{ block.settings.all_rewards_success_message | json }},
+
+          // Gift-only value progress message and updated notice
+          giftValueProgressText: {{ block.settings.gift_value_progress_message | json }},
+          giftUpdatedMessage: {{ block.settings.gift_updated_message | json }},
 
           // Sticky cart (use built-in styles and rendering in cart-uplift.js)
           enableStickyCart: {{ block.settings.enable_sticky_cart | json }},
@@ -68,8 +79,28 @@
           stickyCartShowTotal: {{ block.settings.show_total_price | json }},
 
           // App behavior
-          enableApp: true
+          enableApp: true,
+          designMode: __isDesignMode
         });
+
+        // In design mode we greatly reduce side-effects so the iframe never triggers X-Frame-Options failures
+        if (__isDesignMode) {
+          try {
+            // Disable analytics / polling style behaviors and any automatic gift auto-add logic later can check this flag
+            window.CartUpliftSettings.enableAnalytics = false;
+            window.CartUpliftSettings.suppressAutoAdd = true;
+            // Prevent accidental redirects initiated extremely early
+            window.addEventListener('click', function(e){
+              var t = e.target;
+              if (!t) return;
+              if (t.closest && t.closest('.cartuplift-checkout-btn, [data-checkout], form[action*="/checkout"], a[href*="/checkout"]')) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.info('[CartUplift] Checkout suppressed in theme editor (design mode).');
+              }
+            }, true);
+          } catch(__e) { console.warn('[CartUplift] Design mode safe-guards partial failure', __e); }
+        }
 
         // Normalize free shipping message placeholder to the token cart-uplift.js replaces
         try {
@@ -113,10 +144,16 @@
           var __giftProductId = {{ block.settings.gift_product.id | json }};
           var __giftProductHandle = {{ block.settings.gift_product.handle | json }};
           var __giftProductTitle = {{ block.settings.gift_product.title | json }};
+          var __giftVariantId = {{ block.settings.gift_product.selected_or_first_available_variant.id | json }};
+          var __giftVariantTitle = {{ block.settings.gift_product.selected_or_first_available_variant.title | json }};
+          var __giftVariantPrice = {{ block.settings.gift_product.selected_or_first_available_variant.price | json }}; // cents
           {% else %}
           var __giftProductId = null;
           var __giftProductHandle = null;
           var __giftProductTitle = null;
+          var __giftVariantId = null;
+          var __giftVariantTitle = null;
+          var __giftVariantPrice = null;
           {% endif %}
 
           if ((type === 'gifts' || type === 'combined') && Number(giftAmount)) {
@@ -126,7 +163,10 @@
               amount: Number(giftAmount),
               title: __giftProductTitle || 'Free Gift',
               productId: __giftProductId,
-              productHandle: __giftProductHandle
+              productHandle: __giftProductHandle,
+              variantId: __giftVariantId,
+              variantTitle: __giftVariantTitle,
+              price: __giftVariantPrice
             };
             window.CartUpliftSettings.enableGiftGating = true;
             window.CartUpliftSettings.giftThresholds = JSON.stringify([threshold]);
@@ -146,79 +186,86 @@
     // Post-load configuration and resilience
     document.addEventListener('DOMContentLoaded', function() {
       try {
+        const __isDesignMode = !!(window.Shopify && window.Shopify.designMode);
+
         // If the drawer didn't auto-init (e.g., due to timing), initialize it now
         if (!window.cartUpliftDrawer && window.CartUpliftDrawer && window.CartUpliftSettings) {
-          window.cartUpliftDrawer = new window.CartUpliftDrawer(window.CartUpliftSettings);
+          try {
+            window.cartUpliftDrawer = new window.CartUpliftDrawer(window.CartUpliftSettings);
+          } catch(initErr) {
+            console.error('[CartUplift] Drawer init failed', initErr);
+          }
         }
         // Notify of settings (for late listeners)
         document.dispatchEvent(new CustomEvent('cartuplift:settings:updated'));
 
-        // Visually hide theme cart UI so Cart Uplift drawer fully takes over
-        try {
-          if (!document.getElementById('cartuplift-hide-theme-cart')) {
-            const style = document.createElement('style');
-            style.id = 'cartuplift-hide-theme-cart';
-            style.textContent = `
-              /* Hide common theme cart triggers and drawers (do not affect our own elements) */
-              .site-header__cart,
-              .header__icon--cart,
-              .cart-link__bubble,
-              .cart-link,
-              .js-drawer-open-cart,
-              [data-action="open-cart"],
-              cart-notification,
-              #CartNotification,
-              .cart-notification,
-              #CartDrawer:not(#cartuplift-cart-popup),
-              .cart-drawer:not(#cartuplift-cart-popup) {
-                display: none !important;
-                visibility: hidden !important;
-                opacity: 0 !important;
-              }
-            `;
-            document.head.appendChild(style);
-          }
-        } catch(_) {}
+        // Only hide the native theme cart outside of design mode to avoid confusing merchants in the editor
+        if (!__isDesignMode) {
+          try {
+            if (!document.getElementById('cartuplift-hide-theme-cart')) {
+              const style = document.createElement('style');
+              style.id = 'cartuplift-hide-theme-cart';
+              style.textContent = `
+                /* Hide common theme cart triggers and drawers (do not affect our own elements) */
+                .site-header__cart,
+                .header__icon--cart,
+                .cart-link__bubble,
+                .cart-link,
+                .js-drawer-open-cart,
+                [data-action="open-cart"],
+                cart-notification,
+                #CartNotification,
+                .cart-notification,
+                #CartDrawer:not(#cartuplift-cart-popup),
+                .cart-drawer:not(#cartuplift-cart-popup) {
+                  display: none !important;
+                  visibility: hidden !important;
+                  opacity: 0 !important;
+                }
+              `;
+              document.head.appendChild(style);
+            }
+          } catch(_) {}
+        } else {
+          console.info('[CartUplift] Design mode: preserving native cart UI for editor clarity.');
+        }
 
         // Wait for the main drawer to be ready, then render sticky and disable theme cart
-        const start = Date.now();
-        const readyTimer = setInterval(() => {
-          if (window.cartUpliftDrawer) {
-            clearInterval(readyTimer);
-            try {
-              if (window.CartUpliftSettings.enableStickyCart && typeof window.cartUpliftDrawer.createStickyCart === 'function') {
-                window.cartUpliftDrawer.createStickyCart();
-              }
-              if (typeof window.cartUpliftDrawer.preventThemeCartUplift === 'function') {
-                window.cartUpliftDrawer.preventThemeCartUplift();
-              }
-
-              // Editor helpers (always safe no-ops if not in editor)
-              const isEditor = !!(window.Shopify && window.Shopify.designMode);
-              if (isEditor) {
-                // Optionally open or render sticky for preview friendliness
-                // Disabled by default to avoid intrusive behavior
-              }
-            } catch (err) {
-              console.warn('CartUplift post-ready actions failed', err);
-            }
-
-            // Fallback: if sticky still missing after initial render, try again shortly
-            setTimeout(() => {
+        if (!__isDesignMode) {
+          const start = Date.now();
+          const readyTimer = setInterval(() => {
+            if (window.cartUpliftDrawer) {
+              clearInterval(readyTimer);
               try {
-                if (
-                  window.CartUpliftSettings?.enableStickyCart &&
-                  typeof window.cartUpliftDrawer?.createStickyCart === 'function' &&
-                  !document.getElementById('cartuplift-sticky')
-                ) {
+                if (window.CartUpliftSettings.enableStickyCart && typeof window.cartUpliftDrawer.createStickyCart === 'function') {
                   window.cartUpliftDrawer.createStickyCart();
                 }
-              } catch (_) {}
-            }, 600);
-          } else if (Date.now() - start > 5000) {
-            clearInterval(readyTimer);
-          }
-        }, 100);
+                if (typeof window.cartUpliftDrawer.preventThemeCartUplift === 'function') {
+                  window.cartUpliftDrawer.preventThemeCartUplift();
+                }
+              } catch (err) {
+                console.warn('CartUplift post-ready actions failed', err);
+              }
+
+              // Fallback: if sticky still missing after initial render, try again shortly
+              setTimeout(() => {
+                try {
+                  if (
+                    window.CartUpliftSettings?.enableStickyCart &&
+                    typeof window.cartUpliftDrawer?.createStickyCart === 'function' &&
+                    !document.getElementById('cartuplift-sticky')
+                  ) {
+                    window.cartUpliftDrawer.createStickyCart();
+                  }
+                } catch (_) {}
+              }, 600);
+            } else if (Date.now() - start > 5000) {
+              clearInterval(readyTimer);
+            }
+          }, 100);
+        } else {
+          console.info('[CartUplift] Design mode: skipped sticky cart timers & theme cart suppression.');
+        }
 
         // Optional analytics hooks
         if (window.CartUpliftSettings && window.CartUpliftSettings.enableAnalytics) {
@@ -299,6 +346,13 @@
       "info": "This message is shown once the free shipping threshold is reached"
     },
     {
+      "type": "text",
+      "id": "free_shipping_maintain_message",
+      "label": "Maintain free shipping warning",
+      "default": "Keep your cart above {threshold} to maintain free shipping",
+      "info": "Shown if free shipping was unlocked but the cart falls back below the threshold. Use {threshold} placeholder."
+    },
+    {
       "type": "number",
       "id": "free_shipping_threshold",
       "label": "Free Shipping Threshold",
@@ -322,6 +376,13 @@
     {
       "type": "header",
       "content": "Gifts & Rewards"
+    },
+    {
+      "type": "text",
+      "id": "all_rewards_success_message",
+      "label": "All rewards success message",
+      "default": "✓ All rewards unlocked! {title} added free (You saved {value})",
+      "info": "Shown when BOTH free shipping and final gift are achieved. Supports {title} and {value} placeholders (they'll be removed gracefully if data missing). Keep it concise."
     },
     {
       "type": "number",
@@ -349,6 +410,20 @@
       "label": "Gift success message",
       "default": "🎉 {title} unlocked!",
       "info": "Use {title} placeholder"
+    },
+    {
+      "type": "text",
+      "id": "gift_value_progress_message",
+      "label": "Gift value progress message (Gift mode)",
+      "default": "Add {amount} more, save {value} on {title}",
+      "info": "Use {amount}, {value}, and {title}. Title will be truncated automatically for long names."
+    },
+    {
+      "type": "text",
+      "id": "gift_updated_message",
+      "label": "Gift updated notice",
+      "default": "Gift reward has been updated!",
+      "info": "Shown if the gift reward changes while a shopper is mid-session."
     },
     {
       "type": "header",
