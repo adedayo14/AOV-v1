@@ -1040,6 +1040,75 @@
       }
     }
 
+    refreshFromSmartCart() {
+      // Sync settings from Smart Cart block
+      const smartCartSection = document.querySelector('.smart-cart-section');
+      if (!smartCartSection) return;
+
+      try {
+        const smartCartSettings = JSON.parse(smartCartSection.dataset.settings || '{}');
+        
+        // Essential settings mapping for Smart Cart block
+        const settingsMap = {
+          'enable_app': 'enableApp',
+          'enable_sticky_cart': 'enableStickyCart', 
+          'auto_open_cart': 'autoOpenCart',
+          'enable_free_shipping': 'enableFreeShipping',
+          'free_shipping_threshold': 'freeShippingThreshold',
+          'enable_recommendations': 'enableRecommendations',
+          'cart_position': 'cartPosition',
+          'cart_title': 'cartTitle',
+          'recommendations_title': 'recommendationsTitle',
+          'button_color': 'buttonColor',
+          'button_text_color': 'buttonTextColor',
+          'background_color': 'backgroundColor'
+        };
+
+        // Apply settings from Smart Cart to cart drawer
+        Object.keys(settingsMap).forEach(smartCartKey => {
+          const cartDrawerKey = settingsMap[smartCartKey];
+          if (smartCartSettings[smartCartKey] !== undefined) {
+            this.settings[cartDrawerKey] = smartCartSettings[smartCartKey];
+          }
+        });
+
+        console.log('[CartUplift] Settings refreshed from Smart Cart:', this.settings);
+        
+        // Store current state before updates
+        const wasOpen = this.isOpen;
+        const isPreviewMode = this.isSmartCartPreviewMode();
+        
+        // Update drawer if open
+        if (this.isOpen) {
+          this.updateDrawerContent();
+        }
+        
+        // Update sticky cart
+        if (this.settings.enableStickyCart) {
+          this.createStickyCart();
+        } else {
+          const stickyCart = document.getElementById('cartuplift-sticky');
+          if (stickyCart) stickyCart.remove();
+        }
+        
+        // Apply color changes
+        this.applyCustomColors();
+        
+        // Ensure drawer stays open during preview mode
+        if (isPreviewMode && (wasOpen || !this.isOpen)) {
+          setTimeout(() => {
+            if (!this.isOpen) {
+              console.log('[CartUplift] Re-opening drawer for Smart Cart preview mode');
+              this.openDrawer();
+            }
+          }, 150);
+        }
+        
+      } catch (error) {
+        console.warn('[CartUplift] Error refreshing from Smart Cart:', error);
+      }
+    }
+
     async openDrawer() {
       if (this._isAnimating || this.isOpen) return;
       
@@ -1078,9 +1147,50 @@
     closeDrawer() {
       if (this._isAnimating || !this.isOpen) return;
       
+      // Check if Smart Cart preview mode is active - prevent closing if so
+      if (window.SmartCartActive && this.isSmartCartPreviewMode()) {
+        console.log('[CartUplift] Prevented close - Smart Cart preview mode active');
+        return;
+      }
+      
       if (this.settings.enableAnalytics) {
         Analytics.trackEvent('cart_close');
       }
+      
+      this._isAnimating = true;
+      const container = document.getElementById('cartuplift-app-container');
+      if (!container) {
+        this._isAnimating = false;
+        return;
+      }
+      
+      container.classList.remove('active');
+      document.documentElement.classList.remove('cartuplift-no-scroll');
+      document.body.classList.remove('cartuplift-no-scroll');
+      
+      setTimeout(() => {
+        container.style.display = 'none';
+        this._isAnimating = false;
+        this.isOpen = false;
+      }, 300);
+    }
+
+    isSmartCartPreviewMode() {
+      // Check for Smart Cart block preview mode
+      const toggle = document.getElementById('smart-cart-preview-toggle');
+      const section = document.querySelector('.smart-cart-section');
+      const blockPreview = toggle?.checked || section?.getAttribute('data-preview-active') === 'true';
+      
+      // Check for Smart Cart app embed preview mode
+      const appEmbedPreview = window.smartCartAppManager?.previewModeActive === true;
+      
+      // Return true if either block or app embed preview is active
+      return blockPreview || appEmbedPreview;
+    }
+
+    forceCloseDrawer() {
+      // Force close drawer even in preview mode (for Smart Cart disable)
+      if (this._isAnimating || !this.isOpen) return;
       
       this._isAnimating = true;
       const container = document.getElementById('cartuplift-app-container');
@@ -1133,6 +1243,15 @@
   window.CartUpliftDrawer = CartUpliftDrawer;
   window.Utils = Utils;
   window.Analytics = Analytics;
+  
+  // Global refresh function for Smart Cart preview
+  window.refreshFromSmartCart = function() {
+    if (window.cartUpliftDrawer && typeof window.cartUpliftDrawer.refreshFromSmartCart === 'function') {
+      window.cartUpliftDrawer.refreshFromSmartCart();
+    } else {
+      console.warn('🛒 Cart Uplift: refreshFromSmartCart called but drawer not ready');
+    }
+  };
   
   // Global CartUplift object for theme integration
   window.CartUplift = {

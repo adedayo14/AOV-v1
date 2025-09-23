@@ -1042,7 +1042,7 @@
       const progressBarMode = this.settings.progressBarMode || 'free-shipping';
       
       // Logic for message area (where free shipping message usually appears)
-      if (progressBarMode === 'gift-gating' && hasSingleGiftThreshold) {
+  if (progressBarMode === 'gift-gating' && hasSingleGiftThreshold) {
         // SINGLE GIFT THRESHOLD: Show gift message in the simple shipping message area
         const threshold = giftThresholds[0];
         const thresholdInCents = threshold.amount * 100;
@@ -1050,9 +1050,15 @@
         
         if (currentTotalInMajorUnits < threshold.amount) {
           const remaining = thresholdInCents - currentTotal;
-          progressMessage = `Spend ${this.formatMoney(remaining)} more to unlock ${threshold.title}!`;
+          progressMessage = (this.settings.giftProgressText || `Spend {{ amount }} more to unlock {{ title }}!`)
+            .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(remaining))
+            .replace(/\{\{\s*title\s*\}\}/g, String(threshold.title || 'Gift'))
+            .replace(/\{amount\}/g, this.formatMoney(remaining))
+            .replace(/\{title\}/g, String(threshold.title || 'Gift'));
         } else {
-          progressMessage = `🎉 ${threshold.title} unlocked!`;
+          progressMessage = (this.settings.giftAchievedText || `🎉 {{ title }} unlocked!`)
+            .replace(/\{\{\s*title\s*\}\}/g, String(threshold.title || 'Gift'))
+            .replace(/\{title\}/g, String(threshold.title || 'Gift'));
         }
       } else if (progressBarMode === 'free-shipping' && this.settings.enableFreeShipping) {
         // FREE SHIPPING: Use the existing free shipping logic
@@ -1098,9 +1104,15 @@
           
           if (currentTotalInMajorUnits < threshold.amount) {
             const remaining = thresholdInCents - currentTotal;
-            messages.push(`Spend ${this.formatMoney(remaining)} more to unlock ${threshold.title}!`);
+            messages.push((this.settings.giftProgressText || `Spend {{ amount }} more to unlock {{ title }}!`)
+              .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(remaining))
+              .replace(/\{\{\s*title\s*\}\}/g, String(threshold.title || 'Gift'))
+              .replace(/\{amount\}/g, this.formatMoney(remaining))
+              .replace(/\{title\}/g, String(threshold.title || 'Gift')));
           } else {
-            messages.push(`🎉 ${threshold.title} unlocked!`);
+            messages.push((this.settings.giftAchievedText || `🎉 {{ title }} unlocked!`)
+              .replace(/\{\{\s*title\s*\}\}/g, String(threshold.title || 'Gift'))
+              .replace(/\{title\}/g, String(threshold.title || 'Gift')));
           }
         }
         
@@ -1243,9 +1255,12 @@
           const safeShippingColor = (this.settings.shippingBarColor || '#121212');
           
           return `
-            <div class="cartuplift-shipping-bar">
-              <div class="cartuplift-shipping-progress">
-                <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${safeShippingColor} !important; display: block;"></div>
+            <div class="cartuplift-section cartuplift-section--gift">
+              <div class="cartuplift-section-header">Gift</div>
+              <div class="cartuplift-shipping-bar">
+                <div class="cartuplift-shipping-progress">
+                  <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${safeShippingColor} !important; display: block;"></div>
+                </div>
               </div>
             </div>
           `;
@@ -1253,9 +1268,11 @@
 
         if (progressStyle === 'stacked') {
           return `
-            <div class="cartuplift-gift-progress-container">
-              <div class="cartuplift-stacked-progress">
-                ${sortedThresholds.map(threshold => {
+            <div class="cartuplift-section cartuplift-section--gift">
+              <div class="cartuplift-section-header">Gift</div>
+              <div class="cartuplift-gift-progress-container">
+                <div class="cartuplift-stacked-progress">
+                  ${sortedThresholds.map(threshold => {
                   const progress = Math.min((currentTotal / threshold.amount) * 100, 100);
                   const isUnlocked = currentTotal >= threshold.amount;
                   const remaining = Math.max(threshold.amount - currentTotal, 0);
@@ -1274,7 +1291,8 @@
                       </div>
                     </div>
                   `;
-                }).join('')}
+                  }).join('')}
+                </div>
               </div>
             </div>
           `;
@@ -1285,11 +1303,13 @@
           const totalProgress = Math.min((currentTotal / maxThreshold) * 100, 100);
           
           return `
-            <div class="cartuplift-gift-progress-container">
-              <div class="cartuplift-single-multi-progress">
-                <div class="cartuplift-milestone-bar">
-                  <div class="cartuplift-milestone-fill" style="width: ${totalProgress}%; background: ${(this.settings.shippingBarColor || '#121212')};"></div>
-                  ${sortedThresholds.map(threshold => {
+            <div class="cartuplift-section cartuplift-section--gift">
+              <div class="cartuplift-section-header">Gift</div>
+              <div class="cartuplift-gift-progress-container">
+                <div class="cartuplift-single-multi-progress">
+                  <div class="cartuplift-milestone-bar">
+                    <div class="cartuplift-milestone-fill" style="width: ${totalProgress}%; background: ${(this.settings.shippingBarColor || '#121212')};"></div>
+                    ${sortedThresholds.map(threshold => {
                     const position = (threshold.amount / maxThreshold) * 100;
                     const isUnlocked = currentTotal >= threshold.amount;
                     
@@ -1304,7 +1324,8 @@
                         </div>
                       </div>
                     `;
-                  }).join('')}
+                    }).join('')}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1405,42 +1426,28 @@
       });
       
       return `
-        <div class="cartuplift-shipping-bar">
-          <div class="cartuplift-shipping-progress">
-      <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${safeShippingColor} !important; display: block;"></div>
+        <div class="cartuplift-section cartuplift-section--free-shipping">
+          <div class="cartuplift-section-header">Free Shipping</div>
+          <div class="cartuplift-shipping-bar">
+            <div class="cartuplift-shipping-progress">
+              <div class="cartuplift-shipping-progress-fill" style="width: ${progress}%; background: ${safeShippingColor} !important; display: block;"></div>
+            </div>
           </div>
         </div>
       `;
     }
 
     getCombinedProgressHTML() {
-      const currentTotal = this.cart ? this.cart.total_price / 100 : 0;
-      const giftThresholds = this.settings.giftThresholds ? JSON.parse(this.settings.giftThresholds) : [];
-      const freeShippingThreshold = this.settings.freeShippingThreshold || 100;
-      
-      // Combine all thresholds (gifts + free shipping)
-      const allThresholds = [...giftThresholds];
-      if (this.settings.enableFreeShipping) {
-        allThresholds.push({
-          amount: freeShippingThreshold,
-          title: 'Free Shipping',
-          description: 'Get free shipping on your order'
-        });
-      }
-      
-      if (allThresholds.length === 0) return '';
-      
-      const sortedThresholds = allThresholds.sort((a, b) => a.amount - b.amount);
-      const progressStyle = this.settings.giftProgressStyle || 'single-next';
-      
-      // Use the same rendering logic as gift progress but with combined thresholds
-      if (progressStyle === 'stacked') {
-        return this.renderStackedProgress(sortedThresholds, currentTotal);
-      } else if (progressStyle === 'single-multi') {
-        return this.renderSingleMultiProgress(sortedThresholds, currentTotal);
-      } else {
-        return this.renderSingleNextProgress(sortedThresholds, currentTotal);
-      }
+      // For clarity, show distinct sections for Free Shipping and Gift
+      const freeHTML = this.settings.enableFreeShipping ? this.getFreeShippingProgressHTML() : '';
+      const giftHTML = this.settings.enableGiftGating ? this.getGiftProgressHTML() : '';
+      if (!freeHTML && !giftHTML) return '';
+      return `
+        <div class="cartuplift-section cartuplift-section--combined">
+          ${freeHTML}
+          ${giftHTML}
+        </div>
+      `;
     }
 
     renderStackedProgress(thresholds, currentTotal) {
@@ -3622,8 +3629,8 @@
       }
     }
 
-    // Remove a gift product from the cart
-    async removeGiftFromCart(threshold) {
+  // Remove a gift product from the cart
+  async removeGiftFromCart(threshold) {
       try {
         // Extract numeric product ID for comparison
         let numericProductId = threshold.productId;
@@ -3638,18 +3645,14 @@
         );
 
         if (giftItem) {
-          
-          const response = await fetch('/cart/update.js', {
+          // Use change.js with the line item key to remove the item
+          const formData = new FormData();
+          formData.append('id', giftItem.key);
+          formData.append('quantity', '0');
+
+          const response = await fetch('/cart/change.js', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-              updates: {
-                [giftItem.key]: 0
-              }
-            })
+            body: formData
           });
 
           if (response.ok) {
@@ -3658,7 +3661,7 @@
             this.updateCartDisplay();
             return true;
           } else {
-            console.error(`🎁 Failed to remove gift: ${threshold.productTitle}`, response.status);
+            console.error(`🎁 Failed to remove gift`, response.status);
             return false;
           }
         } else {

@@ -1,0 +1,447 @@
+{% comment %}
+  Smart Recommendations Block - Bundle and recommendation management
+  Version 1.0 - Handles all recommendation and bundle-specific features
+{% endcomment %}
+
+{% assign sr_version = '1.0' %}
+
+<div class="smart-recommendations-section" 
+  data-sr-version="{{ sr_version }}"
+  data-settings="{{ block.settings | json | escape }}">
+  
+  {% comment %} Preview toggle controls {% endcomment %}
+  <div class="smart-recommendations-controls">
+    <div class="smart-recommendations-header">
+      <h2 class="smart-recommendations-title">Smart Recommendations Configuration</h2>
+      <p class="smart-recommendations-subtitle">Configure recommendations, bundles, and additional cart features</p>
+    </div>
+    
+    <div class="smart-recommendations-toggle-section">
+      <label class="smart-recommendations-toggle-wrapper">
+        <input type="checkbox" 
+          id="smart-recommendations-preview-toggle" 
+          class="smart-recommendations-toggle-input"
+          {% if block.settings.enable_preview_mode %}checked{% endif %}>
+        <span class="smart-recommendations-toggle-slider"></span>
+        <span class="smart-recommendations-toggle-label">Enable live preview for recommendations</span>
+      </label>
+      <p class="smart-recommendations-toggle-help">Enable this to see recommendation changes in real-time</p>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Smart Recommendations Section Styles */
+  .smart-recommendations-section {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 32px;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  .smart-recommendations-header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .smart-recommendations-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 8px 0;
+  }
+
+  .smart-recommendations-subtitle {
+    font-size: 16px;
+    color: #666;
+    margin: 0;
+  }
+
+  .smart-recommendations-toggle-section {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+
+  .smart-recommendations-toggle-wrapper {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    gap: 12px;
+  }
+
+  .smart-recommendations-toggle-input {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    appearance: none;
+    background: #e2e8f0;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+
+  .smart-recommendations-toggle-input:checked {
+    background: #10b981;
+  }
+
+  .smart-recommendations-toggle-input::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+  }
+
+  .smart-recommendations-toggle-input:checked::before {
+    transform: translateX(20px);
+  }
+
+  .smart-recommendations-toggle-label {
+    font-size: 16px;
+    font-weight: 500;
+    color: #1a1a1a;
+  }
+
+  .smart-recommendations-toggle-help {
+    font-size: 14px;
+    color: #666;
+    margin: 8px 0 0 56px;
+  }
+</style>
+
+<script>
+  (function() {
+    // Smart Recommendations settings from theme editor
+    const recommendationsSettings = {
+      // Smart Recommendations
+      layoutStyle: {{ block.settings.layout_style | json }},
+      maxProducts: {{ block.settings.max_products | json }},
+      sectionTitle: {{ block.settings.section_title | json }},
+      recommendationMode: {{ block.settings.recommendation_mode | json }},
+      
+      // Additional Features
+      enableDiscountCode: {{ block.settings.enable_discount_code | json }},
+      promotionLinkText: {{ block.settings.promotion_link_text | json }},
+      enableOrderNotes: {{ block.settings.enable_order_notes | json }},
+      notesLinkText: {{ block.settings.notes_link_text | json }},
+      showOnlyOnCartPage: {{ block.settings.show_only_on_cart_page | json }},
+      enableExpressCheckout: {{ block.settings.enable_express_checkout | json }},
+      
+      // Bundle Controls (separate from cart controls)
+      enableBundleQuantityControls: {{ block.settings.enable_bundle_quantity_controls | json }},
+      enableBundleRemoval: {{ block.settings.enable_bundle_removal | json }},
+      enableAnalyticsTracking: {{ block.settings.enable_analytics_tracking | json }},
+      
+      // Extended Styling
+      recommendationsBackgroundColor: {{ block.settings.recommendations_background_color | json }},
+      addButtonText: {{ block.settings.add_button_text | json }},
+      addButtonColor: {{ block.settings.add_button_color | json }},
+      cartIconStyle: {{ block.settings.cart_icon_style | json }}
+    };
+
+    // Store settings globally for cart integration
+    window.cartUpliftRecommendationsSettings = recommendationsSettings;
+
+    // Smart Recommendations Manager
+    class SmartRecommendationsManager {
+      constructor() {
+        this.isThemeEditor = window.Shopify && window.Shopify.designMode;
+        this.previewModeActive = false;
+        console.log('Smart Recommendations Manager initialized', {
+          isThemeEditor: this.isThemeEditor,
+          settings: recommendationsSettings
+        });
+      }
+
+      startPreviewMonitoring() {
+        if (!this.isThemeEditor) return;
+        
+        this.previewModeActive = true;
+        console.log('🎨 Recommendations preview monitoring started');
+
+        // Monitor for settings changes
+        this.settingsObserver = new MutationObserver(() => {
+          this.updateRecommendationsPreview();
+        });
+
+        this.settingsObserver.observe(document.body, {
+          attributes: true,
+          subtree: true,
+          attributeFilter: ['class', 'data-*']
+        });
+      }
+
+      updateRecommendationsPreview() {
+        if (!this.previewModeActive) return;
+
+        console.log('🔄 Updating recommendations preview');
+        
+        // Apply recommendation styles
+        this.applyRecommendationStyles();
+        
+        // Refresh recommendations if cart is open
+        if (window.cartUpliftDrawer && window.cartUpliftDrawer.isOpen) {
+          setTimeout(() => {
+            if (window.refreshFromSmartCart) {
+              window.refreshFromSmartCart();
+            }
+          }, 100);
+        }
+      }
+
+      applyRecommendationStyles() {
+        const styles = `
+          .recommendations-section {
+            background-color: ${recommendationsSettings.recommendationsBackgroundColor} !important;
+          }
+          .recommendation-add-button {
+            background-color: ${recommendationsSettings.addButtonColor} !important;
+          }
+          .recommendation-add-button::after {
+            content: '${recommendationsSettings.addButtonText}' !important;
+          }
+          .recommendations-title {
+            content: '${recommendationsSettings.sectionTitle}' !important;
+          }
+        `;
+
+        let styleEl = document.getElementById('smart-recommendations-styles');
+        if (!styleEl) {
+          styleEl = document.createElement('style');
+          styleEl.id = 'smart-recommendations-styles';
+          document.head.appendChild(styleEl);
+        }
+        styleEl.textContent = styles;
+      }
+
+      stop() {
+        this.previewModeActive = false;
+        if (this.settingsObserver) {
+          this.settingsObserver.disconnect();
+        }
+      }
+    }
+
+    // Initialize Smart Recommendations Manager
+    const smartRecommendationsManager = new SmartRecommendationsManager();
+    window.smartRecommendationsManager = smartRecommendationsManager;
+
+    // Auto-start preview monitoring in theme editor
+    if (smartRecommendationsManager.isThemeEditor) {
+      smartRecommendationsManager.startPreviewMonitoring();
+    }
+
+    // Listen for toggle changes
+    const toggle = document.getElementById('smart-recommendations-preview-toggle');
+    if (toggle) {
+      toggle.addEventListener('change', function() {
+        if (this.checked) {
+          smartRecommendationsManager.startPreviewMonitoring();
+        } else {
+          smartRecommendationsManager.stop();
+        }
+      });
+    }
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Smart Recommendations",
+  "target": "section",
+  "settings": [
+    {
+      "type": "header",
+      "content": "🎯 Smart Recommendations"
+    },
+    {
+      "type": "select",
+      "id": "layout_style",
+      "label": "Layout Style",
+      "options": [
+        {
+          "value": "carousel",
+          "label": "Carousel"
+        },
+        {
+          "value": "grid",
+          "label": "Grid"
+        },
+        {
+          "value": "list",
+          "label": "List"
+        }
+      ],
+      "default": "carousel",
+      "info": "How recommendations are displayed in the cart"
+    },
+    {
+      "type": "range",
+      "id": "max_products",
+      "label": "Maximum Products to Show",
+      "min": 2,
+      "max": 12,
+      "step": 1,
+      "default": 6,
+      "info": "We recommend 2–4 cards to keep it focused"
+    },
+    {
+      "type": "text",
+      "id": "section_title",
+      "label": "Section Title",
+      "default": "YOU MIGHT ALSO LIKE",
+      "info": "Header text for the recommendations section"
+    },
+    {
+      "type": "text",
+      "id": "add_button_text",
+      "label": "Add Button Text",
+      "default": "Add",
+      "info": "Text for recommendation Add buttons"
+    },
+    {
+      "type": "select",
+      "id": "recommendation_mode",
+      "label": "Recommendation Mode",
+      "options": [
+        {
+          "value": "ai_powered",
+          "label": "🤖 AI‑Powered (Recommended)"
+        },
+        {
+          "value": "manual",
+          "label": "Manual Selection"
+        }
+      ],
+      "default": "ai_powered",
+      "info": "Choose how products are picked. AI analyzes sales patterns; Manual lets you hand-pick"
+    },
+    {
+      "type": "select",
+      "id": "cart_icon_style",
+      "label": "Cart Icon Style",
+      "options": [
+        {
+          "value": "shopping_bag",
+          "label": "Shopping Bag"
+        },
+        {
+          "value": "shopping_cart",
+          "label": "Shopping Cart"
+        },
+        {
+          "value": "basket",
+          "label": "Basket"
+        }
+      ],
+      "default": "shopping_bag",
+      "info": "Choose the icon style for your cart"
+    },
+    {
+      "type": "header",
+      "content": "⚡ Additional Features"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_discount_code",
+      "label": "Enable Discount Code Field",
+      "default": true,
+      "info": "Allow customers to apply discount codes in cart"
+    },
+    {
+      "type": "text",
+      "id": "promotion_link_text",
+      "label": "Promotion Link Text",
+      "default": "+ Got a promotion code?",
+      "info": "Inline link label shown to open the discount code modal"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_order_notes",
+      "label": "Enable Order Notes",
+      "default": false,
+      "info": "Let customers add special instructions"
+    },
+    {
+      "type": "text",
+      "id": "notes_link_text",
+      "label": "Notes Link Text",
+      "default": "+ Add order notes",
+      "info": "Inline link label shown to open the order notes modal"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_only_on_cart_page",
+      "label": "Show only on cart page",
+      "default": false,
+      "info": "Limit features to cart page only (disables recommendations and upsells on other pages)"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_express_checkout",
+      "label": "Enable Express Checkout",
+      "default": true,
+      "info": "Show Apple Pay, Google Pay, Shop Pay, etc."
+    },
+    {
+      "type": "header",
+      "content": "🎛️ Bundle Controls"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_bundle_quantity_controls",
+      "label": "Enable Bundle Quantity Controls",
+      "default": true,
+      "info": "Show +/- buttons to adjust bundle item quantities (separate from cart controls)"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_bundle_removal",
+      "label": "Enable Bundle Removal",
+      "default": true,
+      "info": "Show X button to remove entire bundles"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_analytics_tracking",
+      "label": "Enable Analytics Tracking",
+      "default": false,
+      "info": "Track recommendation and bundle interactions"
+    },
+    {
+      "type": "header",
+      "content": "🎨 Extended Styling"
+    },
+    {
+      "type": "color",
+      "id": "recommendations_background_color",
+      "label": "Recommendations Background",
+      "default": "#f8f9fa",
+      "info": "Background color of the recommendations section"
+    },
+    {
+      "type": "color",
+      "id": "add_button_color",
+      "label": "Add Button Color",
+      "default": "#00d4aa",
+      "info": "Background color of recommendation add buttons"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_preview_mode",
+      "label": "Enable Preview Mode",
+      "default": false,
+      "info": "Keep recommendations preview active while editing"
+    }
+  ]
+}
+{% endschema %}

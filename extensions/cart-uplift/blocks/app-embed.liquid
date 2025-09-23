@@ -1,140 +1,140 @@
-{% comment %} Cart Uplift – Enhanced App Embed (6-setting compliant) {% endcomment %}
+{% comment %} Cart Uplift – Smart Cart App Embed {% endcomment %}
 
 <link rel="stylesheet" href="{{ 'cart-uplift.css' | asset_url }}">
 
+  {%- comment -%}
+    Sticky cart style overrides driven by theme settings
+    Applies background, text color, badge color, and border radius
+  {%- endcomment -%}
+  <style id="cartuplift-sticky-style">
+    #cartuplift-sticky .cartuplift-sticky-btn,
+    .cartuplift-sticky .cartuplift-sticky-btn {
+      {% if block.settings.sticky_background_color %}
+      background: {{ block.settings.sticky_background_color }} !important;
+      {% endif %}
+      {% if block.settings.sticky_text_color %}
+      color: {{ block.settings.sticky_text_color }} !important;
+      {% endif %}
+      {% if block.settings.border_radius %}
+      border-radius: {{ block.settings.border_radius }}px !important;
+      {% endif %}
+    }
+    /* Ensure icon adopts text color */
+    #cartuplift-sticky .cartuplift-sticky-btn svg,
+    .cartuplift-sticky .cartuplift-sticky-btn svg {
+      {% if block.settings.sticky_text_color %}
+      color: {{ block.settings.sticky_text_color }} !important;
+      fill: {{ block.settings.sticky_text_color }} !important;
+      stroke: {{ block.settings.sticky_text_color }} !important;
+      {% endif %}
+    }
+    /* Override icon-only variant to keep chosen radius */
+    #cartuplift-sticky .cartuplift-sticky-btn:has(svg):not(:has(.cartuplift-sticky-count)):not(:has(.cartuplift-sticky-total)),
+    .cartuplift-sticky .cartuplift-sticky-btn:has(svg):not(:has(.cartuplift-sticky-count)):not(:has(.cartuplift-sticky-total)) {
+      {% if block.settings.border_radius %}
+      border-radius: {{ block.settings.border_radius }}px !important;
+      {% endif %}
+    }
+    #cartuplift-sticky .cartuplift-sticky-count,
+    .cartuplift-sticky .cartuplift-sticky-count {
+      {% if block.settings.count_badge_color %}
+      background: {{ block.settings.count_badge_color }} !important;
+      {% endif %}
+    }
+  </style>
+
   <script>
-    (function() {
-  // Expose shop domain early for analytics & API calls
-  window.CartUpliftShop = {{ shop.permanent_domain | json }};
-      // Base defaults (will be overridden by backend settings)
-      const defaults = {
-        // Theme embed settings (frequently changed)
-        autoOpenCart: true,
-        enableFreeShipping: true,
-        freeShippingThreshold: 0,
-        // Neutral defaults to avoid green; real colors come from backend or theme detection in JS
-        buttonColor: "#000000",
-        textColor: "#1a1a1a",
-
-        // Backend general settings (configured once)
-        enableApp: true,
-        enableStickyCart: true,
-        showOnlyOnCartPage: false,
-        cartPosition: "bottom-right",
-        cartIcon: "cart",
-        backgroundColor: "#ffffff",
-        freeShippingText: "Spend {amount} more for free shipping!",
-        freeShippingAchievedText: "🎉 Free shipping unlocked!",
-
-        // Features
-  enableRecommendations: true,
-  // Match backend normalization (horizontal -> row)
-  // Use new default naming; JS still maps internally.
-  recommendationLayout: "carousel",
-        maxRecommendations: 3,
-        enableAddons: false,
-        enableDiscountCode: true,
-        enableNotes: false,
-        enableExpressCheckout: true,
-        enableSmartBundles: true,
-        bundlesOnProductPages: true,
-
-        // Advanced
-        drawerWidth: 540,
-        borderRadius: 8,
-  showBrandBadge: true,
-        enableQuantitySelectors: true,
-        enableItemRemoval: true,
-  enableAnalytics: false
-      };
-
-      // Simple theme embed - always enabled
-      const isEnabled = true;
-
-      if (!isEnabled) {
-        return;
-      }
-
-      // Fetch backend settings from your app's API
-      let backendSettings = {};
-      
-      // Try to get backend settings (this will be from your app's management page)
-  const shopDomain = '{{ shop.permanent_domain }}';
-  // Use app proxy to fetch settings to ensure storefront accessibility
-  const apiUrl = `/apps/cart-uplift/api/settings?shop=${encodeURIComponent(shopDomain)}`;
-      
-      // Fire-and-forget heartbeat to mark embed enabled in backend
+    // Preload settings BEFORE loading the main script so it can auto-initialize
+    (function(){
       try {
-        fetch('/apps/cart-uplift/api/embed-heartbeat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ shop: shopDomain })
-        }).catch(() => {});
-      } catch (e) {}
+        window.CartUpliftSettings = Object.assign({}, window.CartUpliftSettings || {}, {
+          // Incentives
+          incentiveType: {{ block.settings.incentive_type | json }},
+          // cart-uplift.js expects these exact keys
+          enableFreeShipping: {{ block.settings.enable_free_shipping_progress | json }},
+          freeShippingText: {{ block.settings.progress_message | json }},
+          freeShippingAchievedText: {{ block.settings.success_message | json }},
+          freeShippingThreshold: {{ block.settings.free_shipping_threshold | json }},
+          shippingBarBackgroundColor: {{ block.settings.progress_background_color | json }},
+          shippingBarColor: {{ block.settings.progress_bar_color | json }},
+          // gift gating (only used when incentive type is gifts/combined)
+          // giftThresholds will be set below as a JSON string when applicable
 
-      fetch(apiUrl)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          backendSettings = data || {};
-          // Merge settings: defaults < backendSettings (no theme override since all config is in backend)
-          window.CartUpliftSettings = Object.assign({}, defaults, backendSettings);
-          
-          // Initialize cart if enabled
-          if (window.CartUpliftSettings.enableApp) {
-            // Wait for CartUpliftDrawer to be available (since script loads with defer)
-            function initializeCart() {
-              if (window.CartUpliftDrawer) {
-                window.cartUpliftDrawer = new window.CartUpliftDrawer(window.CartUpliftSettings);
-                console.log('🛒 Cart Uplift: Cart drawer initialized successfully');
-              } else {
-                console.log('🛒 Cart Uplift: Waiting for CartUpliftDrawer class...');
-                setTimeout(initializeCart, 100);
-              }
-            }
-            initializeCart();
+          // Sticky cart (use built-in styles and rendering in cart-uplift.js)
+          enableStickyCart: {{ block.settings.enable_sticky_cart | json }},
+          cartPosition: {{ block.settings.cart_position | json }},
+          stickyCartShowIcon: {{ block.settings.show_cart_icon | json }},
+          stickyCartShowCount: {{ block.settings.show_item_count | json }},
+          stickyCartShowTotal: {{ block.settings.show_total_price | json }},
 
-            // Expose asset paths for other blocks
-            window.CartUpliftAssets = window.CartUpliftAssets || {};
-            window.CartUpliftAssets.bundleRenderer = {{ 'bundle-renderer.js' | asset_url | json }};
-
-            // If smart bundles are enabled, pre-load the renderer so blocks can initialize fast
-            if (window.CartUpliftSettings.enableSmartBundles) {
-              const existing = document.querySelector('script[data-cartuplift="bundle-renderer"]');
-              if (!existing) {
-                const script = document.createElement('script');
-                script.src = window.CartUpliftAssets.bundleRenderer;
-                script.defer = true;
-                script.setAttribute('data-cartuplift', 'bundle-renderer');
-                document.head.appendChild(script);
-              }
-            }
-          } else {
-            console.warn('🛒 Cart Uplift: App is disabled in settings');
-          }
-        })
-        .catch(error => {
-          console.error('🛒 Cart Uplift: API call failed:', error);
-          // Fallback to defaults only
-          window.CartUpliftSettings = defaults;
-          
-          // Initialize cart if enabled
-          if (window.CartUpliftSettings.enableApp) {
-            // Create new cart uplift instance
-            if (window.CartUpliftDrawer) {
-              window.cartUpliftDrawer = new window.CartUpliftDrawer(window.CartUpliftSettings);
-            } else {
-              console.error('🛒 Cart Uplift: CartUpliftDrawer class not found (fallback)');
-            }
-          }
+          // App behavior
+          enableApp: true
         });
 
-      // Set money format
-      window.CartUpliftMoneyFormat = {{ shop.money_format | json }};
+        // Normalize free shipping message placeholder to the token cart-uplift.js replaces
+        try {
+          const token = `{% raw %}{{ amount }}{% endraw %}`;
+          if (typeof window.CartUpliftSettings.freeShippingText === 'string') {
+            window.CartUpliftSettings.freeShippingText = window.CartUpliftSettings.freeShippingText.replace('{amount}', token);
+          }
+        } catch (_) {}
+
+        // Normalize gift messages placeholders
+        try {
+          const amountToken = `{% raw %}{{ amount }}{% endraw %}`;
+          const titleToken = `{% raw %}{{ title }}{% endraw %}`;
+          window.CartUpliftSettings.giftProgressText = {{ block.settings.gift_progress_message | json }};
+          window.CartUpliftSettings.giftAchievedText = {{ block.settings.gift_success_message | json }};
+          if (typeof window.CartUpliftSettings.giftProgressText === 'string') {
+            window.CartUpliftSettings.giftProgressText = window.CartUpliftSettings.giftProgressText
+              .replace('{amount}', amountToken)
+              .replace('{title}', titleToken);
+          }
+          if (typeof window.CartUpliftSettings.giftAchievedText === 'string') {
+            window.CartUpliftSettings.giftAchievedText = window.CartUpliftSettings.giftAchievedText
+              .replace('{title}', titleToken);
+          }
+        } catch (_) {}
+
+        // Map incentive type to the script's progressBarMode values
+        try {
+          const type = window.CartUpliftSettings.incentiveType;
+          const mode = type === 'gifts' ? 'gift-gating' : (type === 'combined' ? 'combined' : 'free-shipping');
+          window.CartUpliftSettings.progressBarMode = mode;
+        } catch (_) {}
+
+        // Configure gift gating thresholds only when needed
+        try {
+          const giftAmount = {{ block.settings.gift_threshold | json }};
+          const type = window.CartUpliftSettings.incentiveType;
+          // Inject product selection from the theme setting if provided
+          // Liquid will output these JS vars safely whether set or not
+          {% if block.settings.gift_product %}
+          var __giftProductId = {{ block.settings.gift_product.id | json }};
+          var __giftProductHandle = {{ block.settings.gift_product.handle | json }};
+          var __giftProductTitle = {{ block.settings.gift_product.title | json }};
+          {% else %}
+          var __giftProductId = null;
+          var __giftProductHandle = null;
+          var __giftProductTitle = null;
+          {% endif %}
+
+          if ((type === 'gifts' || type === 'combined') && Number(giftAmount)) {
+            const threshold = {
+              id: `gift-${__giftProductId || ('amount-' + Number(giftAmount))}`,
+              type: 'product',
+              amount: Number(giftAmount),
+              title: __giftProductTitle || 'Free Gift',
+              productId: __giftProductId,
+              productHandle: __giftProductHandle
+            };
+            window.CartUpliftSettings.enableGiftGating = true;
+            window.CartUpliftSettings.giftThresholds = JSON.stringify([threshold]);
+          }
+        } catch (_) {}
+      } catch (e) {
+        console.warn('CartUplift pre-settings failed', e);
+      }
     })();
   </script>
 
@@ -143,19 +143,98 @@
   <script src="{{ 'bundle-renderer.js' | asset_url }}?v=modular-2025-09-15" defer></script>
 
   <script>
-    // Analytics will be enabled based on backend settings
+    // Post-load configuration and resilience
     document.addEventListener('DOMContentLoaded', function() {
-      if (window.CartUpliftSettings && window.CartUpliftSettings.enableAnalytics) {
-        document.addEventListener('cartuplift:opened', function() {
-          if (typeof gtag !== 'undefined') {
-            gtag('event', 'view_cart', { event_category: 'Cart Uplift', event_label: 'Cart Drawer Opened' });
+      try {
+        // If the drawer didn't auto-init (e.g., due to timing), initialize it now
+        if (!window.cartUpliftDrawer && window.CartUpliftDrawer && window.CartUpliftSettings) {
+          window.cartUpliftDrawer = new window.CartUpliftDrawer(window.CartUpliftSettings);
+        }
+        // Notify of settings (for late listeners)
+        document.dispatchEvent(new CustomEvent('cartuplift:settings:updated'));
+
+        // Visually hide theme cart UI so Cart Uplift drawer fully takes over
+        try {
+          if (!document.getElementById('cartuplift-hide-theme-cart')) {
+            const style = document.createElement('style');
+            style.id = 'cartuplift-hide-theme-cart';
+            style.textContent = `
+              /* Hide common theme cart triggers and drawers (do not affect our own elements) */
+              .site-header__cart,
+              .header__icon--cart,
+              .cart-link__bubble,
+              .cart-link,
+              .js-drawer-open-cart,
+              [data-action="open-cart"],
+              cart-notification,
+              #CartNotification,
+              .cart-notification,
+              #CartDrawer:not(#cartuplift-cart-popup),
+              .cart-drawer:not(#cartuplift-cart-popup) {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+              }
+            `;
+            document.head.appendChild(style);
           }
-        });
-        document.addEventListener('cartuplift:item_added', function(e) {
-          if (typeof gtag !== 'undefined') {
-            gtag('event', 'add_to_cart', { event_category: 'Cart Uplift', event_label: 'Item Added', value: e.detail.price });
+        } catch(_) {}
+
+        // Wait for the main drawer to be ready, then render sticky and disable theme cart
+        const start = Date.now();
+        const readyTimer = setInterval(() => {
+          if (window.cartUpliftDrawer) {
+            clearInterval(readyTimer);
+            try {
+              if (window.CartUpliftSettings.enableStickyCart && typeof window.cartUpliftDrawer.createStickyCart === 'function') {
+                window.cartUpliftDrawer.createStickyCart();
+              }
+              if (typeof window.cartUpliftDrawer.preventThemeCartUplift === 'function') {
+                window.cartUpliftDrawer.preventThemeCartUplift();
+              }
+
+              // Editor helpers (always safe no-ops if not in editor)
+              const isEditor = !!(window.Shopify && window.Shopify.designMode);
+              if (isEditor) {
+                // Optionally open or render sticky for preview friendliness
+                // Disabled by default to avoid intrusive behavior
+              }
+            } catch (err) {
+              console.warn('CartUplift post-ready actions failed', err);
+            }
+
+            // Fallback: if sticky still missing after initial render, try again shortly
+            setTimeout(() => {
+              try {
+                if (
+                  window.CartUpliftSettings?.enableStickyCart &&
+                  typeof window.cartUpliftDrawer?.createStickyCart === 'function' &&
+                  !document.getElementById('cartuplift-sticky')
+                ) {
+                  window.cartUpliftDrawer.createStickyCart();
+                }
+              } catch (_) {}
+            }, 600);
+          } else if (Date.now() - start > 5000) {
+            clearInterval(readyTimer);
           }
-        });
+        }, 100);
+
+        // Optional analytics hooks
+        if (window.CartUpliftSettings && window.CartUpliftSettings.enableAnalytics) {
+          document.addEventListener('cartuplift:opened', function() {
+            if (typeof gtag !== 'undefined') {
+              gtag('event', 'view_cart', { event_category: 'Cart Uplift', event_label: 'Cart Drawer Opened' });
+            }
+          });
+          document.addEventListener('cartuplift:item_added', function(e) {
+            if (typeof gtag !== 'undefined') {
+              gtag('event', 'add_to_cart', { event_category: 'Cart Uplift', event_label: 'Item Added', value: e.detail?.price });
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Cart Uplift App Embed failed to initialize:', error);
       }
     });
   </script>
@@ -170,8 +249,189 @@
 
 {% schema %}
 {
-  "name": "Cart Uplift - Live App",
+  "name": "Cart Uplift - Smart Cart",
   "target": "body",
-  "settings": []
+  "settings": [
+    {
+      "type": "header",
+      "content": "Free Shipping"
+    },
+    {
+      "type": "select",
+      "id": "incentive_type",
+      "label": "Incentive Type",
+      "options": [
+        {
+          "value": "free_shipping",
+          "label": "Free Shipping Only"
+        },
+        {
+          "value": "gifts",
+          "label": "Gift & Rewards System"
+        },
+        {
+          "value": "combined",
+          "label": "Combined (Free Shipping + Gifts)"
+        }
+      ],
+      "default": "free_shipping",
+      "info": "Choose what motivates your customers to spend more"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_free_shipping_progress",
+      "label": "Enable free shipping progress bar",
+      "default": true,
+      "info": "Show a progress bar to motivate customers to reach your free shipping threshold"
+    },
+    {
+      "type": "text",
+      "id": "progress_message",
+      "label": "Progress message",
+      "default": "You're {amount} away from free shipping!",
+      "info": "Use {amount} where you want the remaining balance to appear"
+    },
+    {
+      "type": "text",
+      "id": "success_message",
+      "label": "Success message",
+      "default": "🎉 Congratulations! You've unlocked free shipping!",
+      "info": "This message is shown once the free shipping threshold is reached"
+    },
+    {
+      "type": "number",
+      "id": "free_shipping_threshold",
+      "label": "Free Shipping Threshold",
+      "default": 100,
+      "info": "Minimum amount for free shipping"
+    },
+    {
+      "type": "color",
+      "id": "progress_background_color",
+      "label": "Progress Bar Background",
+      "default": "#f0f0f0",
+      "info": "Background color of the progress bar"
+    },
+    {
+      "type": "color",
+      "id": "progress_bar_color",
+      "label": "Progress Bar Color",
+      "default": "#00d4aa",
+      "info": "Fill color of the progress bar"
+    },
+    {
+      "type": "header",
+      "content": "Gifts & Rewards"
+    },
+    {
+      "type": "number",
+      "id": "gift_threshold",
+      "label": "Gift Threshold Amount",
+      "default": 150,
+      "info": "Minimum amount for gift rewards (used in Gift & Combined modes)"
+    },
+    {
+      "type": "product",
+      "id": "gift_product",
+      "label": "Gift Product",
+      "info": "Product to auto-add when the gift threshold is met (Gifts or Combined)"
+    },
+    {
+      "type": "text",
+      "id": "gift_progress_message",
+      "label": "Gift progress message",
+      "default": "Spend {amount} more to unlock {title}!",
+      "info": "Use {amount} and {title} placeholders"
+    },
+    {
+      "type": "text",
+      "id": "gift_success_message",
+      "label": "Gift success message",
+      "default": "🎉 {title} unlocked!",
+      "info": "Use {title} placeholder"
+    },
+    {
+      "type": "header",
+      "content": "Sticky Cart"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_sticky_cart",
+      "label": "Enable Sticky Cart",
+      "default": true,
+      "info": "Keep the cart accessible as users browse your store"
+    },
+    {
+      "type": "select",
+      "id": "cart_position",
+      "label": "Cart Position",
+      "options": [
+        {
+          "value": "bottom-right",
+          "label": "Bottom Right"
+        },
+        {
+          "value": "bottom-left",
+          "label": "Bottom Left"
+        },
+        { "value": "top-right", "label": "Top Right" },
+        { "value": "top-left", "label": "Top Left" }
+      ],
+      "default": "bottom-right",
+      "info": "Where the cart button appears on your store"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_cart_icon",
+      "label": "Show Cart Icon",
+      "default": true,
+      "info": "Display cart icon on sticky button"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_item_count",
+      "label": "Show Item Count",
+      "default": true,
+      "info": "Display number of items in cart"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_total_price",
+      "label": "Show Total Price",
+      "default": false,
+      "info": "Display cart total on sticky button"
+    },
+    {
+      "type": "color",
+      "id": "sticky_background_color",
+      "label": "Sticky Cart Background",
+      "default": "#000000",
+      "info": "Background color of sticky cart button"
+    },
+    {
+      "type": "color",
+      "id": "sticky_text_color",
+      "label": "Sticky Cart Text",
+      "default": "#ffffff",
+      "info": "Text color on sticky cart button"
+    },
+    {
+      "type": "color",
+      "id": "count_badge_color",
+      "label": "Count Badge Color",
+      "default": "#ff4444",
+      "info": "Background color of item count badge"
+    },
+    {
+      "type": "range",
+      "id": "border_radius",
+      "label": "Border Radius (px)",
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "default": 25,
+      "info": "Controls how rounded the sticky cart button appears"
+    }
+  ]
 }
 {% endschema %}

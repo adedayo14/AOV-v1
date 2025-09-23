@@ -1,0 +1,549 @@
+{% comment %}
+  Smart Cart Block - Unified cart management with live preview
+  Version 1.0 - Theme editor integration with drawer toggle
+{% endcomment %}
+
+{% assign sc_version = '1.0' %}
+
+<div class="smart-cart-section" 
+  data-sc-version="{{ sc_version }}"
+  data-settings="{{ block.settings | json | escape }}">
+  
+  {% comment %} Preview toggle controls {% endcomment %}
+  <div class="smart-cart-controls">
+    <div class="smart-cart-header">
+      <h2 class="smart-cart-title">Smart Cart Configuration</h2>
+      <p class="smart-cart-subtitle">Configure your cart experience with live preview</p>
+    </div>
+    
+    <div class="smart-cart-toggle-section">
+      <label class="smart-cart-toggle-wrapper">
+        <input type="checkbox" 
+          id="smart-cart-preview-toggle" 
+          class="smart-cart-toggle-input"
+          {% if block.settings.enable_preview_mode %}checked{% endif %}>
+        <span class="smart-cart-toggle-slider"></span>
+        <span class="smart-cart-toggle-label">Keep cart drawer open for live preview</span>
+      </label>
+      <p class="smart-cart-toggle-help">Enable this to see your changes in real-time while editing settings</p>
+    </div>
+  </div>
+
+  {% comment %} Hidden elements that trigger cart functionality {% endcomment %}
+  <div class="smart-cart-hidden-triggers" style="display: none;">
+    <button id="smart-cart-open-trigger" onclick="window.cartUpliftDrawer?.openDrawer()">Open Cart</button>
+    <button id="smart-cart-close-trigger" onclick="window.cartUpliftDrawer?.closeDrawer()">Close Cart</button>
+  </div>
+</div>
+
+<style>
+  /* Smart Cart Section Styles */
+  .smart-cart-section {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 32px;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  .smart-cart-header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .smart-cart-title {
+    margin: 0 0 8px 0;
+    font-size: 28px;
+    font-weight: 600;
+    color: #1a1a1a;
+    letter-spacing: -0.5px;
+  }
+
+  .smart-cart-subtitle {
+    margin: 0;
+    font-size: 16px;
+    color: #666;
+    font-weight: 400;
+  }
+
+  .smart-cart-toggle-section {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+
+  .smart-cart-toggle-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .smart-cart-toggle-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .smart-cart-toggle-slider {
+    position: relative;
+    width: 52px;
+    height: 28px;
+    background: #ddd;
+    border-radius: 28px;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+  }
+
+  .smart-cart-toggle-slider::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 24px;
+    height: 24px;
+    background: white;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .smart-cart-toggle-input:checked + .smart-cart-toggle-slider {
+    background: #007bff;
+  }
+
+  .smart-cart-toggle-input:checked + .smart-cart-toggle-slider::before {
+    transform: translateX(24px);
+  }
+
+  .smart-cart-toggle-label {
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+  }
+
+  .smart-cart-toggle-help {
+    margin: 12px 0 0 0;
+    font-size: 14px;
+    color: #666;
+    font-style: italic;
+  }
+
+  /* Preview mode indicators */
+  .smart-cart-section[data-preview-active="true"] {
+    border: 2px solid #007bff;
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.15);
+  }
+
+  .smart-cart-section[data-preview-active="true"] .smart-cart-toggle-section {
+    background: linear-gradient(135deg, #e7f3ff 0%, #f0f8ff 100%);
+    border: 1px solid #b3d9ff;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .smart-cart-section {
+      margin: 20px;
+      padding: 24px 16px;
+    }
+
+    .smart-cart-title {
+      font-size: 24px;
+    }
+
+    .smart-cart-toggle-wrapper {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+  }
+</style>
+
+<script>
+  (function() {
+    'use strict';
+    
+    const SMART_CART_CONFIG = {
+      version: '{{ sc_version }}',
+      previewMode: {{ block.settings.enable_preview_mode | json }},
+      settings: {
+        enableApp: {{ block.settings.enable_app | json }},
+        enableStickyCart: {{ block.settings.enable_sticky_cart | json }},
+        enableRecommendations: {{ block.settings.enable_recommendations | json }},
+        cartTitle: {{ block.settings.cart_title | json }},
+        autoOpenCart: {{ block.settings.auto_open_cart | json }},
+        cartPosition: {{ block.settings.cart_position | json }},
+        enableFreeShipping: {{ block.settings.enable_free_shipping | json }},
+        freeShippingThreshold: {{ block.settings.free_shipping_threshold | json }},
+        recommendationsTitle: {{ block.settings.recommendations_title | json }},
+        buttonColor: {{ block.settings.button_color | json }},
+        buttonTextColor: {{ block.settings.button_text_color | json }},
+        backgroundColor: {{ block.settings.background_color | json }}
+      }
+    };
+
+    // Smart Cart Manager Class
+    class SmartCartManager {
+      constructor(config) {
+        this.config = config;
+        this.previewActive = false;
+        this.drawerWasOpen = false;
+        this.settingsUpdateTimer = null;
+        this.previewMonitor = null;
+        
+        this.init();
+      }
+
+      init() {
+        console.log('[SmartCart v' + this.config.version + '] Initializing...');
+        
+        // Test settings integration
+        const settings = this.getThemeSettings();
+        console.log('[SmartCart] Available theme editor settings:', Object.keys(settings).length);
+        
+        this.setupToggleListener();
+        this.setupSettingsSync();
+        
+        // Initialize preview mode if enabled
+        if (this.config.previewMode) {
+          this.enablePreviewMode();
+        }
+        
+        // Signal that Smart Cart is active
+        window.SmartCartActive = true;
+        window.SmartCartManager = this;
+      }
+
+      setupToggleListener() {
+        const toggle = document.getElementById('smart-cart-preview-toggle');
+        if (!toggle) return;
+
+        toggle.addEventListener('change', (e) => {
+          if (e.target.checked) {
+            this.enablePreviewMode();
+          } else {
+            this.disablePreviewMode();
+          }
+        });
+      }
+
+      enablePreviewMode() {
+        console.log('[SmartCart] Enabling preview mode');
+        
+        this.previewActive = true;
+        const section = document.querySelector('.smart-cart-section');
+        if (section) {
+          section.setAttribute('data-preview-active', 'true');
+        }
+
+        // Open cart drawer for live preview
+        this.openCartForPreview();
+        
+        // Listen for theme editor changes
+        this.startSettingsWatcher();
+        
+        // Start monitoring to ensure drawer stays open
+        this.startPreviewMonitoring();
+      }
+
+      disablePreviewMode() {
+        console.log('[SmartCart] Disabling preview mode');
+        
+        this.previewActive = false;
+        const section = document.querySelector('.smart-cart-section');
+        if (section) {
+          section.setAttribute('data-preview-active', 'false');
+        }
+
+        // Stop monitoring
+        this.stopPreviewMonitoring();
+
+        // Close cart if it was opened by preview mode
+        if (!this.drawerWasOpen) {
+          this.closeCartPreview();
+        }
+        
+        // Stop watching for changes
+        this.stopSettingsWatcher();
+      }
+
+      openCartForPreview() {
+        // Check if cart was already open
+        this.drawerWasOpen = window.cartUpliftDrawer?.isOpen || false;
+        
+        // Open cart drawer
+        if (window.cartUpliftDrawer) {
+          window.cartUpliftDrawer.openDrawer();
+        } else {
+          // Fallback: trigger cart open button
+          const trigger = document.getElementById('smart-cart-open-trigger');
+          if (trigger) trigger.click();
+        }
+      }
+
+      closeCartPreview() {
+        if (window.cartUpliftDrawer) {
+          window.cartUpliftDrawer.forceCloseDrawer();
+        } else {
+          // Fallback: trigger cart close button
+          const trigger = document.getElementById('smart-cart-close-trigger');
+          if (trigger) trigger.click();
+        }
+      }
+
+      startSettingsWatcher() {
+        // Watch for theme editor setting changes
+        if (window.Shopify && window.Shopify.designMode) {
+          document.addEventListener('shopify:section:load', this.handleSettingsChange.bind(this));
+          document.addEventListener('shopify:section:reorder', this.handleSettingsChange.bind(this));
+          document.addEventListener('shopify:section:select', this.handleSettingsChange.bind(this));
+          document.addEventListener('shopify:block:select', this.handleSettingsChange.bind(this));
+          document.addEventListener('shopify:block:deselect', this.handleSettingsChange.bind(this));
+        }
+        
+        // Also watch for any input changes in the Smart Cart section
+        const smartCartSection = document.querySelector('.smart-cart-section');
+        if (smartCartSection) {
+          // Use MutationObserver to detect when section data changes
+          this.settingsObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              if (mutation.type === 'attributes' && mutation.attributeName === 'data-settings') {
+                this.handleSettingsChange();
+              }
+            });
+          });
+          
+          this.settingsObserver.observe(smartCartSection, {
+            attributes: true,
+            attributeFilter: ['data-settings']
+          });
+        }
+      }
+
+      stopSettingsWatcher() {
+        if (window.Shopify && window.Shopify.designMode) {
+          document.removeEventListener('shopify:section:load', this.handleSettingsChange.bind(this));
+          document.removeEventListener('shopify:section:reorder', this.handleSettingsChange.bind(this));
+          document.removeEventListener('shopify:section:select', this.handleSettingsChange.bind(this));
+          document.removeEventListener('shopify:block:select', this.handleSettingsChange.bind(this));
+          document.removeEventListener('shopify:block:deselect', this.handleSettingsChange.bind(this));
+        }
+        
+        // Clean up mutation observer
+        if (this.settingsObserver) {
+          this.settingsObserver.disconnect();
+          this.settingsObserver = null;
+        }
+      }
+
+      handleSettingsChange(event) {
+        console.log('[SmartCart] Settings changed, updating preview');
+        
+        // Debounce updates
+        if (this.settingsUpdateTimer) {
+          clearTimeout(this.settingsUpdateTimer);
+        }
+        
+        this.settingsUpdateTimer = setTimeout(() => {
+          this.updateCartPreview();
+        }, 300);
+      }
+
+      updateCartPreview() {
+        if (!this.previewActive) return;
+        
+        // Store current drawer state
+        const wasOpen = window.cartUpliftDrawer?.isOpen || false;
+        
+        // Refresh cart drawer with new settings from Smart Cart
+        if (window.cartUpliftDrawer) {
+          window.cartUpliftDrawer.refreshFromSmartCart();
+          
+          // Ensure drawer stays open during preview mode
+          if (wasOpen || this.previewActive) {
+            setTimeout(() => {
+              if (!window.cartUpliftDrawer.isOpen) {
+                console.log('[SmartCart] Re-opening drawer for preview mode');
+                window.cartUpliftDrawer.openDrawer();
+              }
+            }, 100);
+          }
+        }
+        
+        console.log('[SmartCart] Preview updated with latest settings');
+      }
+
+      startPreviewMonitoring() {
+        // Monitor drawer state every 2 seconds to ensure it stays open during preview
+        this.previewMonitor = setInterval(() => {
+          if (this.previewActive && window.cartUpliftDrawer && !window.cartUpliftDrawer.isOpen) {
+            console.log('[SmartCart] Drawer closed during preview - reopening');
+            window.cartUpliftDrawer.openDrawer();
+          }
+        }, 2000);
+      }
+
+      stopPreviewMonitoring() {
+        if (this.previewMonitor) {
+          clearInterval(this.previewMonitor);
+          this.previewMonitor = null;
+        }
+      }
+
+      setupSettingsSync() {
+        // Sync settings with CartUplift if available
+        if (window.CartUpliftSettings) {
+          Object.assign(window.CartUpliftSettings, this.config.settings);
+        } else {
+          window.CartUpliftSettings = this.config.settings;
+        }
+      }
+    }
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        new SmartCartManager(SMART_CART_CONFIG);
+      });
+    } else {
+      new SmartCartManager(SMART_CART_CONFIG);
+    }
+
+    // Expose for theme integration
+    window.SmartCartManager = SmartCartManager;
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Smart Cart",
+  "target": "section",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Preview Controls"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_preview_mode",
+      "label": "Enable Live Preview",
+      "default": false,
+      "info": "Keep cart drawer open while editing to see changes in real-time"
+    },
+    {
+      "type": "header",
+      "content": "Core Features"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_app",
+      "label": "Enable Cart App",
+      "default": true,
+      "info": "Turn on the cart uplift functionality"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_sticky_cart",
+      "label": "Enable Sticky Cart",
+      "default": true,
+      "info": "Show floating cart button on store pages"
+    },
+    {
+      "type": "checkbox",
+      "id": "auto_open_cart",
+      "label": "Auto Open Cart",
+      "default": true,
+      "info": "Automatically open cart when items are added"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_recommendations",
+      "label": "Enable Recommendations",
+      "default": true,
+      "info": "Show product recommendations in cart drawer"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_free_shipping",
+      "label": "Enable Free Shipping Progress",
+      "default": false,
+      "info": "Show progress towards free shipping threshold"
+    },
+    {
+      "type": "number",
+      "id": "free_shipping_threshold",
+      "label": "Free Shipping Threshold",
+      "default": 100,
+      "info": "Minimum order amount for free shipping"
+    },
+    {
+      "type": "text",
+      "id": "cart_title",
+      "label": "Cart Title",
+      "default": "Your Cart",
+      "info": "Title shown in the cart drawer header"
+    },
+    {
+      "type": "text",
+      "id": "recommendations_title",
+      "label": "Recommendations Title",
+      "default": "You might also like",
+      "info": "Title shown above product recommendations"
+    },
+    {
+      "type": "select",
+      "id": "cart_position",
+      "label": "Sticky Cart Position",
+      "options": [
+        {
+          "value": "bottom-right",
+          "label": "Bottom Right"
+        },
+        {
+          "value": "bottom-left",
+          "label": "Bottom Left"
+        },
+        {
+          "value": "top-right",
+          "label": "Top Right"
+        },
+        {
+          "value": "top-left",
+          "label": "Top Left"
+        }
+      ],
+      "default": "bottom-right"
+    },
+    {
+      "type": "header",
+      "content": "Styling"
+    },
+    {
+      "type": "color",
+      "id": "button_color",
+      "label": "Button Color",
+      "default": "#000000",
+      "info": "Primary button background color"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button Text Color",
+      "default": "#ffffff",
+      "info": "Button text color"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Cart Background Color",
+      "default": "#ffffff",
+      "info": "Main background color of the cart drawer"
+    }
+  ]
+}
+{% endschema %}
