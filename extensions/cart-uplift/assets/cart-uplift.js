@@ -1140,13 +1140,6 @@
         const sortedThresholds = giftThresholds.sort((a, b) => a.amount - b.amount);
         const currentTotal = this.cart ? (this.cart.total_price / 100) : 0; // Convert from cents
         const progressStyle = this.settings.giftProgressStyle || 'single-next';
-        
-        console.log('🛒 Cart Uplift: Gift progress data:', {
-          currentTotal,
-          thresholds: sortedThresholds,
-          style: progressStyle,
-          count: sortedThresholds.length
-        });
 
         // For single threshold, use the clean progress block design (same as free shipping)
         if (sortedThresholds.length === 1) {
@@ -3628,11 +3621,11 @@
     // Check if gift thresholds have been reached and auto-add gift products
     async checkAndAddGiftThresholds() {
       if (!this.settings.enableGiftGating || !this.settings.giftThresholds || !this.cart) {
-        console.log('🛒 Cart Uplift: Gift threshold check skipped:', {
-          enableGiftGating: this.settings.enableGiftGating,
-          hasThresholds: !!this.settings.giftThresholds,
-          hasCart: !!this.cart
-        });
+        return;
+      }
+
+      // Skip auto-add in design mode (Theme Editor)
+      if (this.settings.suppressAutoAdd) {
         return;
       }
 
@@ -3643,9 +3636,6 @@
         }
 
         const currentTotal = this.getDisplayedTotalCents();
-
-        // Track which gifts have been added to prevent duplicates
-        const cartProductIds = this.cart.items.map(item => item.product_id.toString());
 
         for (const threshold of giftThresholds) {
           // Only process product type gifts that have a product ID
@@ -3662,26 +3652,46 @@
             numericProductId = numericProductId.replace('gid://shopify/Product/', '');
           }
           
-          const isAlreadyInCart = cartProductIds.includes(numericProductId.toString());
-          
-          // Check if product is in cart but not yet marked as gift
-          const existingCartItem = this.cart.items.find(item => 
+          // Check if product is in cart and handle quantity logic
+          const existingCartItems = this.cart.items.filter(item => 
             item.product_id.toString() === numericProductId.toString()
           );
-          const isAlreadyGift = existingCartItem && existingCartItem.properties && existingCartItem.properties._is_gift === 'true';
-
+          
+          let totalQuantity = 0;
+          let giftQuantity = 0;
+          let paidQuantity = 0;
+          
+          for (const item of existingCartItems) {
+            totalQuantity += item.quantity;
+            if (item.properties && item.properties._is_gift === 'true') {
+              giftQuantity += item.quantity;
+            } else {
+              paidQuantity += item.quantity;
+            }
+          }
 
           if (hasReachedThreshold) {
-            if (!isAlreadyInCart) {
-              // Product not in cart - add as gift
+            if (totalQuantity === 0) {
+              // Product not in cart - add 1 as gift
               await this.addGiftToCart(threshold);
-            } else if (!isAlreadyGift) {
-              // Product in cart but not marked as gift - convert to gift
-              await this.convertItemToGift(existingCartItem, threshold);
+            } else if (giftQuantity === 0) {
+              // Product in cart but no gift version - need to add gift line or convert 1 item
+              if (paidQuantity === 1) {
+                // Convert the single paid item to gift
+                await this.convertItemToGift(existingCartItems[0], threshold);
+              } else if (paidQuantity > 1) {
+                // Split: reduce paid quantity by 1, add 1 gift
+                await this.splitItemAddGift(existingCartItems[0], threshold);
+              }
             }
-          } else if (!hasReachedThreshold && isAlreadyInCart && isAlreadyGift) {
-            // Threshold no longer met and it's marked as gift - remove
-            await this.removeGiftFromCart(threshold);
+            // If giftQuantity > 0, gift already exists, do nothing
+          } else if (!hasReachedThreshold && giftQuantity > 0) {
+            // Threshold no longer met and gift exists - remove all gift versions
+            for (const giftItem of existingCartItems) {
+              if (giftItem.properties && giftItem.properties._is_gift === 'true') {
+                await this.removeGiftFromCart(threshold, giftItem);
+              }
+            }
           }
         }
       } catch (error) {
@@ -3749,7 +3759,8 @@
               '_gift_label': (threshold && threshold.title) ? String(threshold.title) : 'Gift',
               '_original_price': firstVariant.price.toString()
             },
-            // Try to add with zero price - this may not work with all Shopify setups
+            // Note: Shopify doesn't allow setting price to 0 via cart API
+            // The merchant must handle gift pricing via Shopify Scripts, discounts, or theme logic
             selling_plan: null
           })
         });
@@ -3766,6 +3777,68 @@
         }
       } catch (error) {
         console.error(`🎁 Error in addGiftByHandle:`, error);
+        return false;
+      }
+    }
+
+    // Split an existing cart item: reduce paid quantity by 1, add 1 gift
+    async splitItemAddGift(cartItem, threshold) {
+      try {
+        // First, reduce the paid item quantity by 1
+        const lineIndex = this.cart.items.findIndex(item => item.key === cartItem.key) + 1;
+        
+        if (lineIndex === 0) {
+          console.error(`🎁 Could not find line index for cart item:`, cartItem);
+          return false;
+        }
+
+        const newQuantity = Math.max(0, cartItem.quantity - 1);
+        
+        if (newQuantity > 0) {
+          // Update existing line with reduced quantity
+          const formData = new FormData();
+          formData.append('line', lineIndex);
+          formData.append('quantity', newQuantity);
+          
+          // Preserve existing properties
+          if (cartItem.properties) {
+            for (const [key, value] of Object.entries(cartItem.properties)) {
+              formData.append(`properties[${key}]`, value);
+            }
+          }
+
+          const response = await fetch('/cart/change.js', {
+            method: 'POST',
+            body: formData
+          });
+
+          if (!response.ok) {
+            console.error(`🎁 Failed to reduce paid item quantity`, response.status);
+            return false;
+          }
+        } else {
+          // Remove the line entirely if quantity would be 0
+          const formData = new FormData();
+          formData.append('id', cartItem.key);
+          formData.append('quantity', '0');
+
+          const response = await fetch('/cart/change.js', {
+            method: 'POST',
+            body: formData
+          });
+
+          if (!response.ok) {
+            console.error(`🎁 Failed to remove paid item`, response.status);
+            return false;
+          }
+        }
+
+        // Now add 1 gift item
+        await this.addGiftToCart(threshold);
+        return true;
+        
+      } catch (error) {
+        console.error(`🎁 Error splitting item to add gift:`, error);
         return false;
       }
     }
@@ -3829,7 +3902,7 @@
     }
 
   // Remove a gift product from the cart
-  async removeGiftFromCart(threshold) {
+  async removeGiftFromCart(threshold, specificGiftItem = null) {
       try {
         // Extract numeric product ID for comparison
         let numericProductId = threshold.productId;
@@ -3837,32 +3910,41 @@
           numericProductId = numericProductId.replace('gid://shopify/Product/', '');
         }
 
-        // Find the gift item in cart
-        const giftItem = this.cart.items.find(item => 
-          item.product_id.toString() === numericProductId.toString() &&
-          item.properties && item.properties._is_gift === 'true'
-        );
+        // Find the gift item(s) in cart
+        let giftItems = [];
+        if (specificGiftItem) {
+          // Remove specific item
+          giftItems = [specificGiftItem];
+        } else {
+          // Find all gift items for this product
+          giftItems = this.cart.items.filter(item => 
+            item.product_id.toString() === numericProductId.toString() &&
+            item.properties && item.properties._is_gift === 'true'
+          );
+        }
 
-        if (giftItem) {
-          // Use change.js with the line item key to remove the item
-          const formData = new FormData();
-          formData.append('id', giftItem.key);
-          formData.append('quantity', '0');
+        if (giftItems.length > 0) {
+          // Remove all found gift items
+          for (const giftItem of giftItems) {
+            const formData = new FormData();
+            formData.append('id', giftItem.key);
+            formData.append('quantity', '0');
 
-          const response = await fetch('/cart/change.js', {
-            method: 'POST',
-            body: formData
-          });
+            const response = await fetch('/cart/change.js', {
+              method: 'POST',
+              body: formData
+            });
 
-          if (response.ok) {
-            // Refresh cart after removing gift
-            await this.fetchCart();
-            this.updateDrawerContent();
-            return true;
-          } else {
-            console.error(`🎁 Failed to remove gift`, response.status);
-            return false;
+            if (!response.ok) {
+              console.error(`🎁 Failed to remove gift`, response.status);
+              return false;
+            }
           }
+
+          // Refresh cart after removing gifts
+          await this.fetchCart();
+          this.updateDrawerContent();
+          return true;
         } else {
           // Gift item not found in cart
           return false;
@@ -4637,10 +4719,11 @@
         });
       }
 
-      // Properties (if any)
+      // Properties (if any) - filter out internal properties
       if (item.properties && typeof item.properties === 'object') {
         Object.entries(item.properties).forEach(([key, value]) => {
-          if (!value || key === '__proto__') return;
+          // Skip internal properties (those starting with _) and empty values
+          if (!value || key === '__proto__' || key.startsWith('_')) return;
           variants.push(`<div class="cartuplift-item-variant">${key}: ${value}</div>`);
         });
       }
