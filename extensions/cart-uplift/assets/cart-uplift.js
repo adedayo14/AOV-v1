@@ -75,8 +75,8 @@
       // Set default gift price text if not provided
       this.settings.giftPriceText = this.settings.giftPriceText || 'FREE';
   // Combined success template – simplified human tone, no numeric savings inflation
-  // Updated requested phrasing: Free shipping = title (value) is on us.
-  this.settings.combinedSuccessTemplate = this.settings.allRewardsAchievedText || '✓ Free shipping = {{ title }} ({{ value }}) is on us';
+  // Final: Free shipping + item (amount) is on us
+  this.settings.combinedSuccessTemplate = this.settings.allRewardsAchievedText || '✓ Free shipping + {{ title }} ({{ value }}) is on us';
       
       this.cart = null;
       this.isOpen = false;
@@ -1418,12 +1418,12 @@
                   const gv = getGiftValueAndTitle(lastGift);
                   // Build normalized template, remove legacy verbose phrasing, ensure single leading check & free shipping mention
                   // New concise, human message – play on psychology: certainty + reward flair
-                  let tpl = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping = {{ title }} ({{ value }}) is on us';
+                  let tpl = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + {{ title }} ({{ value }}) is on us';
                   if (/All rewards unlocked!?/i.test(tpl)) {
                     tpl = tpl.replace(/All rewards unlocked!?/ig,'').trim();
                   }
                   if (!/free shipping/i.test(tpl)) {
-                    tpl = '✓ Free shipping = ' + tpl.replace(/^✓\s*/,'');
+                    tpl = '✓ Free shipping + ' + tpl.replace(/^✓\s*/,'');
                   }
                   if (!/^✓/.test(tpl)) tpl = '✓ ' + tpl;
                   tpl = tpl.replace(/\+\s*\+/g,'+').replace(/\s{2,}/g,' ').replace(/\s*\+\s*/g,' + ');
@@ -1431,8 +1431,8 @@
                     .replace(/\{\{\s*title\s*\}\}/g, gv.title)
                     .replace(/\{title\}/g, gv.title)
                     // Remove any leftover value placeholders (we no longer show shipping-inflated savings)
-                    .replace(/\{\{\s*value\s*\}\}/g, '')
-                    .replace(/\{value\}/g, '')
+                    .replace(/\{\{\s*value\s*\}\}/g, gv.value)
+                    .replace(/\{value\}/g, gv.value)
                     .replace(/\bworth\s+\(/i,'(');
                   out = out
                     .replace(/\{\{?\s*(title|value)\s*\}?\}/g,'')
@@ -1445,9 +1445,9 @@
                 }
               }
               // No lastGift case (rare) – fallback generic
-              let base = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping = gift ({{ value }}) is on us';
+              let base = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + gift ({{ value }}) is on us';
               if (/All rewards unlocked!?/i.test(base)) base = base.replace(/All rewards unlocked!?/ig,'').trim();
-              if (!/free shipping/i.test(base)) base = '✓ Free shipping = ' + base.replace(/^✓\s*/,'');
+              if (!/free shipping/i.test(base)) base = '✓ Free shipping + ' + base.replace(/^✓\s*/,'');
               base = base.replace(/\s{2,}/g,' ').replace(/\+\s*\+/g,'+').replace(/\s*\+\s*/g,' + ');
               return base;
             })();
@@ -1519,9 +1519,9 @@
             // Use "free gift" for mobile instead of full product name for compactness
             const title = 'free gift';
             // Compact success message for mobile
-            msg = (this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping = free gift ({{ value }}) is on us');
+            msg = (this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + free gift ({{ value }}) is on us');
             if (/All rewards unlocked!?/i.test(msg)) msg = msg.replace(/All rewards unlocked!?/ig,'').trim();
-            if (!/free shipping/i.test(msg)) msg = '✓ Free shipping = ' + msg.replace(/^✓\s*/,'');
+            if (!/free shipping/i.test(msg)) msg = '✓ Free shipping + ' + msg.replace(/^✓\s*/,'');
             if (!/^✓/.test(msg)) msg = '✓ ' + msg;
             msg = msg
               .replace(/\{\{\s*title\s*\}\}/g, title)
