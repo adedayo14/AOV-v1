@@ -103,7 +103,6 @@
           freeShippingAchievedText: {{ block.settings.success_message | json }},
           freeShippingMaintainText: {{ block.settings.free_shipping_maintain_message | json }},
           freeShippingThreshold: {{ block.settings.free_shipping_threshold | json }},
-          estimatedShippingCost: {{ block.settings.estimated_shipping_cost | json }},
           shippingBarBackgroundColor: {{ block.settings.progress_background_color | json }},
           shippingBarColor: {{ block.settings.progress_bar_color | json }},
           // gift gating (only used when incentive type is gifts/combined)
@@ -404,13 +403,6 @@
       "label": "Free Shipping Threshold",
       "default": 100,
       "info": "Minimum amount for free shipping"
-    },
-    {
-      "type": "number",
-      "id": "estimated_shipping_cost",
-      "label": "Estimated Shipping Cost",
-      "default": 10,
-      "info": "Average shipping cost to show in total savings calculation (e.g., 'You've saved $30!' for $10 shipping + $20 free gift)"
     },
     {
       "type": "color",

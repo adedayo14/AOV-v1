@@ -1346,15 +1346,10 @@
           try {
             if (!t) return { value: '', title: '' };
             const giftCents = typeof t.price === 'number' ? t.price : (t.price && t.price.amount ? Math.round(t.price.amount * 100) : null);
-            
-            // Calculate total savings: gift value + estimated shipping cost
-            const estimatedShippingCents = (this.settings.estimatedShippingCost || 10) * 100; // Convert to cents
-            const totalSavingsCents = (giftCents || 0) + estimatedShippingCents;
-            const value = this.formatMoney(totalSavingsCents);
-            
+            // We now only show the gift's own value (no shipping inflation)
+            const value = giftCents != null ? this.formatMoney(giftCents) : '';
             const baseTitle = String(t.title || 'gift');
             const vTitle = (t.variantTitle && t.variantTitle !== 'Default Title') ? ` (${t.variantTitle})` : '';
-            // Truncate long names for UI neatness
             const fullTitle = `${baseTitle}${vTitle}`;
             const max = 30;
             const title = fullTitle.length > max ? (fullTitle.slice(0, max - 1) + '…') : fullTitle;
@@ -1422,18 +1417,20 @@
                 if (lastGift) {
                   const gv = getGiftValueAndTitle(lastGift);
                   // Build normalized template, remove legacy verbose phrasing, ensure single leading check & free shipping mention
-                  let tpl = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ You\'re getting free shipping + {{ title }} ({{ value }})!';
+                  // New concise, human message – play on psychology: certainty + reward flair
+                  let tpl = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + {{ title }} are yours';
                   if (/All rewards unlocked!?/i.test(tpl)) {
                     tpl = tpl.replace(/All rewards unlocked!?/ig,'').trim();
                   }
                   if (!/free shipping/i.test(tpl)) {
-                    tpl = 'You\'re getting free shipping + ' + tpl.replace(/^✓\s*/,'');
+                    tpl = '✓ Free shipping + ' + tpl.replace(/^✓\s*/,'');
                   }
                   if (!/^✓/.test(tpl)) tpl = '✓ ' + tpl;
                   tpl = tpl.replace(/\+\s*\+/g,'+').replace(/\s{2,}/g,' ').replace(/\s*\+\s*/g,' + ');
                   let out = tpl
                     .replace(/\{\{\s*title\s*\}\}/g, gv.title)
                     .replace(/\{title\}/g, gv.title)
+                    // Remove any leftover value placeholders (we no longer show shipping-inflated savings)
                     .replace(/\{\{\s*value\s*\}\}/g, gv.value)
                     .replace(/\{value\}/g, gv.value)
                     .replace(/\bworth\s+\(/i,'(');
@@ -4292,30 +4289,19 @@
     }
 
     processGiftNoticeTemplate(template, giftItemsTotal, giftItems = []) {
-      // Use fallback message if template is empty or blank
       if (!template || template.trim() === '') {
         return 'Free gift included';
       }
-      
       let processedText = template;
-      
-      // Calculate total savings: gift value + estimated shipping cost
-      const estimatedShippingCents = (this.settings.estimatedShippingCost || 10) * 100; // Convert to cents
-      const totalSavings = giftItemsTotal + estimatedShippingCents;
-      
-      // Replace {amount} or {{amount}} with the total savings amount (gift + shipping)
-      processedText = processedText.replace(/\{\{?\s*amount\s*\}?\}/g, this.formatMoney(totalSavings));
-      
-      // Replace {gift_amount} or {{gift_amount}} with just the gift value
+      // We no longer include shipping savings – {amount} now equals gift total.
+      processedText = processedText.replace(/\{\{?\s*amount\s*\}?\}/g, this.formatMoney(giftItemsTotal));
       processedText = processedText.replace(/\{\{?\s*gift_amount\s*\}?\}/g, this.formatMoney(giftItemsTotal));
-      
-      // Replace {shipping_amount} or {{shipping_amount}} with the estimated shipping cost
-      processedText = processedText.replace(/\{\{?\s*shipping_amount\s*\}?\}/g, this.formatMoney(estimatedShippingCents));
-      
-      // Replace {product} or {{product}} with gift product names (comma-separated if multiple)
+      // Remove any shipping placeholder entirely since shipping estimate removed.
+      processedText = processedText.replace(/\{\{?\s*shipping_amount\s*\}?\}/g, '');
       const giftNames = giftItems.map(item => item.product_title).join(', ');
       processedText = processedText.replace(/\{\{?\s*product\s*\}?\}/g, giftNames);
-      
+      // Clean up double spaces or trailing punctuation from removed tokens
+      processedText = processedText.replace(/\s{2,}/g,' ').trim().replace(/\s+\)/g,')');
       return processedText;
     }
 
