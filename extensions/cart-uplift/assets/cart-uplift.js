@@ -1001,8 +1001,11 @@
           
           <div class="cartuplift-footer">
             ${giftItemsTotal > 0 ? `
-            <div class="cartuplift-gift-notice" style="margin-bottom:8px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 12px; color: #666;">
-              🎁 ${this.processGiftNoticeTemplate(this.settings.giftNoticeText, giftItemsTotal, giftItems)}
+            <div class="cartuplift-gift-notice" style="margin-bottom:8px; font-size: 12px; color: #666; display: flex; align-items: center; gap: 4px;">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="#000" style="width: 14px; height: 14px; flex-shrink: 0;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
+              </svg>
+              <span>${this.processGiftNoticeTemplate(this.settings.giftNoticeText, giftItemsTotal, giftItems)}</span>
             </div>
             ` : ''}
             ${hasDiscount ? `
@@ -1067,7 +1070,7 @@
       return sortedItems.map((item, displayIndex) => {
         const isGift = item.properties && item.properties._is_gift === 'true';
         // Gift icon: stroke uses currentColor. We'll color it with the button color via CSS.
-  const giftIcon = '<span class="cartuplift-gift-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="16" height="16" focusable="false"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" /></svg></span>';
+  const giftIcon = '<span class="cartuplift-gift-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" /></svg></span>';
   const displayTitle = isGift ? (`<span class="cartuplift-title-text">${item.product_title}</span>` + giftIcon) : item.product_title;
         // For gifts, show either FREE, $0.00, or custom gift price text
         let giftPriceDisplay = this.settings.giftPriceText || 'FREE';
@@ -3222,6 +3225,11 @@
         
         // Recompute visible recommendations against fixed master list whenever cart changes
         this.rebuildRecommendationsFromMaster();
+        
+        // Check gift thresholds after cart data is updated
+        console.log('🎁 Cart Uplift: Checking gift thresholds after cart fetch...');
+        await this.checkAndAddGiftThresholds();
+        
       } catch (error) {
         console.error('🛒 Error fetching cart:', error);
         this.cart = { items: [], item_count: 0, total_price: 0 };
@@ -3516,6 +3524,8 @@
     }
 
     updateDrawerContent() {
+      console.log('🛒 updateDrawerContent called');
+      
       // Always update sticky cart counters even if the drawer isn't mounted
       try {
         const countEl = document.querySelector('.cartuplift-sticky-count');
@@ -3550,9 +3560,6 @@
       }
       
   // Sticky cart already updated above
-      
-      // Check gift thresholds and auto-add gifts if needed
-      this.checkAndAddGiftThresholds();
       
       // Only refresh layout if recommendations are loaded (filtering handled elsewhere)
       if (this.settings.enableRecommendations && this._recommendationsLoaded) {
@@ -3603,22 +3610,55 @@
 
     // Check if gift thresholds have been reached and auto-add gift products
     async checkAndAddGiftThresholds() {
-      if (!this.settings.enableGiftGating || !this.settings.giftThresholds || !this.cart) {
+      console.log('🎁 Gift threshold check starting:', {
+        enableGiftGating: this.settings.enableGiftGating,
+        hasThresholds: !!this.settings.giftThresholds,
+        hasCart: !!this.cart,
+        suppressAutoAdd: this.settings.suppressAutoAdd,
+        giftThresholdsValue: this.settings.giftThresholds
+      });
+      
+      if (!this.settings.enableGiftGating) {
+        console.log('🎁 Gift gating disabled');
+        return;
+      }
+      
+      if (!this.settings.giftThresholds) {
+        console.log('🎁 No gift thresholds configured');
+        return;
+      }
+      
+      if (!this.cart) {
+        console.log('🎁 No cart available');
         return;
       }
 
       // Skip auto-add in design mode (Theme Editor)
       if (this.settings.suppressAutoAdd) {
+        console.log('🎁 Gift threshold check suppressed (design mode)');
         return;
       }
 
       try {
         const giftThresholds = JSON.parse(this.settings.giftThresholds);
-        if (!Array.isArray(giftThresholds) || giftThresholds.length === 0) {
+        console.log('🎁 Parsed gift thresholds:', giftThresholds);
+        
+        if (!Array.isArray(giftThresholds)) {
+          console.log('🎁 Gift thresholds is not an array:', typeof giftThresholds);
+          return;
+        }
+        
+        if (giftThresholds.length === 0) {
+          console.log('🎁 Gift thresholds array is empty');
           return;
         }
 
         const currentTotal = this.getDisplayedTotalCents();
+        console.log('🎁 Gift threshold processing:', {
+          currentTotal: currentTotal / 100,
+          thresholds: giftThresholds,
+          cartItems: this.cart.items.length
+        });
 
         for (const threshold of giftThresholds) {
           // Only process product type gifts that have a product ID
@@ -3628,6 +3668,8 @@
 
           const thresholdAmount = (threshold.amount || 0) * 100; // Convert to pence
           const hasReachedThreshold = currentTotal >= thresholdAmount;
+          
+          console.log(`🎁 Checking threshold: ${threshold.title} ($${threshold.amount}) - Current: $${currentTotal/100} - Reached: ${hasReachedThreshold}`);
           
           // Extract numeric product ID for comparison
           let numericProductId = threshold.productId;
@@ -3653,19 +3695,26 @@
             }
           }
 
+          console.log(`🎁 Item quantities - Total: ${totalQuantity}, Gift: ${giftQuantity}, Paid: ${paidQuantity}`);
+
           if (hasReachedThreshold) {
             if (totalQuantity === 0) {
               // Product not in cart - add 1 as gift
+              console.log('🎁 Adding new gift to cart');
               await this.addGiftToCart(threshold);
             } else if (giftQuantity === 0) {
               // Product in cart but no gift version - need to add gift line or convert 1 item
               if (paidQuantity === 1) {
                 // Convert the single paid item to gift
+                console.log('🎁 Converting single paid item to gift');
                 await this.convertItemToGift(existingCartItems[0], threshold);
               } else if (paidQuantity > 1) {
                 // Split: reduce paid quantity by 1, add 1 gift
+                console.log('🎁 Splitting paid item to add 1 gift');
                 await this.splitItemAddGift(existingCartItems[0], threshold);
               }
+            } else {
+              console.log('🎁 Gift already exists, no action needed');
             }
             // If giftQuantity > 0, gift already exists, do nothing
           } else if (!hasReachedThreshold && giftQuantity > 0) {
@@ -3679,6 +3728,7 @@
         }
       } catch (error) {
         console.error('🎁 Error checking gift thresholds:', error);
+        console.log('🎁 Raw gift thresholds setting:', this.settings.giftThresholds);
       }
     }
 
