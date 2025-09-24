@@ -112,9 +112,8 @@
           // Combined success text (when all rewards are achieved)
           allRewardsAchievedText: {{ block.settings.all_rewards_success_message | json }},
 
-          // Gift-only value progress message and updated notice
+          // Gift-only value progress message
           giftValueProgressText: {{ block.settings.gift_value_progress_message | json }},
-          giftUpdatedMessage: {{ block.settings.gift_updated_message | json }},
           giftPriceText: {{ block.settings.gift_price_text | json }},
           giftNoticeText: {{ block.settings.gift_notice_text | json }},
 
@@ -479,13 +478,7 @@
       "default": "Add {amount} more, save {value} on {title}",
       "info": "Use {amount}, {value}, and {title}. Title will be truncated automatically for long names."
     },
-    {
-      "type": "text",
-      "id": "gift_updated_message",
-      "label": "Gift updated notice",
-      "default": "Gift reward has been updated!",
-      "info": "Shown if the gift reward changes while a shopper is mid-session."
-    },
+
     {
       "type": "text",
       "id": "gift_notice_text",
@@ -558,13 +551,7 @@
       "default": "#ffffff",
       "info": "Text color on sticky cart button"
     },
-    {
-      "type": "color",
-      "id": "count_badge_color",
-      "label": "Count Badge Color",
-      "default": "#ff4444",
-      "info": "Background color of item count badge"
-    },
+
     {
       "type": "range",
       "id": "border_radius",
