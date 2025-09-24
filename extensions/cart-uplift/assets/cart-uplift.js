@@ -76,7 +76,7 @@
       this.settings.giftPriceText = this.settings.giftPriceText || 'FREE';
   // Combined success template (merchant-editable via app embed)
   // Updated concise default with parentheses for value; ensures explicit free shipping phrasing.
-  this.settings.combinedSuccessTemplate = this.settings.allRewardsAchievedText || '✓ You\'ve saved {{ value }}!';
+  this.settings.combinedSuccessTemplate = this.settings.allRewardsAchievedText || '✓ You\'ve saved {value}!';
       
       this.cart = null;
       this.isOpen = false;
