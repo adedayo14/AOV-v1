@@ -69,14 +69,13 @@
       this.settings.autoOpenCart = this.settings.autoOpenCart !== false;
       this.settings.enableTitleCaps = Boolean(this.settings.enableTitleCaps);
       
-      // Set default gift notice text if not provided
-      this.settings.giftNoticeText = this.settings.giftNoticeText || 'You\'ve saved {amount}!';
+  // Set default gift notice text if not provided (now purely gift oriented, no shipping savings wording)
+  this.settings.giftNoticeText = this.settings.giftNoticeText || 'Free gift added';
       
       // Set default gift price text if not provided
       this.settings.giftPriceText = this.settings.giftPriceText || 'FREE';
-  // Combined success template (merchant-editable via app embed)
-  // Updated concise default with parentheses for value; ensures explicit free shipping phrasing.
-  this.settings.combinedSuccessTemplate = this.settings.allRewardsAchievedText || '✓ You\'ve saved {value}!';
+  // Combined success template – simplified human tone, no numeric savings inflation
+  this.settings.combinedSuccessTemplate = this.settings.allRewardsAchievedText || '✓ Free shipping + {{ title }} unlocked';
       
       this.cart = null;
       this.isOpen = false;
@@ -1418,7 +1417,7 @@
                   const gv = getGiftValueAndTitle(lastGift);
                   // Build normalized template, remove legacy verbose phrasing, ensure single leading check & free shipping mention
                   // New concise, human message – play on psychology: certainty + reward flair
-                  let tpl = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + {{ title }} are yours';
+                  let tpl = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + {{ title }}';
                   if (/All rewards unlocked!?/i.test(tpl)) {
                     tpl = tpl.replace(/All rewards unlocked!?/ig,'').trim();
                   }
@@ -1431,8 +1430,8 @@
                     .replace(/\{\{\s*title\s*\}\}/g, gv.title)
                     .replace(/\{title\}/g, gv.title)
                     // Remove any leftover value placeholders (we no longer show shipping-inflated savings)
-                    .replace(/\{\{\s*value\s*\}\}/g, gv.value)
-                    .replace(/\{value\}/g, gv.value)
+                    .replace(/\{\{\s*value\s*\}\}/g, '')
+                    .replace(/\{value\}/g, '')
                     .replace(/\bworth\s+\(/i,'(');
                   out = out
                     .replace(/\{\{?\s*(title|value)\s*\}?\}/g,'')
@@ -1445,7 +1444,7 @@
                 }
               }
               // No lastGift case (rare) – fallback generic
-              let base = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ You\'re getting free shipping + your gift unlocked!';
+              let base = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + gift unlocked';
               if (/All rewards unlocked!?/i.test(base)) base = base.replace(/All rewards unlocked!?/ig,'').trim();
               if (!/free shipping/i.test(base)) base = '✓ You\'re getting free shipping + ' + base.replace(/^✓\s*/,'');
               base = base.replace(/\s{2,}/g,' ').replace(/\+\s*\+/g,'+').replace(/\s*\+\s*/g,' + ');
