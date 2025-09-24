@@ -2,11 +2,11 @@
   "name": "cart-uplift-app",
   "private": true,
   "scripts": {
-  "build": "if [ -n \"$DATABASE_DATABASE_URL\" ]; then cp prisma/schema.production.prisma prisma/schema.prisma && prisma generate && prisma db push; else echo 'Skipping Prisma steps (no DATABASE_DATABASE_URL)'; fi && remix vite:build",
+    "build": "if [ -n \"$DATABASE_DATABASE_URL\" ]; then cp prisma/schema.production.prisma prisma/schema.prisma && prisma generate && prisma db push; else echo 'Skipping Prisma steps (no DATABASE_DATABASE_URL)'; fi && remix vite:build",
     "dev": "shopify app dev",
-  "clean": "rm -rf node_modules build",
-  "db:reset": "prisma migrate reset --force --skip-seed",
-  "reset": "npm run clean && npm ci && prisma generate && prisma migrate deploy && npm run db:reset && npm run dev",
+    "clean": "rm -rf node_modules build",
+    "db:reset": "prisma migrate reset --force --skip-seed",
+    "reset": "npm run clean && npm ci && prisma generate && prisma migrate deploy && npm run db:reset && npm run dev",
     "config:link": "shopify app config link",
     "generate": "shopify app generate",
     "deploy": "shopify app deploy",
@@ -28,7 +28,7 @@
     "node": "^18.20 || ^20.10 || >=21.0.0"
   },
   "dependencies": {
-    "@prisma/client": "^6.14.0",
+    "@prisma/client": "6.16.2",
     "@remix-run/dev": "^2.16.1",
     "@remix-run/fs-routes": "^2.16.1",
     "@remix-run/node": "^2.16.1",
@@ -54,7 +54,7 @@
     "eslint": "^8.42.0",
     "eslint-config-prettier": "^10.0.1",
     "prettier": "^3.2.4",
-    "prisma": "^6.14.0",
+    "prisma": "6.16.2",
     "typescript": "^5.2.2",
     "vite": "^6.2.2"
   },
