@@ -74,9 +74,9 @@
       
       // Set default gift price text if not provided
       this.settings.giftPriceText = this.settings.giftPriceText || 'FREE';
-  // Combined success template – simplified human tone, no numeric savings inflation
-  // Final: Free shipping + item (amount) is on us
-  this.settings.combinedSuccessTemplate = this.settings.allRewardsAchievedText || '✓ Free shipping + {{ title }} ({{ value }}) is on us';
+  // Combined success template – show product but no savings amount (shown in promotion section)  
+  // Keep product name but remove value to avoid duplication
+  this.settings.combinedSuccessTemplate = this.settings.allRewardsAchievedText || '✓ Free shipping + {{ product_name }} added free';
       
       this.cart = null;
       this.isOpen = false;
@@ -1147,14 +1147,22 @@
           const achieved = remainingCents === 0 || (currentTotal >= threshold.amount);
           const thresholdLabel = this.formatMoney(Math.round(threshold.amount * 100));
           const msg = achieved
-            ? (this.settings.giftAchievedText || '🎉 {{ title }} unlocked!')
+            ? (this.settings.giftAchievedText || '🎉 {{ product_name }} unlocked!')
                 .replace(/\{\{\s*title\s*\}\}/g, String(threshold.title || 'Gift'))
                 .replace(/\{title\}/g, String(threshold.title || 'Gift'))
-            : (this.settings.giftProgressText || 'Spend {{ amount }} more to unlock {{ title }}!')
+                .replace(/\{\{\s*product_name\s*\}\}/g, String(threshold.title || 'Gift'))
+                .replace(/\{product_name\}/g, String(threshold.title || 'Gift'))
+                .replace(/\{\{\s*product\s*\}\}/g, String(threshold.title || 'Gift'))
+                .replace(/\{product\}/g, String(threshold.title || 'Gift'))
+            : (this.settings.giftProgressText || 'Spend {{ amount }} more to unlock {{ product_name }}!')
                 .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(remainingCents))
                 .replace(/\{amount\}/g, this.formatMoney(remainingCents))
                 .replace(/\{\{\s*title\s*\}\}/g, String(threshold.title || 'Gift'))
-                .replace(/\{title\}/g, String(threshold.title || 'Gift'));
+                .replace(/\{title\}/g, String(threshold.title || 'Gift'))
+                .replace(/\{\{\s*product_name\s*\}\}/g, String(threshold.title || 'Gift'))
+                .replace(/\{product_name\}/g, String(threshold.title || 'Gift'))
+                .replace(/\{\{\s*product\s*\}\}/g, String(threshold.title || 'Gift'))
+                .replace(/\{product\}/g, String(threshold.title || 'Gift'));
           
           return `
             <div class="cartuplift-section cartuplift-section--gift">
@@ -1332,15 +1340,23 @@
         const giftMsg = (t) => {
           if (!t) return '';
           const remaining = Math.max(0, Math.round(t.amount*100) - currentCents);
-          return (this.settings.giftProgressText || 'Add {{ amount }} to unlock {{ title }}')
+          return (this.settings.giftProgressText || 'Add {{ amount }} to unlock {{ product_name }}')
               .replace(/\{\{\s*amount\s*\}\}/g, formatMoney(remaining))
               .replace(/\{amount\}/g, formatMoney(remaining))
               .replace(/\{\{\s*title\s*\}\}/g, String(t.title || 'reward'))
-              .replace(/\{title\}/g, String(t.title || 'reward'));
+              .replace(/\{title\}/g, String(t.title || 'reward'))
+              .replace(/\{\{\s*product_name\s*\}\}/g, String(t.title || 'reward'))
+              .replace(/\{product_name\}/g, String(t.title || 'reward'))
+              .replace(/\{\{\s*product\s*\}\}/g, String(t.title || 'reward'))
+              .replace(/\{product\}/g, String(t.title || 'reward'));
         };
-        const giftSuccess = (t) => (this.settings.giftAchievedText || '✓ {{ title }} unlocked!')
+        const giftSuccess = (t) => (this.settings.giftAchievedText || '✓ {{ product_name }} unlocked!')
               .replace(/\{\{\s*title\s*\}\}/g, String(t?.title || 'reward'))
-              .replace(/\{title\}/g, String(t?.title || 'reward'));
+              .replace(/\{title\}/g, String(t?.title || 'reward'))
+              .replace(/\{\{\s*product_name\s*\}\}/g, String(t?.title || 'reward'))
+              .replace(/\{product_name\}/g, String(t?.title || 'reward'))
+              .replace(/\{\{\s*product\s*\}\}/g, String(t?.title || 'reward'))
+              .replace(/\{product\}/g, String(t?.title || 'reward'));
 
         const getGiftValueAndTitle = (t) => {
           try {
@@ -1418,7 +1434,7 @@
                   const gv = getGiftValueAndTitle(lastGift);
                   // Build normalized template, remove legacy verbose phrasing, ensure single leading check & free shipping mention
                   // New concise, human message – play on psychology: certainty + reward flair
-                  let tpl = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + {{ title }} ({{ value }}) is on us';
+                  let tpl = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + {{ product_name }} added free';
                   if (/All rewards unlocked!?/i.test(tpl)) {
                     tpl = tpl.replace(/All rewards unlocked!?/ig,'').trim();
                   }
@@ -1430,12 +1446,16 @@
                   let out = tpl
                     .replace(/\{\{\s*title\s*\}\}/g, gv.title)
                     .replace(/\{title\}/g, gv.title)
+                    .replace(/\{\{\s*product_name\s*\}\}/g, gv.title)
+                    .replace(/\{product_name\}/g, gv.title)
+                    .replace(/\{\{\s*product\s*\}\}/g, gv.title)
+                    .replace(/\{product\}/g, gv.title)
                     // Remove any leftover value placeholders (we no longer show shipping-inflated savings)
                     .replace(/\{\{\s*value\s*\}\}/g, gv.value)
                     .replace(/\{value\}/g, gv.value)
                     .replace(/\bworth\s+\(/i,'(');
                   out = out
-                    .replace(/\{\{?\s*(title|value)\s*\}?\}/g,'')
+                    .replace(/\{\{?\s*(title|value|product_name|product)\s*\}?\}/g,'')
                     .replace(/\s{2,}/g,' ')
                     .replace(/\(\s*\)/g,'')
                     .replace(/\s*!/g,'!')
@@ -1445,7 +1465,7 @@
                 }
               }
               // No lastGift case (rare) – fallback generic
-              let base = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + gift ({{ value }}) is on us';
+              let base = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + gift added free';
               if (/All rewards unlocked!?/i.test(base)) base = base.replace(/All rewards unlocked!?/ig,'').trim();
               if (!/free shipping/i.test(base)) base = '✓ Free shipping + ' + base.replace(/^✓\s*/,'');
               base = base.replace(/\s{2,}/g,' ').replace(/\+\s*\+/g,'+').replace(/\s*\+\s*/g,' + ');
@@ -1519,17 +1539,21 @@
             // Use "free gift" for mobile instead of full product name for compactness
             const title = 'free gift';
             // Compact success message for mobile
-            msg = (this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + free gift ({{ value }}) is on us');
+            msg = (this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + free gift added free');
             if (/All rewards unlocked!?/i.test(msg)) msg = msg.replace(/All rewards unlocked!?/ig,'').trim();
             if (!/free shipping/i.test(msg)) msg = '✓ Free shipping + ' + msg.replace(/^✓\s*/,'');
             if (!/^✓/.test(msg)) msg = '✓ ' + msg;
             msg = msg
               .replace(/\{\{\s*title\s*\}\}/g, title)
               .replace(/\{title\}/g, title)
+              .replace(/\{\{\s*product_name\s*\}\}/g, title)
+              .replace(/\{product_name\}/g, title)
+              .replace(/\{\{\s*product\s*\}\}/g, title)
+              .replace(/\{product\}/g, title)
               .replace(/\{\{\s*value\s*\}\}/g, value)
               .replace(/\{value\}/g, value)
               .replace(/\bworth\s+\(/i,'(')
-              .replace(/\{\{?\s*(title|value)\s*\}?\}/g,'')
+              .replace(/\{\{?\s*(title|value|product_name|product)\s*\}?\}/g,'')
               .replace(/\s{2,}/g,' ')
               .replace(/\(\s*\)/g,'')
               .replace(/\s*!/g,'!')
@@ -1561,11 +1585,19 @@
             ? (this.settings.giftAchievedText || '🎉 Free gift unlocked!')
                 .replace(/\{\{\s*title\s*\}\}/g, 'Free gift')
                 .replace(/\{title\}/g, 'Free gift')
+                .replace(/\{\{\s*product_name\s*\}\}/g, 'Free gift')
+                .replace(/\{product_name\}/g, 'Free gift')
+                .replace(/\{\{\s*product\s*\}\}/g, 'Free gift')
+                .replace(/\{product\}/g, 'Free gift')
             : (this.settings.giftProgressText || 'Spend {{ amount }} more for free gift!')
                 .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(remaining))
                 .replace(/\{amount\}/g, this.formatMoney(remaining))
                 .replace(/\{\{\s*title\s*\}\}/g, 'free gift')
-                .replace(/\{title\}/g, 'free gift');
+                .replace(/\{title\}/g, 'free gift')
+                .replace(/\{\{\s*product_name\s*\}\}/g, 'free gift')
+                .replace(/\{product_name\}/g, 'free gift')
+                .replace(/\{\{\s*product\s*\}\}/g, 'free gift')
+                .replace(/\{product\}/g, 'free gift');
           show = true;
         }
 
