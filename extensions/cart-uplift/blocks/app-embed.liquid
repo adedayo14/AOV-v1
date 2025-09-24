@@ -70,6 +70,7 @@
           // Gift-only value progress message and updated notice
           giftValueProgressText: {{ block.settings.gift_value_progress_message | json }},
           giftUpdatedMessage: {{ block.settings.gift_updated_message | json }},
+          giftPriceText: {{ block.settings.gift_price_text | json }},
 
           // Sticky cart (use built-in styles and rendering in cart-uplift.js)
           enableStickyCart: {{ block.settings.enable_sticky_cart | json }},
@@ -410,6 +411,13 @@
       "label": "Gift success message",
       "default": "🎉 {title} unlocked!",
       "info": "Use {title} placeholder"
+    },
+    {
+      "type": "text",
+      "id": "gift_price_text",
+      "label": "Gift price display",
+      "default": "FREE",
+      "info": "Text to show for gift prices. Use 'FREE' or '$0.00'"
     },
     {
       "type": "text",
