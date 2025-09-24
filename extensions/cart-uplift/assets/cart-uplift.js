@@ -1324,7 +1324,7 @@
         const freeMsg = () => {
           if (!freeThresholdCents) return '';
           const remaining = Math.max(0, freeThresholdCents - currentCents);
-          return (this.settings.freeShippingText || 'Add {{ amount }} for free shipping')
+          return (this.settings.freeShippingText || "You're {{ amount }} away from free shipping!")
             .replace(/\{\{\s*amount\s*\}\}/g, formatMoney(remaining))
             .replace(/\{amount\}/g, formatMoney(remaining));
         };
@@ -1358,19 +1358,11 @@
           } catch { return { value: '', title: '' }; }
         };
 
-        // Near-threshold emphasis color
-        const nearColor = '#f59e0b';
-        const baseMsgColor = shippingColor;
+        // Colors now handled by CSS for consistent black styling
 
         const renderMessage = (text, remainingCents, thresholdCents) => {
-          let style = `color:${baseMsgColor}; font-weight:500;`;
-          if (thresholdCents && remainingCents != null && thresholdCents > 0) {
-            const ratio = remainingCents / thresholdCents;
-            if (ratio <= 0.2 && remainingCents > 0) {
-              style = `color:${nearColor}; font-weight:600;`;
-            }
-          }
-          return `<span class="cartuplift-progress-message" style="${style}">${text}</span>`;
+          // Use CSS class instead of inline styles for consistent black color
+          return `<span class="cartuplift-progress-message cartuplift-progress-text">${text}</span>`;
         };
 
         // Build scenarios
@@ -1467,8 +1459,8 @@
               successTopRowHTML = `<div class="cartuplift-progress-toprow"><span class="cartuplift-success-badge">${freeSuccess}</span>${topNote ? `<span class="cartuplift-next-note">${topNote}</span>` : ''}</div>`;
               widthPct = Math.min(100, (currentCents / nextGiftCents) * 100);
               labelRight = formatMoney(nextGiftCents);
-              // gradient fill to signal tier 2
-              fillStyle = `background: linear-gradient(90deg, ${shippingColor} 0%, ${nearColor} 100%);`;
+              // solid fill for tier 2
+              fillStyle = `background: ${shippingColor};`;
               messageHTML = renderMessage(giftMsg(nextGift), giftRemaining, nextGiftCents);
             }
           }

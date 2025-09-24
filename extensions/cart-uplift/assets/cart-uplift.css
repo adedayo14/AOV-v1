@@ -2685,9 +2685,9 @@ body.cartuplift-no-scroll {
    Gift Item Styling
    ======================================== */
 .cartuplift-gift-item {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border: 1px solid var(--cartuplift-primary, #121212);
-  border-radius: 8px;
+  /* background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); */
+  /* border: 1px solid var(--cartuplift-primary, #121212); */
+  border-radius: 0px;
   position: relative;
 }
 
