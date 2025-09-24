@@ -1056,8 +1056,14 @@
         `;
       }
       
+      // Combine real cart items with preview gift items for design mode
+      let allItems = [...this.cart.items];
+      if (this._previewGiftItems && this._previewGiftItems.length > 0) {
+        allItems = [...this._previewGiftItems, ...this.cart.items];
+      }
+      
       // Sort items to put gift items at the top
-      const sortedItems = [...this.cart.items].sort((a, b) => {
+      const sortedItems = allItems.sort((a, b) => {
         const aIsGift = a.properties && a.properties._is_gift === 'true';
         const bIsGift = b.properties && b.properties._is_gift === 'true';
         
@@ -1083,13 +1089,19 @@
         const displayPrice = isGift ? giftPriceDisplay : this.formatMoney(item.final_price);
         
         // Find the original line number from the unsorted cart
-        const originalLineNumber = this.cart.items.findIndex(originalItem => 
-          originalItem.id === item.id || 
-          (originalItem.variant_id === item.variant_id && originalItem.key === item.key)
-        ) + 1;
+        // Handle preview items differently from real cart items
+        const isPreviewItem = this._previewGiftItems && this._previewGiftItems.includes(item);
+        let originalLineNumber = 0;
+        
+        if (!isPreviewItem) {
+          originalLineNumber = this.cart.items.findIndex(originalItem => 
+            originalItem.id === item.id || 
+            (originalItem.variant_id === item.variant_id && originalItem.key === item.key)
+          ) + 1;
+        }
         
         return `
-        <div class="cartuplift-item${isGift ? ' cartuplift-gift-item' : ''}" data-variant-id="${item.variant_id}" data-line="${originalLineNumber}">
+        <div class="cartuplift-item${isGift ? ' cartuplift-gift-item' : ''}${isPreviewItem ? ' cartuplift-preview-item' : ''}" data-variant-id="${item.variant_id || ''}" data-line="${originalLineNumber}">
           <div class="cartuplift-item-image">
             <img src="${item.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${item.product_title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
           </div>
@@ -1100,15 +1112,15 @@
             ${this.getVariantOptionsHTML(item)}
             <div class="cartuplift-item-quantity-wrapper">
               <div class="cartuplift-quantity">
-                <button class="cartuplift-qty-minus" data-line="${originalLineNumber}"${isGift ? ' style="display:none;"' : ''}>−</button>
+                <button class="cartuplift-qty-minus" data-line="${originalLineNumber}"${isGift || isPreviewItem ? ' style="display:none;"' : ''}>−</button>
                 <span class="cartuplift-qty-display">${item.quantity}</span>
-                <button class="cartuplift-qty-plus" data-line="${originalLineNumber}"${isGift ? ' style="display:none;"' : ''}>+</button>
+                <button class="cartuplift-qty-plus" data-line="${originalLineNumber}"${isGift || isPreviewItem ? ' style="display:none;"' : ''}>+</button>
               </div>
             </div>
           </div>
           <div class="cartuplift-item-price-actions">
             <div class="cartuplift-item-price${isGift ? ' cartuplift-gift-price' : ''}">${displayPrice}</div>
-            <button class="cartuplift-item-remove-x" data-line="${originalLineNumber}" aria-label="Remove item"${isGift ? ' style="display:none;"' : ''}>
+            <button class="cartuplift-item-remove-x" data-line="${originalLineNumber}" aria-label="Remove item"${isGift || isPreviewItem ? ' style="display:none;"' : ''}>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M9 6V4h6v2m-9 0 1 14h10l1-14H6z"/>
               </svg>
@@ -3633,10 +3645,11 @@
         return;
       }
 
-      // Skip auto-add in design mode (Theme Editor)
-      if (this.settings.suppressAutoAdd) {
-        console.log('🎁 Gift threshold check suppressed (design mode)');
-        return;
+      // In design mode, show preview without actually modifying cart
+      const isDesignMode = this.settings.suppressAutoAdd;
+      if (isDesignMode) {
+        console.log('🎁 Design mode: showing gift preview without cart modification');
+        return this.checkAndShowGiftPreview();
       }
 
       try {
@@ -3729,6 +3742,58 @@
       } catch (error) {
         console.error('🎁 Error checking gift thresholds:', error);
         console.log('🎁 Raw gift thresholds setting:', this.settings.giftThresholds);
+      }
+    }
+
+    // Show gift preview in design mode without modifying cart
+    async checkAndShowGiftPreview() {
+      if (!this.settings.giftThresholds) return;
+      
+      try {
+        const giftThresholds = JSON.parse(this.settings.giftThresholds);
+        if (!Array.isArray(giftThresholds) || giftThresholds.length === 0) return;
+
+        const currentTotal = this.getDisplayedTotalCents();
+        console.log('🎁 Design mode preview - Current total:', currentTotal / 100);
+
+        // Find eligible gifts for preview
+        const eligibleGifts = [];
+        for (const threshold of giftThresholds) {
+          if (threshold.type !== 'product' || !threshold.productId || !threshold.productHandle) continue;
+          
+          const thresholdAmount = (threshold.amount || 0) * 100;
+          const hasReachedThreshold = currentTotal >= thresholdAmount;
+          
+          if (hasReachedThreshold) {
+            eligibleGifts.push({
+              title: threshold.title || 'Gift Item',
+              amount: threshold.amount || 0
+            });
+          }
+        }
+
+        // Simulate gift items in cart for preview
+        if (eligibleGifts.length > 0) {
+          console.log('🎁 Design mode: Showing preview for', eligibleGifts.length, 'eligible gifts');
+          
+          // Create fake gift items for preview
+          this._previewGiftItems = eligibleGifts.map(gift => ({
+            product_title: gift.title,
+            price: 0,
+            quantity: 1,
+            properties: { 
+              _is_gift: 'true',
+              _gift_title: gift.title,
+              _original_price: gift.amount * 100
+            }
+          }));
+          
+          // Update drawer to show preview
+          this.updateDrawerContent();
+        }
+        
+      } catch (error) {
+        console.error('🎁 Error in gift preview:', error);
       }
     }
 
