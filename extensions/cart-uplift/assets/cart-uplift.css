@@ -334,9 +334,16 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-progress-message {
-  font-size: 10px;
+  font-size: 12px !important;
   color: #111111; /* Changed from green to black for standard progress text */
   font-weight: 500;
+}
+
+.cartuplift-progress-text {
+  font-size: 12px !important;
+  color: #121212 !important;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .cartuplift-progress-threshold {
@@ -533,7 +540,7 @@ body.cartuplift-no-scroll {
   background: #000000; /* Force black for next-goal bar */
 }
 
-.cartuplift-progress-text {
+.cartuplift-next-reward-text {
   font-size: 10px;
   color: #666;
   text-align: right;
@@ -545,7 +552,10 @@ body.cartuplift-no-scroll {
     padding: 0 12px 8px;
   }
   .cartuplift-progress-message {
-    font-size: 11px;
+    font-size: 10px !important;
+  }
+  .cartuplift-progress-text {
+    font-size: 10px !important;
   }
   .cartuplift-gift-progress-container {
     padding: 0 12px 6px;

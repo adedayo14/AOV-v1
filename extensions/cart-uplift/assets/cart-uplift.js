@@ -70,7 +70,7 @@
       this.settings.enableTitleCaps = Boolean(this.settings.enableTitleCaps);
       
       // Set default gift notice text if not provided
-      this.settings.giftNoticeText = this.settings.giftNoticeText || 'You\'ve saved {{amount}}!';
+      this.settings.giftNoticeText = this.settings.giftNoticeText || 'You\'ve saved {amount}!';
       
       // Set default gift price text if not provided
       this.settings.giftPriceText = this.settings.giftPriceText || 'FREE';
@@ -4303,18 +4303,18 @@
       const estimatedShippingCents = (this.settings.estimatedShippingCost || 10) * 100; // Convert to cents
       const totalSavings = giftItemsTotal + estimatedShippingCents;
       
-      // Replace {{amount}} with the total savings amount (gift + shipping)
-      processedText = processedText.replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(totalSavings));
+      // Replace {amount} or {{amount}} with the total savings amount (gift + shipping)
+      processedText = processedText.replace(/\{\{?\s*amount\s*\}?\}/g, this.formatMoney(totalSavings));
       
-      // Replace {{gift_amount}} with just the gift value
-      processedText = processedText.replace(/\{\{\s*gift_amount\s*\}\}/g, this.formatMoney(giftItemsTotal));
+      // Replace {gift_amount} or {{gift_amount}} with just the gift value
+      processedText = processedText.replace(/\{\{?\s*gift_amount\s*\}?\}/g, this.formatMoney(giftItemsTotal));
       
-      // Replace {{shipping_amount}} with the estimated shipping cost
-      processedText = processedText.replace(/\{\{\s*shipping_amount\s*\}\}/g, this.formatMoney(estimatedShippingCents));
+      // Replace {shipping_amount} or {{shipping_amount}} with the estimated shipping cost
+      processedText = processedText.replace(/\{\{?\s*shipping_amount\s*\}?\}/g, this.formatMoney(estimatedShippingCents));
       
-      // Replace {{product}} with gift product names (comma-separated if multiple)
+      // Replace {product} or {{product}} with gift product names (comma-separated if multiple)
       const giftNames = giftItems.map(item => item.product_title).join(', ');
-      processedText = processedText.replace(/\{\{\s*product\s*\}\}/g, giftNames);
+      processedText = processedText.replace(/\{\{?\s*product\s*\}?\}/g, giftNames);
       
       return processedText;
     }
