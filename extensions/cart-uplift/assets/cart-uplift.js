@@ -3753,13 +3753,30 @@
         const giftThresholds = JSON.parse(this.settings.giftThresholds);
         if (!Array.isArray(giftThresholds) || giftThresholds.length === 0) return;
 
-        const currentTotal = this.getDisplayedTotalCents();
-        console.log('🎁 Design mode preview - Current total:', currentTotal / 100);
+        // In design mode, simulate a cart total that would trigger gifts for preview
+        let currentTotal = this.getDisplayedTotalCents();
+        
+        // If cart is empty in design mode, simulate reaching the first threshold
+        if (currentTotal === 0) {
+          const validThresholds = giftThresholds
+            .filter(t => t.type === 'product' && t.type !== 'free_shipping' && t.amount && t.amount > 0)
+            .map(t => t.amount);
+          
+          if (validThresholds.length > 0) {
+            const lowestThreshold = Math.min(...validThresholds);
+            currentTotal = (lowestThreshold + 10) * 100; // Add $10 buffer to ensure threshold is met
+            console.log('🎁 Design mode: Simulating cart total to trigger preview for threshold:', lowestThreshold);
+          }
+        }
+        
+        console.log('🎁 Design mode preview - Current total (simulated):', currentTotal / 100);
 
-        // Find eligible gifts for preview
+        // Find eligible gifts for preview (exclude free shipping only)
         const eligibleGifts = [];
         for (const threshold of giftThresholds) {
+          // Skip free shipping thresholds and non-product thresholds
           if (threshold.type !== 'product' || !threshold.productId || !threshold.productHandle) continue;
+          if (threshold.type === 'free_shipping') continue;
           
           const thresholdAmount = (threshold.amount || 0) * 100;
           const hasReachedThreshold = currentTotal >= thresholdAmount;
