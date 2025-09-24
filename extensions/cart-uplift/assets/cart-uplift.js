@@ -75,7 +75,8 @@
       // Set default gift price text if not provided
       this.settings.giftPriceText = this.settings.giftPriceText || 'FREE';
   // Combined success template – simplified human tone, no numeric savings inflation
-  this.settings.combinedSuccessTemplate = this.settings.allRewardsAchievedText || '✓ Free shipping + {{ title }} unlocked';
+  // Updated requested phrasing: Free shipping = title (value) is on us.
+  this.settings.combinedSuccessTemplate = this.settings.allRewardsAchievedText || '✓ Free shipping = {{ title }} ({{ value }}) is on us';
       
       this.cart = null;
       this.isOpen = false;
@@ -1417,12 +1418,12 @@
                   const gv = getGiftValueAndTitle(lastGift);
                   // Build normalized template, remove legacy verbose phrasing, ensure single leading check & free shipping mention
                   // New concise, human message – play on psychology: certainty + reward flair
-                  let tpl = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + {{ title }}';
+                  let tpl = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping = {{ title }} ({{ value }}) is on us';
                   if (/All rewards unlocked!?/i.test(tpl)) {
                     tpl = tpl.replace(/All rewards unlocked!?/ig,'').trim();
                   }
                   if (!/free shipping/i.test(tpl)) {
-                    tpl = '✓ Free shipping + ' + tpl.replace(/^✓\s*/,'');
+                    tpl = '✓ Free shipping = ' + tpl.replace(/^✓\s*/,'');
                   }
                   if (!/^✓/.test(tpl)) tpl = '✓ ' + tpl;
                   tpl = tpl.replace(/\+\s*\+/g,'+').replace(/\s{2,}/g,' ').replace(/\s*\+\s*/g,' + ');
@@ -1444,9 +1445,9 @@
                 }
               }
               // No lastGift case (rare) – fallback generic
-              let base = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + gift unlocked';
+              let base = this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping = gift ({{ value }}) is on us';
               if (/All rewards unlocked!?/i.test(base)) base = base.replace(/All rewards unlocked!?/ig,'').trim();
-              if (!/free shipping/i.test(base)) base = '✓ You\'re getting free shipping + ' + base.replace(/^✓\s*/,'');
+              if (!/free shipping/i.test(base)) base = '✓ Free shipping = ' + base.replace(/^✓\s*/,'');
               base = base.replace(/\s{2,}/g,' ').replace(/\+\s*\+/g,'+').replace(/\s*\+\s*/g,' + ');
               return base;
             })();
@@ -1518,9 +1519,9 @@
             // Use "free gift" for mobile instead of full product name for compactness
             const title = 'free gift';
             // Compact success message for mobile
-            msg = (this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + free gift ({{ value }})');
+            msg = (this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping = free gift ({{ value }}) is on us');
             if (/All rewards unlocked!?/i.test(msg)) msg = msg.replace(/All rewards unlocked!?/ig,'').trim();
-            if (!/free shipping/i.test(msg)) msg = 'You\'re getting free shipping + ' + msg.replace(/^✓\s*/,'');
+            if (!/free shipping/i.test(msg)) msg = '✓ Free shipping = ' + msg.replace(/^✓\s*/,'');
             if (!/^✓/.test(msg)) msg = '✓ ' + msg;
             msg = msg
               .replace(/\{\{\s*title\s*\}\}/g, title)
