@@ -70,7 +70,7 @@
       this.settings.enableTitleCaps = Boolean(this.settings.enableTitleCaps);
       
       // Set default gift notice text if not provided
-      this.settings.giftNoticeText = this.settings.giftNoticeText || 'Free gift added: {{product}} (worth {{amount}})';
+      this.settings.giftNoticeText = this.settings.giftNoticeText || 'Free gift added (worth {{amount}})';
       
       // Set default gift price text if not provided
       this.settings.giftPriceText = this.settings.giftPriceText || 'FREE';
@@ -996,7 +996,6 @@
                 return this.getInlineLinksHTML();
               })()}
             </div>
-            ${this.getMobileProgressHTML()}
           </div>
           
           <div class="cartuplift-footer">
@@ -1376,7 +1375,7 @@
           } else {
             // If user previously unlocked free shipping this session and dropped below, show maintain message
             if (this._freeShippingHadUnlocked && freeRemaining > 0) {
-              const maintainTemplate = this.settings.freeShippingMaintainText || 'Keep your cart above {threshold} to maintain free shipping';
+              const maintainTemplate = this.settings.freeShippingMaintainText || 'Keep above {threshold} for free shipping';
               const maintainMsg = maintainTemplate
                 .replace(/\{\{\s*threshold\s*\}\}/g, formatMoney(freeThresholdCents))
                 .replace(/\{threshold\}/g, formatMoney(freeThresholdCents));
@@ -1515,11 +1514,10 @@
           if (lastGift) {
             const cents = typeof lastGift.price === 'number' ? lastGift.price : (lastGift.price && lastGift.price.amount ? Math.round(lastGift.price.amount * 100) : null);
             const value = cents != null ? this.formatMoney(cents) : '';
-            const baseTitle = String(lastGift.title || 'gift');
-            const vTitle = (lastGift.variantTitle && lastGift.variantTitle !== 'Default Title') ? ` (${lastGift.variantTitle})` : '';
-            const fullTitle = `${baseTitle}${vTitle}`;
-            const title = fullTitle.length > 30 ? (fullTitle.slice(0, 29) + '…') : fullTitle;
-            msg = (this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ You\'re getting free shipping + {{ title }} ({{ value }})!');
+            // Use "free gift" for mobile instead of full product name for compactness
+            const title = 'free gift';
+            // Compact success message for mobile
+            msg = (this.settings.combinedSuccessTemplate || this.settings.allRewardsAchievedText || '✓ Free shipping + free gift ({{ value }})');
             if (/All rewards unlocked!?/i.test(msg)) msg = msg.replace(/All rewards unlocked!?/ig,'').trim();
             if (!/free shipping/i.test(msg)) msg = 'You\'re getting free shipping + ' + msg.replace(/^✓\s*/,'');
             if (!/^✓/.test(msg)) msg = '✓ ' + msg;
@@ -1536,15 +1534,16 @@
               .trim();
           } else {
             // Fallback when no last gift object is available; keep messaging consistent
+            // Compact fallback message
             msg = (this.settings.allRewardsAchievedText && /free shipping/i.test(this.settings.allRewardsAchievedText))
               ? this.settings.allRewardsAchievedText
-              : '✓ You\'re getting free shipping!';
+              : '✓ Free shipping unlocked!';
           }
         } else if (freeEnabled && !freeAchieved) {
           const thresholdCents = freeThresholdCents; const remaining = freeRemaining;
           progress = Math.min((currentTotalCents / thresholdCents) * 100, 100);
           thresholdLabel = this.formatMoney(thresholdCents);
-          msg = (this.settings.freeShippingText || 'Spend {{ amount }} more for free shipping!')
+          msg = (this.settings.freeShippingText || '{{ amount }} more for free shipping!')
                 .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(remaining))
                 .replace(/\{amount\}/g, this.formatMoney(remaining));
           show = true;
@@ -1555,15 +1554,16 @@
           progress = Math.min((currentTotalCents / nextCents) * 100, 100);
           thresholdLabel = this.formatMoney(nextCents);
           const achieved = remaining === 0 && currentTotalCents >= nextCents;
+          // Use "Free gift" for mobile to keep it compact
           msg = achieved
-            ? (this.settings.giftAchievedText || '🎉 {{ title }} unlocked!')
-                .replace(/\{\{\s*title\s*\}\}/g, String(target.title || 'Gift'))
-                .replace(/\{title\}/g, String(target.title || 'Gift'))
-            : (this.settings.giftProgressText || 'Spend {{ amount }} more to unlock {{ title }}!')
+            ? (this.settings.giftAchievedText || '🎉 Free gift unlocked!')
+                .replace(/\{\{\s*title\s*\}\}/g, 'Free gift')
+                .replace(/\{title\}/g, 'Free gift')
+            : (this.settings.giftProgressText || 'Spend {{ amount }} more for free gift!')
                 .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(remaining))
                 .replace(/\{amount\}/g, this.formatMoney(remaining))
-                .replace(/\{\{\s*title\s*\}\}/g, String(target.title || 'Gift'))
-                .replace(/\{title\}/g, String(target.title || 'Gift'));
+                .replace(/\{\{\s*title\s*\}\}/g, 'free gift')
+                .replace(/\{title\}/g, 'free gift');
           show = true;
         }
 

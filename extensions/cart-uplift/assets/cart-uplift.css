@@ -105,7 +105,7 @@ body.cartuplift-no-scroll {
    Header Section - Compact Design
    ======================================== */
 .cartuplift-header {
-  padding: 12px 16px 8px 16px;
+  padding: 12px 16px 4px 16px;
   background: var(--cartuplift-cart-background);
   flex-shrink: 0;
   display: flex;
@@ -303,18 +303,18 @@ body.cartuplift-no-scroll {
    ======================================== */
 /* New unified progress section */
 .cartuplift-progress-section {
-  padding: 16px 16px;
+  padding: 4px 16px 8px 16px;
   background: var(--cartuplift-background);
   border-bottom: 1px solid #e5e5e5;
 }
 
 .cartuplift-progress-bar {
   width: 100%;
-  height: 6px;
+  height: 3px;
   background: #f0f0f0;
   border-radius: 100px;
   overflow: hidden;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .cartuplift-progress-fill {
@@ -334,7 +334,7 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-progress-message {
-  font-size: 13px;
+  font-size: 10px;
   color: #111111; /* Changed from green to black for standard progress text */
   font-weight: 500;
 }
@@ -580,14 +580,14 @@ body.cartuplift-no-scroll {
    Mobile Sticky Progress Bar at Bottom
    ======================================== */
 .cartuplift-mobile-progress {
-  position: fixed;
-  bottom: 60px;
-  left: 0;
-  right: 0;
-  background: transparent;
-  padding: 0 16px 0;
-  z-index: 2;
-  display: none;
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+  padding: 8px 16px;
+  margin: 0;
+  z-index: 10;
+  border-bottom: 1px solid #e5e5e5;
+  display: block;
 }
 
 .cartuplift-mobile-progress-inner {
@@ -596,30 +596,44 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-mobile-progress .cartuplift-progress-section {
-  background: #ffffff;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 4px 0;
+}
+
 .cartuplift-progress-toprow {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
 }
+
 .cartuplift-next-note {
   font-size: 12px;
   color: #6b7280;
 }
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-  padding: 10px 12px;
-}
 
 .cartuplift-mobile-progress .cartuplift-progress-bar {
-  height: 4px;
+  height: 2px;
 }
 
 .cartuplift-mobile-progress .cartuplift-progress-message {
   color: #111;
   font-weight: 500;
+  font-size: 9px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.cartuplift-mobile-progress .cartuplift-progress-info {
+  display: block;
+  justify-content: flex-start;
+  text-align: left;
 }
 
 .cartuplift-mobile-progress .cartuplift-progress-threshold {
@@ -628,11 +642,7 @@ body.cartuplift-no-scroll {
 
 .cartuplift-mobile-amount { color: #10b981; font-weight: 600; }
 
-@media (max-width: 768px) {
-  .cartuplift-mobile-progress {
-    display: block;
-  }
-}
+/* Mobile progress now shows in footer on all devices */
 
 /* ========================================
    Content Wrapper - Compact
