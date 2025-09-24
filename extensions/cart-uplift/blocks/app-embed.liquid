@@ -103,6 +103,7 @@
           freeShippingAchievedText: {{ block.settings.success_message | json }},
           freeShippingMaintainText: {{ block.settings.free_shipping_maintain_message | json }},
           freeShippingThreshold: {{ block.settings.free_shipping_threshold | json }},
+          estimatedShippingCost: {{ block.settings.estimated_shipping_cost | json }},
           shippingBarBackgroundColor: {{ block.settings.progress_background_color | json }},
           shippingBarColor: {{ block.settings.progress_bar_color | json }},
           // gift gating (only used when incentive type is gifts/combined)
@@ -115,6 +116,7 @@
           giftValueProgressText: {{ block.settings.gift_value_progress_message | json }},
           giftUpdatedMessage: {{ block.settings.gift_updated_message | json }},
           giftPriceText: {{ block.settings.gift_price_text | json }},
+          giftNoticeText: {{ block.settings.gift_notice_text | json }},
 
           // Sticky cart (use built-in styles and rendering in cart-uplift.js)
           enableStickyCart: {{ block.settings.enable_sticky_cart | json }},
@@ -405,6 +407,13 @@
       "info": "Minimum amount for free shipping"
     },
     {
+      "type": "number",
+      "id": "estimated_shipping_cost",
+      "label": "Estimated Shipping Cost",
+      "default": 10,
+      "info": "Average shipping cost to show in total savings calculation (e.g., 'You've saved $30!' for $10 shipping + $20 free gift)"
+    },
+    {
       "type": "color",
       "id": "progress_background_color",
       "label": "Progress Bar Background",
@@ -426,8 +435,8 @@
       "type": "text",
       "id": "all_rewards_success_message",
       "label": "All rewards success message",
-      "default": "✓ All rewards unlocked! {title} added free (You saved {value})",
-      "info": "Shown when BOTH free shipping and final gift are achieved. Supports {title} and {value} placeholders (they'll be removed gracefully if data missing). Keep it concise."
+      "default": "✓ You've saved {value}!",
+      "info": "Shown when BOTH free shipping and final gift are achieved. {value} shows total savings (gift value + shipping cost). {title} shows gift name. Keep it concise."
     },
     {
       "type": "number",
@@ -476,6 +485,13 @@
       "label": "Gift updated notice",
       "default": "Gift reward has been updated!",
       "info": "Shown if the gift reward changes while a shopper is mid-session."
+    },
+    {
+      "type": "text",
+      "id": "gift_notice_text",
+      "label": "Gift notice text",
+      "default": "You've saved {{amount}}!",
+      "info": "Shown when customer has earned a free gift. Use {{amount}} for total savings (gift value + shipping), {{gift_amount}} for just gift value, {{shipping_amount}} for shipping cost, {{product}} for gift name."
     },
     {
       "type": "header",

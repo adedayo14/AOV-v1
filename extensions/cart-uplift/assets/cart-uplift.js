@@ -70,13 +70,13 @@
       this.settings.enableTitleCaps = Boolean(this.settings.enableTitleCaps);
       
       // Set default gift notice text if not provided
-      this.settings.giftNoticeText = this.settings.giftNoticeText || 'Free gift added (worth {{amount}})';
+      this.settings.giftNoticeText = this.settings.giftNoticeText || 'You\'ve saved {{amount}}!';
       
       // Set default gift price text if not provided
       this.settings.giftPriceText = this.settings.giftPriceText || 'FREE';
   // Combined success template (merchant-editable via app embed)
   // Updated concise default with parentheses for value; ensures explicit free shipping phrasing.
-  this.settings.combinedSuccessTemplate = this.settings.allRewardsAchievedText || '✓ You\'re getting free shipping + {{ title }} ({{ value }})!';
+  this.settings.combinedSuccessTemplate = this.settings.allRewardsAchievedText || '✓ You\'ve saved {{ value }}!';
       
       this.cart = null;
       this.isOpen = false;
@@ -1345,8 +1345,13 @@
         const getGiftValueAndTitle = (t) => {
           try {
             if (!t) return { value: '', title: '' };
-            const cents = typeof t.price === 'number' ? t.price : (t.price && t.price.amount ? Math.round(t.price.amount * 100) : null);
-            const value = cents != null ? this.formatMoney(cents) : '';
+            const giftCents = typeof t.price === 'number' ? t.price : (t.price && t.price.amount ? Math.round(t.price.amount * 100) : null);
+            
+            // Calculate total savings: gift value + estimated shipping cost
+            const estimatedShippingCents = (this.settings.estimatedShippingCost || 10) * 100; // Convert to cents
+            const totalSavingsCents = (giftCents || 0) + estimatedShippingCents;
+            const value = this.formatMoney(totalSavingsCents);
+            
             const baseTitle = String(t.title || 'gift');
             const vTitle = (t.variantTitle && t.variantTitle !== 'Default Title') ? ` (${t.variantTitle})` : '';
             // Truncate long names for UI neatness
@@ -4294,8 +4299,18 @@
       
       let processedText = template;
       
-      // Replace {{amount}} with the total savings amount
-      processedText = processedText.replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(giftItemsTotal));
+      // Calculate total savings: gift value + estimated shipping cost
+      const estimatedShippingCents = (this.settings.estimatedShippingCost || 10) * 100; // Convert to cents
+      const totalSavings = giftItemsTotal + estimatedShippingCents;
+      
+      // Replace {{amount}} with the total savings amount (gift + shipping)
+      processedText = processedText.replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(totalSavings));
+      
+      // Replace {{gift_amount}} with just the gift value
+      processedText = processedText.replace(/\{\{\s*gift_amount\s*\}\}/g, this.formatMoney(giftItemsTotal));
+      
+      // Replace {{shipping_amount}} with the estimated shipping cost
+      processedText = processedText.replace(/\{\{\s*shipping_amount\s*\}\}/g, this.formatMoney(estimatedShippingCents));
       
       // Replace {{product}} with gift product names (comma-separated if multiple)
       const giftNames = giftItems.map(item => item.product_title).join(', ');
