@@ -68,29 +68,20 @@ export const action = withAuthAction(async ({ request, auth }) => {
   // Convert string values to appropriate types
   const processedSettings = {
     enableApp: settings.enableApp === 'true',
-    showOnlyOnCartPage: settings.showOnlyOnCartPage === 'true',
     autoOpenCart: settings.autoOpenCart === 'true',
 
-    // Core cart features
-    enableRecommendations: settings.enableRecommendations === 'true',
+    // Advanced cart features (basic features handled by theme embed)
     enableAddons: settings.enableAddons === 'true',
-    enableDiscountCode: settings.enableDiscountCode === 'true',
-    enableNotes: settings.enableNotes === 'true',
     enableExpressCheckout: settings.enableExpressCheckout === 'true',
     enableAnalytics: settings.enableAnalytics === 'true',
-
-    freeShippingText: String(settings.freeShippingText) || "You're {{ amount }} away from free shipping!",
-    freeShippingAchievedText: String(settings.freeShippingAchievedText) || "🎉 Congratulations! You've unlocked free shipping!",
+    enableAdvancedColors: settings.enableAdvancedColors === 'true',
 
     actionText: String(settings.actionText) || "Add discount code",
     addButtonText: String(settings.addButtonText) || "Add",
     checkoutButtonText: String(settings.checkoutButtonText) || "CHECKOUT",
     applyButtonText: String(settings.applyButtonText) || "Apply",
     
-    // Text customization  
-    recommendationsTitle: String(settings.recommendationsTitle) || "You might also like",
-    discountLinkText: String(settings.discountLinkText) || "+ Got a promotion code?", 
-    notesLinkText: String(settings.notesLinkText) || "+ Add order notes",
+    // Advanced text customization (basic text handled by theme embed)
     
     // Appearance colors
     backgroundColor: String(settings.backgroundColor) || "#ffffff",
@@ -2474,16 +2465,9 @@ export default function SettingsPage() {
             {/* Core Cart Features */}
             <Card>
               <BlockStack gap="400">
-                <Text variant="headingMd" as="h2">🛒 Cart Features</Text>
-                <Text as="p" variant="bodyMd">Configure core cart functionality and customer experience features.</Text>
+                <Text variant="headingMd" as="h2">🛒 Advanced Cart Features</Text>
+                <Text as="p" variant="bodyMd">Advanced functionality beyond basic cart features (basic features are configured in theme editor).</Text>
                 <FormLayout>
-                  <Checkbox
-                    label="Enable Recommendations"
-                    checked={formSettings.enableRecommendations}
-                    onChange={(value) => updateSetting("enableRecommendations", value)}
-                    helpText="Show product recommendations in cart drawer"
-                  />
-
                   <Checkbox
                     label="Enable Add-ons & Upsells"
                     checked={formSettings.enableAddons}
@@ -2492,24 +2476,17 @@ export default function SettingsPage() {
                   />
 
                   <Checkbox
-                    label="Enable Discount Code Field"
-                    checked={formSettings.enableDiscountCode}
-                    onChange={(value) => updateSetting("enableDiscountCode", value)}
-                    helpText="Allow customers to enter discount codes in cart"
-                  />
-
-                  <Checkbox
-                    label="Enable Order Notes"
-                    checked={formSettings.enableNotes}
-                    onChange={(value) => updateSetting("enableNotes", value)}
-                    helpText="Let customers add special instructions to their order"
-                  />
-
-                  <Checkbox
                     label="Enable Express Checkout Buttons"
                     checked={formSettings.enableExpressCheckout}
                     onChange={(value) => updateSetting("enableExpressCheckout", value)}
                     helpText="Show PayPal, Shop Pay, and other express checkout options"
+                  />
+
+                  <Checkbox
+                    label="Enable Analytics Tracking"
+                    checked={formSettings.enableAnalytics}
+                    onChange={(value) => updateSetting("enableAnalytics", value)}
+                    helpText="Track cart performance and conversion metrics"
                   />
 
 
@@ -2816,10 +2793,10 @@ export default function SettingsPage() {
                   </div>
                   
                   <Checkbox
-                    label="Show only on cart page"
-                    checked={formSettings.showOnlyOnCartPage}
-                    onChange={(value) => updateSetting("showOnlyOnCartPage", value)}
-                    helpText="Limit cart uplift features to cart page only (disables recommendations and upsells on other pages)"
+                    label="Advanced Color Customization"
+                    checked={(formSettings as any).enableAdvancedColors}
+                    onChange={(value) => updateSetting("enableAdvancedColors", value)}
+                    helpText="Enable advanced color customization beyond theme defaults"
                   />
                 </FormLayout>
               </BlockStack>
@@ -2831,31 +2808,8 @@ export default function SettingsPage() {
                 <Text variant="headingMd" as="h2">✏️ Text & Copy</Text>
                 <Text as="p" variant="bodyMd">Customize all text displayed to customers in the cart experience.</Text>
                 <FormLayout>
-                  <Text variant="headingSm" as="h3">🛍️ Cart Interface Text</Text>
-                  
-                  <TextField
-                    label="Recommendations Section Title"
-                    value={formSettings.recommendationsTitle || "You might also like"}
-                    onChange={(value) => updateSetting("recommendationsTitle", value)}
-                    helpText="Title shown above product recommendations"
-                    autoComplete="off"
-                  />
-
-                  <TextField
-                    label="Discount Code Link Text"
-                    value={formSettings.discountLinkText || "+ Got a promotion code?"}
-                    onChange={(value) => updateSetting("discountLinkText", value)}
-                    helpText="Text for the discount code toggle link"
-                    autoComplete="off"
-                  />
-
-                  <TextField
-                    label="Order Notes Link Text" 
-                    value={formSettings.notesLinkText || "+ Add order notes"}
-                    onChange={(value) => updateSetting("notesLinkText", value)}
-                    helpText="Text for the order notes toggle link"
-                    autoComplete="off"
-                  />
+                  <Text variant="headingSm" as="h3">🛍️ Advanced Text Customization</Text>
+                  <Text as="p" variant="bodyMd" tone="subdued">Basic cart text (recommendations title, discount/notes links) is configured in theme editor.</Text>
 
                   <Divider />
 
