@@ -8,3 +8,8 @@ shopify-app-remix
 # Ignore large built or experimental assets in extension
 extensions/cart-uplift/assets/cart-uplift-corrupted.js
 extensions/cart-uplift/assets/cart-uplift-backup-*.js
+
+# Ignore dev test utilities and experimental ML src from lint
+test-*.js
+test-*.mjs
+extensions/cart-uplift/src/ml/**
