@@ -409,15 +409,7 @@ export default function SettingsPage() {
     updateSetting('giftThresholds', JSON.stringify(updatedThresholds));
   };
 
-  const cartPositionOptions = [
-    { label: "Bottom Right", value: "bottom-right" },
-    { label: "Bottom Center", value: "bottom-center" },
-    { label: "Bottom Left", value: "bottom-left" },
-    { label: "Top Right", value: "top-right" },
-    { label: "Top Left", value: "top-left" },
-    { label: "Right Middle", value: "right-middle" },
-    { label: "Left Middle", value: "left-middle" },
-  ];
+
 
   const cartIconOptions = [
     { label: "Shopping Cart", value: "cart" },
@@ -2775,7 +2767,7 @@ export default function SettingsPage() {
                 <FormLayout>
                   <BlockStack gap="200">
                     <Text variant="headingSm" as="h3">Incentive Type</Text>
-                    <Text variant="bodySm" color="subdued">Choose what motivates your customers to spend more</Text>
+                    <Text as="p" variant="bodySm" tone="subdued">Choose what motivates your customers to spend more</Text>
                     
                     <BlockStack gap="300">
                       <BlockStack gap="100">
@@ -2954,7 +2946,7 @@ export default function SettingsPage() {
                           
                           <BlockStack gap="200">
                             <Text variant="headingSm" as="h3">Gift Thresholds</Text>
-                            <Text variant="bodySm" color="subdued">
+                            <Text as="p" variant="bodySm" tone="subdued">
                               Set spending thresholds to unlock gifts, discounts, or free products
                             </Text>
                             
@@ -2968,7 +2960,7 @@ export default function SettingsPage() {
                                 
                                 if (giftThresholds.length === 0) {
                                   return (
-                                    <Text variant="bodySm" color="subdued" alignment="center">
+                                    <Text as="p" variant="bodySm" tone="subdued" alignment="center">
                                       No gift thresholds added yet. Click "Add Gift Threshold" to get started.
                                     </Text>
                                   );
@@ -3064,7 +3056,7 @@ export default function SettingsPage() {
                                                     </div>
                                                   )}
                                                   <div className="cartuplift-product-info">
-                                                    <Text variant="bodyMd" fontWeight="medium">
+                                                    <Text as="span" variant="bodyMd" fontWeight="medium">
                                                       {threshold.productTitle}
                                                     </Text>
                                                   </div>
@@ -3201,105 +3193,7 @@ export default function SettingsPage() {
               </BlockStack>
             </Card>
 
-            {/* Dedicated Sticky Cart Section */}
-            <Card>
-              <BlockStack gap="400">
-                <Text variant="headingMd" as="h2">🛒 Sticky Cart</Text>
-                <FormLayout>
-                  <Checkbox
-                    label="Enable Sticky Cart"
-                    checked={formSettings.enableStickyCart}
-                    onChange={(checked) => updateSetting("enableStickyCart", checked)}
-                    helpText="Keep the cart accessible as users browse your store"
-                  />
 
-                  {formSettings.enableStickyCart && (
-                    <>
-                      <Select
-                        label="Cart Position"
-                        options={cartPositionOptions}
-                        value={formSettings.cartPosition}
-                        onChange={(value) => updateSetting("cartPosition", value)}
-                        helpText="Where the cart button appears on your store"
-                      />
-
-                      <Text variant="headingMd" as="h3">Display Options</Text>
-                      
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-                        <Checkbox
-                          label="Show Cart Icon"
-                          checked={formSettings.stickyCartShowIcon !== false}
-                          onChange={(checked) => updateSetting("stickyCartShowIcon", checked)}
-                        />
-                        <Checkbox
-                          label="Show Item Count"
-                          checked={formSettings.stickyCartShowCount !== false}
-                          onChange={(checked) => updateSetting("stickyCartShowCount", checked)}
-                        />
-                        <Checkbox
-                          label="Show Total Price"
-                          checked={formSettings.stickyCartShowTotal !== false}
-                          onChange={(checked) => updateSetting("stickyCartShowTotal", checked)}
-                        />
-                      </div>
-
-                      <Text variant="headingMd" as="h3">Colors & Styling</Text>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                        <div>
-                          <Text variant="bodyMd" as="p">Background Color</Text>
-                          <input
-                            type="color"
-                            value={resolveColor(formSettings.stickyCartBackgroundColor, '#000000')}
-                            onChange={(e) => updateSetting("stickyCartBackgroundColor", e.target.value)}
-                            style={{ width: '100%', height: '36px', border: '1px solid #ccc', borderRadius: '4px' }}
-                          />
-                        </div>
-                        <div>
-                          <Text variant="bodyMd" as="p">Text Color</Text>
-                          <input
-                            type="color"
-                            value={resolveColor(formSettings.stickyCartTextColor, '#ffffff')}
-                            onChange={(e) => updateSetting("stickyCartTextColor", e.target.value)}
-                            style={{ width: '100%', height: '36px', border: '1px solid #ccc', borderRadius: '4px' }}
-                          />
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                        <div>
-                          <Text variant="bodyMd" as="p">Count Badge Color</Text>
-                          <input
-                            type="color"
-                            value={resolveColor(formSettings.stickyCartCountBadgeColor, '#ff4444')}
-                            onChange={(e) => updateSetting("stickyCartCountBadgeColor", e.target.value)}
-                            style={{ width: '100%', height: '36px', border: '1px solid #ccc', borderRadius: '4px' }}
-                          />
-                        </div>
-                        <div>
-                          <Text variant="bodyMd" as="p">Count Badge Text</Text>
-                          <input
-                            type="color"
-                            value={resolveColor(formSettings.stickyCartCountBadgeTextColor, '#ffffff')}
-                            onChange={(e) => updateSetting("stickyCartCountBadgeTextColor", e.target.value)}
-                            style={{ width: '100%', height: '36px', border: '1px solid #ccc', borderRadius: '4px' }}
-                          />
-                        </div>
-                      </div>
-
-                      <TextField
-                        label="Border Radius (px)"
-                        type="number"
-                        value={String(formSettings.stickyCartBorderRadius || 25)}
-                        onChange={(value) => updateSetting("stickyCartBorderRadius", parseInt(value) || 25)}
-                        helpText="Controls how rounded the sticky cart button appears (0 = square, 25 = rounded)"
-                        suffix="px"
-                      />
-                    </>
-                  )}
-                </FormLayout>
-              </BlockStack>
-            </Card>
 
             {/* Smart Recommendations - Only show if enabled */}
             {formSettings.enableRecommendations && (
@@ -3376,7 +3270,7 @@ export default function SettingsPage() {
                           <InlineStack gap="200" align="start">
                             <Button onClick={() => setShowProductSelector(true)}>Select products</Button>
                             {selectedProducts.length > 0 && (
-                              <Badge tone="success">{selectedProducts.length} selected</Badge>
+                              <Badge tone="success">{`${selectedProducts.length} selected`}</Badge>
                             )}
                           </InlineStack>
                         </div>
