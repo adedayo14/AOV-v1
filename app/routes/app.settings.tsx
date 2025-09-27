@@ -11,10 +11,9 @@ import {
   Text,
   Banner,
   Checkbox,
-  Button,
 
-  InlineStack,
-  Badge,
+
+
 
 } from "@shopify/polaris";
 import { withAuth, withAuthAction } from "../utils/auth.server";
@@ -25,7 +24,7 @@ const { useState, useEffect, useRef } = React;
 export const loader = withAuth(async ({ auth }) => {
   const shop = auth.session.shop;
   const settings = await getSettings(shop);
-  try { console.log('[app.settings.loader] shop', shop, 'recommendationLayout', settings?.recommendationLayout); } catch(_) {}
+
   
   // Get shop currency information
   let shopCurrency = { currencyCode: 'USD', moneyFormat: undefined }; // Default fallback
@@ -67,11 +66,10 @@ export const action = withAuthAction(async ({ request, auth }) => {
     showOnlyOnCartPage: settings.showOnlyOnCartPage === 'true',
     autoOpenCart: settings.autoOpenCart === 'true',
 
-    enableRecommendations: settings.enableRecommendations === 'true',
     enableAddons: settings.enableAddons === 'true',
     enableExpressCheckout: settings.enableExpressCheckout === 'true',
     enableAnalytics: settings.enableAnalytics === 'true',
-  maxRecommendations: Number(settings.maxRecommendations ?? 6),
+
     cartPosition: String(settings.cartPosition) || 'bottom-right',
     cartIcon: String(settings.cartIcon) || 'cart',
     // New sticky cart settings
@@ -85,7 +83,7 @@ export const action = withAuthAction(async ({ request, auth }) => {
     stickyCartBorderRadius: Number(settings.stickyCartBorderRadius) || 25,
     freeShippingText: String(settings.freeShippingText) || "You're {{ amount }} away from free shipping!",
     freeShippingAchievedText: String(settings.freeShippingAchievedText) || "🎉 Congratulations! You've unlocked free shipping!",
-    recommendationsTitle: String(settings.recommendationsTitle) || "You might also like",
+
     actionText: String(settings.actionText) || "Add discount code",
     addButtonText: String(settings.addButtonText) || "Add",
     checkoutButtonText: String(settings.checkoutButtonText) || "CHECKOUT",
@@ -94,20 +92,10 @@ export const action = withAuthAction(async ({ request, auth }) => {
     textColor: String(settings.textColor) || "#1A1A1A",
     buttonColor: String(settings.buttonColor) || "#000000",
     buttonTextColor: String(settings.buttonTextColor) || "#ffffff",
-    recommendationsBackgroundColor: String(settings.recommendationsBackgroundColor) || "#ecebe3",
+
     shippingBarBackgroundColor: String(settings.shippingBarBackgroundColor) || "#f0f0f0",
     shippingBarColor: String(settings.shippingBarColor) || "#121212", // Dark neutral default
-    // Normalize legacy recommendation layout values to new naming before saving
-    recommendationLayout: (() => {
-      const legacy = String(settings.recommendationLayout || '').toLowerCase();
-      if (legacy === 'horizontal' || legacy === 'row') return 'carousel';
-      if (legacy === 'vertical' || legacy === 'column') return 'list';
-      if (legacy === 'grid') return 'grid';
-      // default new value
-      return 'carousel';
-    })(),
-    complementDetectionMode: String(settings.complementDetectionMode) || "automatic",
-    manualRecommendationProducts: String(settings.manualRecommendationProducts) || "",
+
     // Progress Bar System
 
   // ML / Smart Bundles
@@ -122,7 +110,7 @@ export const action = withAuthAction(async ({ request, auth }) => {
   
   try {
     await saveSettings(shop, processedSettings);
-  try { console.log('[app.settings.action] saved recommendationLayout', processedSettings.recommendationLayout); } catch(_) {}
+
     return json({ success: true, message: "Settings saved successfully!" });
   } catch (error) {
     console.error("Error saving settings:", error);
@@ -381,18 +369,9 @@ export default function SettingsPage() {
     { label: "Basket", value: "basket" },
   ];
 
-  // Updated recommendation layout options (legacy Horizontal/Vertical replaced)
-  const recommendationLayoutOptions = [
-    { label: "Carousel", value: "carousel" },
-    { label: "List", value: "list" },
-    { label: "Grid", value: "grid" },
-  ];
 
-  const complementDetectionModeOptions = [
-    { label: "🤖 AI‑Powered (Recommended)", value: "automatic" },
-    { label: "🛠️ Manual Selection", value: "manual" },
-    { label: "🔀 AI + Manual (Hybrid)", value: "hybrid" },
-  ];
+
+
 
   // Fetch products when selector opens or search changes (debounced)
   useEffect(() => {
@@ -2587,12 +2566,7 @@ export default function SettingsPage() {
                     helpText="Automatically show cart when customers add items (recommended)"
                   />
                   
-                  <Checkbox
-                    label="Enable Product Recommendations"
-                    checked={formSettings.enableRecommendations}
-                    onChange={(value) => updateSetting("enableRecommendations", value)}
-                    helpText="Show related products to increase average order value"
-                  />
+
                   
                   <Checkbox
                     label="Enable Analytics Tracking"
@@ -2762,91 +2736,7 @@ export default function SettingsPage() {
 
 
 
-            {/* Smart Recommendations - Only show if enabled */}
-            {formSettings.enableRecommendations && (
-              <Card>
-                <BlockStack gap="400">
-                  <Text variant="headingMd" as="h2">🎯 Smart Recommendations</Text>
-                  <FormLayout>
-                    <Select
-                      label="Layout Style"
-                      options={recommendationLayoutOptions}
-                      value={formSettings.recommendationLayout}
-                      onChange={(value) => updateSetting("recommendationLayout", value)}
-                      helpText="How recommendations are displayed in the cart"
-                    />
-                    
-                    <TextField
-                      label="Maximum Products to Show"
-                      type="number"
-                      value={String(formSettings.maxRecommendations)}
-                      onChange={(value) => updateSetting("maxRecommendations", parseInt(value) || 4)}
-                      helpText="We recommend 2–4 cards to keep it focused. You can choose any number."
-                      autoComplete="off"
-                    />
-                    
-                    <TextField
-                      label="Section Title"
-                      value={formSettings.recommendationsTitle}
-                      onChange={(value) => updateSetting("recommendationsTitle", value)}
-                      helpText="Header text for the recommendations section"
-                      placeholder="You might also like"
-                      autoComplete="off"
-                    />
-                    
-                    <div>
-                      <Text variant="headingMd" as="h3">Background Color</Text>
-                      <input
-                        type="color"
-                        value={(formSettings as any).recommendationsBackgroundColor || '#ecebe3'}
-                        onChange={(e) => updateSetting("recommendationsBackgroundColor", e.target.value)}
-                        className="cartuplift-color-input-full-width"
-                        title={(formSettings as any).recommendationsBackgroundColor || '#ecebe3'}
-                        aria-label={`Recommendations background: ${(formSettings as any).recommendationsBackgroundColor || '#ecebe3'}`}
-                      />
-                    </div>
-                    
-                    <TextField
-                      label="Add Button Text"
-                      value={formSettings.addButtonText || 'Add'}
-                      onChange={(value) => updateSetting("addButtonText", value)}
-                      helpText="Text for recommendation Add buttons"
-                      placeholder="Add"
-                      autoComplete="off"
-                    />
-                    
-                    <Select
-                      label="Recommendation Mode (AI vs. Manual)"
-                      options={complementDetectionModeOptions}
-                      value={formSettings.complementDetectionMode}
-                      onChange={(value) => updateSetting("complementDetectionMode", value)}
-                      helpText="Choose how products are picked. AI analyzes sales patterns; Manual lets you hand-pick."
-                    />
-                    
-                    {(formSettings.complementDetectionMode === 'manual' || formSettings.complementDetectionMode === 'hybrid') && (
-                      <div className="cartuplift-manual-rec-section">
-                        <Text variant="headingSm" as="h3">
-                          {formSettings.complementDetectionMode === 'hybrid' ? '🔀 Manual Product Selection (for Hybrid)' : '🛠️ Manual Product Selection'}
-                        </Text>
-                        <div className="cartuplift-manual-rec-info">
-                          {formSettings.complementDetectionMode === 'hybrid' && (
-                            <Text variant="bodyMd" as="p" tone="subdued">
-                              Select products to mix with AI recommendations
-                            </Text>
-                          )}
-                          <InlineStack gap="200" align="start">
-                            <Button onClick={() => setShowProductSelector(true)}>Select products</Button>
-                            {selectedProducts.length > 0 && (
-                              <Badge tone="success">{`${selectedProducts.length} selected`}</Badge>
-                            )}
-                          </InlineStack>
-                        </div>
-                      </div>
-                    )}
-                  </FormLayout>
-                </BlockStack>
-              </Card>
-            )}
+
 
 
           </BlockStack>
