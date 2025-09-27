@@ -43,22 +43,30 @@ export function ErrorBoundary() {
     const responseError = error as { status: number; statusText?: string };
     
     if (responseError.status === 401) {
-      // Auto-refresh after a short delay for session errors
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      // For embedded apps, use App Bridge for re-authentication
+      if (typeof window !== 'undefined') {
+        if (window.top !== window.self) {
+          // In iframe - use App Bridge reauth
+          window.parent.postMessage({ 
+            message: 'Shopify.API.reauthorizeApplication' 
+          }, '*');
+        } else {
+          // Not in iframe - redirect to auth
+          window.location.href = '/auth';
+        }
+      }
       
       return (
-        <div className="session-expired-container">
-          <h2>Refreshing...</h2>
-          <p>Your session has expired. Refreshing the page now...</p>
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+          <h3>Session Expired</h3>
+          <p>Re-authenticating with Shopify...</p>
         </div>
       );
     }
   }
-  
+
   return boundary.error(error);
-}
+};
 
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);

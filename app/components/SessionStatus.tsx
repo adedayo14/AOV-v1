@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { reauthorizeApp, initializeAppBridge } from "../utils/auth-helper";
 
 interface SessionStatusProps {
   onSessionExpired?: () => void;
@@ -8,6 +9,9 @@ export function SessionStatus({ onSessionExpired }: SessionStatusProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
+    // Initialize App Bridge on mount
+    initializeAppBridge();
+    
     const checkAndRefreshSession = async () => {
       if (isRefreshing) return; // Prevent multiple simultaneous checks
       
@@ -15,9 +19,9 @@ export function SessionStatus({ onSessionExpired }: SessionStatusProps) {
         const response = await fetch('/app/api/session-check');
         
         if (response.status === 401) {
-          // Session expired - auto refresh the page silently
-          console.log('Session expired, refreshing page...');
-          window.location.reload();
+          // Session expired - use auth helper for re-authentication
+          console.log('Session expired, attempting re-authentication...');
+          reauthorizeApp();
         }
       } catch (error) {
         console.warn('Session check failed, likely network issue');
@@ -46,8 +50,26 @@ export function SessionStatus({ onSessionExpired }: SessionStatusProps) {
       }
     };
 
+    // Listen for App Bridge authentication messages
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.message === 'Shopify.API.reauthorizeApplication') {
+        checkAndRefreshSession();
+      }
+    };
+
     // Auto-refresh session every 30 minutes to keep it alive
     const refreshInterval = setInterval(refreshSession, 30 * 60 * 1000);
+
+    // Set up event listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('message', handleMessage);
+
+    // Cleanup function
+    return () => {
+      clearInterval(refreshInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('message', handleMessage);
+    };
     
     // Check for expired sessions every 2 minutes
     const checkInterval = setInterval(checkAndRefreshSession, 2 * 60 * 1000);
