@@ -2367,15 +2367,16 @@
       
       const scrollLeft = scrollContainer.scrollLeft;
       const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
-      const scrollable = maxScroll > 5;
 
-      // Show/hide controls based on content
+      // Always show controls if we have recommendations - let CSS handle responsive visibility
       const controls = document.querySelector('.cartuplift-carousel-controls');
       if (controls) {
-        if (!scrollable) {
-          controls.style.display = 'none';
-        } else {
+        const hasRecommendations = document.querySelectorAll('.cartuplift-recommendation-card').length > 0;
+        if (hasRecommendations) {
           controls.style.display = 'flex';
+          controls.style.visibility = 'visible';
+        } else {
+          controls.style.display = 'none';
         }
       }
       
