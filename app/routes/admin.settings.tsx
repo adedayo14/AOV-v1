@@ -340,8 +340,11 @@ export default function SettingsPage() {
   const [giftProducts, setGiftProducts] = useState<any[]>([]);
   const [currentGiftThreshold, setCurrentGiftThreshold] = useState<any>(null);
   
-  // Success banner auto-hide state
+  // Success/error banners and submission tracking
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [showErrorBanner, setShowErrorBanner] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
   // Ensure new sticky cart settings have defaults
   useEffect(() => {
@@ -365,14 +368,47 @@ export default function SettingsPage() {
     }));
   }, []);
 
-  // Auto-hide success banner after 3 seconds
+  // Handle fetcher lifecycle for success and error scenarios (including session expiry JSON response)
   useEffect(() => {
-    if (fetcher.state === "idle" && fetcher.data && (fetcher.data as any)?.success) {
-      setShowSuccessBanner(true);
-      const timer = setTimeout(() => {
+    if (fetcher.state === 'submitting') submittingRef.current = true;
+    if (fetcher.state === 'idle' && submittingRef.current && !fetcher.data) {
+      submittingRef.current = false;
+      setShowSuccessBanner(false);
+      setErrorMessage('We could not confirm if settings were saved. Please refresh and try again.');
+      setShowErrorBanner(true);
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch { /* noop */ }
+      const t = setTimeout(() => setShowErrorBanner(false), 6000);
+      return () => clearTimeout(t);
+    }
+
+    if (fetcher.state === 'idle' && fetcher.data) {
+      const data: any = fetcher.data;
+      if (data?.success) {
+        submittingRef.current = false;
+        setShowErrorBanner(false);
+        setErrorMessage(null);
+        setShowSuccessBanner(true);
+        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch { /* noop */ }
+        const t = setTimeout(() => setShowSuccessBanner(false), 3000);
+        return () => clearTimeout(t);
+      }
+      if (data?.needsRefresh) {
+        submittingRef.current = false;
         setShowSuccessBanner(false);
-      }, 3000);
-      return () => clearTimeout(timer);
+        setErrorMessage('Your session has expired. Please refresh the page and sign in again.');
+        setShowErrorBanner(true);
+        const t = setTimeout(() => setShowErrorBanner(false), 6000);
+        return () => clearTimeout(t);
+      }
+      if (data?.success === false) {
+        submittingRef.current = false;
+        setShowSuccessBanner(false);
+        setErrorMessage(typeof data?.message === 'string' ? data.message : 'Failed to save settings');
+        setShowErrorBanner(true);
+        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch { /* noop */ }
+        const t = setTimeout(() => setShowErrorBanner(false), 6000);
+        return () => clearTimeout(t);
+      }
     }
   }, [fetcher.state, fetcher.data]);
 
@@ -401,7 +437,7 @@ export default function SettingsPage() {
     Object.entries(formSettings).forEach(([key, value]) => {
       formData.append(key, String(value));
     });
-    fetcher.submit(formData, { method: "post" });
+    fetcher.submit(formData, { method: "post", action: "." });
   };
 
   const updateSetting = (key: string, value: any) => {
@@ -2948,6 +2984,11 @@ export default function SettingsPage() {
         {showSuccessBanner && (
           <div className="cartuplift-success-banner">
             <Banner tone="success">Settings saved successfully!</Banner>
+          </div>
+        )}
+        {showErrorBanner && (
+          <div className="cartuplift-success-banner">
+            <Banner tone="critical">{errorMessage || 'Failed to save settings. Please try again.'}</Banner>
           </div>
         )}
         

@@ -15,8 +15,13 @@ export async function enhancedAuthenticate(request: Request) {
       const errorMessage = (error as { message: string }).message;
       
       if (errorMessage.includes('session') || errorMessage.includes('auth')) {
-        // For API calls, return JSON error
-        if (request.headers.get('accept')?.includes('application/json')) {
+        // For fetcher/action calls or API-like requests, return JSON error (avoid redirects that can hang spinners)
+        const isJsonAccept = request.headers.get('accept')?.includes('application/json');
+        const isRemixFetch =
+          request.headers.get('x-remix-request') === 'true' ||
+          request.headers.get('x-remix-fetch') === 'true' ||
+          request.headers.get('x-requested-with')?.toLowerCase() === 'xmlhttprequest';
+        if (isJsonAccept || isRemixFetch || request.method.toUpperCase() === 'POST') {
           throw json(
             { 
               error: 'Session expired', 
@@ -43,8 +48,16 @@ export async function enhancedAuthenticate(request: Request) {
  */
 export function withAuth<T>(loader: (args: Parameters<LoaderFunction>[0] & { auth: Awaited<ReturnType<typeof authenticate.admin>> }) => T) {
   return async (args: Parameters<LoaderFunction>[0]) => {
-    const auth = await enhancedAuthenticate(args.request);
-    return loader({ ...args, auth });
+    try {
+      const auth = await enhancedAuthenticate(args.request);
+      return loader({ ...args, auth });
+    } catch (e) {
+      // If enhancedAuthenticate threw a Remix Response (e.g., json 401), return it
+      if (e instanceof Response) {
+        return e;
+      }
+      throw e;
+    }
   };
 }
 
@@ -53,7 +66,15 @@ export function withAuth<T>(loader: (args: Parameters<LoaderFunction>[0] & { aut
  */
 export function withAuthAction<T>(action: (args: Parameters<ActionFunction>[0] & { auth: Awaited<ReturnType<typeof authenticate.admin>> }) => T) {
   return async (args: Parameters<ActionFunction>[0]) => {
-    const auth = await enhancedAuthenticate(args.request);
-    return action({ ...args, auth });
+    try {
+      const auth = await enhancedAuthenticate(args.request);
+      return action({ ...args, auth });
+    } catch (e) {
+      // If enhancedAuthenticate threw a Remix Response (e.g., json 401), return it
+      if (e instanceof Response) {
+        return e;
+      }
+      throw e;
+    }
   };
 }
