@@ -79,10 +79,6 @@ export const action = withAuthAction(async ({ request, auth }) => {
     enableExpressCheckout: settings.enableExpressCheckout === 'true',
     enableAnalytics: settings.enableAnalytics === 'true',
 
-    // Free shipping
-    enableFreeShipping: settings.enableFreeShipping === 'true',
-    freeShippingThreshold: Number(settings.freeShippingThreshold) || 0,
-
     freeShippingText: String(settings.freeShippingText) || "You're {{ amount }} away from free shipping!",
     freeShippingAchievedText: String(settings.freeShippingAchievedText) || "🎉 Congratulations! You've unlocked free shipping!",
 
@@ -122,6 +118,12 @@ export const action = withAuthAction(async ({ request, auth }) => {
   enableAdvancedPersonalization: settings.enableAdvancedPersonalization === 'true',
   enableBehaviorTracking: settings.enableBehaviorTracking === 'true',
   mlDataRetentionDays: String(settings.mlDataRetentionDays) || '30',
+  
+  // Smart Bundle Settings
+  bundlesOnProductPages: settings.bundlesOnProductPages === 'true',
+  bundlesInCartDrawer: settings.bundlesInCartDrawer === 'true',
+  bundlesOnCollectionPages: settings.bundlesOnCollectionPages === 'true',
+  defaultBundleDiscount: String(settings.defaultBundleDiscount) || '10',
   };
   
   try {
@@ -2510,64 +2512,17 @@ export default function SettingsPage() {
                     helpText="Show PayPal, Shop Pay, and other express checkout options"
                   />
 
-                  <Divider />
 
-                  <Text variant="headingSm" as="h3">🚚 Free Shipping Progress</Text>
-                  
-                  <Checkbox
-                    label="Enable Free Shipping Progress Bar"
-                    checked={formSettings.enableFreeShipping}
-                    onChange={(value) => updateSetting("enableFreeShipping", value)}
-                    helpText="Show progress towards free shipping threshold"
-                  />
-
-                  {formSettings.enableFreeShipping && (
-                    <BlockStack gap="300">
-                      <TextField
-                        label="Free Shipping Threshold"
-                        value={String(formSettings.freeShippingThreshold || 0)}
-                        onChange={(value) => updateSetting("freeShippingThreshold", parseFloat(value) || 0)}
-                        helpText="Minimum order amount for free shipping (in your store currency)"
-                        type="number"
-                        min="0"
-                        step={0.01}
-                        autoComplete="off"
-                      />
-
-                      <TextField
-                        label="Progress Message"
-                        value={formSettings.freeShippingText || "You're {{ amount }} away from free shipping!"}
-                        onChange={(value) => updateSetting("freeShippingText", value)}
-                        helpText="Message shown when customer hasn't reached threshold. Use {{ amount }} for remaining amount."
-                        autoComplete="off"
-                      />
-
-                      <TextField
-                        label="Achievement Message"
-                        value={formSettings.freeShippingAchievedText || "🎉 Congratulations! You've unlocked free shipping!"}
-                        onChange={(value) => updateSetting("freeShippingAchievedText", value)}
-                        helpText="Message shown when free shipping threshold is reached"
-                        autoComplete="off"
-                      />
-                    </BlockStack>
-                  )}
                 </FormLayout>
               </BlockStack>
             </Card>
 
-            {/* ML & Smart Bundles Settings - PROMINENT PLACEMENT */}
+            {/* AI-Powered Recommendations - PROMINENT PLACEMENT */}
             <Card>
               <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">🧠 Machine Learning & Smart Bundles</Text>
-                <Text as="p" variant="bodyMd">Configure AI-powered recommendations and smart bundle features to boost conversions.</Text>
+                <Text as="h2" variant="headingMd">� AI-Powered Recommendations</Text>
+                <Text as="p" variant="bodyMd">Configure machine learning and intelligent product recommendations to boost conversions.</Text>
                 <FormLayout>
-                  <Checkbox
-                    label="Enable Smart Bundles"
-                    checked={(formSettings as any).enableSmartBundles}
-                    onChange={(value) => updateSetting("enableSmartBundles", value)}
-                    helpText="Enable AI-powered product bundling on your store"
-                  />
-
                   <Checkbox
                     label="Enable ML Recommendations"
                     checked={(formSettings as any).enableMLRecommendations}
@@ -2694,29 +2649,64 @@ export default function SettingsPage() {
                     </BlockStack>
                   )}
 
-                  {/* Smart Bundle Configuration */}
+
+                </FormLayout>
+              </BlockStack>
+            </Card>
+
+            {/* Smart Bundles Configuration */}
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">📦 Smart Bundles</Text>
+                <Text as="p" variant="bodyMd">Configure AI-powered product bundling to create compelling offers and increase average order value.</Text>
+                <FormLayout>
+                  <Checkbox
+                    label="Enable Smart Bundles"
+                    checked={(formSettings as any).enableSmartBundles}
+                    onChange={(value) => updateSetting("enableSmartBundles", value)}
+                    helpText="Enable AI-powered product bundling on your store"
+                  />
+
                   {(formSettings as any).enableSmartBundles && (
-                    <BlockStack gap="400">
-                      <Text as="h3" variant="headingSm">Bundle Placement & Display</Text>
+                    <BlockStack gap="300">
+                      <Text variant="headingSm" as="h3">Bundle Placement & Display</Text>
+                      
                       <Checkbox
                         label="Show bundles on product pages"
                         checked={(formSettings as any).bundlesOnProductPages}
                         onChange={(value) => updateSetting("bundlesOnProductPages", value)}
                         helpText="Display smart bundles on individual product pages"
                       />
+                      
                       <Checkbox
                         label="Show bundles in cart drawer"
                         checked={(formSettings as any).bundlesInCartDrawer}
                         onChange={(value) => updateSetting("bundlesInCartDrawer", value)}
                         helpText="Show bundle suggestions inside the cart drawer"
                       />
+
+                      <Checkbox
+                        label="Show bundles on collection pages"
+                        checked={(formSettings as any).bundlesOnCollectionPages}
+                        onChange={(value) => updateSetting("bundlesOnCollectionPages", value)}
+                        helpText="Display relevant bundles on category/collection pages"
+                      />
+
+                      <TextField
+                        label="Default Bundle Discount (%)"
+                        value={String((formSettings as any).defaultBundleDiscount || 10)}
+                        onChange={(value) => updateSetting("defaultBundleDiscount", value)}
+                        helpText="Default discount percentage for smart bundles"
+                        type="number"
+                        min="0"
+                        max="50"
+                        autoComplete="off"
+                      />
                     </BlockStack>
                   )}
                 </FormLayout>
               </BlockStack>
             </Card>
-
-
 
             {/* Appearance & Style */}
             <Card>
