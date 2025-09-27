@@ -22,7 +22,7 @@ async function testSettings() {
         data: {
           shop,
           enableApp: true,
-          enableTitleCaps: false,  // Test the field we're interested in
+          enableRecommendationTitleCaps: false,  // Test the field we're interested in
         }
       });
       console.log('✅ Created settings:', {
@@ -34,26 +34,24 @@ async function testSettings() {
       console.log('✅ Found existing settings:', {
         id: settings.id,
         shop: settings.shop,
-        enableTitleCaps: settings.enableTitleCaps
+        enableRecommendationTitleCaps: settings.enableRecommendationTitleCaps
       });
     }
     
-    // Now try to update the enableTitleCaps field
-    console.log('🔄 Updating enableTitleCaps to true...');
+    // Now try to update the enableRecommendationTitleCaps field
+    console.log('🔄 Updating enableRecommendationTitleCaps to true...');
     const updatedSettings = await db.settings.update({
       where: { shop },
       data: {
-        enableTitleCaps: true
+        enableRecommendationTitleCaps: true
       }
     });
     
     console.log('✅ Updated settings:', {
       id: updatedSettings.id,
       shop: updatedSettings.shop,
-      enableTitleCaps: updatedSettings.enableTitleCaps
-    });
-    
-    console.log('🎉 Settings test completed successfully!');
+      enableRecommendationTitleCaps: updatedSettings.enableRecommendationTitleCaps
+    });    console.log('🎉 Settings test completed successfully!');
     
   } catch (error) {
     console.error('❌ Settings test failed:', error);

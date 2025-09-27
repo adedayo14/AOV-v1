@@ -47,6 +47,9 @@ model Settings {
   enableNotes             Boolean  @default(false)
   enableExpressCheckout   Boolean  @default(true)
   enableAnalytics         Boolean  @default(false)
+  // Dev-only fields for title case options
+  enableTitleCaps         Boolean  @default(false)
+  enableRecommendationTitleCaps Boolean @default(false)
   
   // Cart Behavior & Position
   cartPosition            String   @default("bottom-right")
@@ -77,8 +80,28 @@ model Settings {
   // Layout and Recommendations - IMPORTANT: Default is "carousel"
   recommendationLayout    String   @default("carousel")
   maxRecommendations      Int      @default(4)
+  maxRecommendationProducts Int    @default(4)
   complementDetectionMode String   @default("automatic")
   manualRecommendationProducts String @default("")
+  
+  // ML/AI Recommendation Settings
+  enableMLRecommendations Boolean  @default(false)
+  mlPersonalizationMode   String   @default("basic")
+  mlPrivacyLevel          String   @default("basic")
+  enableAdvancedPersonalization Boolean @default(false)
+  enableBehaviorTracking  Boolean  @default(false)
+  mlDataRetentionDays     String   @default("30")
+  hideRecommendationsAfterThreshold Boolean @default(false)
+  enableThresholdBasedSuggestions Boolean @default(false)
+  thresholdSuggestionMode String   @default("smart")
+  enableManualRecommendations Boolean @default(false)
+  
+  // Smart Bundle Settings
+  enableSmartBundles      Boolean  @default(false)
+  bundlesOnProductPages   Boolean  @default(false)
+  bundlesInCartDrawer     Boolean  @default(false)
+  bundlesOnCollectionPages Boolean @default(false)
+  defaultBundleDiscount   String   @default("10")
   
   // Sticky Cart Settings
   stickyCartShowIcon           Boolean @default(true)

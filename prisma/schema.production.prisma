@@ -45,6 +45,9 @@ model Settings {
   enableNotes             Boolean  @default(false)
   enableExpressCheckout   Boolean  @default(true)
   enableAnalytics         Boolean  @default(false)
+  // Dev-only fields for title case options
+  enableTitleCaps         Boolean  @default(false)
+  enableRecommendationTitleCaps Boolean @default(false)
   enableTitleCaps         Boolean  @default(false)
   // Dev-only toggle in dev schema; safe to keep for prod alignment
   enableRecommendationTitleCaps Boolean @default(false)
@@ -77,6 +80,7 @@ model Settings {
   // Recommendation Settings
   recommendationLayout    String   @default("horizontal")
   maxRecommendations      Int      @default(6)
+  maxRecommendationProducts Int    @default(4)
   complementDetectionMode String   @default("automatic")
   manualRecommendationProducts String @default("")
   
@@ -105,10 +109,15 @@ model Settings {
   enableAdvancedPersonalization Boolean @default(false)
   enableBehaviorTracking  Boolean  @default(false)
   mlDataRetentionDays     String   @default("30")
+  hideRecommendationsAfterThreshold Boolean @default(false)
+  enableThresholdBasedSuggestions Boolean @default(false)
+  thresholdSuggestionMode String   @default("smart")
+  enableManualRecommendations Boolean @default(false)
 
   // Smart Bundle Settings
   enableSmartBundles      Boolean  @default(false)
   bundlesOnProductPages   Boolean  @default(true)
+  bundlesInCartDrawer     Boolean  @default(false)
   bundlesOnCollectionPages Boolean @default(false)
   bundlesOnCartPage       Boolean  @default(false)
   bundlesOnCheckoutPage   Boolean  @default(false)
