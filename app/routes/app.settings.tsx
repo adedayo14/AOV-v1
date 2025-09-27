@@ -71,8 +71,6 @@ export const action = withAuthAction(async ({ request, auth }) => {
   freeShippingThreshold: Number(settings.freeShippingThreshold ?? 0),
     enableRecommendations: settings.enableRecommendations === 'true',
     enableAddons: settings.enableAddons === 'true',
-    enableDiscountCode: settings.enableDiscountCode === 'true',
-    enableNotes: settings.enableNotes === 'true',
     enableExpressCheckout: settings.enableExpressCheckout === 'true',
     enableAnalytics: settings.enableAnalytics === 'true',
   maxRecommendations: Number(settings.maxRecommendations ?? 6),
@@ -94,8 +92,6 @@ export const action = withAuthAction(async ({ request, auth }) => {
     addButtonText: String(settings.addButtonText) || "Add",
     checkoutButtonText: String(settings.checkoutButtonText) || "CHECKOUT",
     applyButtonText: String(settings.applyButtonText) || "Apply",
-  discountLinkText: String(settings.discountLinkText || '+ Got a promotion code?'),
-  notesLinkText: String(settings.notesLinkText || '+ Add order notes'),
     backgroundColor: String(settings.backgroundColor) || "#ffffff",
     textColor: String(settings.textColor) || "#1A1A1A",
     buttonColor: String(settings.buttonColor) || "#000000",
@@ -3281,51 +3277,7 @@ export default function SettingsPage() {
               </Card>
             )}
 
-            {/* Additional Features */}
-      <Card>
-              <BlockStack gap="400">
-        <Text variant="headingMd" as="h2">⚡ Additional Features</Text>
-        <Text as="p" tone="subdued">Settings UI version: links-2025-09-10-2</Text>
-                <FormLayout>
-                  <Checkbox
-                    label="Enable Discount Code Field"
-                    checked={formSettings.enableDiscountCode}
-                    onChange={(value) => updateSetting("enableDiscountCode", value)}
-                    helpText="Allow customers to apply discount codes in cart"
-                  />
-                  {formSettings.enableDiscountCode && (
-                    <TextField
-                      label="Promotion Link Text"
-                      value={formSettings.discountLinkText || '+ Got a promotion code?'}
-                      onChange={(value) => updateSetting('discountLinkText', value)}
-                      helpText="Inline link label shown on your online store to open the discount code modal"
-                      autoComplete="off"
-                    />
-                  )}
-                  
-                  <Checkbox
-                    label="Enable Order Notes"
-                    checked={formSettings.enableNotes}
-                    onChange={(value) => updateSetting("enableNotes", value)}
-                    helpText="Let customers add special instructions"
-                  />
 
-                  {formSettings.enableNotes && (
-                    <TextField
-                      label="Notes Link Text"
-                      value={formSettings.notesLinkText || '+ Add order notes'}
-                      onChange={(value) => updateSetting('notesLinkText', value)}
-                      helpText="Inline link label shown on your online store to open the order notes modal"
-                      autoComplete="off"
-                    />
-                  )}
-
-                  {(formSettings.enableDiscountCode || formSettings.enableNotes) && (
-                    <Text as="p" tone="subdued">Inline links will be shown instead of the full-width button.</Text>
-                  )}
-                </FormLayout>
-              </BlockStack>
-            </Card>
           </BlockStack>
         </div>
       </div>
