@@ -146,7 +146,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
               id
               createdAt
               lineItems(first: 30) { edges { node {
-                product { id title handle images(first: 1) { edges { node { url } } } vendor }
+                product { id title handle media(first: 1) { edges { node { ... on MediaImage { image { url } } } } } vendor }
                 variant { id price }
               } } }
             } }
@@ -188,7 +188,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           const p = ie.node.product; if (!p?.id) continue;
           const pid = getPid(p.id);
           const price = parseFloat(ie.node.variant?.price || '0') || 0;
-          const img = p.images?.edges?.[0]?.node?.url;
+          const img = p.media?.edges?.[0]?.node?.image?.url;
           items.push({ pid, title: p.title, handle: p.handle, img, price, vendor: p.vendor });
         }
         if (items.length < 2) continue;
@@ -265,7 +265,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         #graphql
         query inv($ids: [ID!]!) {
           nodes(ids: $ids) {
-            ... on Product { id title handle vendor status totalInventory availableForSale variants(first: 10) { edges { node { id availableForSale price } } } images(first:1){edges{node{url}}} }
+            ... on Product { id title handle vendor status totalInventory availableForSale variants(first: 10) { edges { node { id availableForSale price } } } media(first:1){edges{node{... on MediaImage { image { url } }}}} }
           }
         }
       `, { variables: { ids: prodGids } });
@@ -291,7 +291,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         const inStock = Boolean(n.availableForSale) || variants.some((v:any)=>v?.node?.availableForSale);
         // pick first variant price as representative
         const price = variants.length ? parseFloat(variants[0].node?.price||'0')||0 : (assoc[id]?.price||0);
-        availability[id] = { inStock, price, title: n.title, handle: n.handle, img: n.images?.edges?.[0]?.node?.url, vendor: n.vendor };
+        availability[id] = { inStock, price, title: n.title, handle: n.handle, img: n.media?.edges?.[0]?.node?.image?.url, vendor: n.vendor };
       }
 
       // Final ranking with guardrails (price-gap + diversity)
@@ -445,7 +445,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         try {
           const { admin } = await unauthenticated.admin(shop);
           const byHandleResp = await admin.graphql(`#graphql
-            query($handle: String!) { productByHandle(handle: $handle) { id } }
+            query($handle: String!) { productByIdentifier(identifier: { handle: $handle }) { id } }
           `, { variables: { handle: productId } });
           if (byHandleResp.ok) {
             const data: any = await byHandleResp.json();
@@ -504,10 +504,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
                   } 
                 } 
               }
-              images(first: 1) {
+              media(first: 1) {
                 edges {
                   node {
-                    url
+                    ... on MediaImage {
+                      image {
+                        url
+                      }
+                    }
                   }
                 }
               }
@@ -547,10 +551,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
                       }
                     }
                   }
-                  images(first: 1) {
+                  media(first: 1) {
                     edges {
                       node {
-                        url
+                        ... on MediaImage {
+                          image {
+                            url
+                          }
+                        }
                       }
                     }
                   }
@@ -595,7 +603,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
             options: opts,
             title: product.title,
             price: parseFloat(firstVariant?.price || '0'),
-            image: product.images?.edges?.[0]?.node?.url || undefined
+            image: product.media?.edges?.[0]?.node?.image?.url || undefined
           };
         };
 
@@ -620,7 +628,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
                 id
                 createdAt
                 lineItems(first: 30) { edges { node {
-                  product { id title handle images(first: 1) { edges { node { url } } } vendor }
+                  product { id title handle media(first: 1) { edges { node { ... on MediaImage { image { url } } } } } vendor }
                   variant { id price }
                 } } }
               } }
@@ -717,7 +725,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           const prodGids = relatedIds.map(id => `gid://shopify/Product/${id}`);
           const nodesResp = await admin.graphql(`
             #graphql
-            query rel($ids: [ID!]!) { nodes(ids: $ids) { ... on Product { id title handle variants(first: 10) { edges { node { id title price compareAtPrice availableForSale selectedOptions { name value } } } } images(first:1){edges{node{url}}} } } }
+            query rel($ids: [ID!]!) { nodes(ids: $ids) { ... on Product { id title handle variants(first: 10) { edges { node { id title price compareAtPrice availableForSale selectedOptions { name value } } } } media(first:1){edges{node{... on MediaImage { image { url } }}}} } } }
           `, { variables: { ids: prodGids } });
           if (nodesResp.ok) {
             const nodesData: any = await nodesResp.json();
