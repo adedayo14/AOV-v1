@@ -68,7 +68,6 @@ export const action = withAuthAction(async ({ request, auth }) => {
   // Convert string values to appropriate types
   const processedSettings = {
     enableApp: settings.enableApp === 'true',
-    enableStickyCart: settings.enableStickyCart === 'true',
     showOnlyOnCartPage: settings.showOnlyOnCartPage === 'true',
     autoOpenCart: settings.autoOpenCart === 'true',
 
@@ -76,17 +75,6 @@ export const action = withAuthAction(async ({ request, auth }) => {
     enableExpressCheckout: settings.enableExpressCheckout === 'true',
     enableAnalytics: settings.enableAnalytics === 'true',
 
-    cartPosition: String(settings.cartPosition) || 'bottom-right',
-    cartIcon: String(settings.cartIcon) || 'cart',
-    // New sticky cart settings
-    stickyCartShowIcon: settings.stickyCartShowIcon !== 'false',
-    stickyCartShowCount: settings.stickyCartShowCount !== 'false',
-    stickyCartShowTotal: settings.stickyCartShowTotal !== 'false',
-    stickyCartBackgroundColor: String(settings.stickyCartBackgroundColor) || "#000000",
-    stickyCartTextColor: String(settings.stickyCartTextColor) || "#ffffff",
-    stickyCartCountBadgeColor: String(settings.stickyCartCountBadgeColor) || "#ff4444",
-    stickyCartCountBadgeTextColor: String(settings.stickyCartCountBadgeTextColor) || "#ffffff",
-    stickyCartBorderRadius: Number(settings.stickyCartBorderRadius) || 25,
     freeShippingText: String(settings.freeShippingText) || "You're {{ amount }} away from free shipping!",
     freeShippingAchievedText: String(settings.freeShippingAchievedText) || "🎉 Congratulations! You've unlocked free shipping!",
 
@@ -131,29 +119,10 @@ export const action = withAuthAction(async ({ request, auth }) => {
   }
 });
 
-// Currency formatting helper function
-function formatCurrency(amount: number | string, currencyCode: string = 'USD', moneyFormat?: string): string {
-  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-  
-  if (moneyFormat) {
-    // Use Shopify's money format if available
-    return moneyFormat.replace(/\{\{\s*amount\s*\}\}/g, numAmount.toFixed(2));
-  }
-  
-  // Fallback to Intl.NumberFormat
-  try {
-    return new Intl.NumberFormat('en', {
-      style: 'currency',
-      currency: currencyCode,
-    }).format(numAmount);
-  } catch (error) {
-    // Ultimate fallback
-    return `${currencyCode} ${numAmount.toFixed(2)}`;
-  }
-}
+// Currency formatting not needed in admin settings (handled by theme embed)
 
 export default function SettingsPage() {
-  const { settings, shopCurrency } = useLoaderData<typeof loader>();
+  const { settings } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const productsFetcher = useFetcher();
 
@@ -197,7 +166,6 @@ export default function SettingsPage() {
         for (const button of Array.from(buttons).slice(0, 5)) { // Check first 5 buttons
           const buttonStyle = getComputedStyle(button);
           const bgColor = buttonStyle.backgroundColor;
-          const borderColor = buttonStyle.borderColor;
           
           // Skip if it's transparent, white, black, or green
           if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent' && 
@@ -233,8 +201,7 @@ export default function SettingsPage() {
 
   const [formSettings, setFormSettings] = useState(validateSettings(settings));
 
-  // Use theme colors for better defaults  
-  const themeColors = detectThemeColors();
+  // Theme colors handled by CSS variables and merchant color picker
 
   // Helper function to resolve CSS custom properties with fallbacks for preview
   const resolveColor = (colorValue: string | undefined | null, fallback: string = '#000000'): string => {
@@ -251,30 +218,7 @@ export default function SettingsPage() {
     return colorValue || fallback;
   };
 
-  // Helper function to render cart icons based on selected style
-  const renderCartIcon = (iconStyle: string = 'cart') => {
-    switch (iconStyle) {
-      case 'bag':
-        return (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-sticky-icon">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-          </svg>
-        );
-      case 'basket':
-        return (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-sticky-icon">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 7.5h15l-1.5 7.5H6l-1.5-7.5zM4.5 7.5L3 3.75H1.5m3 3.75L6 15h12l1.5-7.5M9 19.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM20.25 19.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z" />
-          </svg>
-        );
-      case 'cart':
-      default:
-        return (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="cartuplift-sticky-icon">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
-          </svg>
-        );
-    }
-  };
+  // Cart icon rendering handled by theme embed
 
   // Manual recommendation product selection state
   const [showProductSelector, setShowProductSelector] = useState(false);
@@ -287,9 +231,7 @@ export default function SettingsPage() {
   const [products, setProducts] = useState<any[]>([]);
   
   // Enhanced manual selection with variants
-  const [selectedProductForVariants, setSelectedProductForVariants] = useState<any>(null);
-  const [showVariantSelector, setShowVariantSelector] = useState(false);
-  const horizontalTrackRef = useRef<HTMLDivElement>(null);
+  // Variant selector not implemented in basic admin settings
   
   // Gift product selection state
 
@@ -302,21 +244,9 @@ export default function SettingsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const submittingRef = useRef(false);
 
-  // Ensure new sticky cart settings have defaults
+  // Initialize form settings with defaults if needed
   useEffect(() => {
-    setFormSettings((prev: any) => ({
-      ...prev,
-      stickyCartShowIcon: prev.stickyCartShowIcon !== false,
-      stickyCartShowCount: prev.stickyCartShowCount !== false,
-      stickyCartShowTotal: prev.stickyCartShowTotal !== false,
-      stickyCartBackgroundColor: prev.stickyCartBackgroundColor || "#000000",
-      stickyCartTextColor: prev.stickyCartTextColor || "#ffffff",
-      stickyCartCountBadgeColor: prev.stickyCartCountBadgeColor || "#ff4444",
-      stickyCartCountBadgeTextColor: prev.stickyCartCountBadgeTextColor || "#ffffff",
-      stickyCartBorderRadius: prev.stickyCartBorderRadius || 25,
-      // Progress bar and gift gating defaults
-
-    }));
+    // Settings initialization handled by validateSettings function
   }, []);
 
   // Auto-hide success banner after 3 seconds
@@ -767,87 +697,7 @@ export default function SettingsPage() {
             border: 1px solid #e0e0e0;
           }
 
-          /* Sticky Cart Preview Styles */
-          .cartuplift-sticky-preview {
-            position: absolute;
-            z-index: 10;
-            transition: all 0.3s ease;
-          }
-
-          .cartuplift-sticky-preview.bottom-right {
-            bottom: 20px;
-            right: 20px;
-          }
-
-          .cartuplift-sticky-preview.bottom-center {
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-          }
-
-          .cartuplift-sticky-preview.bottom-left {
-            bottom: 20px;
-            left: 20px;
-          }
-
-          .cartuplift-sticky-preview.top-right {
-            top: 20px;
-            right: 20px;
-          }
-
-          .cartuplift-sticky-preview.top-left {
-            top: 20px;
-            left: 20px;
-          }
-
-          .cartuplift-sticky-preview.right-middle {
-            top: 50%;
-            right: 20px;
-            transform: translateY(-50%);
-          }
-
-          .cartuplift-sticky-preview.left-middle {
-            top: 50%;
-            left: 20px;
-            transform: translateY(-50%);
-          }
-
-          .cartuplift-sticky-preview .cartuplift-sticky-btn {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 14px;
-            background: ${resolveColor(formSettings.stickyCartBackgroundColor || formSettings.buttonColor, '#000000')};
-            color: ${resolveColor(formSettings.stickyCartTextColor || formSettings.buttonTextColor, '#ffffff')};
-            border: none;
-            border-radius: ${formSettings.stickyCartBorderRadius || 25}px;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-            font-size: 11px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-          }
-
-          .cartuplift-sticky-icon {
-            width: 14px;
-            height: 14px;
-          }
-
-          .cartuplift-sticky-preview .cartuplift-sticky-count {
-            background: ${resolveColor(formSettings.stickyCartCountBadgeColor, '#ff4444')};
-            color: ${resolveColor(formSettings.stickyCartCountBadgeTextColor, '#ffffff')};
-            border-radius: 8px;
-            padding: 1px 4px;
-            font-size: 9px;
-            font-weight: bold;
-            min-width: 14px;
-            text-align: center;
-          }
-
-          .cartuplift-sticky-preview .cartuplift-sticky-total {
-            font-weight: 700;
-            font-size: 11px;
-          }
+          /* Sticky cart settings are handled by the theme embed (app-embed.liquid) */
 
           .cartuplift-footer {
             padding: 12px 16px;
