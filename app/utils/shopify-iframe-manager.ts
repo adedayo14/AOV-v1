@@ -20,12 +20,49 @@ export class ShopifyIframeManager {
   }
 
   private setupIframeEscape(): void {
+    // Check if we're in a legitimate Shopify admin embedded context
+    if (this.isShopifyAdminEmbedded()) {
+      console.log('Shopify admin embedded context detected - allowing iframe');
+      return;
+    }
+    
     // Detect if we're in a blocked iframe
     const isBlocked = this.isIframeBlocked();
     
     if (isBlocked) {
-      console.warn('Shopify admin iframe detected - implementing escape');
+      console.warn('Blocked iframe detected - implementing escape');
       this.executeIframeEscape();
+    }
+  }
+
+  private isShopifyAdminEmbedded(): boolean {
+    try {
+      // Check if we're in an iframe
+      if (window.top === window.self) return false;
+      
+      // Check for Shopify admin context indicators
+      const hasShopParam = new URLSearchParams(window.location.search).has('shop');
+      const hasEmbeddedParam = new URLSearchParams(window.location.search).get('embedded') === '1';
+      const hasTimestamp = new URLSearchParams(window.location.search).has('timestamp');
+      const hasShopifyHeaders = document.querySelector('meta[name="shopify-api-key"]');
+      
+      // Check referrer for Shopify admin
+      const referrer = document.referrer;
+      const isShopifyReferrer = referrer.includes('admin.shopify.com') || referrer.includes('.myshopify.com');
+      
+      // If we have multiple indicators of legitimate Shopify embedding, allow it
+      const indicators = [hasShopParam, hasEmbeddedParam, hasTimestamp, hasShopifyHeaders, isShopifyReferrer];
+      const positiveIndicators = indicators.filter(Boolean).length;
+      
+      if (positiveIndicators >= 2) {
+        console.log('Multiple Shopify admin indicators found - allowing embedding');
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      // If we can't determine context, err on the side of caution
+      return false;
     }
   }
 

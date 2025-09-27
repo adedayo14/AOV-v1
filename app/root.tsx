@@ -27,6 +27,21 @@ export default function App() {
                 console.log('CartUplift: Checking iframe context...');
                 
                 if (typeof window !== 'undefined' && window.top !== window.self) {
+                  // Check for Shopify admin embedding indicators
+                  var urlParams = new URLSearchParams(window.location.search);
+                  var hasShopParam = urlParams.has('shop');
+                  var hasEmbeddedParam = urlParams.get('embedded') === '1';
+                  var hasTimestamp = urlParams.has('timestamp');
+                  var referrer = document.referrer;
+                  var isShopifyReferrer = referrer.includes('admin.shopify.com') || referrer.includes('.myshopify.com');
+                  
+                  var shopifyIndicators = [hasShopParam, hasEmbeddedParam, hasTimestamp, isShopifyReferrer].filter(Boolean).length;
+                  
+                  if (shopifyIndicators >= 2) {
+                    console.log('CartUplift: Shopify admin embedded context detected - allowing iframe');
+                    return;
+                  }
+                  
                   try {
                     // Try to access parent location - will throw if X-Frame-Options blocks
                     var parentUrl = window.top.location.href;
