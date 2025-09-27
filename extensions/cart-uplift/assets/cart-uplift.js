@@ -37,6 +37,14 @@
       // Merge defaults with provided settings and any globals
       this.settings = Object.assign({}, window.CartUpliftSettings || {}, settings || {});
       
+      // Debug: Log layout settings
+      console.log('🛒 CartUpliftDrawer initialized with settings:', {
+        recommendationLayout: this.settings.recommendationLayout,
+        windowCartUpliftSettings: window.CartUpliftSettings,
+        constructorSettings: settings,
+        mergedSettings: this.settings
+      });
+      
       // Detect and apply theme colors to prevent green fallbacks
       this.themeColors = this.detectThemeColors();
       
@@ -2149,6 +2157,11 @@
 
   refreshRecommendationLayout() {
       // Reload settings to get latest changes
+      console.log('🔄 refreshRecommendationLayout called:', {
+        currentLayout: this.settings.recommendationLayout,
+        windowSettings: window.CartUpliftSettings?.recommendationLayout
+      });
+      
       const recommendationsContainer = document.querySelector('.cartuplift-recommendations-content');
       if (recommendationsContainer && this._recommendationsLoaded) {
         recommendationsContainer.innerHTML = this.getRecommendationItems();

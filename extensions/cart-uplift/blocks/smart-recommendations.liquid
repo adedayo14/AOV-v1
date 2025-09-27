@@ -151,6 +151,30 @@
     // Store settings globally for cart integration
     window.cartUpliftRecommendationsSettings = recommendationsSettings;
 
+    // CRITICAL: Map theme extension settings to main CartUpliftSettings
+    // The cart drawer expects recommendationLayout but theme extension provides layoutStyle
+    if (typeof window.CartUpliftSettings === 'undefined') {
+      window.CartUpliftSettings = {};
+    }
+    
+    // Map layoutStyle to recommendationLayout for cart drawer compatibility
+    if (recommendationsSettings.layoutStyle) {
+      window.CartUpliftSettings.recommendationLayout = recommendationsSettings.layoutStyle;
+    }
+    
+    // Also map other relevant settings
+    if (recommendationsSettings.sectionTitle) {
+      window.CartUpliftSettings.recommendationTitle = recommendationsSettings.sectionTitle;
+    }
+    if (recommendationsSettings.maxProducts) {
+      window.CartUpliftSettings.maxRecommendations = recommendationsSettings.maxProducts;
+    }
+    
+    console.log('🎯 Smart Recommendations settings mapped:', {
+      layoutStyle: recommendationsSettings.layoutStyle,
+      recommendationLayout: window.CartUpliftSettings.recommendationLayout
+    });
+
     // Smart Recommendations Manager
     class SmartRecommendationsManager {
       constructor() {
@@ -185,6 +209,9 @@
 
         console.log('🔄 Updating recommendations preview');
         
+        // Re-sync theme extension settings to main CartUpliftSettings
+        this.syncSettingsToMain();
+        
         // Apply recommendation styles
         this.applyRecommendationStyles();
         
@@ -196,6 +223,26 @@
             }
           }, 100);
         }
+      }
+
+      syncSettingsToMain() {
+        // Ensure main settings object exists
+        if (typeof window.CartUpliftSettings === 'undefined') {
+          window.CartUpliftSettings = {};
+        }
+        
+        // Re-read current theme editor values and sync to main settings
+        const currentLayoutStyle = {{ block.settings.layout_style | json }};
+        const currentSectionTitle = {{ block.settings.section_title | json }};
+        const currentMaxProducts = {{ block.settings.max_products | json }};
+        
+        window.CartUpliftSettings.recommendationLayout = currentLayoutStyle;
+        window.CartUpliftSettings.recommendationTitle = currentSectionTitle;  
+        window.CartUpliftSettings.maxRecommendations = currentMaxProducts;
+        
+        console.log('🔄 Settings synced to main CartUpliftSettings:', {
+          recommendationLayout: window.CartUpliftSettings.recommendationLayout
+        });
       }
 
       applyRecommendationStyles() {
@@ -251,6 +298,22 @@
         }
       });
     }
+
+    // Listen for cart drawer initialization to ensure settings are synced
+    document.addEventListener('DOMContentLoaded', function() {
+      // Re-sync settings when cart drawer might be initializing
+      setTimeout(() => {
+        smartRecommendationsManager.syncSettingsToMain();
+        
+        // If cart drawer exists, refresh its layout
+        if (window.cartUpliftDrawer && window.cartUpliftDrawer.refreshRecommendationLayout) {
+          window.cartUpliftDrawer.refreshRecommendationLayout();
+        }
+      }, 500);
+    });
+    
+    // Also sync settings when this script runs (immediate)
+    smartRecommendationsManager.syncSettingsToMain();
   })();
 </script>
 
