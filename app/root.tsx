@@ -19,6 +19,32 @@ export default function App() {
           rel="stylesheet"
           href="https://cdn.shopify.com/static/fonts/inter/v4/styles.css"
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                if (typeof window !== 'undefined' && window.top !== window.self) {
+                  try {
+                    var parentUrl = window.top.location.href;
+                  } catch (e) {
+                    console.warn('X-Frame-Options blocking detected - escaping iframe');
+                    var meta = document.createElement('meta');
+                    meta.httpEquiv = 'refresh';
+                    meta.content = '0; url=' + window.location.href;
+                    document.head.appendChild(meta);
+                    setTimeout(function() {
+                      try {
+                        window.top.location.href = window.location.href;
+                      } catch (e2) {
+                        window.location.replace(window.location.href);
+                      }
+                    }, 50);
+                  }
+                }
+              })();
+            `
+          }}
+        />
         <Meta />
         <Links />
       </head>
