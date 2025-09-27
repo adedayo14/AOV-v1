@@ -4,3 +4,7 @@ public/build
 shopify-app-remix
 */*.yml
 .shopify
+
+# Ignore large built or experimental assets in extension
+extensions/cart-uplift/assets/cart-uplift-corrupted.js
+extensions/cart-uplift/assets/cart-uplift-backup-*.js

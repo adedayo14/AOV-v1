@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
   "build": "node ./scripts/select-prisma-schema.js && prisma generate && remix vite:build",
+    "vercel-build": "bash ./scripts/production-build.sh",
     "dev": "shopify app dev",
     "clean": "rm -rf node_modules build",
     "db:reset": "prisma migrate reset --force --skip-seed",
