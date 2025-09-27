@@ -2202,12 +2202,20 @@
             setTimeout(() => {
               const scrollContainer = document.querySelector('.cartuplift-recommendations-content');
               if (scrollContainer) {
+                // Debug logging
+                console.log('[CartUplift] Scroll container found:', scrollContainer);
+                console.log('[CartUplift] Container width:', scrollContainer.clientWidth);
+                console.log('[CartUplift] Scroll width:', scrollContainer.scrollWidth);
+                console.log('[CartUplift] Max scroll:', scrollContainer.scrollWidth - scrollContainer.clientWidth);
+                
                 this.setupScrollControls(scrollContainer);
                 this.updateCarouselButtons(scrollContainer);
                 scrollContainer.addEventListener('scroll', () => {
                   this.updateCarouselButtons(scrollContainer);
                   this.updateDots(scrollContainer);
                 });
+              } else {
+                console.log('[CartUplift] ERROR: Scroll container not found');
               }
             }, 100);
           }
@@ -2358,26 +2366,36 @@
     }
 
     updateCarouselButtons(scrollContainer) {
-      if (!scrollContainer) return;
+      if (!scrollContainer) {
+        console.log('[CartUplift] updateCarouselButtons: No scroll container');
+        return;
+      }
       
       const prevBtn = document.querySelector('.cartuplift-carousel-nav.prev');
       const nextBtn = document.querySelector('.cartuplift-carousel-nav.next');
       
-      if (!prevBtn || !nextBtn) return;
+      if (!prevBtn || !nextBtn) {
+        console.log('[CartUplift] Navigation buttons not found:', { prevBtn, nextBtn });
+        return;
+      }
       
       const scrollLeft = scrollContainer.scrollLeft;
       const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+      console.log('[CartUplift] Scroll state:', { scrollLeft, maxScroll, scrollWidth: scrollContainer.scrollWidth, clientWidth: scrollContainer.clientWidth });
 
       // Always show controls if we have recommendations - let CSS handle responsive visibility
       const controls = document.querySelector('.cartuplift-carousel-controls');
       if (controls) {
         const hasRecommendations = document.querySelectorAll('.cartuplift-recommendation-card').length > 0;
+        console.log('[CartUplift] Controls state:', { hasRecommendations, cardsCount: document.querySelectorAll('.cartuplift-recommendation-card').length });
         if (hasRecommendations) {
           controls.style.display = 'flex';
           controls.style.visibility = 'visible';
         } else {
           controls.style.display = 'none';
         }
+      } else {
+        console.log('[CartUplift] Carousel controls not found');
       }
       
       // Update button states
