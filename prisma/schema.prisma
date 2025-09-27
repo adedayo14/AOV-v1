@@ -48,7 +48,6 @@ model Settings {
   enableExpressCheckout   Boolean  @default(true)
   enableAnalytics         Boolean  @default(false)
   // Dev-only fields for title case options
-  enableTitleCaps         Boolean  @default(false)
   enableRecommendationTitleCaps Boolean @default(false)
   
   // Cart Behavior & Position
