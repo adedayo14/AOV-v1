@@ -1101,10 +1101,12 @@ body.cartuplift-no-scroll {
   box-sizing: border-box;
   visibility: visible !important;
   z-index: 10; /* Ensure controls are above other elements */
+  opacity: 1 !important; /* Ensure controls are always visible */
+  pointer-events: auto !important; /* Ensure controls are clickable */
 }
 
 .cartuplift-carousel-nav {
-  display: inline-flex;
+  display: inline-flex !important;
   align-items: center;
   justify-content: center;
   width: 28px;                /* Restored size for better visibility */
@@ -1114,8 +1116,11 @@ body.cartuplift-no-scroll {
   background: transparent;
   cursor: pointer;
   transition: all 0.2s ease;
-  opacity: 1;
-  visibility: visible;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 15; /* Higher than carousel controls container */
 }
 
 .cartuplift-carousel-nav:hover {
@@ -1146,7 +1151,8 @@ body.cartuplift-no-scroll {
   bottom: 8px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 10;
+  z-index: 20; /* Higher z-index for mobile visibility */
+  pointer-events: auto !important;
 }
 
 .cartuplift-carousel-dot {
