@@ -71,9 +71,17 @@ export const action = withAuthAction(async ({ request, auth }) => {
     showOnlyOnCartPage: settings.showOnlyOnCartPage === 'true',
     autoOpenCart: settings.autoOpenCart === 'true',
 
+    // Core cart features
+    enableRecommendations: settings.enableRecommendations === 'true',
     enableAddons: settings.enableAddons === 'true',
+    enableDiscountCode: settings.enableDiscountCode === 'true',
+    enableNotes: settings.enableNotes === 'true',
     enableExpressCheckout: settings.enableExpressCheckout === 'true',
     enableAnalytics: settings.enableAnalytics === 'true',
+
+    // Free shipping
+    enableFreeShipping: settings.enableFreeShipping === 'true',
+    freeShippingThreshold: Number(settings.freeShippingThreshold) || 0,
 
     freeShippingText: String(settings.freeShippingText) || "You're {{ amount }} away from free shipping!",
     freeShippingAchievedText: String(settings.freeShippingAchievedText) || "🎉 Congratulations! You've unlocked free shipping!",
@@ -82,13 +90,20 @@ export const action = withAuthAction(async ({ request, auth }) => {
     addButtonText: String(settings.addButtonText) || "Add",
     checkoutButtonText: String(settings.checkoutButtonText) || "CHECKOUT",
     applyButtonText: String(settings.applyButtonText) || "Apply",
+    
+    // Text customization  
+    recommendationsTitle: String(settings.recommendationsTitle) || "You might also like",
+    discountLinkText: String(settings.discountLinkText) || "+ Got a promotion code?", 
+    notesLinkText: String(settings.notesLinkText) || "+ Add order notes",
+    
+    // Appearance colors
     backgroundColor: String(settings.backgroundColor) || "#ffffff",
     textColor: String(settings.textColor) || "#1A1A1A",
     buttonColor: String(settings.buttonColor) || "#000000",
     buttonTextColor: String(settings.buttonTextColor) || "#ffffff",
-
+    recommendationsBackgroundColor: String(settings.recommendationsBackgroundColor) || "#ecebe3",
     shippingBarBackgroundColor: String(settings.shippingBarBackgroundColor) || "#f0f0f0",
-    shippingBarColor: String(settings.shippingBarColor) || "#121212", // Dark neutral default
+    shippingBarColor: String(settings.shippingBarColor) || "#121212",
 
     // Progress Bar System
 
@@ -695,6 +710,19 @@ export default function SettingsPage() {
             object-fit: cover;
             border-radius: 4px;
             border: 1px solid #e0e0e0;
+          }
+
+          /* Text Row Layout */
+          .cartuplift-text-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+          }
+          
+          @media (max-width: 768px) {
+            .cartuplift-text-row {
+              grid-template-columns: 1fr;
+            }
           }
 
           /* Sticky cart settings are handled by the theme embed (app-embed.liquid) */
@@ -2441,6 +2469,92 @@ export default function SettingsPage() {
               </BlockStack>
             </Card>
 
+            {/* Core Cart Features */}
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingMd" as="h2">🛒 Cart Features</Text>
+                <Text as="p" variant="bodyMd">Configure core cart functionality and customer experience features.</Text>
+                <FormLayout>
+                  <Checkbox
+                    label="Enable Recommendations"
+                    checked={formSettings.enableRecommendations}
+                    onChange={(value) => updateSetting("enableRecommendations", value)}
+                    helpText="Show product recommendations in cart drawer"
+                  />
+
+                  <Checkbox
+                    label="Enable Add-ons & Upsells"
+                    checked={formSettings.enableAddons}
+                    onChange={(value) => updateSetting("enableAddons", value)}
+                    helpText="Display product add-ons and upsell opportunities"
+                  />
+
+                  <Checkbox
+                    label="Enable Discount Code Field"
+                    checked={formSettings.enableDiscountCode}
+                    onChange={(value) => updateSetting("enableDiscountCode", value)}
+                    helpText="Allow customers to enter discount codes in cart"
+                  />
+
+                  <Checkbox
+                    label="Enable Order Notes"
+                    checked={formSettings.enableNotes}
+                    onChange={(value) => updateSetting("enableNotes", value)}
+                    helpText="Let customers add special instructions to their order"
+                  />
+
+                  <Checkbox
+                    label="Enable Express Checkout Buttons"
+                    checked={formSettings.enableExpressCheckout}
+                    onChange={(value) => updateSetting("enableExpressCheckout", value)}
+                    helpText="Show PayPal, Shop Pay, and other express checkout options"
+                  />
+
+                  <Divider />
+
+                  <Text variant="headingSm" as="h3">🚚 Free Shipping Progress</Text>
+                  
+                  <Checkbox
+                    label="Enable Free Shipping Progress Bar"
+                    checked={formSettings.enableFreeShipping}
+                    onChange={(value) => updateSetting("enableFreeShipping", value)}
+                    helpText="Show progress towards free shipping threshold"
+                  />
+
+                  {formSettings.enableFreeShipping && (
+                    <BlockStack gap="300">
+                      <TextField
+                        label="Free Shipping Threshold"
+                        value={String(formSettings.freeShippingThreshold || 0)}
+                        onChange={(value) => updateSetting("freeShippingThreshold", parseFloat(value) || 0)}
+                        helpText="Minimum order amount for free shipping (in your store currency)"
+                        type="number"
+                        min="0"
+                        step={0.01}
+                        autoComplete="off"
+                      />
+
+                      <TextField
+                        label="Progress Message"
+                        value={formSettings.freeShippingText || "You're {{ amount }} away from free shipping!"}
+                        onChange={(value) => updateSetting("freeShippingText", value)}
+                        helpText="Message shown when customer hasn't reached threshold. Use {{ amount }} for remaining amount."
+                        autoComplete="off"
+                      />
+
+                      <TextField
+                        label="Achievement Message"
+                        value={formSettings.freeShippingAchievedText || "🎉 Congratulations! You've unlocked free shipping!"}
+                        onChange={(value) => updateSetting("freeShippingAchievedText", value)}
+                        helpText="Message shown when free shipping threshold is reached"
+                        autoComplete="off"
+                      />
+                    </BlockStack>
+                  )}
+                </FormLayout>
+              </BlockStack>
+            </Card>
+
             {/* ML & Smart Bundles Settings - PROMINENT PLACEMENT */}
             <Card>
               <BlockStack gap="400">
@@ -2655,12 +2769,143 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   
+                  <Divider />
+                  
+                  <Text variant="headingSm" as="h3">🎨 Background Colors</Text>
+                  
+                  <div className="cartuplift-appearance-row">
+                    <div>
+                      <Text variant="bodyMd" as="p">Cart Background</Text>
+                      <input
+                        type="color"
+                        value={formSettings.backgroundColor || '#ffffff'}
+                        onChange={(e) => updateSetting("backgroundColor", e.target.value)}
+                        className="cartuplift-color-input-full-width"
+                        title={formSettings.backgroundColor || '#ffffff'}
+                        aria-label={`Cart background color: ${formSettings.backgroundColor || '#ffffff'}`}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Text variant="bodyMd" as="p">Recommendations Background</Text>
+                      <input
+                        type="color"
+                        value={formSettings.recommendationsBackgroundColor || '#ecebe3'}
+                        onChange={(e) => updateSetting("recommendationsBackgroundColor", e.target.value)}
+                        className="cartuplift-color-input-full-width"
+                        title={formSettings.recommendationsBackgroundColor || '#ecebe3'}
+                        aria-label={`Recommendations background color: ${formSettings.recommendationsBackgroundColor || '#ecebe3'}`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="cartuplift-appearance-row">
+                    <div>
+                      <Text variant="bodyMd" as="p">Progress Bar Background</Text>
+                      <input
+                        type="color"
+                        value={formSettings.shippingBarBackgroundColor || '#f0f0f0'}
+                        onChange={(e) => updateSetting("shippingBarBackgroundColor", e.target.value)}
+                        className="cartuplift-color-input-full-width"
+                        title={formSettings.shippingBarBackgroundColor || '#f0f0f0'}
+                        aria-label={`Progress bar background: ${formSettings.shippingBarBackgroundColor || '#f0f0f0'}`}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Text variant="bodyMd" as="p">Progress Bar Fill</Text>
+                      <input
+                        type="color"
+                        value={formSettings.shippingBarColor || '#121212'}
+                        onChange={(e) => updateSetting("shippingBarColor", e.target.value)}
+                        className="cartuplift-color-input-full-width"
+                        title={formSettings.shippingBarColor || '#121212'}
+                        aria-label={`Progress bar fill color: ${formSettings.shippingBarColor || '#121212'}`}
+                      />
+                    </div>
+                  </div>
+                  
                   <Checkbox
                     label="Show only on cart page"
                     checked={formSettings.showOnlyOnCartPage}
                     onChange={(value) => updateSetting("showOnlyOnCartPage", value)}
                     helpText="Limit cart uplift features to cart page only (disables recommendations and upsells on other pages)"
                   />
+                </FormLayout>
+              </BlockStack>
+            </Card>
+
+            {/* Text & Copy Customization */}
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingMd" as="h2">✏️ Text & Copy</Text>
+                <Text as="p" variant="bodyMd">Customize all text displayed to customers in the cart experience.</Text>
+                <FormLayout>
+                  <Text variant="headingSm" as="h3">🛍️ Cart Interface Text</Text>
+                  
+                  <TextField
+                    label="Recommendations Section Title"
+                    value={formSettings.recommendationsTitle || "You might also like"}
+                    onChange={(value) => updateSetting("recommendationsTitle", value)}
+                    helpText="Title shown above product recommendations"
+                    autoComplete="off"
+                  />
+
+                  <TextField
+                    label="Discount Code Link Text"
+                    value={formSettings.discountLinkText || "+ Got a promotion code?"}
+                    onChange={(value) => updateSetting("discountLinkText", value)}
+                    helpText="Text for the discount code toggle link"
+                    autoComplete="off"
+                  />
+
+                  <TextField
+                    label="Order Notes Link Text" 
+                    value={formSettings.notesLinkText || "+ Add order notes"}
+                    onChange={(value) => updateSetting("notesLinkText", value)}
+                    helpText="Text for the order notes toggle link"
+                    autoComplete="off"
+                  />
+
+                  <Divider />
+
+                  <Text variant="headingSm" as="h3">🔘 Button Labels</Text>
+
+                  <div className="cartuplift-text-row">
+                    <TextField
+                      label="Checkout Button"
+                      value={formSettings.checkoutButtonText || "CHECKOUT"}
+                      onChange={(value) => updateSetting("checkoutButtonText", value)}
+                      helpText="Main checkout button text"
+                      autoComplete="off"
+                    />
+
+                    <TextField
+                      label="Add Button"
+                      value={formSettings.addButtonText || "Add"}
+                      onChange={(value) => updateSetting("addButtonText", value)}
+                      helpText="Add to cart button text"
+                      autoComplete="off"
+                    />
+                  </div>
+
+                  <div className="cartuplift-text-row">
+                    <TextField
+                      label="Apply Button"
+                      value={formSettings.applyButtonText || "Apply"}
+                      onChange={(value) => updateSetting("applyButtonText", value)}
+                      helpText="Apply discount code button"
+                      autoComplete="off"
+                    />
+
+                    <TextField
+                      label="Action Text"
+                      value={formSettings.actionText || "Add discount code"}
+                      onChange={(value) => updateSetting("actionText", value)}
+                      helpText="General action text placeholder"
+                      autoComplete="off"
+                    />
+                  </div>
                 </FormLayout>
               </BlockStack>
             </Card>
