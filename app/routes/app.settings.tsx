@@ -74,7 +74,6 @@ export const action = withAuthAction(async ({ request, auth }) => {
     enableAddons: settings.enableAddons === 'true',
     enableExpressCheckout: settings.enableExpressCheckout === 'true',
     enableAnalytics: settings.enableAnalytics === 'true',
-    enableAdvancedColors: settings.enableAdvancedColors === 'true',
 
     actionText: String(settings.actionText) || "Add discount code",
     addButtonText: String(settings.addButtonText) || "Add",
@@ -83,14 +82,8 @@ export const action = withAuthAction(async ({ request, auth }) => {
     
     // Advanced text customization (basic text handled by theme embed)
     
-    // Appearance colors
-    backgroundColor: String(settings.backgroundColor) || "#ffffff",
-    textColor: String(settings.textColor) || "#1A1A1A",
-    buttonColor: String(settings.buttonColor) || "#000000",
-    buttonTextColor: String(settings.buttonTextColor) || "#ffffff",
-    recommendationsBackgroundColor: String(settings.recommendationsBackgroundColor) || "#ecebe3",
-    shippingBarBackgroundColor: String(settings.shippingBarBackgroundColor) || "#f0f0f0",
-    shippingBarColor: String(settings.shippingBarColor) || "#121212",
+    // Cart icon selection (colors handled by theme embed)
+    cartIcon: String(settings.cartIcon) || 'cart',
 
     // Progress Bar System
 
@@ -2685,118 +2678,18 @@ export default function SettingsPage() {
               </BlockStack>
             </Card>
 
-            {/* Appearance & Style */}
+            {/* Cart Icon Selection (colors handled by theme embed) */}
             <Card>
               <BlockStack gap="400">
-                <Text variant="headingMd" as="h2">🎨 Appearance & Style</Text>
+                <Text variant="headingMd" as="h2">🎨 Cart Icon Style</Text>
+                <Text as="p" variant="bodyMd">Choose your cart icon style. Colors and styling are configured in the theme editor.</Text>
                 <FormLayout>
                   <Select
                     label="Cart Icon Style"
                     options={cartIconOptions}
                     value={formSettings.cartIcon}
                     onChange={(value) => updateSetting("cartIcon", value)}
-                    helpText="Choose the icon style for your cart"
-                  />
-                  
-                  <div className="cartuplift-appearance-row">
-                    <div>
-                      <Text variant="headingMd" as="h3">Button Color</Text>
-                      <input
-                        type="color"
-                        value={resolveColor(formSettings.buttonColor, '#000000')}
-                        onChange={(e) => updateSetting("buttonColor", e.target.value)}
-                        className="cartuplift-color-input-full-width"
-                        title={resolveColor(formSettings.buttonColor, '#000000')}
-                        aria-label={`Button color: ${resolveColor(formSettings.buttonColor, '#000000')}`}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Text variant="headingMd" as="h3">Button Text</Text>
-                      <input
-                        type="color"
-                        value={resolveColor(formSettings.buttonTextColor, '#ffffff')}
-                        onChange={(e) => updateSetting("buttonTextColor", e.target.value)}
-                        className="cartuplift-color-input-full-width"
-                        title={resolveColor(formSettings.buttonTextColor, '#ffffff')}
-                        aria-label={`Button text color: ${resolveColor(formSettings.buttonTextColor, '#ffffff')}`}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Text variant="headingMd" as="h3">Text Color</Text>
-                      <input
-                        type="color"
-                        value={formSettings.textColor || '#1A1A1A'}
-                        onChange={(e) => updateSetting("textColor", e.target.value)}
-                        className="cartuplift-color-input-full-width"
-                        title={formSettings.textColor || '#1A1A1A'}
-                        aria-label={`Text color: ${formSettings.textColor || '#1A1A1A'}`}
-                      />
-                    </div>
-                  </div>
-                  
-                  <Divider />
-                  
-                  <Text variant="headingSm" as="h3">🎨 Background Colors</Text>
-                  
-                  <div className="cartuplift-appearance-row">
-                    <div>
-                      <Text variant="bodyMd" as="p">Cart Background</Text>
-                      <input
-                        type="color"
-                        value={formSettings.backgroundColor || '#ffffff'}
-                        onChange={(e) => updateSetting("backgroundColor", e.target.value)}
-                        className="cartuplift-color-input-full-width"
-                        title={formSettings.backgroundColor || '#ffffff'}
-                        aria-label={`Cart background color: ${formSettings.backgroundColor || '#ffffff'}`}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Text variant="bodyMd" as="p">Recommendations Background</Text>
-                      <input
-                        type="color"
-                        value={formSettings.recommendationsBackgroundColor || '#ecebe3'}
-                        onChange={(e) => updateSetting("recommendationsBackgroundColor", e.target.value)}
-                        className="cartuplift-color-input-full-width"
-                        title={formSettings.recommendationsBackgroundColor || '#ecebe3'}
-                        aria-label={`Recommendations background color: ${formSettings.recommendationsBackgroundColor || '#ecebe3'}`}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="cartuplift-appearance-row">
-                    <div>
-                      <Text variant="bodyMd" as="p">Progress Bar Background</Text>
-                      <input
-                        type="color"
-                        value={formSettings.shippingBarBackgroundColor || '#f0f0f0'}
-                        onChange={(e) => updateSetting("shippingBarBackgroundColor", e.target.value)}
-                        className="cartuplift-color-input-full-width"
-                        title={formSettings.shippingBarBackgroundColor || '#f0f0f0'}
-                        aria-label={`Progress bar background: ${formSettings.shippingBarBackgroundColor || '#f0f0f0'}`}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Text variant="bodyMd" as="p">Progress Bar Fill</Text>
-                      <input
-                        type="color"
-                        value={formSettings.shippingBarColor || '#121212'}
-                        onChange={(e) => updateSetting("shippingBarColor", e.target.value)}
-                        className="cartuplift-color-input-full-width"
-                        title={formSettings.shippingBarColor || '#121212'}
-                        aria-label={`Progress bar fill color: ${formSettings.shippingBarColor || '#121212'}`}
-                      />
-                    </div>
-                  </div>
-                  
-                  <Checkbox
-                    label="Advanced Color Customization"
-                    checked={(formSettings as any).enableAdvancedColors}
-                    onChange={(value) => updateSetting("enableAdvancedColors", value)}
-                    helpText="Enable advanced color customization beyond theme defaults"
+                    helpText="Choose the icon style for your cart (colors configured in theme editor)"
                   />
                 </FormLayout>
               </BlockStack>
