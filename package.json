@@ -2,7 +2,7 @@
   "name": "cart-uplift-app",
   "private": true,
   "scripts": {
-    "build": "prisma generate && remix vite:build",
+  "build": "node ./scripts/select-prisma-schema.js && prisma generate && remix vite:build",
     "dev": "shopify app dev",
     "clean": "rm -rf node_modules build",
     "db:reset": "prisma migrate reset --force --skip-seed",

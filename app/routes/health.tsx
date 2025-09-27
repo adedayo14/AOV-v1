@@ -31,6 +31,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         hasApiSecret: !!process.env.SHOPIFY_API_SECRET,
         hasDatabaseUrl: !!process.env.DATABASE_URL,
         hasSessionSecret: !!process.env.SESSION_SECRET,
+        hasAppUrl: !!process.env.SHOPIFY_APP_URL,
         nodeEnv: process.env.NODE_ENV
       }
     });
@@ -45,3 +46,4 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }, { status: 500 });
   }
 };
+ 
