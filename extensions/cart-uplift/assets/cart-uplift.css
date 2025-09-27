@@ -959,7 +959,7 @@ body.cartuplift-no-scroll {
   width: 100%;
   padding-left: 16px;
   padding-top: 10px;
-  padding-bottom: 10px; /* Add bottom padding for more space between header and cards */
+  padding-bottom: 6px; /* Reduced from 10px to decrease space between header and cards */
   padding-right: 16px; /* Reduced to move toggle closer to edge */
   background: var(--cartuplift-recommendations-bg);
   height: 46px;  /* Increased from 36px to account for bottom padding */
@@ -1027,7 +1027,7 @@ body.cartuplift-no-scroll {
   position: relative;
   display: block; /* Default visible; allow collapsed state to override */
   background: var(--cartuplift-recommendations-bg);
-  padding: 12px;
+  padding: 8px 12px 12px 12px; /* Reduced top padding from 12px to 8px for tighter spacing */
   /* Smooth transitions for content changes */
   transition: opacity 0.2s ease, transform 0.2s ease;
   transform: translateZ(0); /* Force hardware acceleration */
@@ -1036,7 +1036,7 @@ body.cartuplift-no-scroll {
 /* Ensure recommendations are visible by default */
 .cartuplift-recommendations:not(.collapsed) .cartuplift-recommendations-content {
   display: block !important;
-  margin-top: 12px; /* add equal space below header so title is visually centered */
+  margin-top: 4px; /* Reduced from 12px to decrease space between title and cards */
 }
 
 .cartuplift-recommendations.collapsed .cartuplift-recommendations-content {
@@ -1080,7 +1080,7 @@ body.cartuplift-no-scroll {
   display: flex;
   gap: 15px;
   padding: 6px 84px 6px 0; /* restore original padding */
-  margin-top: 4px; /* Slightly tighter to header */
+  margin-top: 0px; /* Removed margin for tighter spacing to title */
   /* Smooth momentum scrolling */
   transform: translateZ(0); /* Force hardware acceleration */
   will-change: transform; /* Optimize for smooth scrolling */
@@ -1422,7 +1422,7 @@ body.cartuplift-no-scroll {
 
 /* Grid Layout - for premium grid display */
 .cartuplift-recommendations-grid .cartuplift-recommendations-content {
-  padding: 12px; /* Reduced from 16px to match row layout */
+  padding: 8px 12px 12px 12px; /* Reduced top padding from 12px to 8px for tighter title spacing */
 }
 
 /* --- Minimal COS-style Grid (desktop) --- */
