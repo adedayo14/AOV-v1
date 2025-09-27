@@ -50,7 +50,6 @@ model Settings {
   enableRecommendationTitleCaps Boolean @default(false)
   enableTitleCaps         Boolean  @default(false)
   // Dev-only toggle in dev schema; safe to keep for prod alignment
-  enableRecommendationTitleCaps Boolean @default(false)
   
   // Cart Behavior & Position
   cartPosition            String   @default("bottom-right")
