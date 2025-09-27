@@ -11,6 +11,12 @@ import {
   Text,
   Banner,
   Checkbox,
+  Button,
+  InlineStack,
+  Badge,
+  Divider,
+  Modal,
+  Spinner,
 
 
 
@@ -103,6 +109,13 @@ export const action = withAuthAction(async ({ request, auth }) => {
   enableSmartBundles: settings.enableSmartBundles === 'true',
   mlPersonalizationMode: String(settings.mlPersonalizationMode) || 'basic',
   mlPrivacyLevel: String(settings.mlPrivacyLevel) || 'basic',
+  // Advanced Recommendation Settings
+  maxRecommendationProducts: Number(settings.maxRecommendationProducts ?? 4),
+  hideRecommendationsAfterThreshold: settings.hideRecommendationsAfterThreshold === 'true',
+  enableThresholdBasedSuggestions: settings.enableThresholdBasedSuggestions === 'true',
+  thresholdSuggestionMode: String(settings.thresholdSuggestionMode) || 'smart',
+  manualRecommendationProducts: String(settings.manualRecommendationProducts) || '',
+  enableManualRecommendations: settings.enableManualRecommendations === 'true',
   enableAdvancedPersonalization: settings.enableAdvancedPersonalization === 'true',
   enableBehaviorTracking: settings.enableBehaviorTracking === 'true',
   mlDataRetentionDays: String(settings.mlDataRetentionDays) || '30',
@@ -2646,6 +2659,74 @@ export default function SettingsPage() {
                         type="number"
                         autoComplete="off"
                       />
+
+                      <Divider />
+
+                      <Text variant="headingSm" as="h3">📦 Advanced Recommendation Controls</Text>
+                      
+                      <TextField
+                        label="Maximum Products to Show"
+                        value={String(formSettings.maxRecommendationProducts || 4)}
+                        onChange={(value) => updateSetting("maxRecommendationProducts", parseInt(value) || 4)}
+                        helpText="Number of recommendation products to display (1-12)"
+                        type="number"
+                        min="1"
+                        max="12"
+                        autoComplete="off"
+                      />
+
+                      <Checkbox
+                        label="Hide Recommendations After All Thresholds Met"
+                        checked={formSettings.hideRecommendationsAfterThreshold}
+                        onChange={(value) => updateSetting("hideRecommendationsAfterThreshold", value)}
+                        helpText="Collapse recommendation section when customer reaches all available gift/shipping thresholds"
+                      />
+
+                      <Checkbox
+                        label="Enable Threshold-Based Product Suggestions"
+                        checked={formSettings.enableThresholdBasedSuggestions}
+                        onChange={(value) => updateSetting("enableThresholdBasedSuggestions", value)}
+                        helpText="Smart product suggestions to help customers reach thresholds (e.g., suggest $20+ items when customer has $80 and threshold is $100)"
+                      />
+
+                      {formSettings.enableThresholdBasedSuggestions && (
+                        <Select
+                          label="Threshold Suggestion Strategy"
+                          options={[
+                            { label: '🤖 Smart AI Selection', value: 'smart' },
+                            { label: '💰 Price-Based Only', value: 'price' },
+                            { label: '🎯 Category Match + Price', value: 'category_price' },
+                            { label: '🔥 Popular + Price', value: 'popular_price' }
+                          ]}
+                          value={formSettings.thresholdSuggestionMode}
+                          onChange={(value) => updateSetting("thresholdSuggestionMode", value)}
+                          helpText="How to select products that help customers reach thresholds"
+                        />
+                      )}
+
+                      <Checkbox
+                        label="Enable Manual Product Selection"
+                        checked={formSettings.enableManualRecommendations}
+                        onChange={(value) => updateSetting("enableManualRecommendations", value)}
+                        helpText="Allow manual selection of products to include in recommendations"
+                      />
+
+                      {formSettings.enableManualRecommendations && (
+                        <div className="cartuplift-manual-rec-section">
+                          <Text variant="headingSm" as="h3">🛠️ Manual Product Selection</Text>
+                          <div className="cartuplift-manual-rec-info">
+                            <Text variant="bodyMd" as="p" tone="subdued">
+                              Select specific products to always include in recommendations
+                            </Text>
+                            <InlineStack gap="200" align="start">
+                              <Button onClick={() => setShowProductSelector(true)}>Select Products</Button>
+                              {selectedProducts.length > 0 && (
+                                <Badge tone="success">{`${selectedProducts.length} selected`}</Badge>
+                              )}
+                            </InlineStack>
+                          </div>
+                        </div>
+                      )}
                     </BlockStack>
                   )}
 
@@ -2743,6 +2824,74 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Product Selector Modal for Manual Recommendations */}
+      {showProductSelector && (
+        <Modal
+          open
+          onClose={() => setShowProductSelector(false)}
+          title="Select Products for Manual Recommendations"
+          primaryAction={{
+            content: 'Done',
+            onAction: () => {
+              setShowProductSelector(false);
+            }
+          }}
+          secondaryActions={[{ content: 'Cancel', onAction: () => setShowProductSelector(false) }]}
+        >
+          <Modal.Section>
+            <BlockStack gap="300">
+              <TextField
+                label="Search products"
+                value={productSearchQuery}
+                onChange={(v: string) => setProductSearchQuery(v)}
+                autoComplete="off"
+                placeholder="Search by title, vendor, or tag"
+              />
+              {productsLoading ? (
+                <InlineStack align="center">
+                  <Spinner accessibilityLabel="Loading products" />
+                </InlineStack>
+              ) : (
+                <div className="cartuplift-product-selector-list">
+                  {productsError && (
+                    <Banner tone="critical">{productsError}</Banner>
+                  )}
+                  {products.length === 0 && (
+                    <Text as="p" tone="subdued">No products found.</Text>
+                  )}
+                  {products.map((p: any) => {
+                    const isSelected = selectedProducts.includes(p.id);
+                    return (
+                      <div key={p.id} className="cartuplift-product-row">
+                        <Checkbox
+                          label=""
+                          checked={isSelected}
+                          onChange={(val: boolean) => {
+                            if (val) {
+                              const updated = [...selectedProducts, p.id];
+                              setSelectedProducts(updated);
+                              updateSetting('manualRecommendationProducts', updated.join(','));
+                            } else {
+                              const updated = selectedProducts.filter(id => id !== p.id);
+                              setSelectedProducts(updated);
+                              updateSetting('manualRecommendationProducts', updated.join(','));
+                            }
+                          }}
+                        />
+                        <img className="cartuplift-product-thumb" src={p.image || ''} alt={p.imageAlt || p.title} />
+                        <div className="cartuplift-product-meta">
+                          <p className="cartuplift-product-title">{p.title}</p>
+                          <p className="cartuplift-product-sub">{p.handle}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </BlockStack>
+          </Modal.Section>
+        </Modal>
+      )}
 
     </Page>
   );
