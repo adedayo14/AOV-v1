@@ -1081,6 +1081,8 @@ body.cartuplift-no-scroll {
   gap: 15px;
   padding: 6px 84px 6px 0; /* restore original padding */
   margin-top: 0px; /* Removed margin for tighter spacing to title */
+  min-width: max-content; /* Ensure track is wide enough to scroll */
+  width: max-content; /* Allow track to expand beyond container */
   /* Smooth momentum scrolling */
   transform: translateZ(0); /* Force hardware acceleration */
   will-change: transform; /* Optimize for smooth scrolling */
@@ -1560,6 +1562,8 @@ body.cartuplift-no-scroll {
     display: flex;
     gap: 16px;
     padding: 0 0 8px 0; /* container provides side padding */
+    min-width: max-content; /* Ensure scrolling works on mobile */
+    width: max-content;
   }
   
   /* Ensure each card spans the container width minus track side padding */
