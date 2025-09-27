@@ -66,7 +66,7 @@ export function ErrorBoundary() {
   }
 
   return boundary.error(error);
-};
+}
 
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);
