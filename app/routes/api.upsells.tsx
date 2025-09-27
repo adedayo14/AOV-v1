@@ -46,11 +46,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                       id
                       title
                       handle
-                      images(first: 1) {
+                      media(first: 1) {
                         edges {
                           node {
-                            url
-                            altText
+                            ... on MediaImage {
+                              image {
+                                url
+                                altText
+                              }
+                            }
                           }
                         }
                       }
@@ -108,7 +112,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             id: productId,
             title: product.title,
             handle: product.handle,
-            image: product.images.edges[0]?.node?.url || 'https://via.placeholder.com/150',
+            image: product.media.edges[0]?.node?.image?.url || 'https://via.placeholder.com/150',
             price: parseFloat(variant.price) * 100, // Convert to cents
             variantId: variant.id.replace('gid://shopify/ProductVariant/', ''),
             totalRevenue: 0,

@@ -39,11 +39,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                       id
                       title
                       handle
-                      images(first: 1) {
+                      media(first: 1) {
                         edges {
                           node {
-                            url
-                            altText
+                            ... on MediaImage {
+                              image {
+                                url
+                                altText
+                              }
+                            }
                           }
                         }
                       }
@@ -122,7 +126,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 id: productAId,
                 title: itemA.product.title,
                 handle: itemA.product.handle,
-                image: itemA.product.images.edges[0]?.node?.url || '',
+                image: itemA.product.media.edges[0]?.node?.image?.url || '',
                 price: parseFloat(itemA.variant?.price || 0)
               },
               associatedWith: {},
@@ -139,7 +143,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 id: productBId,
                 title: itemB.product.title,
                 handle: itemB.product.handle,
-                image: itemB.product.images.edges[0]?.node?.url || '',
+                image: itemB.product.media.edges[0]?.node?.image?.url || '',
                 price: parseFloat(itemB.variant?.price || 0)
               },
               associatedWith: {},

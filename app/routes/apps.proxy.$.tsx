@@ -449,7 +449,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           `, { variables: { handle: productId } });
           if (byHandleResp.ok) {
             const data: any = await byHandleResp.json();
-            const gid: string | undefined = data?.data?.productByHandle?.id;
+            const gid: string | undefined = data?.data?.productByIdentifier?.id;
             if (gid) productId = gid.replace('gid://shopify/Product/','');
           }
         } catch(_) { /* ignore */ }
