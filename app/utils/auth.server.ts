@@ -10,36 +10,27 @@ export async function enhancedAuthenticate(request: Request) {
     const result = await authenticate.admin(request);
     return result;
   } catch (error) {
-    // If it's a session-related error, provide a more user-friendly response
-    if (error && typeof error === 'object' && 'message' in error) {
-      const errorMessage = (error as { message: string }).message;
-      
-      if (errorMessage.includes('session') || errorMessage.includes('auth')) {
-        // For fetcher/action calls or API-like requests, return JSON error (avoid redirects that can hang spinners)
-        const isJsonAccept = request.headers.get('accept')?.includes('application/json');
-        const isRemixFetch =
-          request.headers.get('x-remix-request') === 'true' ||
-          request.headers.get('x-remix-fetch') === 'true' ||
-          request.headers.get('x-requested-with')?.toLowerCase() === 'xmlhttprequest';
-        if (isJsonAccept || isRemixFetch || request.method.toUpperCase() === 'POST') {
-          throw json(
-            { 
-              error: 'Session expired', 
-              message: 'Your session has expired. Please refresh the page.',
-              needsRefresh: true 
-            }, 
-            { status: 401 }
-          );
-        }
-        
-        // For page loads, redirect to re-auth
-        const url = new URL(request.url);
-        throw redirect(`/auth/login?shop=${url.searchParams.get('shop') || ''}`);
-      }
+    // For fetcher/action calls or API-like requests, always return JSON error
+    // (avoid redirects that can hang spinners)
+    const isJsonAccept = request.headers.get('accept')?.includes('application/json');
+    const isRemixFetch =
+      request.headers.get('x-remix-request') === 'true' ||
+      request.headers.get('x-remix-fetch') === 'true' ||
+      request.headers.get('x-requested-with')?.toLowerCase() === 'xmlhttprequest';
+    if (isJsonAccept || isRemixFetch || request.method.toUpperCase() === 'POST') {
+      throw json(
+        {
+          error: 'Session expired',
+          message: 'Your session has expired. Please refresh the page.',
+          needsRefresh: true,
+        },
+        { status: 401 }
+      );
     }
-    
-    // Re-throw other errors
-    throw error;
+
+    // For full page loads, redirect to re-auth
+    const url = new URL(request.url);
+    throw redirect(`/auth/login?shop=${url.searchParams.get('shop') || ''}`);
   }
 }
 

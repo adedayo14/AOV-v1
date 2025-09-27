@@ -62,10 +62,12 @@ export const loader = withAuth(async ({ auth }) => {
 });
 
 export const action = withAuthAction(async ({ request, auth }) => {
+  console.log('🔧 Admin Settings Action: Starting with shop:', auth.session.shop);
   const shop = auth.session.shop;
   
   const formData = await request.formData();
   const settings = Object.fromEntries(formData);
+  console.log('🔧 Admin Settings Action: Received settings:', Object.keys(settings).length, 'fields');
   
   // Convert string values to appropriate types
   const processedSettings = {
@@ -151,15 +153,17 @@ export const action = withAuthAction(async ({ request, auth }) => {
   };
   
   try {
+    console.log('🔧 Admin Settings Action: About to save settings...');
     await saveSettings(shop, processedSettings);
+    console.log('✅ Admin Settings Action: Save successful!');
     console.log('🔄 SETTINGS DEBUG - Action saved:', {
       recommendationLayout: processedSettings.recommendationLayout,
       enableRecommendations: processedSettings.enableRecommendations,
       shop: shop
     });
     return json({ success: true, message: "Settings saved successfully!" });
-  } catch (_error) {
-    console.error("Error saving settings");
+  } catch (error) {
+    console.error("❌ Admin Settings Action: Error saving settings:", error);
     return json({ success: false, message: "Failed to save settings" }, { status: 500 });
   }
 });
@@ -370,8 +374,15 @@ export default function SettingsPage() {
 
   // Handle fetcher lifecycle for success and error scenarios (including session expiry JSON response)
   useEffect(() => {
-    if (fetcher.state === 'submitting') submittingRef.current = true;
+    console.log('🔄 Admin Settings: Fetcher state changed:', fetcher.state, 'data:', fetcher.data);
+    
+    if (fetcher.state === 'submitting') {
+      console.log('📤 Admin Settings: Submission started');
+      submittingRef.current = true;
+    }
+    
     if (fetcher.state === 'idle' && submittingRef.current && !fetcher.data) {
+      console.log('❌ Admin Settings: No data received after submission');
       submittingRef.current = false;
       setShowSuccessBanner(false);
       setErrorMessage('We could not confirm if settings were saved. Please refresh and try again.');
@@ -383,7 +394,10 @@ export default function SettingsPage() {
 
     if (fetcher.state === 'idle' && fetcher.data) {
       const data: any = fetcher.data;
+      console.log('📨 Admin Settings: Received response:', data);
+      
       if (data?.success) {
+        console.log('✅ Admin Settings: Save successful');
         submittingRef.current = false;
         setShowErrorBanner(false);
         setErrorMessage(null);
@@ -393,6 +407,7 @@ export default function SettingsPage() {
         return () => clearTimeout(t);
       }
       if (data?.needsRefresh) {
+        console.log('🔄 Admin Settings: Session expired, needs refresh');
         submittingRef.current = false;
         setShowSuccessBanner(false);
         setErrorMessage('Your session has expired. Please refresh the page and sign in again.');
@@ -401,6 +416,7 @@ export default function SettingsPage() {
         return () => clearTimeout(t);
       }
       if (data?.success === false) {
+        console.log('❌ Admin Settings: Save failed:', data?.message);
         submittingRef.current = false;
         setShowSuccessBanner(false);
         setErrorMessage(typeof data?.message === 'string' ? data.message : 'Failed to save settings');
@@ -409,6 +425,8 @@ export default function SettingsPage() {
         const t = setTimeout(() => setShowErrorBanner(false), 6000);
         return () => clearTimeout(t);
       }
+      // If we get here, there's unexpected data structure
+      console.log('⚠️ Admin Settings: Unexpected response structure:', data);
     }
   }, [fetcher.state, fetcher.data]);
 
@@ -433,10 +451,12 @@ export default function SettingsPage() {
   }, []);
 
   const handleSubmit = () => {
+    console.log('🚀 Admin Settings: Starting save with formSettings:', formSettings);
     const formData = new FormData();
     Object.entries(formSettings).forEach(([key, value]) => {
       formData.append(key, String(value));
     });
+    console.log('🚀 Admin Settings: Submitting formData:', Object.fromEntries(formData));
     fetcher.submit(formData, { method: "post", action: "." });
   };
 
@@ -2981,6 +3001,13 @@ export default function SettingsPage() {
           <Banner tone="info">🔥 DEVELOPMENT VERSION LOADED - NEW LAYOUT OPTIONS AVAILABLE 🔥</Banner>
         </div>
 
+        {/* Debug info - remove after fixing */}
+        {fetcher.state !== 'idle' && (
+          <div className="cartuplift-success-banner">
+            <Banner tone="info">Debug: Fetcher state = {fetcher.state}, has data = {!!fetcher.data}</Banner>
+          </div>
+        )}
+        
         {showSuccessBanner && (
           <div className="cartuplift-success-banner">
             <Banner tone="success">Settings saved successfully!</Banner>
