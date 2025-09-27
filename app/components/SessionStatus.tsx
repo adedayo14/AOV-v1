@@ -64,13 +64,6 @@ export function SessionStatus({ onSessionExpired }: SessionStatusProps) {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('message', handleMessage);
 
-    // Cleanup function
-    return () => {
-      clearInterval(refreshInterval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('message', handleMessage);
-    };
-    
     // Check for expired sessions every 2 minutes
     const checkInterval = setInterval(checkAndRefreshSession, 2 * 60 * 1000);
 
@@ -80,9 +73,11 @@ export function SessionStatus({ onSessionExpired }: SessionStatusProps) {
     checkAndRefreshSession();
 
     return () => {
+      // Cleanup function
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(refreshInterval);
       clearInterval(checkInterval);
+      window.removeEventListener('message', handleMessage);
     };
   }, [isRefreshing, onSessionExpired]);
 

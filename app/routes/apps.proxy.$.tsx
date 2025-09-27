@@ -422,7 +422,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
         return json({ bundles: [], reason: 'disabled' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
       }
       */
-      if (context === 'product' && settings && settings.hasOwnProperty('bundlesOnProductPages') && settings.bundlesOnProductPages === false) {
+      if (
+        context === 'product' &&
+        settings &&
+        Object.prototype.hasOwnProperty.call(settings, 'bundlesOnProductPages') &&
+        settings.bundlesOnProductPages === false
+      ) {
         console.log('[BUNDLES API] Bundles on product pages explicitly disabled in settings');
         return json({ bundles: [], reason: 'disabled_page' }, { headers: { 'Access-Control-Allow-Origin': '*', 'X-Bundles-Gated': '1', 'X-Bundles-Reason': 'disabled_page', 'X-Bundles-Context': context, 'Vary': 'X-Bundles-Gated' } });
       }
