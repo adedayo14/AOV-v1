@@ -59,9 +59,10 @@ export function ErrorBoundary() {
       }
       
       return (
-        <div style={{ padding: '20px', textAlign: 'center' }}>
-          <h3>Session Expired</h3>
-          <p>Re-authenticating with Shopify...</p>
+                <div>
+          <h2>Cart Uplift App</h2>
+          <p>Unable to load embedded app. You can access the dashboard directly:</p>
+          <a href="/admin" target="_top">Open Dashboard</a>
         </div>
       );
     }

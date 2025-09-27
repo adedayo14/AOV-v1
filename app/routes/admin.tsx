@@ -59,7 +59,7 @@ export function ErrorBoundary() {
       }
       
       return (
-        <div style={{ padding: '20px', textAlign: 'center' }}>
+        <div>
           <h3>Session Expired</h3>
           <p>Re-authenticating with Shopify...</p>
         </div>
