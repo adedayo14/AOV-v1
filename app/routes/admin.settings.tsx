@@ -1,4 +1,4 @@
-import * as React from "react";
+               import * as React from "react";
 import { json } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import {
@@ -190,9 +190,12 @@ function formatCurrency(amount: number | string, currencyCode: string = 'USD', m
 }
 
 export default function SettingsPage() {
+  console.log('🎬 Admin Settings Page: Component loaded');
   const { settings, shopCurrency } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const productsFetcher = useFetcher();
+  
+  console.log('📦 Admin Settings Page: Initial settings:', settings);
 
   // Default color constants - avoid green fallbacks
   const DEFAULT_SHIPPING_COLOR = '#121212'; // Dark neutral instead of blue
@@ -600,7 +603,10 @@ export default function SettingsPage() {
     <Page
       primaryAction={{
         content: "Save Settings",
-        onAction: handleSubmit,
+        onAction: () => {
+          console.log('🎯 Primary Action Button Clicked!');
+          handleSubmit();
+        },
         loading: fetcher.state === "submitting",
       }}
       fullWidth
@@ -3007,6 +3013,17 @@ export default function SettingsPage() {
             <Banner tone="info">Debug: Fetcher state = {fetcher.state}, has data = {!!fetcher.data}</Banner>
           </div>
         )}
+        
+        {/* Debug test button */}
+        <div className="cartuplift-success-banner">
+          <Banner tone="warning">
+            DEBUG: Click this button to test save: 
+            <Button onClick={() => {
+              console.log('🧪 DEBUG BUTTON CLICKED');
+              handleSubmit();
+            }} size="micro">Test Save Function</Button>
+          </Banner>
+        </div>
         
         {showSuccessBanner && (
           <div className="cartuplift-success-banner">
