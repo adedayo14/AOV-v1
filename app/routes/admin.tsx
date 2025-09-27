@@ -7,6 +7,7 @@ import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 
 import { authenticate } from "../shopify.server";
 import { SessionStatus } from "../components/SessionStatus";
+import { AppBridgeInitializer } from "../components/AppBridgeInitializer";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
@@ -21,6 +22,7 @@ export default function App() {
 
   return (
     <AppProvider isEmbeddedApp apiKey={apiKey}>
+      <AppBridgeInitializer apiKey={apiKey} />
       <SessionStatus />
       <NavMenu>
         <Link to="/admin" rel="home">
@@ -69,5 +71,11 @@ export function ErrorBoundary() {
 }
 
 export const headers: HeadersFunction = (headersArgs) => {
-  return boundary.headers(headersArgs);
+  const headers = boundary.headers(headersArgs);
+  
+  // Allow embedding in Shopify admin
+  headers.set("X-Frame-Options", "SAMEORIGIN");
+  headers.set("Content-Security-Policy", "frame-ancestors 'self' https://*.shopify.com https://admin.shopify.com");
+  
+  return headers;
 };

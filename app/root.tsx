@@ -5,6 +5,7 @@ import {
   Scripts,
   ScrollRestoration,
 } from "@remix-run/react";
+import { IframeBreaker } from "./components/IframeBreaker";
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
         <Links />
       </head>
       <body>
+        <IframeBreaker />
         <Outlet />
         <ScrollRestoration />
         <Scripts />
