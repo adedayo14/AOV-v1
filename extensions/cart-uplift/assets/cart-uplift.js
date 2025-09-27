@@ -58,10 +58,20 @@
         this.settings.backgroundColor = this.themeColors.background;
       }
       
-      // Normalize layout setting if present
-      if (this.settings && this.settings.recommendationLayout) {
+      // Normalize layout setting; accept both keys and prefer explicit theme selection
+      if (this.settings) {
+        // Accept theme embed key (recommendationsLayout) if primary missing
+        if (!this.settings.recommendationLayout && this.settings.recommendationsLayout) {
+          this.settings.recommendationLayout = this.settings.recommendationsLayout;
+        }
+        // Prefer theme source if marked
+        if (this.settings.recommendationLayoutSource === 'theme' && this.settings.recommendationsLayout) {
+          this.settings.recommendationLayout = this.settings.recommendationsLayout;
+        }
         const map = { horizontal: 'row', row: 'row', carousel: 'row', vertical: 'column', column: 'column', list: 'column', grid: 'grid' };
-        this.settings.recommendationLayout = map[this.settings.recommendationLayout] || this.settings.recommendationLayout;
+        if (this.settings.recommendationLayout) {
+          this.settings.recommendationLayout = map[this.settings.recommendationLayout] || this.settings.recommendationLayout;
+        }
       }
       
       // Ensure boolean settings are properly set
@@ -109,7 +119,13 @@
         // Deep merge the settings
         this.settings = Object.assign({}, this.settings, window.CartUpliftSettings || {});
         
-        // Normalize layout again after update
+        // Normalize layout again after update; keep theme override if present
+        if (!this.settings.recommendationLayout && this.settings.recommendationsLayout) {
+          this.settings.recommendationLayout = this.settings.recommendationsLayout;
+        }
+        if (this.settings.recommendationLayoutSource === 'theme' && this.settings.recommendationsLayout) {
+          this.settings.recommendationLayout = this.settings.recommendationsLayout;
+        }
         if (this.settings.recommendationLayout) {
           const map = { horizontal: 'row', row: 'row', carousel: 'row', vertical: 'column', column: 'column', list: 'column', grid: 'grid' };
           this.settings.recommendationLayout = map[this.settings.recommendationLayout] || this.settings.recommendationLayout;
@@ -625,6 +641,12 @@
           const response = await fetch(apiUrl);
           if (response.ok) {
             const newSettings = await response.json();
+            // Preserve theme-chosen layout if present
+            if (this.settings.recommendationLayoutSource === 'theme') {
+              newSettings.recommendationLayout = this.settings.recommendationLayout;
+              newSettings.recommendationsLayout = this.settings.recommendationsLayout || newSettings.recommendationsLayout;
+              newSettings.recommendationLayoutSource = 'theme';
+            }
             this.settings = Object.assign(this.settings, newSettings);
             window.CartUpliftSettings = Object.assign(window.CartUpliftSettings || {}, newSettings);
             this.updateDrawerContent();
@@ -1821,7 +1843,7 @@
         </div>`;
 
       const html = `
-        <div class="cartuplift-recommendations cartuplift-recommendations-${layout}${layout === 'row' ? ' cartuplift-recommendations-row' : ''}">
+        <div class="cartuplift-recommendations cartuplift-recommendations-${layout}${layout === 'row' ? ' cartuplift-recommendations-row' : ''}${layout === 'grid' ? ' cartuplift-recommendations-grid' : ''}">
           <div class="cartuplift-recommendations-header">
             <h3 class="cartuplift-recommendations-title">${title}</h3>
             <button class="cartuplift-recommendations-toggle" data-toggle="recommendations" aria-expanded="true" aria-controls="cartuplift-recommendations-content" aria-label="Toggle recommendations">

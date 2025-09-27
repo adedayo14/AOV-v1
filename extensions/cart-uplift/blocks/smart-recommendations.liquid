@@ -265,6 +265,8 @@
           console.log('🎯 Calling cart drawer update with settings:', newSettings);
           window.cartUpliftUpdateSettingsFromTheme(newSettings);
         }
+        // Also broadcast a settings-updated event for any other listeners
+        try { document.dispatchEvent(new CustomEvent('cartuplift:settings:updated')); } catch(_) {}
       }
 
       applyRecommendationStyles() {

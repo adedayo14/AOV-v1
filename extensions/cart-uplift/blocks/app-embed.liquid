@@ -138,7 +138,7 @@
         // Detect Shopify theme editor design mode as early as possible
         var __isDesignMode = !!(window.Shopify && window.Shopify.designMode);
 
-        window.CartUpliftSettings = Object.assign({}, window.CartUpliftSettings || {}, {
+  window.CartUpliftSettings = Object.assign({}, window.CartUpliftSettings || {}, {
           // Cart Behavior (auto-enabled in design mode)
           keepCartOpen: __isDesignMode,
           
@@ -187,10 +187,17 @@
           moneyWithCurrencyFormat: {{ shop.money_with_currency_format | json }},
           
           // Product Recommendations
+          // Use both keys for compatibility – cart-uplift.js expects recommendationLayout (singular)
           recommendationsLayout: {{ block.settings.recommendations_layout | json }},
+          recommendationLayout: {{ block.settings.recommendations_layout | json }},
+          // Mark source so API refresh won't override theme editor selection
+          recommendationLayoutSource: 'theme',
           recommendationsTitle: {{ block.settings.recommendations_title | json }},
           recommendationsBackgroundColor: {{ block.settings.recommendations_background_color | json }}
         });
+
+        // Notify any listeners immediately that settings have (re)loaded
+        try { document.dispatchEvent(new CustomEvent('cartuplift:settings:updated')); } catch (_) {}
 
         // Set global money format for formatMoney function
         window.CartUpliftMoneyFormat = {{ shop.money_format | json }};
