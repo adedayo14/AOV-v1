@@ -93,7 +93,7 @@ export const action = withAuthAction(async ({ request, auth }) => {
   mlPersonalizationMode: String(settings.mlPersonalizationMode) || 'basic',
   mlPrivacyLevel: String(settings.mlPrivacyLevel) || 'basic',
   // Advanced Recommendation Settings
-  maxRecommendationProducts: Number(settings.maxRecommendationProducts ?? 4),
+  maxRecommendationProducts: Number(settings.maxRecommendationProducts ?? 3),
   hideRecommendationsAfterThreshold: settings.hideRecommendationsAfterThreshold === 'true',
   enableThresholdBasedSuggestions: settings.enableThresholdBasedSuggestions === 'true',
   thresholdSuggestionMode: String(settings.thresholdSuggestionMode) || 'smart',
@@ -2595,8 +2595,8 @@ export default function SettingsPage() {
                       
                       <TextField
                         label="Maximum Products to Show"
-                        value={String(formSettings.maxRecommendationProducts || 4)}
-                        onChange={(value) => updateSetting("maxRecommendationProducts", parseInt(value) || 4)}
+                        value={String(formSettings.maxRecommendationProducts || 3)}
+                        onChange={(value) => updateSetting("maxRecommendationProducts", parseInt(value) || 3)}
                         helpText="Number of recommendation products to display (1-12)"
                         type="number"
                         min="1"

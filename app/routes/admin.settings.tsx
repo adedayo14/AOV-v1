@@ -1,4 +1,4 @@
-               import * as React from "react";
+                                                                                                                                                                                                                                                                                                              import * as React from "react";
 import { json } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import {
@@ -83,7 +83,7 @@ export const action = withAuthAction(async ({ request, auth }) => {
     enableNotes: settings.enableNotes === 'true',
     enableExpressCheckout: settings.enableExpressCheckout === 'true',
     enableAnalytics: settings.enableAnalytics === 'true',
-    maxRecommendations: Number(settings.maxRecommendations) || 6,
+    maxRecommendations: Number(settings.maxRecommendations) || 3,
     cartPosition: String(settings.cartPosition) || 'bottom-right',
     cartIcon: String(settings.cartIcon) || 'cart',
     // New sticky cart settings
@@ -3861,7 +3861,7 @@ export default function SettingsPage() {
                       label="Maximum Products to Show"
                       type="number"
                       value={String(formSettings.maxRecommendations)}
-                      onChange={(value) => updateSetting("maxRecommendations", parseInt(value) || 4)}
+                      onChange={(value) => updateSetting("maxRecommendations", parseInt(value) || 3)}
                       helpText="We recommend 2–4 cards to keep it focused. You can choose any number."
                       autoComplete="off"
                     />
