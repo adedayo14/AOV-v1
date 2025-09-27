@@ -372,28 +372,45 @@ export default function SettingsPage() {
     >
       <style dangerouslySetInnerHTML={{
         __html: `
-          /* Fixed Layout Styles */
+          /* Full Width Layout Styles */
           .cartuplift-settings-layout {
-            display: grid !important;
-            grid-template-columns: 1fr 480px !important;
-            gap: 24px;
             width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
             position: relative;
-            padding: 0;
+            padding: 0 20px;
             min-height: 100vh;
           }
           
-          @media (max-width: 1000px) {
-            .cartuplift-settings-layout {
-              grid-template-columns: 1fr !important;
-              padding: 0;
-            }
-
+          .cartuplift-settings-column {
+            width: 100%;
+            max-width: none;
           }
           
-          .cartuplift-settings-column {
-            min-width: 0;
-            width: 100%;
+          /* Enhanced card layouts for full width */
+          @media (min-width: 1200px) {
+            .cartuplift-settings-layout {
+              padding: 0 40px;
+            }
+          }
+          
+          /* Improve form layout spacing for full width */
+          .Polaris-FormLayout > .Polaris-FormLayout__Item {
+            margin-bottom: 1rem;
+          }
+          
+          /* Enhanced card styling for full width layout */
+          .Polaris-Card {
+            transition: box-shadow 0.2s ease;
+          }
+          
+          .Polaris-Card:hover {
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+          }
+          
+          /* Better spacing for nested content */
+          .Polaris-BlockStack--gap400 > * + * {
+            margin-top: 1rem;
           }
           
           .cartuplift-success-banner {
@@ -698,16 +715,23 @@ export default function SettingsPage() {
             border: 1px solid #e0e0e0;
           }
 
-          /* Text Row Layout */
+          /* Text Row Layout - Enhanced for full width */
           .cartuplift-text-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 16px;
+            gap: 20px;
+          }
+          
+          @media (min-width: 1200px) {
+            .cartuplift-text-row {
+              gap: 24px;
+            }
           }
           
           @media (max-width: 768px) {
             .cartuplift-text-row {
               grid-template-columns: 1fr;
+              gap: 16px;
             }
           }
 
