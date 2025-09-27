@@ -192,15 +192,25 @@
         this.previewModeActive = true;
         console.log('🎨 Recommendations preview monitoring started');
 
-        // Monitor for settings changes
-        this.settingsObserver = new MutationObserver(() => {
+        // Monitor for settings changes with more aggressive detection
+        this.settingsObserver = new MutationObserver((mutations) => {
+          console.log('🔍 Theme editor change detected:', mutations.length, 'mutations');
           this.updateRecommendationsPreview();
         });
 
         this.settingsObserver.observe(document.body, {
           attributes: true,
+          childList: true,
           subtree: true,
-          attributeFilter: ['class', 'data-*']
+          attributeFilter: ['class', 'data-*', 'value']
+        });
+        
+        // Also monitor for theme editor form changes
+        document.addEventListener('change', (e) => {
+          if (e.target && (e.target.name || '').includes('layout_style')) {
+            console.log('🔍 Layout style input change detected:', e.target.value);
+            setTimeout(() => this.updateRecommendationsPreview(), 100);
+          }
         });
       }
 
@@ -236,6 +246,12 @@
         const currentSectionTitle = {{ block.settings.section_title | json }};
         const currentMaxProducts = {{ block.settings.max_products | json }};
         
+        const newSettings = {
+          recommendationLayout: currentLayoutStyle,
+          recommendationTitle: currentSectionTitle,  
+          maxRecommendations: currentMaxProducts
+        };
+        
         window.CartUpliftSettings.recommendationLayout = currentLayoutStyle;
         window.CartUpliftSettings.recommendationTitle = currentSectionTitle;  
         window.CartUpliftSettings.maxRecommendations = currentMaxProducts;
@@ -243,6 +259,12 @@
         console.log('🔄 Settings synced to main CartUpliftSettings:', {
           recommendationLayout: window.CartUpliftSettings.recommendationLayout
         });
+        
+        // If cart drawer exists, update it directly
+        if (window.cartUpliftUpdateSettingsFromTheme) {
+          console.log('🎯 Calling cart drawer update with settings:', newSettings);
+          window.cartUpliftUpdateSettingsFromTheme(newSettings);
+        }
       }
 
       applyRecommendationStyles() {
@@ -285,6 +307,27 @@
     // Auto-start preview monitoring in theme editor
     if (smartRecommendationsManager.isThemeEditor) {
       smartRecommendationsManager.startPreviewMonitoring();
+      
+      // Listen for Shopify's theme editor events
+      document.addEventListener('shopify:section:load', () => {
+        console.log('🔄 Shopify section load event detected');
+        setTimeout(() => smartRecommendationsManager.updateRecommendationsPreview(), 100);
+      });
+      
+      document.addEventListener('shopify:section:reorder', () => {
+        console.log('🔄 Shopify section reorder event detected');
+        setTimeout(() => smartRecommendationsManager.updateRecommendationsPreview(), 100);
+      });
+      
+      document.addEventListener('shopify:section:select', () => {
+        console.log('🔄 Shopify section select event detected');  
+        setTimeout(() => smartRecommendationsManager.updateRecommendationsPreview(), 100);
+      });
+      
+      document.addEventListener('shopify:block:select', () => {
+        console.log('🔄 Shopify block select event detected');
+        setTimeout(() => smartRecommendationsManager.updateRecommendationsPreview(), 100);
+      });
     }
 
     // Listen for toggle changes
@@ -314,6 +357,19 @@
     
     // Also sync settings when this script runs (immediate)
     smartRecommendationsManager.syncSettingsToMain();
+    
+    // Expose manual trigger for testing
+    window.cartUpliftTestLayoutUpdate = function(layout) {
+      console.log('🧪 Manual layout test triggered:', layout);
+      if (window.cartUpliftUpdateSettingsFromTheme) {
+        window.cartUpliftUpdateSettingsFromTheme({ recommendationLayout: layout });
+      }
+    };
+    
+    window.cartUpliftSyncSettings = function() {
+      console.log('🧪 Manual settings sync triggered');
+      smartRecommendationsManager.syncSettingsToMain();
+    };
   })();
 </script>
 

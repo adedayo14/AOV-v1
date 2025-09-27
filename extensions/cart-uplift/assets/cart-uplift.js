@@ -479,6 +479,11 @@
         await this.refreshSettingsFromAPI();
       };
       
+      // Add method to update settings from theme extension
+      window.cartUpliftUpdateSettingsFromTheme = (newSettings) => {
+        this.updateSettingsFromThemeExtension(newSettings);
+      };
+      
       // Add method to soft refresh recommendations (force cart re-sync)
       window.cartUpliftSoftRefresh = async () => {
         await this.fetchCart();
@@ -627,6 +632,24 @@
         }
       } catch (error) {
       }
+    }
+
+    // Method to update settings from theme extension (e.g., layout changes)
+    updateSettingsFromThemeExtension(newSettings) {
+      console.log('🎯 Updating cart drawer settings from theme extension:', newSettings);
+      
+      // Merge new settings
+      this.settings = Object.assign(this.settings, newSettings);
+      window.CartUpliftSettings = Object.assign(window.CartUpliftSettings || {}, newSettings);
+      
+      // If layout changed, refresh the recommendation layout
+      if (newSettings.recommendationLayout) {
+        console.log('🔄 Layout changed to:', newSettings.recommendationLayout);
+        this.refreshRecommendationLayout();
+      }
+      
+      // Refresh drawer content to apply changes
+      this.updateDrawerContent();
     }
 
     applyCustomColors() {
