@@ -250,7 +250,7 @@ export default function SettingsPage() {
     // Settings initialization handled by validateSettings function
   }, []);
 
-  // Auto-hide success banner after 3 seconds
+  // Auto-hide banners and handle all outcomes, including session expiry
   useEffect(() => {
     // Track transitions to detect silent failures
     if (fetcher.state === 'submitting') submittingRef.current = true;
@@ -259,20 +259,29 @@ export default function SettingsPage() {
       setShowSuccessBanner(false);
       setErrorMessage('We could not confirm if settings were saved. Please try again.');
       setShowErrorBanner(true);
-  try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_error) { void 0; }
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_error) { /* noop */ }
       const timer = setTimeout(() => setShowErrorBanner(false), 6000);
       return () => clearTimeout(timer);
     }
 
-    if (fetcher.state === "idle" && fetcher.data) {
+    if (fetcher.state === 'idle' && fetcher.data) {
       const data: any = fetcher.data;
+      // Session expiry path from auth wrapper
+      if (data?.needsRefresh) {
+        submittingRef.current = false;
+        setShowSuccessBanner(false);
+        setErrorMessage('Your session has expired. Please refresh the page and sign in again.');
+        setShowErrorBanner(true);
+        const timer = setTimeout(() => setShowErrorBanner(false), 6000);
+        return () => clearTimeout(timer);
+      }
       if (data?.success) {
         submittingRef.current = false;
         setShowErrorBanner(false);
         setErrorMessage(null);
         setShowSuccessBanner(true);
         // Make sure the user sees the banner
-  try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_error) { void 0; }
+        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_error) { /* noop */ }
         const timer = setTimeout(() => setShowSuccessBanner(false), 3000);
         return () => clearTimeout(timer);
       }
@@ -281,10 +290,17 @@ export default function SettingsPage() {
         setShowSuccessBanner(false);
         setErrorMessage(typeof data?.message === 'string' ? data.message : 'Failed to save settings');
         setShowErrorBanner(true);
-  try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_error) { void 0; }
+        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_error) { /* noop */ }
         const timer = setTimeout(() => setShowErrorBanner(false), 6000);
         return () => clearTimeout(timer);
       }
+      // Generic fallback if data is present but has no success flag
+      submittingRef.current = false;
+      setShowSuccessBanner(false);
+      setErrorMessage('Unable to confirm save status. Please refresh and try again.');
+      setShowErrorBanner(true);
+      const timer = setTimeout(() => setShowErrorBanner(false), 6000);
+      return () => clearTimeout(timer);
     }
   }, [fetcher.state, fetcher.data]);
 
