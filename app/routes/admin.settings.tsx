@@ -112,6 +112,11 @@ export const action = withAuthAction(async ({ request, auth }) => {
     recommendationLayout: String(settings.recommendationLayout) || "carousel",
     complementDetectionMode: String(settings.complementDetectionMode) || "automatic",
     manualRecommendationProducts: String(settings.manualRecommendationProducts) || "",
+  // Advanced Recommendation Controls
+  hideRecommendationsAfterThreshold: settings.hideRecommendationsAfterThreshold === 'true',
+  enableThresholdBasedSuggestions: settings.enableThresholdBasedSuggestions === 'true',
+  thresholdSuggestionMode: String(settings.thresholdSuggestionMode) || 'smart',
+  enableManualRecommendations: settings.enableManualRecommendations === 'true',
     // Progress Bar System
     progressBarMode: String(settings.progressBarMode) || "free-shipping",
     enableGiftGating: settings.enableGiftGating === 'true',
@@ -3814,7 +3819,15 @@ export default function SettingsPage() {
                       helpText="Choose how products are picked. AI analyzes sales patterns; Manual lets you hand-pick."
                     />
                     
-                    {(formSettings.complementDetectionMode === 'manual' || formSettings.complementDetectionMode === 'hybrid') && (
+                    {/* Manual product selection toggle (in addition to mode) */}
+                    <Checkbox
+                      label="Enable Manual Product Selection"
+                      checked={Boolean(formSettings.enableManualRecommendations)}
+                      onChange={(value) => updateSetting("enableManualRecommendations", value)}
+                      helpText="Allow selecting specific products to always include in recommendations"
+                    />
+
+                    {(formSettings.enableManualRecommendations === true || formSettings.complementDetectionMode === 'manual' || formSettings.complementDetectionMode === 'hybrid') && (
                       <div className="cartuplift-manual-rec-section">
                         <Text variant="headingSm" as="h3">
                           {formSettings.complementDetectionMode === 'hybrid' ? '🔀 Manual Product Selection (for Hybrid)' : '🛠️ Manual Product Selection'}
@@ -3833,6 +3846,36 @@ export default function SettingsPage() {
                           </InlineStack>
                         </div>
                       </div>
+                    )}
+
+                    {/* Threshold-based suggestions */}
+                    <Checkbox
+                      label="Hide Recommendations After All Thresholds Met"
+                      checked={Boolean(formSettings.hideRecommendationsAfterThreshold)}
+                      onChange={(value) => updateSetting("hideRecommendationsAfterThreshold", value)}
+                      helpText="Collapse the recommendations section when the customer has reached your free-shipping or gift thresholds"
+                    />
+
+                    <Checkbox
+                      label="Enable Threshold-Based Product Suggestions"
+                      checked={Boolean(formSettings.enableThresholdBasedSuggestions)}
+                      onChange={(value) => updateSetting("enableThresholdBasedSuggestions", value)}
+                      helpText="Suggest products that help customers reach thresholds (e.g., suggest $20+ items when the cart is $80 and threshold is $100). We still rank by co-purchase likelihood."
+                    />
+
+                    {formSettings.enableThresholdBasedSuggestions === true && (
+                      <Select
+                        label="Threshold Suggestion Strategy"
+                        options={[
+                          { label: '🤖 Smart AI Selection', value: 'smart' },
+                          { label: '💰 Price-Based Only', value: 'price' },
+                          { label: '🎯 Category Match + Price', value: 'category_price' },
+                          { label: '🔥 Popular + Price', value: 'popular_price' },
+                        ]}
+                        value={formSettings.thresholdSuggestionMode || 'smart'}
+                        onChange={(value) => updateSetting('thresholdSuggestionMode', value)}
+                        helpText="How to pick products that help customers reach thresholds"
+                      />
                     )}
                   </FormLayout>
                 </BlockStack>

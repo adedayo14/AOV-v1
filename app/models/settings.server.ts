@@ -63,6 +63,11 @@ export interface SettingsData {
   maxRecommendations: number;
   complementDetectionMode: string;
   manualRecommendationProducts: string;
+  // Advanced Recommendation Controls
+  hideRecommendationsAfterThreshold: boolean;
+  enableThresholdBasedSuggestions: boolean;
+  thresholdSuggestionMode: string;
+  enableManualRecommendations: boolean;
   
   // Gift Gating Settings
   enableGiftGating: boolean;
@@ -183,6 +188,10 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       maxRecommendations: settings.maxRecommendations,
       complementDetectionMode: (settings as any).complementDetectionMode ?? "automatic",
       manualRecommendationProducts: (settings as any).manualRecommendationProducts ?? "",
+    hideRecommendationsAfterThreshold: (settings as any).hideRecommendationsAfterThreshold ?? false,
+    enableThresholdBasedSuggestions: (settings as any).enableThresholdBasedSuggestions ?? false,
+    thresholdSuggestionMode: (settings as any).thresholdSuggestionMode ?? "smart",
+    enableManualRecommendations: (settings as any).enableManualRecommendations ?? false,
       enableGiftGating: (settings as any).enableGiftGating ?? false,
       progressBarMode: (settings as any).progressBarMode ?? "free-shipping",
       giftProgressStyle: (settings as any).giftProgressStyle ?? "single-next",
@@ -262,8 +271,8 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       'enableRecommendations', 'enableAddons', 'enableDiscountCode', 'enableNotes', 'enableExpressCheckout', 'enableAnalytics', 'enableGiftGating',
       'cartPosition', 'cartIcon', 'freeShippingText', 'freeShippingAchievedText', 'recommendationsTitle', 'actionText',
       'addButtonText', 'checkoutButtonText', 'applyButtonText',
-      'backgroundColor', 'textColor', 'buttonColor', 'buttonTextColor', 'recommendationsBackgroundColor', 'shippingBarBackgroundColor', 'shippingBarColor', 'recommendationLayout', 'maxRecommendations',
-      'complementDetectionMode', 'manualRecommendationProducts', 'progressBarMode', 'giftProgressStyle', 'giftThresholds',
+  'backgroundColor', 'textColor', 'buttonColor', 'buttonTextColor', 'recommendationsBackgroundColor', 'shippingBarBackgroundColor', 'shippingBarColor', 'recommendationLayout', 'maxRecommendations',
+  'complementDetectionMode', 'manualRecommendationProducts', 'hideRecommendationsAfterThreshold', 'enableThresholdBasedSuggestions', 'thresholdSuggestionMode', 'enableManualRecommendations', 'progressBarMode', 'giftProgressStyle', 'giftThresholds',
       'themeEmbedEnabled', 'themeEmbedLastSeen',
       // ML/Privacy Settings
       'mlPersonalizationMode', 'enableMLRecommendations', 'mlPrivacyLevel', 'enableAdvancedPersonalization', 'enableBehaviorTracking', 'mlDataRetentionDays',
@@ -330,7 +339,7 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
         'cartPosition','cartIcon','freeShippingText','freeShippingAchievedText','recommendationsTitle','actionText',
         'addButtonText','checkoutButtonText','applyButtonText','backgroundColor','textColor','buttonColor','buttonTextColor',
         'recommendationsBackgroundColor','shippingBarBackgroundColor','shippingBarColor','recommendationLayout','maxRecommendations',
-        'complementDetectionMode','manualRecommendationProducts','progressBarMode','giftProgressStyle','giftThresholds'
+        'complementDetectionMode','manualRecommendationProducts','hideRecommendationsAfterThreshold','enableThresholdBasedSuggestions','thresholdSuggestionMode','enableManualRecommendations','progressBarMode','giftProgressStyle','giftThresholds'
       ];
       const fallbackData: any = {};
       for (const key of baselineFields) {
@@ -467,6 +476,10 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       maxRecommendations: settings.maxRecommendations,
       complementDetectionMode: (settings as any).complementDetectionMode ?? "automatic",
       manualRecommendationProducts: (settings as any).manualRecommendationProducts ?? "",
+  hideRecommendationsAfterThreshold: (settings as any).hideRecommendationsAfterThreshold ?? false,
+  enableThresholdBasedSuggestions: (settings as any).enableThresholdBasedSuggestions ?? false,
+  thresholdSuggestionMode: (settings as any).thresholdSuggestionMode ?? "smart",
+  enableManualRecommendations: (settings as any).enableManualRecommendations ?? false,
       enableGiftGating: (settings as any).enableGiftGating ?? false,
       progressBarMode: (settings as any).progressBarMode ?? "free-shipping",
       giftProgressStyle: (settings as any).giftProgressStyle ?? "single-next",
@@ -578,6 +591,10 @@ export function getDefaultSettings(): SettingsData {
     maxRecommendations: 3,
     complementDetectionMode: "automatic",
     manualRecommendationProducts: "",
+  hideRecommendationsAfterThreshold: false,
+  enableThresholdBasedSuggestions: false,
+  thresholdSuggestionMode: "smart",
+  enableManualRecommendations: false,
     
     // Gift Gating Settings
     enableGiftGating: false,

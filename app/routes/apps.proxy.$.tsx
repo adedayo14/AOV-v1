@@ -48,28 +48,34 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
       let adminOk = false; let hasReadOrders = false; let hasReadProducts = false; let details: any = {};
       try {
-        const { admin } = await unauthenticated.admin(shop);
+        const { admin } = await unauthenticated.admin(shop as string);
         // Lightweight shop query
-        const shopResp = await admin.graphql(`#graphql\n          query { shop { name myshopifyDomain } }\n        `);
+        const shopResp = await admin.graphql(`#graphql
+          query { shop { name myshopifyDomain } }
+        `);
         adminOk = shopResp.ok === true;
         const shopJson: any = adminOk ? await shopResp.json() : null;
         details.shopQuery = { ok: adminOk, data: !!shopJson?.data };
-  } catch (_e) {
-    details.shopQuery = { ok: false, error: String(_e) };
+      } catch (_e) {
+        details.shopQuery = { ok: false, error: String(_e) };
       }
       try {
-        const { admin } = await unauthenticated.admin(shop);
+        const { admin } = await unauthenticated.admin(shop as string);
         // Minimal orders query to infer read_orders
-        const ordersResp = await admin.graphql(`#graphql\n          query { orders(first: 1) { edges { node { id } } } }\n        `);
+        const ordersResp = await admin.graphql(`#graphql
+          query { orders(first: 1) { edges { node { id } } } }
+        `);
         const j: any = await ordersResp.json();
         hasReadOrders = !!j?.data || ordersResp.status !== 403; // 403 often indicates missing scope; presence of data implies scope
         details.ordersProbe = { status: ordersResp.status, hasData: !!j?.data, errors: j?.errors };
-  } catch (_e) {
-    details.ordersProbe = { error: String(_e) };
+      } catch (_e) {
+        details.ordersProbe = { error: String(_e) };
       }
       try {
-        const { admin } = await unauthenticated.admin(shop);
-        const productsResp = await admin.graphql(`#graphql\n          query { products(first: 1) { edges { node { id } } } }\n        `);
+        const { admin } = await unauthenticated.admin(shop as string);
+        const productsResp = await admin.graphql(`#graphql
+          query { products(first: 1) { edges { node { id } } } }
+        `);
         const j: any = await productsResp.json();
         hasReadProducts = !!j?.data || productsResp.status !== 403;
         details.productsProbe = { status: productsResp.status, hasData: !!j?.data, errors: j?.errors };
@@ -78,295 +84,391 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }
 
       return json({ ok: true, proxyAuth: true, shop, adminOk, scopes: { read_orders: hasReadOrders, read_products: hasReadProducts }, details }, { headers: hdrs });
-  } catch (_e) {
+    } catch (_e) {
       return json({ ok: false, proxyAuth: false, reason: 'invalid_signature' }, { status: 401, headers: hdrs });
     }
   }
 
   // GET /apps/proxy/api/recommendations
-  // Minimal, conservative AOV-focused recs: decayed confidence/lift + popularity, OOS + price-gap guardrails
+  // Conservative AOV-focused recs with advanced settings: manual/hybrid, threshold-aware, OOS + price guardrails
   if (path.includes('/api/recommendations')) {
     try {
       const { session } = await authenticate.public.appProxy(request);
       const shop = session?.shop;
       if (!shop) return json({ error: 'Unauthorized' }, { status: 401 });
+      const shopStr = shop as string;
 
       // Query params
-      const productId = url.searchParams.get('product_id') || undefined; // single anchor
+      const productIdParam = url.searchParams.get('product_id');
+      const productId = productIdParam ? String(productIdParam) : undefined; // single anchor
       const cartParam = url.searchParams.get('cart') || '';
-      const limit = Math.min(8, Math.max(1, parseInt(url.searchParams.get('limit') || '6', 10)));
+      let limit = Math.min(12, Math.max(1, parseInt(url.searchParams.get('limit') || '6', 10)));
+      const subtotalParam = url.searchParams.get('subtotal');
+      const subtotal = subtotalParam !== null ? Number(subtotalParam) : undefined; // shop currency units
 
-      // Optional feature gate: if recommendations disabled in settings, return fast empty
-      try {
-        const s = await getSettings(shop);
-        if (!s.enableRecommendations) {
+      // Defaults from settings; override when available
+      let enableRecs = true;
+      let hideAfterThreshold = false;
+      let enableThresholdBasedSuggestions = false;
+      let thresholdSuggestionMode = 'smart';
+      let manualEnabled = false;
+      let manualList: string[] = [];
+      let freeShippingThreshold = 0;
+
+      {
+        const s = await getSettings(shopStr);
+        enableRecs = Boolean(s.enableRecommendations);
+        freeShippingThreshold = Number(s.freeShippingThreshold || 0);
+        limit = Math.min(limit, Math.max(1, Math.min(12, Number(s.maxRecommendations || limit))));
+        hideAfterThreshold = Boolean((s as any).hideRecommendationsAfterThreshold);
+        enableThresholdBasedSuggestions = Boolean((s as any).enableThresholdBasedSuggestions);
+        thresholdSuggestionMode = String((s as any).thresholdSuggestionMode || 'smart');
+        manualEnabled = Boolean((s as any).enableManualRecommendations) || s.complementDetectionMode === 'manual' || s.complementDetectionMode === 'hybrid';
+        manualList = (s.manualRecommendationProducts || '').split(',').map((v)=>v.trim()).filter(Boolean);
+
+        // Hide entirely once thresholds are met
+        if (enableRecs) {
+          const need = (typeof subtotal === 'number' && freeShippingThreshold > 0) ? (freeShippingThreshold - subtotal) : undefined;
+          if (hideAfterThreshold && typeof need === 'number' && need <= 0) {
+            return json({ recommendations: [], reason: 'threshold_met' }, {
+              headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=60', 'X-Recs-Disabled': 'threshold_met' }
+            });
+          }
+        }
+
+        if (!enableRecs) {
           return json({ recommendations: [], reason: 'disabled' }, {
             headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=60', 'X-Recs-Disabled': '1' }
           });
         }
-      } catch(_) { /* best-effort settings; continue if unavailable */ }
 
-      // Cache key (shop + anchor + cart + limit)
-      const cacheKey = `shop:${shop}|pid:${productId||''}|cart:${cartParam}|limit:${limit}`;
-      const cached = getRecsCache(cacheKey);
-      if (cached) {
-        return json(cached, {
+        // Cache key includes subtotal + threshold flag (affects filtering)
+        const cacheKey = `shop:${shopStr}|pid:${productId||''}|cart:${cartParam}|limit:${limit}|subtotal:${subtotal ?? ''}|thr:${enableThresholdBasedSuggestions?'1':'0'}`;
+        const cached = getRecsCache(cacheKey);
+        if (cached) {
+          return json(cached, {
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+              'Cache-Control': 'public, max-age=30',
+              'X-Recs-Cache': 'HIT'
+            },
+          });
+        }
+
+        // Manual selection pre-fill (deduped, price-threshold aware)
+        const needAmount = (typeof subtotal === 'number' && freeShippingThreshold > 0) ? Math.max(0, freeShippingThreshold - subtotal) : 0;
+    const { admin } = await unauthenticated.admin(shopStr);
+
+  const normalizeIdsToProducts = async (ids: string[]): Promise<Array<{ id:string; title:string; handle:string; image?:string; price:number; inStock:boolean }>> => {
+          if (!ids.length) return [];
+          // Fetch nodes for all ids, support both Product and Variant IDs
+          const nodeResp = await admin.graphql(`#graphql
+            query N($ids: [ID!]!) { nodes(ids: $ids) {
+              ... on Product { id title handle vendor status media(first:1){edges{node{... on MediaImage{image{url}}}}} variants(first:1){edges{node{id price availableForSale}}} }
+              ... on ProductVariant { id price availableForSale product { id title handle vendor media(first:1){edges{node{... on MediaImage{image{url}}}}} } }
+            } }
+          `, { variables: { ids } });
+          if (!nodeResp.ok) return [];
+          const j: any = await nodeResp.json();
+          const arr: any[] = j?.data?.nodes || [];
+          const out: Array<{ id:string; title:string; handle:string; image?:string; price:number; inStock:boolean }> = [];
+          for (const n of arr) {
+            if (!n) continue;
+            if (n.__typename === 'Product' || (n.id && String(n.id).includes('/Product/'))) {
+              const v = n.variants?.edges?.[0]?.node;
+              const price = parseFloat(v?.price || '0') || 0;
+              const inStock = Boolean(v?.availableForSale) || (n.status === 'ACTIVE');
+              out.push({ id: (n.id as string).replace('gid://shopify/Product/',''), title: n.title||'', handle: n.handle||'', image: n.media?.edges?.[0]?.node?.image?.url, price, inStock });
+            } else if (n.__typename === 'ProductVariant' || (n.id && String(n.id).includes('/ProductVariant/'))) {
+              const price = parseFloat(n.price || '0') || 0;
+              const inStock = Boolean(n.availableForSale);
+              const p = n.product;
+              if (p?.id) out.push({ id: (p.id as string).replace('gid://shopify/Product/',''), title: p.title||'', handle: p.handle||'', image: p.media?.edges?.[0]?.node?.image?.url, price, inStock });
+            }
+          }
+          return out;
+        };
+
+        let manualResults: Array<{ id:string; title:string; handle:string; image?:string; price:number }> = [];
+        if (manualEnabled && manualList.length) {
+          const normalized = await normalizeIdsToProducts(manualList);
+          const seen = new Set<string>();
+          for (const m of normalized) {
+            if (!m.inStock) continue;
+            if (enableThresholdBasedSuggestions && needAmount > 0 && m.price < needAmount) continue;
+            if (seen.has(m.id)) continue;
+            // Avoid recommending items already in context
+            if (cartParam.split(',').includes(m.id) || (productId && m.id === productId)) continue;
+            seen.add(m.id);
+            manualResults.push({ id: m.id, title: m.title, handle: m.handle, image: m.image, price: m.price });
+            if (manualResults.length >= limit) break;
+          }
+          if (manualEnabled && manualResults.length >= limit && (thresholdSuggestionMode === 'price' || (thresholdSuggestionMode === 'smart' && enableThresholdBasedSuggestions))) {
+            // Early return when manual fully satisfies quota
+            const payload = { recommendations: manualResults.slice(0, limit) };
+            setRecsCache(cacheKey, payload);
+            return json(payload, { headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=60' } });
+          }
+          // If mode is strictly manual, return immediately regardless of count
+          // We infer strict manual when complementDetectionMode === 'manual' (included via manualEnabled above)
+        }
+
+        // ---------- AI/Stats-based generation (existing algorithm) ----------
+        const HALF_LIFE_DAYS = 60;
+        const PRICE_GAP_LO = 0.5;
+        const PRICE_GAP_HI = 2.0;
+
+        // Anchor set
+        const anchors = new Set<string>();
+        if (productId) anchors.add(productId);
+        if (cartParam) {
+          for (const id of cartParam.split(',').map(s => s.trim()).filter(Boolean)) anchors.add(id);
+        }
+        if (anchors.size === 0) {
+          return json({ recommendations: [], reason: 'no_context' }, { headers: { 'Access-Control-Allow-Origin': '*' } });
+        }
+
+        // Fetch recent orders to compute decayed associations/popularity
+        const ordersResp = await admin.graphql(`
+          #graphql
+          query getOrders($first: Int!) {
+            orders(first: $first, sortKey: CREATED_AT, reverse: true) {
+              edges { node {
+                id
+                createdAt
+                lineItems(first: 30) { edges { node {
+                  product { id title handle media(first: 1) { edges { node { ... on MediaImage { image { url } } } } } vendor }
+                  variant { id price }
+                } } }
+              } }
+            }
+          }
+        `, { variables: { first: 200 } });
+        if (!ordersResp.ok) {
+          console.warn('Admin orders HTTP error:', ordersResp.status, ordersResp.statusText);
+          return json({ recommendations: [], reason: `admin_http_${ordersResp.status}` }, {
+            headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=30' }
+          });
+        }
+        const ordersData: any = await ordersResp.json();
+        if ((ordersData as any)?.errors || !(ordersData as any)?.data) {
+          console.warn('Admin orders GraphQL error:', (ordersData as any)?.errors || 'No data');
+          return json({ recommendations: [], reason: 'admin_orders_error' }, {
+            headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=30' }
+          });
+        }
+        const orderEdges: any[] = ordersData?.data?.orders?.edges || [];
+
+        // Build decayed stats
+        const LN2_OVER_HL = Math.log(2) / HALF_LIFE_DAYS;
+        type Assoc = { co:number; wco:number; rev:number; wrev:number; aov:number };
+        const assoc: Record<string, { product: any; with: Record<string, Assoc>; wAppear:number; price:number; handle:string; vendor?:string; image?:string } > = {};
+        const wAppear: Record<string, number> = {};
+
+        const getPid = (gid?: string) => (gid||'').replace('gid://shopify/Product/','');
+
+        for (const e of orderEdges) {
+          const n = e.node;
+          const createdAt = new Date(n.createdAt);
+          const ageDays = Math.max(0, (Date.now() - createdAt.getTime()) / 86400000);
+          const w = Math.exp(-LN2_OVER_HL * ageDays);
+          const items: Array<{pid:string; title:string; handle:string; img?:string; price:number; vendor?:string}> = [];
+          for (const ie of (n.lineItems?.edges||[])) {
+            const p = ie.node.product; if (!p?.id) continue;
+            const pid = getPid(p.id);
+            const vprice = parseFloat(ie.node.variant?.price || '0') || 0;
+            const img = p.media?.edges?.[0]?.node?.image?.url;
+            items.push({ pid, title: p.title, handle: p.handle, img, price: vprice, vendor: p.vendor });
+          }
+          if (items.length < 2) continue;
+
+          // appearances (decayed)
+          const seen = new Set<string>();
+          for (const it of items) {
+            if (!seen.has(it.pid)) {
+              wAppear[it.pid] = (wAppear[it.pid]||0)+w;
+              seen.add(it.pid);
+              if (!assoc[it.pid]) assoc[it.pid] = { product: { id: it.pid, title: it.title }, with: {}, wAppear: 0, price: it.price, handle: it.handle, vendor: it.vendor, image: it.img };
+              assoc[it.pid].wAppear += w;
+              assoc[it.pid].price = it.price; assoc[it.pid].handle = it.handle; assoc[it.pid].image = it.img; assoc[it.pid].product.title = it.title; assoc[it.pid].vendor = it.vendor;
+            }
+          }
+
+          // pairs
+          for (let i=0;i<items.length;i++) for (let j=i+1;j<items.length;j++) {
+            const a = items[i], b = items[j];
+            if (!assoc[a.pid]) assoc[a.pid] = { product:{id:a.pid,title:a.title}, with:{}, wAppear:0, price:a.price, handle:a.handle, vendor:a.vendor, image:a.img };
+            if (!assoc[b.pid]) assoc[b.pid] = { product:{id:b.pid,title:b.title}, with:{}, wAppear:0, price:b.price, handle:b.handle, vendor:b.vendor, image:b.img };
+            if (!assoc[a.pid].with[b.pid]) assoc[a.pid].with[b.pid] = { co:0,wco:0,rev:0,wrev:0,aov:0 };
+            if (!assoc[b.pid].with[a.pid]) assoc[b.pid].with[a.pid] = { co:0,wco:0,rev:0,wrev:0,aov:0 };
+            assoc[a.pid].with[b.pid].co++; assoc[a.pid].with[b.pid].wco+=w;
+            assoc[b.pid].with[a.pid].co++; assoc[b.pid].with[a.pid].wco+=w;
+          }
+        }
+
+        // Build candidate scores across anchors
+        const anchorIds = Array.from(anchors);
+        const candidate: Record<string, { score:number; lift:number; pop:number; handle?:string; vendor?:string } > = {};
+        const totalW = Object.values(wAppear).reduce((a,b)=>a+b,0) || 1;
+        const liftCap = 2.0; // cap to avoid niche explosions
+
+        // compute median anchor price (from assoc if available)
+        const anchorPrices = anchorIds.map(id => assoc[id]?.price).filter(v => typeof v === 'number' && !isNaN(v)) as number[];
+        anchorPrices.sort((a,b)=>a-b);
+        const anchorMedian = anchorPrices.length ? anchorPrices[Math.floor(anchorPrices.length/2)] : undefined;
+
+        for (const a of anchorIds) {
+          const aStats = assoc[a];
+          const wA = aStats?.wAppear || 0;
+          if (!aStats || wA <= 0) continue;
+          for (const [b, ab] of Object.entries(aStats.with)) {
+            if (anchors.has(b)) continue; // don’t recommend items already in context
+            const wB = assoc[b]?.wAppear || 0;
+            if (wB <= 0) continue;
+            const confidence = ab.wco / Math.max(1e-6, wA);
+            const probB = wB / totalW;
+            const lift = probB > 0 ? confidence / probB : 0;
+            const liftNorm = Math.min(liftCap, lift) / liftCap; // [0..1]
+            const popNorm = Math.min(1, wB / (totalW * 0.05)); // normalize: top 5% mass ~1
+            const sc = 0.6 * liftNorm + 0.4 * popNorm;
+            if (!candidate[b] || sc > candidate[b].score) {
+              candidate[b] = { score: sc, lift, pop: wB/totalW, handle: assoc[b]?.handle, vendor: assoc[b]?.vendor };
+            }
+          }
+        }
+
+        // OOS filter via Admin API for small top set
+        const topIds = Object.entries(candidate)
+          .sort((a,b)=>b[1].score - a[1].score)
+          .slice(0, 24)
+          .map(([id])=>id);
+
+        if (topIds.length === 0) {
+          return json({ recommendations: manualResults.slice(0, limit) }, { headers: { 'Access-Control-Allow-Origin': '*' } });
+        }
+
+        // Fetch inventory/availability and price data for candidates
+        const prodGids = topIds.map(id => `gid://shopify/Product/${id}`);
+        const invResp = await admin.graphql(`
+          #graphql
+          query inv($ids: [ID!]!) {
+            nodes(ids: $ids) {
+              ... on Product { id title handle vendor status totalInventory availableForSale variants(first: 10) { edges { node { id availableForSale price } } } media(first:1){edges{node{... on MediaImage { image { url } }}}} }
+            }
+          }
+        `, { variables: { ids: prodGids } });
+        if (!invResp.ok) {
+          console.warn('Admin inventory HTTP error:', invResp.status, invResp.statusText);
+          return json({ recommendations: manualResults.slice(0, limit), reason: `admin_http_${invResp.status}` }, {
+            headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=30' }
+          });
+        }
+        const invData: any = await invResp.json();
+        if ((invData as any)?.errors || !(invData as any)?.data) {
+          console.warn('Admin inventory GraphQL error:', (invData as any)?.errors || 'No data');
+          return json({ recommendations: manualResults.slice(0, limit), reason: 'admin_inventory_error' }, {
+            headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=30' }
+          });
+        }
+        const nodes: any[] = invData?.data?.nodes || [];
+        const availability: Record<string, { inStock:boolean; price:number; title:string; handle:string; img?:string; vendor?:string } > = {};
+        for (const n of nodes) {
+          if (!n?.id) continue;
+          const id = (n.id as string).replace('gid://shopify/Product/','');
+          const variants = n.variants?.edges || [];
+          const inStock = Boolean(n.availableForSale) || variants.some((v:any)=>v?.node?.availableForSale);
+          const price = variants.length ? parseFloat(variants[0].node?.price||'0')||0 : (assoc[id]?.price||0);
+          availability[id] = { inStock, price, title: n.title, handle: n.handle, img: n.media?.edges?.[0]?.node?.image?.url, vendor: n.vendor };
+        }
+
+        // Final ranking with guardrails (price-gap + diversity)
+        const results: Array<{ id:string; title:string; handle:string; image?:string; price:number } > = [];
+        const usedHandles = new Set<string>();
+        const targetPrice = anchorMedian;
+        // CTR-based re-ranking (best-effort)
+        let ctrById: Record<string, number> = {};
+        try {
+          const tracking = (db as any)?.trackingEvent;
+          if (tracking?.findMany) {
+            const since = new Date(Date.now() - 14 * 86400000);
+            const candIds = topIds;
+            if (candIds.length) {
+              const rows = await tracking.findMany({
+                where: { shop: shopStr, createdAt: { gte: since }, productId: { in: candIds } },
+                select: { productId: true, event: true },
+              });
+              const counts: Record<string, { imp: number; clk: number }> = {};
+              for (const r of rows) {
+                const pid = r.productId as string | null;
+                if (!pid) continue;
+                const c = counts[pid] || (counts[pid] = { imp: 0, clk: 0 });
+                if (r.event === 'impression') c.imp++;
+                else if (r.event === 'click') c.clk++;
+              }
+              const alpha = 1, beta = 20; // Laplace smoothing
+              for (const pid of Object.keys(counts)) {
+                const { imp, clk } = counts[pid];
+                const ctr = (clk + alpha) / (imp + beta);
+                ctrById[pid] = ctr;
+              }
+            }
+          }
+        } catch (_e) {
+          console.warn('CTR re-rank skipped:', _e);
+        }
+
+        const BASELINE_CTR = 0.05; // 5%
+        const CTR_WEIGHT = 0.35;
+        const scored = Object.entries(candidate).map(([bid, meta]) => {
+          const ctr = ctrById[bid] ?? BASELINE_CTR;
+          const mult = Math.max(0.85, Math.min(1.25, 1 + CTR_WEIGHT * (ctr - BASELINE_CTR)));
+          return [bid, { ...meta, score: meta.score * mult } ] as [string, typeof meta];
+        }).sort((a,b)=>b[1].score - a[1].score);
+
+        for (const [bid, meta] of scored) {
+          if (results.length >= Math.max(0, limit - manualResults.length)) break;
+          const info = availability[bid];
+          if (!info?.inStock) continue;
+          if (enableThresholdBasedSuggestions && needAmount > 0 && info.price < needAmount) continue;
+          if (typeof targetPrice === 'number' && targetPrice > 0) {
+            const ratio = info.price / targetPrice;
+            if (ratio < PRICE_GAP_LO || ratio > PRICE_GAP_HI) continue;
+          }
+          const h = (info.handle || meta.handle || '').split('-')[0];
+          if (usedHandles.has(h)) continue; // diversity
+          usedHandles.add(h);
+          results.push({ id: bid, title: info.title || assoc[bid]?.product?.title || '', handle: info.handle || assoc[bid]?.handle || '', image: info.img || assoc[bid]?.image, price: info.price });
+        }
+
+        // Combine manual and algorithmic with de-duplication
+        const combined: Array<{ id:string; title:string; handle:string; image?:string; price:number }> = [];
+        const seenIds = new Set<string>();
+        const pushUnique = (arr: typeof combined) => {
+          for (const r of arr) {
+            if (seenIds.has(r.id)) continue;
+            seenIds.add(r.id);
+            combined.push(r);
+            if (combined.length >= limit) break;
+          }
+        };
+        if (manualResults.length) pushUnique(manualResults);
+        if (combined.length < limit) pushUnique(results);
+
+        if (enableThresholdBasedSuggestions && needAmount > 0 && thresholdSuggestionMode === 'price') {
+          combined.sort((a,b)=> (a.price - needAmount) - (b.price - needAmount));
+        }
+
+        const payload = { recommendations: combined };
+        setRecsCache(cacheKey, payload);
+
+        return json(payload, {
           headers: {
             'Access-Control-Allow-Origin': '*',
-            'Cache-Control': 'public, max-age=30', // allow short client cache
-            'X-Recs-Cache': 'HIT'
+            'Cache-Control': 'public, max-age=60',
+            'X-Recs-Cache': 'MISS'
           },
         });
       }
-
-      // Very conservative defaults (no settings or DB changes)
-      const HALF_LIFE_DAYS = 60; // slightly faster than analytics page (more responsive to trends)
-      const PRICE_GAP_LO = 0.5;  // hide if < 50% of anchor median
-      const PRICE_GAP_HI = 2.0;  // hide if > 2x anchor median
-
-      // Anchor set
-      const anchors = new Set<string>();
-      if (productId) anchors.add(productId);
-      if (cartParam) {
-        for (const id of cartParam.split(',').map(s => s.trim()).filter(Boolean)) anchors.add(id);
-      }
-      if (anchors.size === 0) {
-        return json({ recommendations: [], reason: 'no_context' }, { headers: { 'Access-Control-Allow-Origin': '*'} });
-      }
-
-      // Admin API client for this shop
-      const { admin } = await unauthenticated.admin(shop);
-
-      // Fetch recent orders (bounded) to compute decayed associations/popularity
-      const ordersResp = await admin.graphql(`
-        #graphql
-        query getOrders($first: Int!) {
-          orders(first: $first, sortKey: CREATED_AT, reverse: true) {
-            edges { node {
-              id
-              createdAt
-              lineItems(first: 30) { edges { node {
-                product { id title handle media(first: 1) { edges { node { ... on MediaImage { image { url } } } } } vendor }
-                variant { id price }
-              } } }
-            } }
-          }
-        }
-      `, { variables: { first: 200 } });
-      // Soft-fail on Admin HTTP errors
-      if (!ordersResp.ok) {
-        console.warn('Admin orders HTTP error:', ordersResp.status, ordersResp.statusText);
-        return json({ recommendations: [], reason: `admin_http_${ordersResp.status}` }, {
-          headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=30' }
-        });
-      }
-      const ordersData: any = await ordersResp.json();
-      if ((ordersData as any)?.errors || !(ordersData as any)?.data) {
-        console.warn('Admin orders GraphQL error:', (ordersData as any)?.errors || 'No data');
-        // Most likely missing read_orders on existing installs until reauthorized
-        return json({ recommendations: [], reason: 'admin_orders_error' }, {
-          headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=30' }
-        });
-      }
-      const orderEdges: any[] = ordersData?.data?.orders?.edges || [];
-
-      // Build decayed stats
-      const LN2_OVER_HL = Math.log(2) / HALF_LIFE_DAYS;
-      type Assoc = { co:number; wco:number; rev:number; wrev:number; aov:number };
-      const assoc: Record<string, { product: any; with: Record<string, Assoc>; wAppear:number; price:number; handle:string; vendor?:string; image?:string } > = {};
-      const wAppear: Record<string, number> = {};
-
-      const getPid = (gid?: string) => (gid||'').replace('gid://shopify/Product/','');
-
-      for (const e of orderEdges) {
-        const n = e.node;
-        const createdAt = new Date(n.createdAt);
-        const ageDays = Math.max(0, (Date.now() - createdAt.getTime()) / 86400000);
-        const w = Math.exp(-LN2_OVER_HL * ageDays);
-        const items: Array<{pid:string; title:string; handle:string; img?:string; price:number; vendor?:string}> = [];
-        for (const ie of (n.lineItems?.edges||[])) {
-          const p = ie.node.product; if (!p?.id) continue;
-          const pid = getPid(p.id);
-          const price = parseFloat(ie.node.variant?.price || '0') || 0;
-          const img = p.media?.edges?.[0]?.node?.image?.url;
-          items.push({ pid, title: p.title, handle: p.handle, img, price, vendor: p.vendor });
-        }
-        if (items.length < 2) continue;
-
-        // appearances (decayed)
-        const seen = new Set<string>();
-        for (const it of items) {
-          if (!seen.has(it.pid)) {
-            wAppear[it.pid] = (wAppear[it.pid]||0)+w;
-            seen.add(it.pid);
-            if (!assoc[it.pid]) assoc[it.pid] = { product: { id: it.pid, title: it.title }, with: {}, wAppear: 0, price: it.price, handle: it.handle, vendor: it.vendor, image: it.img };
-            assoc[it.pid].wAppear += w;
-            // keep last seen price/title/handle/img simple
-            assoc[it.pid].price = it.price; assoc[it.pid].handle = it.handle; assoc[it.pid].image = it.img; assoc[it.pid].product.title = it.title; assoc[it.pid].vendor = it.vendor;
-          }
-        }
-
-        // pairs
-        for (let i=0;i<items.length;i++) for (let j=i+1;j<items.length;j++) {
-          const a = items[i], b = items[j];
-          if (!assoc[a.pid]) assoc[a.pid] = { product:{id:a.pid,title:a.title}, with:{}, wAppear:0, price:a.price, handle:a.handle, vendor:a.vendor, image:a.img };
-          if (!assoc[b.pid]) assoc[b.pid] = { product:{id:b.pid,title:b.title}, with:{}, wAppear:0, price:b.price, handle:b.handle, vendor:b.vendor, image:b.img };
-          if (!assoc[a.pid].with[b.pid]) assoc[a.pid].with[b.pid] = { co:0,wco:0,rev:0,wrev:0,aov:0 };
-          if (!assoc[b.pid].with[a.pid]) assoc[b.pid].with[a.pid] = { co:0,wco:0,rev:0,wrev:0,aov:0 };
-          assoc[a.pid].with[b.pid].co++; assoc[a.pid].with[b.pid].wco+=w;
-          assoc[b.pid].with[a.pid].co++; assoc[b.pid].with[a.pid].wco+=w;
-        }
-      }
-
-      // Build candidate scores across anchors
-      const anchorIds = Array.from(anchors);
-      const candidate: Record<string, { score:number; lift:number; pop:number; handle?:string; vendor?:string } > = {};
-      const totalW = Object.values(wAppear).reduce((a,b)=>a+b,0) || 1;
-      const liftCap = 2.0; // cap to avoid niche explosions
-
-      // compute median anchor price (from assoc if available)
-      const anchorPrices = anchorIds.map(id => assoc[id]?.price).filter(v => typeof v === 'number' && !isNaN(v)) as number[];
-      anchorPrices.sort((a,b)=>a-b);
-      const anchorMedian = anchorPrices.length ? anchorPrices[Math.floor(anchorPrices.length/2)] : undefined;
-
-      for (const a of anchorIds) {
-        const aStats = assoc[a];
-        const wA = aStats?.wAppear || 0;
-        if (!aStats || wA <= 0) continue;
-        for (const [b, ab] of Object.entries(aStats.with)) {
-          if (anchors.has(b)) continue; // don’t recommend items already in context
-          const wB = assoc[b]?.wAppear || 0;
-          if (wB <= 0) continue;
-          const confidence = ab.wco / Math.max(1e-6, wA);
-          const probB = wB / totalW;
-          const lift = probB > 0 ? confidence / probB : 0;
-          const liftNorm = Math.min(liftCap, lift) / liftCap; // [0..1]
-          const popNorm = Math.min(1, wB / (totalW * 0.05)); // normalize: top 5% mass ~1
-          const s = 0.6 * liftNorm + 0.4 * popNorm;
-          if (!candidate[b] || s > candidate[b].score) {
-            candidate[b] = { score: s, lift, pop: wB/totalW, handle: assoc[b]?.handle, vendor: assoc[b]?.vendor };
-          }
-        }
-      }
-
-      // OOS filter via Admin API for small top set
-      const topIds = Object.entries(candidate)
-        .sort((a,b)=>b[1].score - a[1].score)
-        .slice(0, 24)
-        .map(([id])=>id);
-
-      if (topIds.length === 0) {
-        return json({ recommendations: [] }, { headers: { 'Access-Control-Allow-Origin': '*' } });
-      }
-
-      // Fetch inventory/availability and price data for candidates (and anchors if needed)
-      const prodGids = topIds.map(id => `gid://shopify/Product/${id}`);
-      const invResp = await admin.graphql(`
-        #graphql
-        query inv($ids: [ID!]!) {
-          nodes(ids: $ids) {
-            ... on Product { id title handle vendor status totalInventory availableForSale variants(first: 10) { edges { node { id availableForSale price } } } media(first:1){edges{node{... on MediaImage { image { url } }}}} }
-          }
-        }
-      `, { variables: { ids: prodGids } });
-      if (!invResp.ok) {
-        console.warn('Admin inventory HTTP error:', invResp.status, invResp.statusText);
-        return json({ recommendations: [], reason: `admin_http_${invResp.status}` }, {
-          headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=30' }
-        });
-      }
-      const invData: any = await invResp.json();
-      if ((invData as any)?.errors || !(invData as any)?.data) {
-        console.warn('Admin inventory GraphQL error:', (invData as any)?.errors || 'No data');
-        return json({ recommendations: [], reason: 'admin_inventory_error' }, {
-          headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=30' }
-        });
-      }
-      const nodes: any[] = invData?.data?.nodes || [];
-      const availability: Record<string, { inStock:boolean; price:number; title:string; handle:string; img?:string; vendor?:string } > = {};
-      for (const n of nodes) {
-        if (!n?.id) continue;
-        const id = getPid(n.id);
-        const variants = n.variants?.edges || [];
-        const inStock = Boolean(n.availableForSale) || variants.some((v:any)=>v?.node?.availableForSale);
-        // pick first variant price as representative
-        const price = variants.length ? parseFloat(variants[0].node?.price||'0')||0 : (assoc[id]?.price||0);
-        availability[id] = { inStock, price, title: n.title, handle: n.handle, img: n.media?.edges?.[0]?.node?.image?.url, vendor: n.vendor };
-      }
-
-      // Final ranking with guardrails (price-gap + diversity)
-      const results: Array<{ id:string; title:string; handle:string; image?:string; price:number } > = [];
-      const usedHandles = new Set<string>();
-      const targetPrice = anchorMedian;
-      // Optional CTR-based re-ranking: use TrackingEvent signals when available (best-effort)
-    let ctrById: Record<string, number> = {};
-      try {
-        const tracking = (db as any)?.trackingEvent;
-        if (tracking?.findMany) {
-          const since = new Date(Date.now() - 14 * 86400000); // last 14 days
-      // Limit to the small top candidate set for speed
-      const candIds = topIds;
-          if (candIds.length) {
-            const rows = await tracking.findMany({
-              where: { shop, createdAt: { gte: since }, productId: { in: candIds } },
-              select: { productId: true, event: true },
-            });
-            const counts: Record<string, { imp: number; clk: number }> = {};
-            for (const r of rows) {
-              const pid = r.productId as string | null;
-              if (!pid) continue;
-              const c = counts[pid] || (counts[pid] = { imp: 0, clk: 0 });
-              if (r.event === 'impression') c.imp++;
-              else if (r.event === 'click') c.clk++;
-            }
-            // Smooth CTR to avoid noise; baseline ~5%
-            const alpha = 1, beta = 20; // Laplace smoothing
-            for (const pid of Object.keys(counts)) {
-              const { imp, clk } = counts[pid];
-              const ctr = (clk + alpha) / (imp + beta);
-              ctrById[pid] = ctr; // ~0.0..1.0
-            }
-          }
-        }
-  } catch (_e) {
-        // Ignore CTR re-rank issues; falls back to base ordering
-  console.warn('CTR re-rank skipped:', _e);
-      }
-
-      // Blend CTR into base score in a conservative way
-      const BASELINE_CTR = 0.05; // 5% baseline
-      const CTR_WEIGHT = 0.35;   // cap influence
-      const scored = Object.entries(candidate).map(([bid, meta]) => {
-        const ctr = ctrById[bid] ?? BASELINE_CTR;
-        const mult = Math.max(0.85, Math.min(1.25, 1 + CTR_WEIGHT * (ctr - BASELINE_CTR)));
-        return [bid, { ...meta, score: meta.score * mult } ] as [string, typeof meta];
-      }).sort((a,b)=>b[1].score - a[1].score);
-
-      for (const [bid, meta] of scored) {
-        if (results.length >= limit) break;
-        const info = availability[bid];
-        if (!info?.inStock) continue;
-        if (typeof targetPrice === 'number' && targetPrice > 0) {
-          const ratio = info.price / targetPrice;
-          if (ratio < PRICE_GAP_LO || ratio > PRICE_GAP_HI) continue;
-        }
-        const h = (info.handle || meta.handle || '').split('-')[0];
-        if (usedHandles.has(h)) continue; // simple diversity
-        usedHandles.add(h);
-        results.push({ id: bid, title: info.title || assoc[bid]?.product?.title || '', handle: info.handle || assoc[bid]?.handle || '', image: info.img || assoc[bid]?.image, price: info.price });
-      }
-
-      const payload = { recommendations: results };
-      // Store in cache for subsequent identical calls
-      setRecsCache(cacheKey, payload);
-
-      return json(payload, {
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 'public, max-age=60',
-          'X-Recs-Cache': 'MISS'
-        },
-      });
     } catch (error) {
       console.error('Recs API error:', error);
       // Soft-fail with empty list to avoid breaking the storefront UX
@@ -393,6 +495,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         console.log('[BUNDLES API] ERROR: No shop found, returning unauthorized');
         return json({ error: 'Unauthorized' }, { status: 401, headers: { 'Access-Control-Allow-Origin': '*', 'X-Bundles-Reason': 'unauthorized' } });
       }
+      const shopStr = shop as string;
 
       console.log('[BUNDLES API] Step 3: Parsing parameters...');
       const context = url.searchParams.get('context') || 'product';
@@ -403,7 +506,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       // Feature flag check
       let settings: any = undefined;
       try { 
-        settings = await getSettings(shop);
+        settings = await getSettings(shopStr);
         console.log('[BUNDLES API] Settings loaded successfully:', {
           enableSmartBundles: settings?.enableSmartBundles,
           bundlesOnProductPages: settings?.bundlesOnProductPages,
@@ -445,10 +548,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }
 
       // Resolve product id: accept numeric id; if not numeric, try as handle via Admin API
-      let productId = productIdParam;
+  let productId = String(productIdParam);
       if (!/^[0-9]+$/.test(productId)) {
         try {
-          const { admin } = await unauthenticated.admin(shop);
+          const { admin } = await unauthenticated.admin(shopStr);
           const byHandleResp = await admin.graphql(`#graphql
             query($handle: String!) { productByIdentifier(identifier: { handle: $handle }) { id } }
           `, { variables: { handle: productId } });
@@ -461,7 +564,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       } else {
         // If numeric, it could be a Variant ID; try resolving to Product ID
         try {
-          const { admin } = await unauthenticated.admin(shop);
+          const { admin } = await unauthenticated.admin(shopStr);
           const nodeResp = await admin.graphql(`#graphql
             query($id: ID!) { node(id: $id) { __typename ... on ProductVariant { product { id } } ... on Product { id } } }
           `, { variables: { id: `gid://shopify/ProductVariant/${productId}` } });
@@ -486,10 +589,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
       
       // Fetch real products from the store to use in bundles
       console.log('[BUNDLES API] Fetching real products from store...');
-      const { admin } = await unauthenticated.admin(shop);
+  const { admin } = await unauthenticated.admin(shopStr);
       
       // Get the current product details
-      let currentProduct = null;
+  let currentProduct: any = null;
       try {
     const currentProductResp = await admin.graphql(`#graphql
           query($id: ID!) { 
@@ -612,7 +715,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           };
         };
 
-        const currentProd = getProductDetails(currentProduct);
+  const currentProd = getProductDetails(currentProduct);
         
         // Skip bundle creation if current product doesn't have valid variants
         if (!currentProd) {
@@ -621,10 +724,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
           return json({ bundles: [], reason: 'no_variants' }, {
             headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=30' }
           });
-        }
+  }
+  const currentProdNN = currentProd as any;
 
         // Compute related products from recent orders (focused on this anchor)
-        const { admin } = await unauthenticated.admin(shop);
+  const { admin } = await unauthenticated.admin(shopStr);
         const ordersResp = await admin.graphql(`
           #graphql
           query getOrders($first: Int!) {
@@ -755,7 +859,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         }
         // ensure unique products by id
         const uniq: any[] = [];
-        const used = new Set<string>([String(currentProd.id)]);
+  const used = new Set<string>([String(currentProdNN.id)]);
         for (const rp of filteredRelated) {
           const id = String(rp.id).replace('gid://shopify/Product/','');
           if (used.has(id)) continue; used.add(id); uniq.push(rp);
@@ -764,7 +868,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         let complementProducts = uniq;
         // Second-tier fallback: build complements from other active products
         if (complementProducts.length === 0 && otherProducts.length) {
-          const candidates = otherProducts.filter((p:any)=>String(p.id).replace('gid://shopify/Product/','') !== String(currentProd.id));
+          const candidates = otherProducts.filter((p:any)=>String(p.id).replace('gid://shopify/Product/','') !== String(currentProdNN.id));
           const mapped = candidates.map(getProductDetails).filter((p:any)=>p && typeof p.price === 'number' && p.price >= 0);
           complementProducts = mapped.slice(0, 2);
         }
@@ -803,16 +907,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
           'Cache-Control': 'public, max-age=30',
           'X-Bundles-Reason': bundles.length ? 'ok' : 'no_candidates',
           'X-Bundles-Context': context,
-          'X-Bundles-Shop': shop
+          'X-Bundles-Shop': shopStr
         }
       });
-    } catch (error) {
+    } catch (err: unknown) {
       console.error('[BUNDLES API] === ERROR CAUGHT ===');
-      console.error('[BUNDLES API] Error:', error);
-      console.error('[BUNDLES API] Error message:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('[BUNDLES API] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      console.error('[BUNDLES API] Error type:', typeof error);
-      console.error('[BUNDLES API] Error constructor:', error?.constructor?.name);
+      console.error('[BUNDLES API] Error:', err);
+      console.error('[BUNDLES API] Error message:', err instanceof Error ? err.message : 'Unknown error');
+      console.error('[BUNDLES API] Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+      console.error('[BUNDLES API] Error type:', typeof err);
+      console.error('[BUNDLES API] Error constructor:', (err as any)?.constructor?.name);
       return json({ bundles: [], reason: 'unavailable' }, { headers: { 'Access-Control-Allow-Origin': '*', 'X-Bundles-Reason': 'unavailable' } });
     }
   }
@@ -827,7 +931,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         return json({ error: 'Unauthorized' }, { status: 401 });
       }
 
-      const settings = await getSettings(shop);
+  const settings = await getSettings(shop as string);
       // Normalize layout to theme values
       // Normalize legacy values while preserving new ones.
       // Legacy -> internal classes: horizontal/row/carousel => row, vertical/column/list => column, grid stays grid
