@@ -958,8 +958,8 @@ body.cartuplift-no-scroll {
   align-items: center;
   width: 100%;
   padding-left: 16px;
-  padding-top: 10px;
-  padding-bottom: 6px; /* Reduced from 10px to decrease space between header and cards */
+  padding-top: 8px;
+  padding-bottom: 4px; /* Further reduced for tighter spacing */
   padding-right: 16px; /* Reduced to move toggle closer to edge */
   background: var(--cartuplift-recommendations-bg);
   height: 46px;  /* Increased from 36px to account for bottom padding */
@@ -1027,7 +1027,7 @@ body.cartuplift-no-scroll {
   position: relative;
   display: block; /* Default visible; allow collapsed state to override */
   background: var(--cartuplift-recommendations-bg);
-  padding: 8px 12px 12px 12px; /* Reduced top padding from 12px to 8px for tighter spacing */
+  padding: 4px 12px 12px 12px; /* Further reduced top padding for tighter spacing */
   /* Smooth transitions for content changes */
   transition: opacity 0.2s ease, transform 0.2s ease;
   transform: translateZ(0); /* Force hardware acceleration */
@@ -1036,7 +1036,7 @@ body.cartuplift-no-scroll {
 /* Ensure recommendations are visible by default */
 .cartuplift-recommendations:not(.collapsed) .cartuplift-recommendations-content {
   display: block !important;
-  margin-top: 4px; /* Reduced from 12px to decrease space between title and cards */
+  margin-top: 2px; /* Further reduced for tighter spacing */
 }
 
 .cartuplift-recommendations.collapsed .cartuplift-recommendations-content {
@@ -1093,10 +1093,12 @@ body.cartuplift-no-scroll {
   align-items: center;
   width: 100%;
   gap: 8px;
-  padding: 6px 12px;  /* Match header padding */
+  padding: 2px 12px 6px 12px;  /* Reduced top padding for tighter spacing */
   background: var(--cartuplift-recommendations-bg);
-  height: 36px;  /* Fixed height to match header */
+  height: 32px;  /* Reduced height for more compact layout */
   box-sizing: border-box;
+  visibility: visible !important;
+  z-index: 10; /* Ensure controls are above other elements */
 }
 
 .cartuplift-carousel-nav {
@@ -1534,6 +1536,7 @@ body.cartuplift-no-scroll {
   /* Hide desktop arrow navigation on mobile */
   .cartuplift-carousel-nav {
     display: none !important;
+    visibility: hidden !important;
   }
   
   /* Mobile: Full width cards with swipe */
@@ -1573,10 +1576,11 @@ body.cartuplift-no-scroll {
   /* Show dot navigation on mobile */
   .cartuplift-recommendations-row .cartuplift-carousel-dots {
     display: flex !important;
+    visibility: visible !important;
     justify-content: center;
     gap: 4px;
     position: absolute;
-  bottom: 12px; /* moved up slightly from 6px */
+    bottom: 12px; /* moved up slightly from 6px */
     left: 50%;
     transform: translateX(-50%);
     z-index: 20;
@@ -1654,7 +1658,8 @@ body.cartuplift-no-scroll {
   }
   
   .cartuplift-carousel-nav {
-    display: flex !important;
+    display: inline-flex !important;
+    visibility: visible !important;
   }
   
   .cartuplift-carousel-dots {
