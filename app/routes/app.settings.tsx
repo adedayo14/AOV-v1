@@ -12,11 +12,10 @@ import {
   Banner,
   Checkbox,
   Button,
-  Modal,
-  Spinner,
+
   InlineStack,
   Badge,
-  RadioButton,
+
 } from "@shopify/polaris";
 import { withAuth, withAuthAction } from "../utils/auth.server";
 import { getSettings, saveSettings } from "../models/settings.server";
@@ -67,8 +66,7 @@ export const action = withAuthAction(async ({ request, auth }) => {
     enableStickyCart: settings.enableStickyCart === 'true',
     showOnlyOnCartPage: settings.showOnlyOnCartPage === 'true',
     autoOpenCart: settings.autoOpenCart === 'true',
-    enableFreeShipping: settings.enableFreeShipping === 'true',
-  freeShippingThreshold: Number(settings.freeShippingThreshold ?? 0),
+
     enableRecommendations: settings.enableRecommendations === 'true',
     enableAddons: settings.enableAddons === 'true',
     enableExpressCheckout: settings.enableExpressCheckout === 'true',
@@ -111,10 +109,7 @@ export const action = withAuthAction(async ({ request, auth }) => {
     complementDetectionMode: String(settings.complementDetectionMode) || "automatic",
     manualRecommendationProducts: String(settings.manualRecommendationProducts) || "",
     // Progress Bar System
-    progressBarMode: String(settings.progressBarMode) || "free-shipping",
-    enableGiftGating: settings.enableGiftGating === 'true',
-    giftProgressStyle: String(settings.giftProgressStyle) || "single-next",
-    giftThresholds: String(settings.giftThresholds) || "[]",
+
   // ML / Smart Bundles
   enableMLRecommendations: settings.enableMLRecommendations === 'true',
   enableSmartBundles: settings.enableSmartBundles === 'true',
@@ -296,12 +291,9 @@ export default function SettingsPage() {
   const horizontalTrackRef = useRef<HTMLDivElement>(null);
   
   // Gift product selection state
-  const [showGiftProductSelector, setShowGiftProductSelector] = useState(false);
-  const [giftProductSearchQuery, setGiftProductSearchQuery] = useState("");
-  const [giftProductsLoading, setGiftProductsLoading] = useState(false);
-  const [giftProductsError, setGiftProductsError] = useState<string | null>(null);
-  const [giftProducts, setGiftProducts] = useState<any[]>([]);
-  const [currentGiftThreshold, setCurrentGiftThreshold] = useState<any>(null);
+
+
+
   
   // Success banner auto-hide state
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
@@ -311,7 +303,7 @@ export default function SettingsPage() {
 
   // Ensure new sticky cart settings have defaults
   useEffect(() => {
-    setFormSettings(prev => ({
+    setFormSettings((prev: any) => ({
       ...prev,
       stickyCartShowIcon: prev.stickyCartShowIcon !== false,
       stickyCartShowCount: prev.stickyCartShowCount !== false,
@@ -322,10 +314,7 @@ export default function SettingsPage() {
       stickyCartCountBadgeTextColor: prev.stickyCartCountBadgeTextColor || "#ffffff",
       stickyCartBorderRadius: prev.stickyCartBorderRadius || 25,
       // Progress bar and gift gating defaults
-      progressBarMode: prev.progressBarMode || 'free-shipping',
-      enableGiftGating: prev.enableGiftGating || false,
-      giftProgressStyle: prev.giftProgressStyle || 'single-next',
-      giftThresholds: prev.giftThresholds || '[]',
+
     }));
   }, []);
 
@@ -382,28 +371,7 @@ export default function SettingsPage() {
     setFormSettings((prev: any) => ({ ...prev, [key]: value }));
   };
 
-  // Gift threshold helper functions
-  const addGiftThreshold = () => {
-    const currentThresholds = formSettings.giftThresholds ? JSON.parse(formSettings.giftThresholds) : [];
-    const newThreshold = {
-      id: Date.now().toString(),
-      amount: 100,
-      title: '',
-      description: '',
-      type: 'product',
-      productHandle: '',
-      discountAmount: 0,
-      discountCode: ''
-    };
-    const updatedThresholds = [...currentThresholds, newThreshold];
-    updateSetting('giftThresholds', JSON.stringify(updatedThresholds));
-  };
 
-  const removeGiftThreshold = (thresholdId: string) => {
-    const currentThresholds = formSettings.giftThresholds ? JSON.parse(formSettings.giftThresholds) : [];
-    const updatedThresholds = currentThresholds.filter((threshold: any) => threshold.id !== thresholdId);
-    updateSetting('giftThresholds', JSON.stringify(updatedThresholds));
-  };
 
 
 
@@ -443,32 +411,13 @@ export default function SettingsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showProductSelector, productSearchQuery]);
 
-  // Fetch gift products when selector opens or search changes (debounced)
-  useEffect(() => {
-    if (!showGiftProductSelector) return;
-    setGiftProductsError(null);
-    setGiftProductsLoading(true);
-    const timeout = setTimeout(() => {
-      const qs = new URLSearchParams();
-      if (giftProductSearchQuery) qs.set('query', giftProductSearchQuery);
-      qs.set('limit', '25');
-      productsFetcher.load(`/api/products?${qs.toString()}`);
-    }, 250);
-    return () => {
-      clearTimeout(timeout);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showGiftProductSelector, giftProductSearchQuery]);
+
 
   useEffect(() => {
     if (productsFetcher.state === 'loading') {
       if (showProductSelector) {
         setProductsLoading(true);
         setProductsError(null);
-      }
-      if (showGiftProductSelector) {
-        setGiftProductsLoading(true);
-        setGiftProductsError(null);
       }
     }
     if (productsFetcher.state === 'idle') {
@@ -478,22 +427,14 @@ export default function SettingsPage() {
           setProducts([]);
           setProductsError(typeof data.error === 'string' ? data.error : 'Failed to load products');
         }
-        if (showGiftProductSelector) {
-          setGiftProducts([]);
-          setGiftProductsError(typeof data.error === 'string' ? data.error : 'Failed to load products');
-        }
       } else {
         if (showProductSelector) {
           setProducts(Array.isArray(data?.products) ? data.products : []);
         }
-        if (showGiftProductSelector) {
-          setGiftProducts(Array.isArray(data?.products) ? data.products : []);
-        }
       }
       if (showProductSelector) setProductsLoading(false);
-      if (showGiftProductSelector) setGiftProductsLoading(false);
     }
-  }, [productsFetcher.state, productsFetcher.data, showProductSelector, showGiftProductSelector]);
+  }, [productsFetcher.state, productsFetcher.data, showProductSelector]);
 
 
 
@@ -2756,377 +2697,7 @@ export default function SettingsPage() {
               </BlockStack>
             </Card>
 
-            {/* Customer Incentives */}
-            <Card>
-              <BlockStack gap="400">
-                <Text variant="headingMd" as="h2">🎯 Customer Incentives</Text>
-                <FormLayout>
-                  <BlockStack gap="200">
-                    <Text variant="headingSm" as="h3">Incentive Type</Text>
-                    <Text as="p" variant="bodySm" tone="subdued">Choose what motivates your customers to spend more</Text>
-                    
-                    <BlockStack gap="300">
-                      <BlockStack gap="100">
-                        <RadioButton
-                          label="Free Shipping Only"
-                          helpText="Show progress towards free shipping threshold"
-                          name="progressBarMode"
-                          checked={(formSettings.progressBarMode || 'free-shipping') === 'free-shipping'}
-                          onChange={() => updateSetting('progressBarMode', 'free-shipping')}
-                        />
-                        <Text variant="bodySm" color="subdued" tone="subdued">
-                          Simple progress bar showing how close customers are to free shipping
-                        </Text>
-                      </BlockStack>
-                      
-                      <BlockStack gap="100">
-                        <RadioButton
-                          label="Gift & Rewards System"
-                          helpText="Show progress towards gift thresholds and rewards"
-                          name="progressBarMode"
-                          checked={formSettings.progressBarMode === 'gift-gating'}
-                          onChange={() => updateSetting('progressBarMode', 'gift-gating')}
-                        />
-                        <Text variant="bodySm" color="subdued" tone="subdued">
-                          Advanced progress system with multiple gift thresholds and rewards
-                        </Text>
-                      </BlockStack>
-                      
-                      <BlockStack gap="100">
-                        <RadioButton
-                          label="Combined (Free Shipping + Gifts)"
-                          helpText="Show both free shipping and gift thresholds together"
-                          name="progressBarMode"
-                          checked={formSettings.progressBarMode === 'combined'}
-                          onChange={() => updateSetting('progressBarMode', 'combined')}
-                        />
-                        <Text variant="bodySm" color="subdued" tone="subdued">
-                          Unified progress bar combining free shipping and gift thresholds
-                        </Text>
-                      </BlockStack>
-                    </BlockStack>
-                  </BlockStack>
-                  
-                  {/* Free Shipping Settings - shown when Free Shipping Only is selected */}
-                  {(formSettings.progressBarMode || 'free-shipping') === 'free-shipping' && (
-                    <BlockStack key="free-shipping-settings" gap="400">
-                      <Checkbox
-                        label="Enable free shipping progress bar"
-                        checked={formSettings.enableFreeShipping}
-                        onChange={(value) => updateSetting("enableFreeShipping", value)}
-                        helpText="ℹ️ Show a progress bar to motivate customers to reach your free shipping threshold."
-                      />
-                      
-                      {formSettings.enableFreeShipping && (
-                        <BlockStack gap="600">
-                          <BlockStack gap="400">
-                            <TextField
-                              label="Progress message"
-                              value={formSettings.freeShippingText}
-                              onChange={(value) => updateSetting("freeShippingText", value)}
-                              helpText="ℹ️ Use {{ amount }} or {amount} where you want the remaining balance to appear. It will update automatically."
-                              placeholder="You're {{ amount }} away from free shipping!"
-                              autoComplete="off"
-                            />
-                            
-                            <TextField
-                              label="Success message"
-                              value={formSettings.freeShippingAchievedText}
-                              onChange={(value) => updateSetting("freeShippingAchievedText", value)}
-                              helpText="ℹ️ This message is shown once the free shipping threshold is reached."
-                              placeholder="🎉 Congratulations! You've unlocked free shipping!"
-                              autoComplete="off"
-                            />
-                          </BlockStack>
-                          
-                          <div className="cartuplift-shipping-row">
-                            <div>
-                              <Text variant="headingMd" as="h3">Threshold</Text>
-                              <div className="cartuplift-threshold-input">
-                                <TextField
-                                  label=""
-                                  labelHidden
-                                  type="number"
-                                  value={String(formSettings.freeShippingThreshold)}
-                                  onChange={(value) => updateSetting("freeShippingThreshold", parseInt(value) || 100)}
-                                  helpText="ℹ️ Minimum amount for free shipping"
-                                  autoComplete="off"
-                                />
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <Text variant="headingMd" as="h3">Background</Text>
-                              <input
-                                type="color"
-                                value={resolveColor(formSettings.shippingBarBackgroundColor, '#f0f0f0')}
-                                onChange={(e) => updateSetting("shippingBarBackgroundColor", e.target.value)}
-                                className="cartuplift-color-input-full-width"
-                                title={resolveColor(formSettings.shippingBarBackgroundColor, '#f0f0f0')}
-                                aria-label={`Shipping bar background color: ${resolveColor(formSettings.shippingBarBackgroundColor, '#f0f0f0')}`}
-                              />
-                            </div>
-                            
-                            <div>
-                              <Text variant="headingMd" as="h3">Bar Color</Text>
-                              <input
-                                type="color"
-                                value={resolveColor(formSettings.shippingBarColor, themeColors.primary)}
-                                onChange={(e) => updateSetting("shippingBarColor", e.target.value)}
-                                className="cartuplift-color-input-full-width"
-                                title={resolveColor(formSettings.shippingBarColor, themeColors.primary)}
-                                aria-label={`Shipping bar color: ${resolveColor(formSettings.shippingBarColor, themeColors.primary)}`}
-                              />
-                            </div>
-                          </div>
-                        </BlockStack>
-                      )}
-                    </BlockStack>
-                  )}
-                  
-                  {/* Gift Gating Settings - shown when Gift & Rewards or Combined is selected */}
-                  {(formSettings.progressBarMode === 'gift-gating' || formSettings.progressBarMode === 'combined') && (
-                    <BlockStack key="gift-gating-settings" gap="400">
-                      <Checkbox
-                        label="Enable Gift Gating"
-                        checked={formSettings.enableGiftGating || false}
-                        onChange={(value) => updateSetting("enableGiftGating", value)}
-                        helpText="Unlock gifts, discounts, or free products when customers reach spending thresholds"
-                      />
-                      
-                      {formSettings.enableGiftGating && (
-                        <BlockStack gap="400">
-                          <BlockStack gap="200">
-                            <Text variant="headingSm" as="h3">Progress Bar Display Style</Text>
-                            <BlockStack gap="300">
-                              <BlockStack gap="100">
-                                <RadioButton
-                                  label="Stacked Progress Bars"
-                                  id="stacked"
-                                  name="giftProgressStyle"
-                                  checked={(formSettings.giftProgressStyle || 'single-next') === 'stacked'}
-                                  onChange={() => updateSetting('giftProgressStyle', 'stacked')}
-                                />
-                                <Text variant="bodySm" color="subdued" tone="subdued">
-                                  Show separate progress bars for each threshold
-                                </Text>
-                              </BlockStack>
-                              
-                              <BlockStack gap="100">
-                                <RadioButton
-                                  label="Single Bar with All Milestones"
-                                  id="single-multi"
-                                  name="giftProgressStyle"
-                                  checked={(formSettings.giftProgressStyle || 'single-next') === 'single-multi'}
-                                  onChange={() => updateSetting('giftProgressStyle', 'single-multi')}
-                                />
-                                <Text variant="bodySm" color="subdued" tone="subdued">
-                                  One progress bar showing all reward milestones
-                                </Text>
-                              </BlockStack>
-                              
-                              <BlockStack gap="100">
-                                <RadioButton
-                                  label="Single Bar with Next Goal Focus"
-                                  id="single-next"
-                                  name="giftProgressStyle"
-                                  checked={(formSettings.giftProgressStyle || 'single-next') === 'single-next'}
-                                  onChange={() => updateSetting('giftProgressStyle', 'single-next')}
-                                />
-                                <Text variant="bodySm" color="subdued" tone="subdued">
-                                  Focus on the next achievable reward
-                                </Text>
-                              </BlockStack>
-                            </BlockStack>
-                          </BlockStack>
-                          
-                          <BlockStack gap="200">
-                            <Text variant="headingSm" as="h3">Gift Thresholds</Text>
-                            <Text as="p" variant="bodySm" tone="subdued">
-                              Set spending thresholds to unlock gifts, discounts, or free products
-                            </Text>
-                            
-                            <BlockStack gap="200" align="center">
-                              <Button onClick={addGiftThreshold} variant="secondary">Add Gift Threshold</Button>
-                            </BlockStack>
-                            
-                            <BlockStack gap="300">
-                              {(() => {
-                                const giftThresholds = formSettings.giftThresholds ? JSON.parse(formSettings.giftThresholds) : [];
-                                
-                                if (giftThresholds.length === 0) {
-                                  return (
-                                    <Text as="p" variant="bodySm" tone="subdued" alignment="center">
-                                      No gift thresholds added yet. Click "Add Gift Threshold" to get started.
-                                    </Text>
-                                  );
-                                }
-                                
-                                return (
-                                  <BlockStack gap="300">
-                                    {giftThresholds.map((threshold: any, index: number) => (
-                                      <Card key={threshold.id} padding="400">
-                                        <BlockStack gap="300">
-                                          <InlineStack align="space-between">
-                                            <Text variant="headingSm" as="h4">Threshold #{index + 1}</Text>
-                                            <Button 
-                                              onClick={() => removeGiftThreshold(threshold.id)} 
-                                              variant="tertiary" 
-                                              tone="critical"
-                                              size="micro"
-                                            >
-                                              Remove
-                                            </Button>
-                                          </InlineStack>
-                                          
-                                          <InlineStack gap="300">
-                                            <TextField
-                                              label="Spending Amount"
-                                              type="number"
-                                              value={threshold.amount?.toString() || ''}
-                                              onChange={(value) => {
-                                                const updated = giftThresholds.map((t: any) => 
-                                                  t.id === threshold.id ? { ...t, amount: parseInt(value) || 0 } : t
-                                                );
-                                                updateSetting('giftThresholds', JSON.stringify(updated));
-                                              }}
-                                              prefix={shopCurrency?.currencyCode === 'GBP' ? '£' : shopCurrency?.currencyCode === 'EUR' ? '€' : '$'}
-                                              autoComplete="off"
-                                            />
-                                            
-                                            <Select
-                                              label="Reward Type"
-                                              options={[
-                                                { label: 'Free Product', value: 'product' },
-                                                { label: 'Percentage Discount', value: 'discount_percentage' },
-                                                { label: 'Discount Code', value: 'discount_store' }
-                                              ]}
-                                              value={threshold.type || 'product'}
-                                              onChange={(value) => {
-                                                const updated = giftThresholds.map((t: any) => 
-                                                  t.id === threshold.id ? { ...t, type: value } : t
-                                                );
-                                                updateSetting('giftThresholds', JSON.stringify(updated));
-                                              }}
-                                            />
-                                          </InlineStack>
-                                          
-                                          <TextField
-                                            label="Gift Title"
-                                            value={threshold.title || ''}
-                                            onChange={(value) => {
-                                              const updated = giftThresholds.map((t: any) => 
-                                                t.id === threshold.id ? { ...t, title: value } : t
-                                              );
-                                              updateSetting('giftThresholds', JSON.stringify(updated));
-                                            }}
-                                            placeholder="e.g., Free Sample Pack"
-                                            autoComplete="off"
-                                          />
-                                          
-                                          <TextField
-                                            label="Description"
-                                            value={threshold.description || ''}
-                                            onChange={(value) => {
-                                              const updated = giftThresholds.map((t: any) => 
-                                                t.id === threshold.id ? { ...t, description: value } : t
-                                              );
-                                              updateSetting('giftThresholds', JSON.stringify(updated));
-                                            }}
-                                            placeholder="Optional description for customers"
-                                            autoComplete="off"
-                                          />
-                                          
-                                          {threshold.type === 'product' && (
-                                            <BlockStack gap="200">
-                                              <Text variant="headingSm" as="h4">Gift Product</Text>
-                                              {threshold.productId ? (
-                                                <div className="cartuplift-selected-gift-product">
-                                                  {threshold.productImage && (
-                                                    <div className="cartuplift-product-image">
-                                                      <img 
-                                                        src={threshold.productImage} 
-                                                        alt={threshold.productImageAlt || threshold.productTitle}
-                                                        className="cartuplift-gift-product-image"
-                                                      />
-                                                    </div>
-                                                  )}
-                                                  <div className="cartuplift-product-info">
-                                                    <Text as="span" variant="bodyMd" fontWeight="medium">
-                                                      {threshold.productTitle}
-                                                    </Text>
-                                                  </div>
-                                                  <Button
-                                                    variant="plain"
-                                                    onClick={() => {
-                                                      setCurrentGiftThreshold(threshold);
-                                                      setShowGiftProductSelector(true);
-                                                    }}
-                                                  >
-                                                    Change Product
-                                                  </Button>
-                                                </div>
-                                              ) : (
-                                                <Button
-                                                  onClick={() => {
-                                                    setCurrentGiftThreshold(threshold);
-                                                    setShowGiftProductSelector(true);
-                                                  }}
-                                                >
-                                                  Select Gift Product
-                                                </Button>
-                                              )}
-                                            </BlockStack>
-                                          )}
-                                          
-                                          {threshold.type === 'discount_percentage' && (
-                                            <InlineStack gap="200">
-                                              <TextField
-                                                label="Discount Amount (%)"
-                                                type="number"
-                                                value={threshold.discountAmount?.toString() || ''}
-                                                onChange={(value) => {
-                                                  const updated = giftThresholds.map((t: any) => 
-                                                    t.id === threshold.id ? { ...t, discountAmount: parseFloat(value) || 0 } : t
-                                                  );
-                                                  updateSetting('giftThresholds', JSON.stringify(updated));
-                                                }}
-                                                suffix="%"
-                                                autoComplete="off"
-                                              />
-                                            </InlineStack>
-                                          )}
-                                          
-                                          {threshold.type === 'discount_store' && (
-                                            <TextField
-                                              label="Discount Code (from Shopify)"
-                                              value={threshold.discountCode || ''}
-                                              onChange={(value) => {
-                                                const updated = giftThresholds.map((t: any) => 
-                                                  t.id === threshold.id ? { ...t, discountCode: value } : t
-                                                );
-                                                updateSetting('giftThresholds', JSON.stringify(updated));
-                                              }}
-                                              placeholder="e.g., SAVE20"
-                                              helpText="Store-wide discount code created in Shopify"
-                                              autoComplete="off"
-                                            />
-                                          )}
-                                        </BlockStack>
-                                      </Card>
-                                    ))}
-                                  </BlockStack>
-                                );
-                              })()}
-                            </BlockStack>
-                          </BlockStack>
-                        </BlockStack>
-                      )}
-                    </BlockStack>
-                  )}
-                </FormLayout>
-              </BlockStack>
-            </Card>
+
 
             {/* Appearance & Style */}
             <Card>
@@ -3282,80 +2853,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Gift Product Selector Modal */}
-      {showGiftProductSelector && (
-        <Modal
-          open
-          onClose={() => setShowGiftProductSelector(false)}
-          title="Select Gift Product"
-          primaryAction={{
-            content: 'Done',
-            onAction: () => {
-              setShowGiftProductSelector(false);
-            }
-          }}
-          secondaryActions={[{ content: 'Cancel', onAction: () => setShowGiftProductSelector(false) }]}
-        >
-          <Modal.Section>
-            <BlockStack gap="300">
-              <TextField
-                label="Search products"
-                value={giftProductSearchQuery}
-                onChange={(v: string) => setGiftProductSearchQuery(v)}
-                autoComplete="off"
-                placeholder="Search by title, vendor, or tag"
-              />
-              {giftProductsLoading ? (
-                <InlineStack align="center">
-                  <Spinner accessibilityLabel="Loading products" />
-                </InlineStack>
-              ) : (
-                <div className="cartuplift-product-selector-list">
-                  {giftProductsError && (
-                    <Banner tone="critical">{giftProductsError}</Banner>
-                  )}
-                  {giftProducts.length === 0 && (
-                    <Text as="p" tone="subdued">No products found.</Text>
-                  )}
-                  {giftProducts.map((p: any) => {
-                    const isSelected = currentGiftThreshold?.productId === p.id;
-                    return (
-                      <div key={p.id} className="cartuplift-product-row">
-                        <Checkbox
-                          label=""
-                          checked={isSelected}
-                          onChange={(val: boolean) => {
-                            if (val && currentGiftThreshold) {
-                              const giftThresholds = formSettings.giftThresholds ? JSON.parse(formSettings.giftThresholds) : [];
-                              const updated = giftThresholds.map((t: any) => 
-                                t.id === currentGiftThreshold.id ? { 
-                                  ...t, 
-                                  productId: p.id,
-                                  productHandle: p.handle,
-                                  productTitle: p.title,
-                                  productImage: p.image,
-                                  productImageAlt: p.imageAlt || p.title
-                                } : t
-                              );
-                              updateSetting('giftThresholds', JSON.stringify(updated));
-                              setShowGiftProductSelector(false);
-                            }
-                          }}
-                        />
-                        <img className="cartuplift-product-thumb" src={p.image || ''} alt={p.imageAlt || p.title} />
-                        <div className="cartuplift-product-meta">
-                          <p className="cartuplift-product-title">{p.title}</p>
-                          <p className="cartuplift-product-sub">{p.handle}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </BlockStack>
-          </Modal.Section>
-        </Modal>
-      )}
+
     </Page>
   );
 }
