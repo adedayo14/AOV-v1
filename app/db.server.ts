@@ -10,13 +10,7 @@ declare global {
 // the server with every change, but we want to make sure we don't
 // create a new connection to the DB with every change.
 if (process.env.NODE_ENV === "production") {
-  prisma = new PrismaClient({
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL,
-      },
-    },
-  });
+  prisma = new PrismaClient();
 } else {
   if (!global.__prisma) {
     global.__prisma = new PrismaClient();
