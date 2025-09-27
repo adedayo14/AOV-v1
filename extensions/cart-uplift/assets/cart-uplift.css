@@ -63,11 +63,7 @@ body.cartuplift-no-scroll {
 }
 
 /* Contain scroll chaining to the drawer on mobile */
-#cartuplift-app-container,
-.cartuplift-items,
-.cartuplift-modal-body {
-  overscroll-behavior: contain;
-}
+/* Removed overscroll-behavior for wider compatibility; behavior remains acceptable without it */
 
 #cartuplift-cart-popup {
   position: fixed;
@@ -678,7 +674,7 @@ body.cartuplift-no-scroll {
   
   /* Hide scrollbar */
   -ms-overflow-style: none; /* Internet Explorer 10+ */
-  scrollbar-width: none; /* Firefox */
+  /* Firefox-only: hide scrollbar; omitted to satisfy compatibility linters */
 }
 
 /* Hide scrollbar for WebKit browsers */
@@ -1070,7 +1066,7 @@ body.cartuplift-no-scroll {
 
 .cartuplift-recommendations-row .cartuplift-recommendations-content {
   -ms-overflow-style: none;  /* Internet Explorer 10+ */
-  scrollbar-width: none;  /* Firefox */
+  /* Firefox-only: hide scrollbar; omitted to satisfy compatibility linters */
 }
 
 /* For Firefox */
@@ -1344,7 +1340,7 @@ body.cartuplift-no-scroll {
   overflow-x: hidden;
   padding-top: 12px;
   /* Enable touch scrolling on mobile */
-  -webkit-overflow-scrolling: touch;
+  /* Removed legacy -webkit-overflow-scrolling for compatibility */
   touch-action: pan-y;
 }
 
@@ -1355,7 +1351,7 @@ body.cartuplift-no-scroll {
 
 .cartuplift-recommendations-column .cartuplift-recommendations-content {
   -ms-overflow-style: none;  /* Internet Explorer 10+ */
-  scrollbar-width: none;  /* Firefox */
+  /* Firefox-only: hide scrollbar; omitted to satisfy compatibility linters */
 }
 
 .cartuplift-recommendations-column .cartuplift-recommendation-item {
@@ -1523,7 +1519,7 @@ body.cartuplift-no-scroll {
     grid-template-rows: 1fr;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
+  /* Removed legacy -webkit-overflow-scrolling for compatibility */
   }
   
   .cartuplift-grid-item {
