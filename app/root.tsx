@@ -46,20 +46,20 @@ export default function App() {
                     // Try to access parent location - will throw if X-Frame-Options blocks
                     var parentUrl = window.top.location.href;
                     console.log('CartUplift: Valid iframe context detected');
-                  } catch (e) {
+                  } catch (_e) {
                     console.warn('CartUplift: X-Frame-Options blocking detected - escaping iframe immediately');
                     
                     // Strategy 1: Immediate location replacement
                     try {
                       window.top.location.replace(window.location.href);
-                    } catch (e2) {
+                    } catch (_e2) {
                       // Strategy 2: Parent postMessage
                       try {
                         window.parent.postMessage({
                           message: 'CARTUPLIFT_IFRAME_ESCAPE',
                           url: window.location.href
                         }, '*');
-                      } catch (e3) {}
+                      } catch (_e3) {}
                       
                       // Strategy 3: Self redirect
                       window.location.replace(window.location.href);

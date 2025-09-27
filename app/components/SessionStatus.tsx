@@ -23,7 +23,7 @@ export function SessionStatus({ onSessionExpired }: SessionStatusProps) {
           console.log('Session expired, attempting re-authentication...');
           reauthorizeApp();
         }
-      } catch (error) {
+      } catch (_error) {
         console.warn('Session check failed, likely network issue');
         // Don't refresh on network errors, just retry later
       }
@@ -36,8 +36,8 @@ export function SessionStatus({ onSessionExpired }: SessionStatusProps) {
       try {
         await fetch('/app/api/session-refresh', { method: 'POST' });
         console.log('Session refreshed automatically');
-      } catch (error) {
-        console.warn('Session refresh failed:', error);
+      } catch (_error) {
+        console.warn('Session refresh failed');
       } finally {
         setIsRefreshing(false);
       }
@@ -65,9 +65,7 @@ export function SessionStatus({ onSessionExpired }: SessionStatusProps) {
     window.addEventListener('message', handleMessage);
 
     // Check for expired sessions every 2 minutes
-    const checkInterval = setInterval(checkAndRefreshSession, 2 * 60 * 1000);
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+  const checkInterval = setInterval(checkAndRefreshSession, 2 * 60 * 1000);
     
     // Initial check
     checkAndRefreshSession();

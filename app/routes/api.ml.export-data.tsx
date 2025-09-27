@@ -49,7 +49,7 @@ async function generateDataExport(userId: string, privacyLevel: string) {
   return exportData;
 }
 
-async function getUserPrivacySettings(userId: string) {
+async function getUserPrivacySettings(_userId: string) {
   // Mock privacy settings - would be real database query
   return {
     consent_level: 'enhanced',

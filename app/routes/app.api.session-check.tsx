@@ -13,7 +13,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shop: session.shop,
       expiresIn: null // Shopify doesn't provide expiry info easily
     });
-  } catch (error) {
+  } catch (_error) {
     // Session is invalid/expired
     return json({ valid: false }, { status: 401 });
   }

@@ -70,6 +70,31 @@ export default [
       "@typescript-eslint/no-require-imports": "off",
     },
   },
+  // Node scripts: allow CommonJS requires and shebangs without noise
+  {
+    files: ["scripts/**/*.js"],
+    languageOptions: {
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "script",
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+  {
+    files: [
+      "scripts/ml-seed-orders.js",
+      "scripts/bulk-inventory-increase.js",
+    ],
+    languageOptions: {
+      parserOptions: { ecmaVersion: "latest", sourceType: "script" },
+    },
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
   // Disable formatting-related rules to let Prettier handle formatting
   prettier,
 ];

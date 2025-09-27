@@ -138,7 +138,7 @@ async function findSimilarProductsByCategory(category: string, excludeIds: strin
 async function findSimilarProductsEnhanced(
   baseProduct: any,
   excludeIds: string[],
-  customerPreferences: any
+  _customerPreferences: any
 ) {
   const allProducts = await getAllProducts();
   
@@ -314,7 +314,7 @@ function getPersonalizationFactors(product: any, customerPreferences: any): stri
   return factors;
 }
 
-function applyPersonalizedRanking(recommendations: any[], customerPreferences: any) {
+function applyPersonalizedRanking(recommendations: any[], _customerPreferences: any) {
   return recommendations.sort((a, b) => {
     let scoreA = a.score;
     let scoreB = b.score;
@@ -330,7 +330,7 @@ function applyPersonalizedRanking(recommendations: any[], customerPreferences: a
 async function findSemanticallySimilarProducts(
   baseProduct: any,
   excludeIds: string[],
-  customerPreferences: any
+  _customerPreferences: any
 ) {
   // Mock semantic similarity - would use real embeddings
   const allProducts = await getAllProducts();

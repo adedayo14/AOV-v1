@@ -8,8 +8,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     // Example cleanup if a cartEvent table exists and had customerId (we don't currently).
     // await (db as any).cartEvent.deleteMany({ where: { shop, customerId: payload.customer?.id } })
-  } catch (e) {
-    // No-op
+  } catch (_e) {
+    /* No-op */
   }
   return new Response();
 };

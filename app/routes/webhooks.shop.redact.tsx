@@ -9,8 +9,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     await db.settings.deleteMany({ where: { shop } });
     await db.session.deleteMany({ where: { shop } });
     // Optional tables cleanup
-    await (db as any).cartEvent?.deleteMany?.({ where: { shop } }).catch(() => {});
-  } catch (e) {
+    await (db as any).cartEvent?.deleteMany?.({ where: { shop } }).catch((_e: unknown) => { /* ignore to ensure webhook 200s */ });
+  } catch (_e) {
     // Ignore errors to ensure webhook 200s
   }
   return new Response();

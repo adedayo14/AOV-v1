@@ -234,7 +234,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }));
     
     // For product suggestions, calculate metrics from REAL order patterns
-    const topUpsells = topProducts.slice(0, 6).map((product, index) => {
+  const topUpsells = topProducts.slice(0, 6).map((product, _index) => {
       // Calculate real impression estimate based on actual order frequency
       const daysInPeriod = timeframe === "today" ? 1 : timeframe === "7d" ? 7 : timeframe === "30d" ? 30 : 365;
       const dailyOrders = product.orders / daysInPeriod;
@@ -304,7 +304,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       
       if (totalOrdersWithMultipleItems > 0) {
         const highFrequencyPairs = Array.from(productPairs.entries())
-          .map(([pairKey, pairData]) => ({
+          .map(([, pairData]) => ({
             ...pairData,
             coOccurrenceRate: Math.round((pairData.count / totalOrdersWithMultipleItems) * 100)
           }))
@@ -841,6 +841,32 @@ export default function Dashboard() {
           </BlockStack>
         </Card>
         
+        {/* Local utility styles to replace inline CSS in this route */}
+        <style>
+          {`
+            .cu-flex { display: flex; }
+            .cu-items-center { align-items: center; }
+            .cu-gap-16 { gap: 16px; }
+            .cu-gap-8 { gap: 8px; }
+            .cu-p-12 { padding: 12px; }
+            .cu-p-20 { padding: 20px; }
+            .cu-text-center { text-align: center; }
+            .cu-bg-card { background: #f8f9fa; }
+            .cu-rounded-8 { border-radius: 8px; }
+            .cu-rounded-4 { border-radius: 4px; }
+            .cu-border { border: 1px solid #e1e3e5; }
+            .cu-min-w-120 { min-width: 120px; }
+            .cu-w-30 { width: 30px; }
+            .cu-h-30 { height: 30px; }
+            .cu-grad-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+            .cu-center { display: flex; align-items: center; justify-content: center; }
+            .cu-text-white { color: white; }
+            .cu-text-gray-666 { color: #666; }
+            .cu-fw-600 { font-weight: 600; }
+            .cu-text-12 { font-size: 12px; }
+            .cu-flex-1 { flex: 1; }
+          `}
+        </style>
         <Grid>
           {keyMetrics.map((metric, index) => (
             <Grid.Cell key={index} columnSpan={{xs: 6, sm: 6, md: 4, lg: 4, xl: 4}}>
@@ -1017,52 +1043,17 @@ export default function Dashboard() {
                   <BlockStack gap="300">
                     {analytics.bundleOpportunities && analytics.bundleOpportunities.length > 0 ? (
                       analytics.bundleOpportunities.map((bundle: any, index: number) => (
-                        <div key={index} style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '16px',
-                          padding: '12px',
-                          background: '#f8f9fa',
-                          borderRadius: '8px',
-                          border: '1px solid #e1e3e5'
-                        }}>
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            minWidth: '120px'
-                          }}>
-                            <div style={{
-                              width: '30px',
-                              height: '30px',
-                              borderRadius: '4px',
-                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: 'white',
-                              fontWeight: '600',
-                              fontSize: '12px'
-                            }}>
+                        <div key={index} className="cu-flex cu-items-center cu-gap-16 cu-p-12 cu-bg-card cu-rounded-8 cu-border">
+                          <div className="cu-flex cu-items-center cu-gap-8 cu-min-w-120">
+                            <div className="cu-w-30 cu-h-30 cu-rounded-4 cu-grad-primary cu-center cu-text-white cu-fw-600 cu-text-12">
                               {bundle.product1.title.charAt(0)}
                             </div>
-                            <span style={{ fontWeight: '600', color: '#666' }}>+</span>
-                            <div style={{
-                              width: '30px',
-                              height: '30px',
-                              borderRadius: '4px',
-                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: 'white',
-                              fontWeight: '600',
-                              fontSize: '12px'
-                            }}>
+                            <span className="cu-fw-600 cu-text-gray-666">+</span>
+                            <div className="cu-w-30 cu-h-30 cu-rounded-4 cu-grad-primary cu-center cu-text-white cu-fw-600 cu-text-12">
                               {bundle.product2.title.charAt(0)}
                             </div>
                           </div>
-                          <div style={{ flex: 1 }}>
+                          <div className="cu-flex-1">
                             <Text variant="bodyMd" as="p" fontWeight="semibold">
                               {bundle.product1.title} + {bundle.product2.title}
                             </Text>
@@ -1074,13 +1065,7 @@ export default function Dashboard() {
                         </div>
                       ))
                     ) : (
-                      <div style={{
-                        padding: '20px',
-                        textAlign: 'center',
-                        background: '#f8f9fa',
-                        borderRadius: '8px',
-                        border: '1px solid #e1e3e5'
-                      }}>
+                      <div className="cu-p-20 cu-text-center cu-bg-card cu-rounded-8 cu-border">
                         <Text variant="bodyMd" as="p" tone="subdued">
                           Not enough order data yet. Need at least 10 orders with multiple products to identify bundle opportunities.
                         </Text>

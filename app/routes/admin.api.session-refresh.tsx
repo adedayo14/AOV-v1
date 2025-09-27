@@ -12,7 +12,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       message: "Session refreshed successfully",
       shop: session.shop
     });
-  } catch (error) {
+  } catch (_error) {
     return json({ 
       success: false, 
       message: "Failed to refresh session" 

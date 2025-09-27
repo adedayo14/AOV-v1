@@ -60,7 +60,7 @@ export class ShopifyIframeManager {
       }
       
       return false;
-    } catch (error) {
+  } catch (_error) {
       // If we can't determine context, err on the side of caution
       return false;
     }
@@ -79,7 +79,7 @@ export class ShopifyIframeManager {
       
       // If we can't access it, we're likely blocked
       return true;
-    } catch (error) {
+  } catch (_error) {
       // Access blocked by X-Frame-Options
       return true;
     }
@@ -104,7 +104,7 @@ export class ShopifyIframeManager {
       if (window.top && window.top.location) {
         window.top.location.href = window.location.href;
       }
-    } catch (error) {
+  } catch (_error) {
       // Fallback to self redirect
       window.location.replace(window.location.href);
     }
@@ -138,8 +138,8 @@ export class ShopifyIframeManager {
       try {
         window.parent?.postMessage(msg, '*');
         window.top?.postMessage(msg, '*');
-      } catch (error) {
-        console.warn('PostMessage failed:', error);
+      } catch (_error) {
+        console.warn('PostMessage failed:', _error);
       }
     });
   }
@@ -148,7 +148,7 @@ export class ShopifyIframeManager {
     // Last resort: replace current window
     try {
       window.location.replace(window.location.href);
-    } catch (error) {
+  } catch (_error) {
       window.location.reload();
     }
   }

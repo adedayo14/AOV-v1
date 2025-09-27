@@ -54,8 +54,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         adminOk = shopResp.ok === true;
         const shopJson: any = adminOk ? await shopResp.json() : null;
         details.shopQuery = { ok: adminOk, data: !!shopJson?.data };
-      } catch (e) {
-        details.shopQuery = { ok: false, error: String(e) };
+  } catch (_e) {
+    details.shopQuery = { ok: false, error: String(_e) };
       }
       try {
         const { admin } = await unauthenticated.admin(shop);
@@ -64,8 +64,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         const j: any = await ordersResp.json();
         hasReadOrders = !!j?.data || ordersResp.status !== 403; // 403 often indicates missing scope; presence of data implies scope
         details.ordersProbe = { status: ordersResp.status, hasData: !!j?.data, errors: j?.errors };
-      } catch (e) {
-        details.ordersProbe = { error: String(e) };
+  } catch (_e) {
+    details.ordersProbe = { error: String(_e) };
       }
       try {
         const { admin } = await unauthenticated.admin(shop);
@@ -73,12 +73,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
         const j: any = await productsResp.json();
         hasReadProducts = !!j?.data || productsResp.status !== 403;
         details.productsProbe = { status: productsResp.status, hasData: !!j?.data, errors: j?.errors };
-      } catch (e) {
-        details.productsProbe = { error: String(e) };
+      } catch (_e) {
+        details.productsProbe = { error: String(_e) };
       }
 
       return json({ ok: true, proxyAuth: true, shop, adminOk, scopes: { read_orders: hasReadOrders, read_products: hasReadProducts }, details }, { headers: hdrs });
-    } catch (e) {
+  } catch (_e) {
       return json({ ok: false, proxyAuth: false, reason: 'invalid_signature' }, { status: 401, headers: hdrs });
     }
   }
@@ -328,9 +328,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
             }
           }
         }
-      } catch (e) {
+  } catch (_e) {
         // Ignore CTR re-rank issues; falls back to base ordering
-        console.warn('CTR re-rank skipped:', e);
+  console.warn('CTR re-rank skipped:', _e);
       }
 
       // Blend CTR into base score in a conservative way
@@ -409,8 +409,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
           bundlesOnProductPages: settings?.bundlesOnProductPages,
           settingsKeys: Object.keys(settings || {})
         });
-      } catch(e) { 
-        console.error('[BUNDLES API] Failed to load settings:', e);
+  } catch(_e) { 
+  console.error('[BUNDLES API] Failed to load settings:', _e);
       }
       
       console.log('[BUNDLES API] Step 5: Checking feature flags...');
@@ -529,8 +529,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
           currentProduct = data?.data?.product;
           console.log('[BUNDLES API] Current product loaded:', currentProduct?.title);
         }
-      } catch (e) {
-        console.error('[BUNDLES API] Failed to load current product:', e);
+  } catch (_e) {
+  console.error('[BUNDLES API] Failed to load current product:', _e);
       }
       
       // Get other products from the store
@@ -578,8 +578,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
           otherProducts = data?.data?.products?.edges?.map((edge: any) => edge.node) || [];
           console.log('[BUNDLES API] Found', otherProducts.length, 'other products');
         }
-      } catch (e) {
-        console.error('[BUNDLES API] Failed to load other products:', e);
+  } catch (_e) {
+  console.error('[BUNDLES API] Failed to load other products:', _e);
       }
       
       // Create bundles using context-aware recommendations
@@ -770,7 +770,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         }
         const bundleProducts = [ currentProd, ...complementProducts.map(getProductDetails) ].filter(p => p !== null);
         if (bundleProducts.length >= 2) {
-          const regularTotal = bundleProducts.reduce((sum, p) => sum + (p!.price||0), 0);
+          const regularTotal = bundleProducts.reduce((sum, p) => sum + ((p && typeof p.price === 'number') ? p.price : 0), 0);
           // Discount policy: higher if we have 2 complements
           const discountPercent = bundleProducts.length >= 3 ? 15 : 10;
           const bundlePrice = +(regularTotal * (1 - discountPercent / 100)).toFixed(2);
@@ -893,13 +893,16 @@ export async function action({ request }: ActionFunctionArgs) {
       try {
         const { session } = await authenticate.public.appProxy(request);
         shop = session?.shop;
-      } catch (e) {
-        console.warn('App proxy heartbeat auth failed:', e);
+  } catch (_e) {
+  console.warn('App proxy heartbeat auth failed:', _e);
         return json({ success: false, error: 'Unauthorized' }, { status: 401 });
       }
 
+      if (!shop) {
+        return json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      }
       const now = new Date().toISOString();
-      await saveSettings(shop!, { themeEmbedEnabled: true, themeEmbedLastSeen: now });
+      await saveSettings(shop, { themeEmbedEnabled: true, themeEmbedLastSeen: now });
       return json({ success: true }, {
         headers: {
           "Access-Control-Allow-Origin": "*",
@@ -916,8 +919,8 @@ export async function action({ request }: ActionFunctionArgs) {
       try {
         const { session } = await authenticate.public.appProxy(request);
         shopDomain = session?.shop;
-      } catch (e) {
-        console.warn('App proxy auth failed:', e);
+  } catch (_e) {
+  console.warn('App proxy auth failed:', _e);
       }
 
       const contentType = request.headers.get('content-type') || '';
@@ -1032,8 +1035,8 @@ export async function action({ request }: ActionFunctionArgs) {
             "Access-Control-Allow-Headers": "Content-Type",
           },
         });
-      } catch (e) {
-        console.error('Error validating discount via Admin API:', e);
+  } catch (_e) {
+  console.error('Error validating discount via Admin API:', _e);
         return json({ success: false, error: 'Unable to validate discount code' }, {
           status: 500,
           headers: {
@@ -1052,7 +1055,7 @@ export async function action({ request }: ActionFunctionArgs) {
         const { session } = await authenticate.public.appProxy(request);
         shop = session?.shop;
         if (!shop) throw new Error('No shop');
-      } catch (e) {
+  } catch (_e) {
         return json({ success: false, error: 'Unauthorized' }, { status: 401 });
       }
 
@@ -1091,10 +1094,13 @@ export async function action({ request }: ActionFunctionArgs) {
           return json({ success: false, error: 'Missing event' }, { status: 400 });
         }
 
+        if (!shop) {
+          return json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
         // Persist best-effort; don’t fail the request if DB unavailable
-  await (db as any).trackingEvent?.create?.({
+        await (db as any).trackingEvent?.create?.({
           data: {
-            shop: shop!,
+            shop,
             event,
             productId: productId ?? null,
             productTitle: productTitle ?? null,
@@ -1104,7 +1110,7 @@ export async function action({ request }: ActionFunctionArgs) {
             reason: reason ?? null,
             slot: typeof slot === 'number' && isFinite(slot) ? slot : null,
           }
-  }).catch(() => null);
+        }).catch(() => null);
 
         return json({ success: true }, {
           headers: {

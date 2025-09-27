@@ -26,7 +26,7 @@ const getPid = (gid?: string) => (gid || "").replace("gid://shopify/Product/", "
 const getVid = (gid?: string) => (gid || "").replace("gid://shopify/ProductVariant/", "");
 
 // Dynamic bundle pricing for optimal AOV lift
-const calculateOptimalDiscount = (products: BundleProduct[], customerAOV: number = 0) => {
+const calculateOptimalDiscount = (products: BundleProduct[], _customerAOV = 0) => {
   const bundleValue = products.reduce((sum, p) => sum + p.price, 0);
   
   // Stepped discounts based on bundle value
@@ -150,8 +150,8 @@ async function coPurchaseFallback(params: { shop: string; productId: string; lim
       });
     }
     return bundles;
-  } catch (e) {
-    console.warn('[CO-PURCHASE] Fallback error:', e);
+  } catch (_e) {
+    console.warn('[CO-PURCHASE] Fallback error:', _e);
     return [];
   }
 }
@@ -159,8 +159,8 @@ async function coPurchaseFallback(params: { shop: string; productId: string; lim
 async function getManualBundlesSafely(params: { shop: string; productId: string; limit: number }): Promise<GeneratedBundle[]> {
   try {
     return await getManualBundles(params);
-  } catch (e) {
-    console.warn("[MANUAL] Skipping manual bundles due to error:", e);
+  } catch (_e) {
+    console.warn("[MANUAL] Skipping manual bundles due to error:", _e);
     return [];
   }
 }
@@ -281,8 +281,8 @@ async function shopifyRecommendationsFallback(params: { shop: string; productId:
       });
     }
     return bundles;
-  } catch (e) {
-    console.warn("[SHOPIFY RECS] Fallback error:", e);
+  } catch (_e) {
+    console.warn("[SHOPIFY RECS] Fallback error:", _e);
     return [];
   }
 }

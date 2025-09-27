@@ -54,8 +54,8 @@ export const loader = withAuth(async ({ auth }) => {
         moneyFormat: undefined
       };
     }
-  } catch (error) {
-    console.error('Error fetching shop currency:', error);
+  } catch (_error) {
+    console.error('Error fetching shop currency');
   }
   
   return json({ settings, shopCurrency });
@@ -153,8 +153,8 @@ export const action = withAuthAction(async ({ request, auth }) => {
       shop: shop
     });
     return json({ success: true, message: "Settings saved successfully!" });
-  } catch (error) {
-    console.error("Error saving settings:", error);
+  } catch (_error) {
+    console.error("Error saving settings");
     return json({ success: false, message: "Failed to save settings" }, { status: 500 });
   }
 });
@@ -174,7 +174,7 @@ function formatCurrency(amount: number | string, currencyCode: string = 'USD', m
       style: 'currency',
       currency: currencyCode,
     }).format(numAmount);
-  } catch (error) {
+  } catch (_error) {
     // Ultimate fallback
     return `${currencyCode} ${numAmount.toFixed(2)}`;
   }
@@ -530,6 +530,11 @@ export default function SettingsPage() {
   // const remaining = Math.max(0, threshold - currentTotal);
   const progress = Math.min((currentTotal / threshold) * 100, 100);
 
+  // Generate utility classes for 0-100% width/left to avoid inline styles
+  const pctClasses = Array.from({ length: 101 }, (_, i) => {
+    return `.cu-w-${i}{width:${i}%} .cu-left-${i}{left:${i}%}`;
+  }).join("\n");
+
   return (
     <Page
       primaryAction={{
@@ -541,6 +546,21 @@ export default function SettingsPage() {
     >
       <style dangerouslySetInnerHTML={{
         __html: `
+          ${pctClasses}
+          /* Utility classes to replace inline styles */
+          .cu-mt-8 { margin-top: 8px; }
+          .cu-mt-12 { margin-top: 12px; }
+          .cu-mt-16 { margin-top: 16px; }
+          .cu-p-12 { padding: 12px; }
+          .cu-flex { display: flex; }
+          .cu-items-center { align-items: center; }
+          .cu-gap-12 { gap: 12px; }
+          .cu-flex-1 { flex: 1; }
+          .cu-w-40 { width: 40px; }
+          .cu-h-40 { height: 40px; }
+          .cu-rounded-4 { border-radius: 4px; }
+          .cu-object-cover { object-fit: cover; }
+          
           /* Fixed Layout Styles */
           .cartuplift-settings-layout {
             display: grid !important;
@@ -2707,6 +2727,7 @@ export default function SettingsPage() {
 
           .cartuplift-progress-fill {
             height: 100%;
+            background: ${resolveColor(formSettings.shippingBarColor, '#2196F3')};
             border-radius: 3px;
             transition: width 0.5s ease;
             min-width: 2px;
@@ -3648,7 +3669,7 @@ export default function SettingsPage() {
                         />
                       </InlineStack>
 
-                      <div style={{ marginTop: '16px' }}>
+                      <div className="cu-mt-16">
                         <BlockStack gap="300">
                           <Text variant="headingSm" as="h3">Display Options</Text>
                           <InlineStack gap="400">
@@ -3671,7 +3692,7 @@ export default function SettingsPage() {
                         </BlockStack>
                       </div>
 
-                      <div style={{ marginTop: '16px' }}>
+                      <div className="cu-mt-16">
                         <BlockStack gap="300">
                           <Text variant="headingSm" as="h3">Colors & Styling</Text>
                           <InlineStack gap="300">
@@ -4227,12 +4248,9 @@ export default function SettingsPage() {
                 {(formSettings.progressBarMode === 'free-shipping' || !formSettings.progressBarMode) && (
                   <div key="free-shipping-preview" className="cartuplift-shipping-bar">
                     <div className="cartuplift-shipping-progress">
+                      
                       <div 
-                        className="cartuplift-shipping-progress-fill" 
-                        style={{
-                          width: `${progress}%`,
-                          background: resolveColor(formSettings.shippingBarColor, '#4CAF50')
-                        }}
+                        className={`cartuplift-shipping-progress-fill cu-w-${Math.round(progress)}`}
                       ></div>
                     </div>
                   </div>
@@ -4257,7 +4275,7 @@ export default function SettingsPage() {
                       if (giftProgressStyle === 'stacked') {
                         return (
                           <div className="cartuplift-stacked-progress">
-                            {sortedThresholds.map((threshold, index) => {
+                            {sortedThresholds.map((threshold, _index) => {
                               const progress = Math.min((currentCartTotal / threshold.amount) * 100, 100);
                               const isAchieved = currentCartTotal >= threshold.amount;
                               
@@ -4270,12 +4288,9 @@ export default function SettingsPage() {
                                     <span className="cartuplift-threshold-amount">£{threshold.amount}</span>
                                   </div>
                                   <div className="cartuplift-progress-bar">
+                                    
                                     <div 
-                                      className={`cartuplift-progress-fill ${isAchieved ? 'achieved' : ''}`}
-                                      style={{ 
-                                        width: `${progress}%`,
-                                        background: isAchieved ? '#4CAF50' : resolveColor(formSettings.shippingBarColor, '#2196F3')
-                                      }}
+                                      className={`cartuplift-progress-fill cu-w-${Math.round(progress)} ${isAchieved ? 'achieved' : ''}`}
                                     ></div>
                                   </div>
                                   <div className="cartuplift-threshold-description">{threshold.description}</div>
@@ -4296,22 +4311,14 @@ export default function SettingsPage() {
                             </div>
                             <div className="cartuplift-progress-bar-container">
                               <div className="cartuplift-progress-bar cartuplift-multi-milestone">
-                                <div 
-                                  className="cartuplift-progress-fill"
-                                  style={{ 
-                                    width: `${overallProgress}%`,
-                                    background: resolveColor(formSettings.shippingBarColor, '#2196F3')
-                                  }}
-                                ></div>
-                                {sortedThresholds.map((threshold, index) => {
+                                <div className={`cartuplift-progress-fill cu-w-${Math.round(overallProgress)}`}></div>
+                                {sortedThresholds.map((threshold, _index) => {
                                   const position = (threshold.amount / maxThreshold) * 100;
                                   const isAchieved = currentCartTotal >= threshold.amount;
-                                  
                                   return (
                                     <div
                                       key={threshold.id}
-                                      className={`cartuplift-milestone-marker ${isAchieved ? 'achieved' : ''}`}
-                                      style={{ left: `${position}%` }}
+                                      className={`cartuplift-milestone-marker cu-left-${Math.round(position)} ${isAchieved ? 'achieved' : ''}`}
                                       title={`${threshold.title} - £${threshold.amount}`}
                                     >
                                       <div className="cartuplift-milestone-dot"></div>
@@ -4325,10 +4332,9 @@ export default function SettingsPage() {
                               </div>
                             </div>
                             <div className="cartuplift-milestones-list">
-                              {sortedThresholds.map((threshold, index) => {
+                              {sortedThresholds.map((threshold, _index) => {
                                 const isAchieved = currentCartTotal >= threshold.amount;
                                 const remaining = threshold.amount - currentCartTotal;
-                                
                                 return (
                                   <div key={threshold.id} className={`cartuplift-milestone-item ${isAchieved ? 'achieved' : ''}`}>
                                     <span className="cartuplift-milestone-status">
@@ -4355,12 +4361,9 @@ export default function SettingsPage() {
                                 <span>🎉 All rewards unlocked!</span>
                               </div>
                               <div className="cartuplift-progress-bar">
+                                
                                 <div 
-                                  className="cartuplift-progress-fill achieved"
-                                  style={{ 
-                                    width: '100%',
-                                    background: '#4CAF50'
-                                  }}
+                                  className="cartuplift-progress-fill achieved cu-w-100"
                                 ></div>
                               </div>
                               <div className="cartuplift-goal-description">
@@ -4380,12 +4383,9 @@ export default function SettingsPage() {
                               <span>£{remaining.toFixed(2)} to go</span>
                             </div>
                             <div className="cartuplift-progress-bar">
+                              
                               <div 
-                                className="cartuplift-progress-fill"
-                                style={{ 
-                                  width: `${progress}%`,
-                                  background: resolveColor(formSettings.shippingBarColor, '#2196F3')
-                                }}
+                                className={`cartuplift-progress-fill cu-w-${Math.round(progress)}`}
                               ></div>
                             </div>
                             <div className="cartuplift-goal-description">
@@ -4411,12 +4411,8 @@ export default function SettingsPage() {
                         <span>{formatCurrency((165 / 100), shopCurrency?.currencyCode || 'USD')} / {formatCurrency(((formSettings.freeShippingThreshold || 250) / 100), shopCurrency?.currencyCode || 'USD')}</span>
                       </div>
                       <div className="cartuplift-progress-bar">
-                        <div 
-                          className="cartuplift-progress-fill"
-                          style={{
-                            width: `${Math.min((165 / (formSettings.freeShippingThreshold || 250)) * 100, 100)}%`,
-                            background: resolveColor(formSettings.shippingBarColor, '#4CAF50')
-                          }}
+                        <div
+                          className={`cartuplift-progress-fill cu-w-${Math.round(Math.min((165 / (formSettings.freeShippingThreshold || 250)) * 100, 100))}`}
                         ></div>
                       </div>
                       <div className="cartuplift-section-description">
@@ -4461,11 +4457,7 @@ export default function SettingsPage() {
                               </div>
                               <div className="cartuplift-progress-bar">
                                 <div 
-                                  className="cartuplift-progress-fill"
-                                  style={{ 
-                                    width: `${progress}%`,
-                                    background: resolveColor(formSettings.shippingBarColor, '#FF9800')
-                                  }}
+                                  className={`cartuplift-progress-fill cu-w-${Math.round(progress)}`}
                                 ></div>
                               </div>
                               <div className="cartuplift-section-description">
@@ -4824,8 +4816,8 @@ export default function SettingsPage() {
                                     <div className="cartuplift-product-meta">
                                       <p className="cartuplift-product-title">{p.title}</p>
                                       <p className="cartuplift-product-sub">{p.handle}</p>
-                                      {checked && p.variants && p.variants.length > 1 && (
-                                        <div style={{ marginTop: '8px' }}>
+                                        {checked && p.variants && p.variants.length > 1 && (
+                                        <div className="cu-mt-8">
                                           <Button 
                                             size="micro" 
                                             onClick={() => {
@@ -4870,7 +4862,7 @@ export default function SettingsPage() {
                           <Text as="p">Choose which variants of this product to recommend:</Text>
                           {selectedProductForVariants.variants?.map((variant: any) => (
                             <Card key={variant.id}>
-                              <div style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div className="cu-p-12 cu-flex cu-items-center cu-gap-12">
                                 <Checkbox
                                   label=""
                                   checked={selectedProducts.includes(variant.id)}
@@ -4884,7 +4876,7 @@ export default function SettingsPage() {
                                     }
                                   }}
                                 />
-                                <div style={{ flex: 1 }}>
+                                <div className="cu-flex-1">
                                   <Text as="p" fontWeight="semibold">
                                     {variant.title !== 'Default Title' ? variant.title : 'Default'}
                                   </Text>
@@ -4896,7 +4888,7 @@ export default function SettingsPage() {
                                   <img 
                                     src={variant.image} 
                                     alt={variant.title}
-                                    style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }}
+                                    className="cu-w-40 cu-h-40 cu-object-cover cu-rounded-4"
                                   />
                                 )}
                               </div>

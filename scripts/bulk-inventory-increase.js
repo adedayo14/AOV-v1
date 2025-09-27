@@ -18,7 +18,7 @@
  *   SHOPIFY_SHOP, SHOPIFY_ADMIN_TOKEN, INVENTORY_INCREMENT, INTERVAL_MS, DRY_RUN
  */
 
-const https = require('https');
+import https from 'node:https';
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -68,8 +68,8 @@ function requestJson(method, path, body){
         if (res.statusCode < 200 || res.statusCode >= 300) {
           return reject(new Error(`${method} ${path} -> ${res.statusCode} ${res.statusMessage}\n${buf}`));
         }
-        try { resolve(buf ? JSON.parse(buf) : {}); }
-        catch(e) { resolve({ raw: buf }); }
+  try { resolve(buf ? JSON.parse(buf) : {}); }
+  catch (_e) { resolve({ raw: buf }); }
       });
     });
     req.on('error', reject);

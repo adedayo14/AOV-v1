@@ -205,7 +205,7 @@ export default function SettingsPage() {
   // Theme colors handled by CSS variables and merchant color picker
 
   // Helper function to resolve CSS custom properties with fallbacks for preview
-  const resolveColor = (colorValue: string | undefined | null, fallback: string = '#000000'): string => {
+  const resolveColor = (colorValue: string | undefined | null, fallback = '#000000') => {
     // Handle null/undefined values
     if (!colorValue) {
       return fallback;
@@ -259,7 +259,7 @@ export default function SettingsPage() {
       setShowSuccessBanner(false);
       setErrorMessage('We could not confirm if settings were saved. Please try again.');
       setShowErrorBanner(true);
-      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+  try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_error) { void 0; }
       const timer = setTimeout(() => setShowErrorBanner(false), 6000);
       return () => clearTimeout(timer);
     }
@@ -272,7 +272,7 @@ export default function SettingsPage() {
         setErrorMessage(null);
         setShowSuccessBanner(true);
         // Make sure the user sees the banner
-        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+  try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_error) { void 0; }
         const timer = setTimeout(() => setShowSuccessBanner(false), 3000);
         return () => clearTimeout(timer);
       }
@@ -281,7 +281,7 @@ export default function SettingsPage() {
         setShowSuccessBanner(false);
         setErrorMessage(typeof data?.message === 'string' ? data.message : 'Failed to save settings');
         setShowErrorBanner(true);
-        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+  try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_error) { void 0; }
         const timer = setTimeout(() => setShowErrorBanner(false), 6000);
         return () => clearTimeout(timer);
       }

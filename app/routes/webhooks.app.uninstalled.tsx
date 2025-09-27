@@ -16,8 +16,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   // Remove stored shop data for hygiene (settings and optional analytics)
   try {
     await db.settings.deleteMany({ where: { shop } });
-    await (db as any).cartEvent?.deleteMany?.({ where: { shop } }).catch(() => {});
-  } catch (e) {
+  await (db as any).cartEvent?.deleteMany?.({ where: { shop } }).catch((_e: unknown) => { /* ignore to ensure webhook 200s */ });
+  } catch (_e) {
     // ignore to ensure webhook 200s
   }
 

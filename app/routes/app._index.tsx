@@ -307,7 +307,7 @@ export default function Index() {
               }} />
               
               <div className="setup-steps-grid">
-                {setupSteps.map((step, index) => (
+                {setupSteps.map((step, _index) => (
                   <div key={step.key} className={`setup-step ${step.completed ? 'completed' : ''}`}>
                     <span className={`setup-step-icon ${step.completed ? 'completed' : 'pending'}`}>
                       {step.completed ? '✓' : '○'}

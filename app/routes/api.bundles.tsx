@@ -187,7 +187,7 @@ async function handleStorefrontBundleRequest({ productId, collectionId, context 
 }
 
 // Bundle management functions
-async function getBundlesForShop(shop: string) {
+async function getBundlesForShop(_shop: string) {
   // Mock data with realistic product IDs that might match real products
   return [
     {
