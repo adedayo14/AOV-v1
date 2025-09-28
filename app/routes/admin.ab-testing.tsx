@@ -71,17 +71,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   
   try {
-    // Debug prisma object
-    console.log("A/B Testing Debug: prisma object exists:", !!prisma);
-    console.log("A/B Testing Debug: aBExperiment exists:", !!prisma?.aBExperiment);
-    console.log("A/B Testing Debug: findMany exists:", !!prisma?.aBExperiment?.findMany);
-    
-    if (!prisma?.aBExperiment?.findMany) {
-      throw new Error(`Prisma aBExperiment model not available. Prisma object: ${typeof prisma}, aBExperiment: ${typeof prisma?.aBExperiment}`);
-    }
-    
-    // Ensure prisma connection is established
-    await prisma.$connect();
     
     // Fetch existing A/B experiments for this shop
     const experiments = await prisma.aBExperiment.findMany({
@@ -106,16 +95,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   } catch (error) {
     console.error("A/B testing loader error:", error);
-    console.error("A/B testing loader error stack:", error instanceof Error ? error.stack : 'No stack trace');
     return json({ 
       experiments: [] as ABExperiment[],
-      error: `A/B Testing Error: ${error instanceof Error ? error.message : "Failed to load A/B experiments"}`,
-      debug: {
-        prismaExists: !!prisma,
-        aBExperimentExists: !!prisma?.aBExperiment,
-        findManyExists: !!prisma?.aBExperiment?.findMany,
-        errorType: error instanceof Error ? error.constructor.name : typeof error
-      }
+      error: error instanceof Error ? error.message : "Failed to load A/B experiments"
     });
   }
 };
@@ -300,8 +282,6 @@ export default function ABTestingPage() {
   const experiments: ABExperiment[] = 'experiments' in data ? data.experiments : [];
   const errorMessage = 'error' in data && typeof data.error === 'string' ? data.error : null;
   const message = 'message' in data && typeof data.message === 'string' ? data.message : null;
-  const debugInfo = 'debug' in data ? data.debug : null;
-  
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedExperiment, setSelectedExperiment] = useState<ABExperiment | null>(null);
   const [showResultsModal, setShowResultsModal] = useState(false);
@@ -386,17 +366,6 @@ export default function ABTestingPage() {
           {errorMessage && (
             <Banner tone="critical" title="Error loading A/B tests">
               <p>{errorMessage}</p>
-              {debugInfo && (
-                <Box paddingBlockStart="400">
-                  <Text variant="bodyMd" as="p">Debug Info:</Text>
-                  <Text variant="bodySm" as="p">
-                    Prisma exists: {debugInfo.prismaExists ? 'Yes' : 'No'} | 
-                    aBExperiment exists: {debugInfo.aBExperimentExists ? 'Yes' : 'No'} | 
-                    findMany exists: {debugInfo.findManyExists ? 'Yes' : 'No'} | 
-                    Error type: {debugInfo.errorType}
-                  </Text>
-                </Box>
-              )}
             </Banner>
           )}
           
