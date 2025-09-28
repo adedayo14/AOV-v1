@@ -48,25 +48,7 @@ export default function handleRequest(
   if (!validation.valid) {
     console.warn('Security validation issues in entry server:', validation.issues);
   }
-  responseHeaders.set('X-Frame-Options', 'DENY');
-  responseHeaders.set('X-Content-Type-Options', 'nosniff');
-  responseHeaders.set('X-XSS-Protection', '1; mode=block');
-  responseHeaders.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  responseHeaders.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-  
-  // Add CSP for production
-  if (process.env.NODE_ENV === 'production') {
-    responseHeaders.set(
-      'Content-Security-Policy',
-      "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' https://cdn.shopify.com; " +
-      "style-src 'self' 'unsafe-inline' https://cdn.shopify.com; " +
-      "img-src 'self' data: https: blob:; " +
-      "font-src 'self' data: https://cdn.shopify.com; " +
-      "connect-src 'self' https://*.myshopify.com https://cdn.shopify.com; " +
-      "frame-ancestors 'none';"
-    );
-  }
+  // Additional security headers are provided via SecurityHeaders
 
   return isbot(request.headers.get("user-agent") || "")
     ? handleBotRequest(

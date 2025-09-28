@@ -5,17 +5,16 @@ export const SecurityHeaders = {
   // Content Security Policy
   "Content-Security-Policy": [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.shopify.com https://*.shopifycdn.com https://*.gstatic.com",
-    "style-src 'self' 'unsafe-inline' https://*.shopify.com https://*.shopifycdn.com https://fonts.googleapis.com",
-    "img-src 'self' data: blob: https://*.shopify.com https://*.shopifycdn.com",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.shopify.com https://*.shopifycdn.com https://cdn.shopify.com https://cdn.shopifycdn.net",
+    "style-src 'self' 'unsafe-inline' https://*.shopify.com https://*.shopifycdn.com https://cdn.shopify.com https://fonts.googleapis.com",
+    "img-src 'self' data: blob: https://*.shopify.com https://*.shopifycdn.com https://cdn.shopify.com",
     "font-src 'self' https://fonts.gstatic.com https://*.shopify.com https://*.shopifycdn.com",
-    "connect-src 'self' https://*.shopify.com wss://*.shopify.com",
-    "frame-src 'self' https://*.shopify.com",
-    "frame-ancestors 'self' https://*.shopify.com https://admin.shopify.com",
+    "connect-src 'self' https://*.shopify.com https://*.myshopify.com https://cdn.shopify.com wss://*.shopify.com wss://*.myshopify.com",
+    "frame-src 'self' https://*.shopify.com https://*.myshopify.com",
+  "frame-ancestors https://admin.shopify.com https://*.myshopify.com https://*.shopify.com",
   ].join("; "),
   
   // Additional security headers
-  "X-Frame-Options": "SAMEORIGIN",
   "X-Content-Type-Options": "nosniff",
   "X-XSS-Protection": "1; mode=block",
   "Referrer-Policy": "strict-origin-when-cross-origin",
