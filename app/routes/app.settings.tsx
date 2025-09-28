@@ -2748,7 +2748,7 @@ export default function SettingsPage() {
 
                   <Text variant="headingSm" as="h3">🔘 Button Labels</Text>
 
-                  <div className="cartuplift-text-row">
+                  <InlineStack gap="400" wrap={false}>
                     <TextField
                       label="Checkout Button"
                       value={formSettings.checkoutButtonText || "CHECKOUT"}
@@ -2764,9 +2764,7 @@ export default function SettingsPage() {
                       helpText="Add to cart button text"
                       autoComplete="off"
                     />
-                  </div>
 
-                  <div className="cartuplift-text-row">
                     <TextField
                       label="Apply Button"
                       value={formSettings.applyButtonText || "Apply"}
@@ -2782,7 +2780,7 @@ export default function SettingsPage() {
                       helpText="General action text placeholder"
                       autoComplete="off"
                     />
-                  </div>
+                  </InlineStack>
                 </FormLayout>
               </BlockStack>
             </Card>
