@@ -244,8 +244,8 @@ export default function Index() {
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">Customizable layouts & styling</Text>
                     </div>
-                    <Link to="/admin/preview">
-                      <Button size="micro">Preview Cart</Button>
+                    <Link to="/admin/settings">
+                      <Button size="micro">Customize</Button>
                     </Link>
                   </div>
                 </div>

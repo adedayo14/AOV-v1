@@ -31,8 +31,7 @@ export default function App() {
         <Link to="/admin/dashboard">📊 Analytics & Performance</Link>
         <Link to="/admin/ab-testing">🧪 A/B Testing</Link>
         <Link to="/admin/settings">⚙️ Settings</Link>
-        <Link to="/admin/manage">🎛️ Manage Products</Link>
-        <Link to="/admin/preview">👁️ Preview Cart</Link>
+        <Link to="/admin/manage">🎛️ Manage Products & Bundles</Link>
       </NavMenu>
       <Outlet />
     </AppProvider>
