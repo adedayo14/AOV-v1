@@ -28,8 +28,11 @@ export default function App() {
         <Link to="/admin" rel="home">
           Home
         </Link>
-        <Link to="/admin/settings">Settings</Link>
-        <Link to="/admin/dashboard">Dashboard</Link>
+        <Link to="/admin/dashboard">📊 Analytics & Performance</Link>
+        <Link to="/admin/ab-testing">🧪 A/B Testing</Link>
+        <Link to="/admin/settings">⚙️ Settings</Link>
+        <Link to="/admin/manage">🎛️ Manage Products</Link>
+        <Link to="/admin/preview">👁️ Preview Cart</Link>
       </NavMenu>
       <Outlet />
     </AppProvider>

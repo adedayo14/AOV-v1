@@ -138,6 +138,31 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     
     // Get app settings for free shipping threshold analysis
     const settings = await getSettings(session.shop);
+
+    // Get A/B testing data for dashboard insights
+    let abTestingData = { activeExperiments: [], totalExperiments: 0 };
+    try {
+      const activeExperiments = await (db as any).aBExperiment?.findMany?.({
+        where: { 
+          shop: session.shop,
+          status: 'active'
+        },
+        include: {
+          variants: true,
+          _count: {
+            select: { assignments: true, events: true }
+          }
+        }
+      }) ?? [];
+      
+      const totalExperiments = await (db as any).aBExperiment?.count?.({
+        where: { shop: session.shop }
+      }) ?? 0;
+
+      abTestingData = { activeExperiments, totalExperiments };
+    } catch (error) {
+      console.log('A/B testing data not available:', error);
+    }
     
     const orders = ordersData.data?.orders?.edges || [];
     const shop = shopData.data?.shop;
@@ -407,6 +432,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         isCustomDateRange: !!(customStartDate && customEndDate),
         shopName: shop?.name || session.shop,
         currency: storeCurrency,
+
+        // A/B Testing Summary
+        abTesting: abTestingData
       },
       shop: session.shop
     });
@@ -862,7 +890,7 @@ export default function Dashboard() {
 
   return (
     <Page>
-      <TitleBar title="Dashboard" />
+      <TitleBar title="📊 Analytics & Performance Dashboard" />
       {/* Local utility styles to replace inline styles in this route */}
       <style>
         {`
@@ -1132,6 +1160,67 @@ export default function Dashboard() {
 
           <Layout.Section variant="oneThird">
             <BlockStack gap="500">
+              {/* A/B Testing Summary */}
+              {(analytics as any).abTesting && (
+                <Card>
+                  <BlockStack gap="400">
+                    <InlineStack gap="200" align="space-between">
+                      <InlineStack gap="200" align="center">
+                        <Text variant="headingMd" as="h3">🧪 A/B Tests Active</Text>
+                      </InlineStack>
+                      <Link to="/admin/ab-testing">
+                        <Button size="micro" variant="primary">View All</Button>
+                      </Link>
+                    </InlineStack>
+                    
+                    {(analytics as any).abTesting.activeExperiments && (analytics as any).abTesting.activeExperiments.length > 0 ? (
+                      <BlockStack gap="300">
+                        {(analytics as any).abTesting.activeExperiments.slice(0, 3).map((experiment: any, index: number) => (
+                          <Box key={index} padding="300" background="bg-surface-secondary" borderRadius="100">
+                            <BlockStack gap="200">
+                              <InlineStack align="space-between">
+                                <Text variant="bodyMd" as="p" fontWeight="semibold">
+                                  {experiment.name}
+                                </Text>
+                                <Badge tone={experiment.status === 'active' ? 'success' : 'info'}>
+                                  {experiment.status}
+                                </Badge>
+                              </InlineStack>
+                              <Text variant="bodySm" as="p" tone="subdued">
+                                {experiment.variants?.length || 0} variants • {experiment._count?.assignments || 0} participants
+                              </Text>
+                              <Text variant="bodySm" as="p" tone="subdued">
+                                {experiment.test_type.replace('_', ' ')} • {experiment.traffic_allocation}% traffic
+                              </Text>
+                            </BlockStack>
+                          </Box>
+                        ))}
+                        
+                        {(analytics as any).abTesting.totalExperiments > 3 && (
+                          <Text variant="bodySm" as="p" tone="subdued" alignment="center">
+                            +{(analytics as any).abTesting.totalExperiments - 3} more experiments
+                          </Text>
+                        )}
+                      </BlockStack>
+                    ) : (
+                      <Box padding="400" background="bg-surface-secondary" borderRadius="100">
+                        <BlockStack gap="200" align="center">
+                          <Text variant="bodyMd" as="p" tone="subdued">
+                            No active A/B tests
+                          </Text>
+                          <Text variant="bodySm" as="p" tone="subdued">
+                            Start testing to optimize conversion rates
+                          </Text>
+                          <Link to="/admin/ab-testing">
+                            <Button size="slim" variant="primary">Create Test</Button>
+                          </Link>
+                        </BlockStack>
+                      </Box>
+                    )}
+                  </BlockStack>
+                </Card>
+              )}
+
               {/* Smart Bundle Opportunities */}
               <Card>
                 <BlockStack gap="400">
