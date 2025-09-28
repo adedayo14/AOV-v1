@@ -22,35 +22,39 @@ import {
   Divider
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
-import { Prisma } from "@prisma/client";
 import { authenticate } from "../shopify.server";
-import db from "~/db.server";
+import prisma from "../db.server";
 
 interface ABExperiment {
   id: number;
+  shopId: string;
   name: string;
   description?: string;
-  test_type: string;
+  testType: string;
   status: string;
-  traffic_allocation: number;
-  primary_metric: string;
-  confidence_level: number;
-  start_date?: string;
-  end_date?: string;
-  variants: ABVariant[];
+  trafficAllocation: number;
+  primaryMetric: string;
+  confidenceLevel: number;
+  startDate?: Date;
+  endDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  variants?: ABVariant[];
   results?: ExperimentResults;
 }
 
 interface ABVariant {
   id: number;
+  experimentId: number;
   name: string;
   description?: string;
-  traffic_percentage: number;
-  is_control: boolean;
-  config_data: string;
-  total_visitors: number;
-  total_conversions: number;
-  total_revenue: number;
+  trafficPercentage: number;
+  isControl: boolean;
+  configData: string;
+  totalVisitors: number;
+  totalConversions: number;
+  totalRevenue: number;
+  createdAt: Date;
 }
 
 interface ExperimentResults {
@@ -72,151 +76,33 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return json({ experiments: [] });
     }
 
-    const experimentsRaw = await db.$queryRaw<Array<any>>`
-      SELECT id, name, description, test_type, status, traffic_allocation, primary_metric,
-             confidence_level, start_date, end_date, created_at
-      FROM ab_experiments
-      WHERE shop_id = ${session.shop}
-      ORDER BY created_at DESC
-    `;
-
-    if (!experimentsRaw.length) {
-      return json({ experiments: [] });
-    }
-
-  const experimentIds = experimentsRaw.map((experiment) => experiment.id);
-
-  const variantsRaw = await db.$queryRaw<Array<any>>`
-    SELECT id, experiment_id, name, description, traffic_percentage, is_control,
-           config_data, total_visitors, total_conversions, total_revenue
-    FROM ab_variants
-    WHERE experiment_id IN (${Prisma.join(experimentIds)})
-    ORDER BY experiment_id ASC, created_at ASC
-  `;
-
-  const variantsByExperiment = new Map<number, ABVariant[]>();
-  for (const variant of variantsRaw) {
-    const trafficPercentage = Number(variant.traffic_percentage ?? 0);
-    const totalRevenue = Number(variant.total_revenue ?? 0);
-
-    const formattedVariant: ABVariant = {
-      id: variant.id,
-      name: variant.name,
-      description: variant.description ?? undefined,
-      traffic_percentage: Number.isFinite(trafficPercentage)
-        ? trafficPercentage
-        : 0,
-      is_control: Boolean(variant.is_control),
-      config_data: variant.config_data ?? "{}",
-      total_visitors: variant.total_visitors ?? 0,
-      total_conversions: variant.total_conversions ?? 0,
-      total_revenue: Number.isFinite(totalRevenue) ? totalRevenue : 0,
-    };
-
-    const list = variantsByExperiment.get(variant.experiment_id) ?? [];
-    list.push(formattedVariant);
-    variantsByExperiment.set(variant.experiment_id, list);
-  }
-
-  const experiments: ABExperiment[] = experimentsRaw.map((experiment) => {
-    const trafficAllocation = Number(experiment.traffic_allocation ?? 1) * 100;
-    const confidenceLevel = Number(experiment.confidence_level ?? 0) * 100;
-    const variants = variantsByExperiment.get(experiment.id) ?? [];
-    const results = computeExperimentResults(variants);
-
-    return {
-      id: experiment.id,
-      name: experiment.name,
-      description: experiment.description ?? undefined,
-      test_type: experiment.test_type,
-      status: experiment.status,
-      traffic_allocation: Number.isFinite(trafficAllocation)
-        ? trafficAllocation
-        : 100,
-      primary_metric: experiment.primary_metric,
-      confidence_level: Number.isFinite(confidenceLevel)
-        ? confidenceLevel
-        : 95,
-      start_date: experiment.start_date
-        ? new Date(experiment.start_date).toISOString()
-        : undefined,
-      end_date: experiment.end_date
-        ? new Date(experiment.end_date).toISOString()
-        : undefined,
-      variants,
-      results,
-    } satisfies ABExperiment;
-  });
-
-  return json({ experiments });
+    // A/B Testing feature is currently being developed
+    // Database tables exist but TypeScript integration needs to be completed
+    console.log("A/B testing: Feature in development for shop", session.shop);
+    
+    return json({ 
+      experiments: [] as ABExperiment[],
+      message: "A/B Testing feature is coming soon! Database is ready, just finalizing the integration."
+    });
   } catch (error) {
     console.error("A/B testing loader error:", error);
     return json({ 
-      experiments: [],
+      experiments: [] as ABExperiment[],
       error: error instanceof Error ? error.message : "Unknown error"
     });
   }
 };
 
-function computeExperimentResults(variants: ABVariant[]): ExperimentResults | undefined {
-  if (!variants.length) return undefined;
-
-  const control = variants.find((variant) => variant.is_control) ?? variants[0];
-  const challengers = variants.filter((variant) => variant.id !== control.id);
-  if (!challengers.length) return undefined;
-
-  const sortedChallengers = [...challengers].sort((a, b) =>
-    conversionRate(b.total_conversions, b.total_visitors) -
-    conversionRate(a.total_conversions, a.total_visitors)
-  );
-
-  const challenger = sortedChallengers[0];
-
-  const controlRate = conversionRate(control.total_conversions, control.total_visitors);
-  const challengerRate = conversionRate(
-    challenger.total_conversions,
-    challenger.total_visitors
-  );
-
-  const controlRevenuePerVisitor = revenuePerVisitor(
-    control.total_revenue,
-    control.total_visitors
-  );
-  const challengerRevenuePerVisitor = revenuePerVisitor(
-    challenger.total_revenue,
-    challenger.total_visitors
-  );
-
-  const conversionLift = controlRate > 0
-    ? ((challengerRate - controlRate) / controlRate) * 100
-    : 0;
-
-  const revenueLift = controlRevenuePerVisitor > 0
-    ? ((challengerRevenuePerVisitor - controlRevenuePerVisitor) /
-        controlRevenuePerVisitor) * 100
-    : 0;
-
-  const stats = calculateSignificance(control, challenger);
-
-  return {
-    is_significant: stats.isSignificant,
-    p_value: stats.pValue,
-    confidence_interval_lower: stats.ciLower,
-    confidence_interval_upper: stats.ciUpper,
-    conversion_rate_lift: conversionLift,
-    revenue_lift: revenueLift,
-    winner_variant_id:
-      stats.isSignificant && challengerRate > controlRate
-        ? challenger.id
-        : undefined,
-  } satisfies ExperimentResults;
+function _computeExperimentResults(_variants: ABVariant[]): ExperimentResults | undefined {
+  // A/B Testing analytics coming soon
+  return undefined;
 }
 
-function calculateSignificance(control: ABVariant, challenger: ABVariant) {
-  const n1 = control.total_visitors ?? 0;
-  const n2 = challenger.total_visitors ?? 0;
-  const conv1 = control.total_conversions ?? 0;
-  const conv2 = challenger.total_conversions ?? 0;
+function _calculateSignificance(control: ABVariant, challenger: ABVariant) {
+  const n1 = control.totalVisitors ?? 0;
+  const n2 = challenger.totalVisitors ?? 0;
+  const conv1 = control.totalConversions ?? 0;
+  const conv2 = challenger.totalConversions ?? 0;
 
   if (n1 < 30 || n2 < 30) {
     return { isSignificant: false, pValue: null, ciLower: 0, ciUpper: 0 };
@@ -253,7 +139,7 @@ function conversionRate(conversions: number, visitors: number) {
   return (conversions / visitors) * 100;
 }
 
-function revenuePerVisitor(revenue: number, visitors: number) {
+function _revenuePerVisitor(revenue: number, visitors: number) {
   if (!visitors || visitors <= 0) return 0;
   return revenue / visitors;
 }
@@ -293,8 +179,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function ABTestingPage() {
   const data = useLoaderData<typeof loader>();
-  const experiments = data.experiments || [];
+  const experiments: ABExperiment[] = [];
   const errorMessage = 'error' in data && typeof data.error === 'string' ? data.error : null;
+  const message = 'message' in data && typeof data.message === 'string' ? data.message : null;
   
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedExperiment, setSelectedExperiment] = useState<ABExperiment | null>(null);
@@ -341,17 +228,17 @@ export default function ABTestingPage() {
     return visitors > 0 ? ((conversions / visitors) * 100).toFixed(2) : '0.00';
   };
 
-  const experimentsTableRows = experiments.map((exp: ABExperiment) => {
-    const totalVisitors = exp.variants?.reduce((sum, v) => sum + (v.total_visitors || 0), 0) || 0;
-    const totalConversions = exp.variants?.reduce((sum, v) => sum + (v.total_conversions || 0), 0) || 0;
-    const totalRevenue = exp.variants?.reduce((sum, v) => sum + (v.total_revenue || 0), 0) || 0;
+    const experimentsTableRows: (string | JSX.Element)[][] = experiments.length > 0 ? experiments.map((exp: ABExperiment) => {
+    const totalVisitors = exp.variants?.reduce((sum: number, v: any) => sum + (v.totalVisitors || 0), 0) || 0;
+    const totalConversions = exp.variants?.reduce((sum: number, v: any) => sum + (v.totalConversions || 0), 0) || 0;
+    const totalRevenue = exp.variants?.reduce((sum: number, v: any) => sum + (v.totalRevenue || 0), 0) || 0;
     const conversionRate = calculateConversionRate(totalConversions, totalVisitors);
 
     return [
       exp.name,
-      exp.test_type.replace('_', ' '),
+      exp.testType,
       getStatusBadge(exp.status),
-      `${totalVisitors.toLocaleString()}`,
+      totalVisitors.toLocaleString(),
       `${conversionRate}%`,
       `$${totalRevenue.toFixed(2)}`,
       <ButtonGroup key={exp.id}>
@@ -366,16 +253,12 @@ export default function ABTestingPage() {
         </Button>
       </ButtonGroup>
     ];
-  });
+  }) : [];
 
   return (
     <Page 
       title="A/B Testing"
       subtitle="Test and optimize your recommendation algorithms, bundle pricing, and customer experience"
-      primaryAction={{
-        content: 'Create Experiment',
-        onAction: () => setShowCreateModal(true)
-      }}
     >
       <TitleBar title="A/B Testing" />
       
@@ -387,12 +270,18 @@ export default function ABTestingPage() {
             </Banner>
           )}
           
+          {message && (
+            <Banner tone="info" title="A/B Testing Coming Soon">
+              <p>{message}</p>
+            </Banner>
+          )}
+          
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between">
                 <Text as="h2" variant="headingMd">Active Experiments</Text>
                 <Badge tone="info">
-                  {`${experiments.filter(e => e.status === 'running').length} Running`}
+                  {`${experiments.filter(e => e && e.status === 'running').length} Running`}
                 </Badge>
               </InlineStack>
               
@@ -462,13 +351,13 @@ export default function ABTestingPage() {
                   <InlineStack align="space-between">
                     <Text as="p" variant="bodySm" tone="subdued">Running</Text>
                     <Text as="p" variant="bodySm" fontWeight="semibold">
-                      {experiments.filter(e => e.status === 'running').length}
+                      {experiments.filter(e => e && e.status === 'running').length}
                     </Text>
                   </InlineStack>
                   <InlineStack align="space-between">
                     <Text as="p" variant="bodySm" tone="subdued">Completed</Text>
                     <Text as="p" variant="bodySm" fontWeight="semibold">
-                      {experiments.filter(e => e.status === 'completed').length}
+                      {experiments.filter(e => e && e.status === 'completed').length}
                     </Text>
                   </InlineStack>
                 </BlockStack>
