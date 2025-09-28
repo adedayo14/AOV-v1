@@ -172,6 +172,17 @@ export default function Index() {
                   .feature-item {
                     display: flex;
                     align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    padding: 12px;
+                    border-radius: 8px;
+                    background: #f6f6f7;
+                    margin-bottom: 8px;
+                  }
+                  
+                  .feature-content {
+                    display: flex;
+                    align-items: center;
                     gap: 8px;
                   }
                   
@@ -192,32 +203,62 @@ export default function Index() {
               <div className="feature-grid">
                 <div className="feature-column">
                   <div className="feature-item">
-                    <span className="feature-checkmark">✓</span>
-                    <Text variant="bodyMd" as="span">AI-powered product recommendations</Text>
+                    <div className="feature-content">
+                      <span className="feature-checkmark">✓</span>
+                      <Text variant="bodyMd" as="span">AI-powered product recommendations</Text>
+                    </div>
+                    <Link to="/app/settings">
+                      <Button size="micro" variant="primary">Configure ML</Button>
+                    </Link>
                   </div>
                   <div className="feature-item">
-                    <span className="feature-checkmark">✓</span>
-                    <Text variant="bodyMd" as="span">Dynamic free shipping incentives</Text>
+                    <div className="feature-content">
+                      <span className="feature-checkmark">✓</span>
+                      <Text variant="bodyMd" as="span">Dynamic free shipping incentives</Text>
+                    </div>
+                    <Link to="/app/settings">
+                      <Button size="micro">Setup Threshold</Button>
+                    </Link>
                   </div>
                 </div>
                 <div className="feature-column">
                   <div className="feature-item">
-                    <span className="feature-checkmark">✓</span>
-                    <Text variant="bodyMd" as="span">Automated cross-sell suggestions</Text>
+                    <div className="feature-content">
+                      <span className="feature-checkmark">✓</span>
+                      <Text variant="bodyMd" as="span">Automated cross-sell suggestions</Text>
+                    </div>
+                    <Link to="/app/dashboard">
+                      <Button size="micro">Manage Products</Button>
+                    </Link>
                   </div>
                   <div className="feature-item">
-                    <span className="feature-checkmark">✓</span>
-                    <Text variant="bodyMd" as="span">Cart progress & abandonment tracking</Text>
+                    <div className="feature-content">
+                      <span className="feature-checkmark">✓</span>
+                      <Text variant="bodyMd" as="span">Cart progress & abandonment tracking</Text>
+                    </div>
+                    <Link to="/app/dashboard">
+                      <Button size="micro">View Analytics</Button>
+                    </Link>
                   </div>
                 </div>
                 <div className="feature-column">
                   <div className="feature-item">
-                    <span className="feature-checkmark">✓</span>
-                    <Text variant="bodyMd" as="span">Conversion rate optimization</Text>
+                    <div className="feature-content">
+                      <span className="feature-checkmark">✓</span>
+                      <Text variant="bodyMd" as="span">Conversion rate optimization</Text>
+                    </div>
+                    <Link to="/app/dashboard">
+                      <Button size="micro" variant="primary">View Dashboard</Button>
+                    </Link>
                   </div>
                   <div className="feature-item">
-                    <span className="feature-checkmark">✓</span>
-                    <Text variant="bodyMd" as="span">Customizable layouts & styling</Text>
+                    <div className="feature-content">
+                      <span className="feature-checkmark">✓</span>
+                      <Text variant="bodyMd" as="span">Customizable layouts & styling</Text>
+                    </div>
+                    <Link to="/app/settings">
+                      <Button size="micro">Customize</Button>
+                    </Link>
                   </div>
                 </div>
               </div>
