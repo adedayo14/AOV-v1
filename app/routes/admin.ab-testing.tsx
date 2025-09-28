@@ -64,19 +64,25 @@ interface ExperimentResults {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  try {
+    const { session } = await authenticate.admin(request);
 
-  const experimentsRaw = await db.$queryRaw<Array<any>>`
-    SELECT id, name, description, test_type, status, traffic_allocation, primary_metric,
-           confidence_level, start_date, end_date, created_at
-    FROM ab_experiments
-    WHERE shop_id = ${session.shop}
-    ORDER BY created_at DESC
-  `;
+    if (!session?.shop) {
+      console.error("No shop in session");
+      return json({ experiments: [] });
+    }
 
-  if (!experimentsRaw.length) {
-    return json({ experiments: [] });
-  }
+    const experimentsRaw = await db.$queryRaw<Array<any>>`
+      SELECT id, name, description, test_type, status, traffic_allocation, primary_metric,
+             confidence_level, start_date, end_date, created_at
+      FROM ab_experiments
+      WHERE shop_id = ${session.shop}
+      ORDER BY created_at DESC
+    `;
+
+    if (!experimentsRaw.length) {
+      return json({ experiments: [] });
+    }
 
   const experimentIds = experimentsRaw.map((experiment) => experiment.id);
 
@@ -143,6 +149,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 
   return json({ experiments });
+  } catch (error) {
+    console.error("A/B testing loader error:", error);
+    return json({ 
+      experiments: [],
+      error: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
 };
 
 function computeExperimentResults(variants: ABVariant[]): ExperimentResults | undefined {
@@ -279,7 +292,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function ABTestingPage() {
-  const { experiments } = useLoaderData<typeof loader>();
+  const data = useLoaderData<typeof loader>();
+  const experiments = data.experiments || [];
+  const errorMessage = 'error' in data && typeof data.error === 'string' ? data.error : null;
   
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedExperiment, setSelectedExperiment] = useState<ABExperiment | null>(null);
@@ -366,6 +381,12 @@ export default function ABTestingPage() {
       
       <Layout>
         <Layout.Section>
+          {errorMessage && (
+            <Banner tone="critical" title="Error loading A/B tests">
+              <p>{errorMessage}</p>
+            </Banner>
+          )}
+          
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between">
