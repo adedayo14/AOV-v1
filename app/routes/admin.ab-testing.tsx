@@ -71,6 +71,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   
   try {
+    // Defensive: ensure Prisma Client has A/B testing models (helps when prod schema misses them)
+    const hasABModels = (prisma as any)?.aBExperiment && typeof (prisma as any).aBExperiment.findMany === 'function';
+    if (!hasABModels) {
+      const details = {
+        prismaExists: !!prisma,
+        aBExperimentExists: !!(prisma as any)?.aBExperiment,
+        findManyExists: !!(prisma as any)?.aBExperiment?.findMany,
+      };
+      console.error('Prisma A/B models unavailable in loader:', details);
+      throw new Error('A/B Testing models are not available in the Prisma Client. Please regenerate Prisma Client.');
+    }
     
     // Fetch existing A/B experiments for this shop
     const experiments = await prisma.aBExperiment.findMany({
@@ -182,6 +193,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const action = formData.get('action');
   
   try {
+    // Defensive: ensure Prisma Client has A/B testing models
+    const hasABModels = (prisma as any)?.aBExperiment && typeof (prisma as any).aBExperiment.create === 'function';
+    if (!hasABModels) {
+      const details = {
+        prismaExists: !!prisma,
+        aBExperimentExists: !!(prisma as any)?.aBExperiment,
+        createExists: !!(prisma as any)?.aBExperiment?.create,
+      };
+      console.error('Prisma A/B models unavailable in action:', details);
+      return json({ success: false, error: 'A/B Testing models are not available in the Prisma Client. Please regenerate Prisma Client.' }, { status: 500 });
+    }
     if (action === 'create') {
       const name = formData.get('name') as string;
       const description = formData.get('description') as string;
