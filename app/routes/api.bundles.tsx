@@ -1,6 +1,8 @@
 import { json } from "@remix-run/node";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { withAuth } from "../utils/auth.server";
+import { unauthenticated } from "../shopify.server";
+import { getBundleInsights } from "~/models/bundleInsights.server";
 
 /**
  * Bundle Management API
@@ -187,85 +189,152 @@ async function handleStorefrontBundleRequest({ productId, collectionId, context 
 }
 
 // Bundle management functions
-async function getBundlesForShop(_shop: string) {
-  // Mock data with realistic product IDs that might match real products
-  return [
-    {
-      id: 'bundle_1',
-      name: 'Complete Footwear Bundle',
-      description: 'Everything you need for your active lifestyle',
-      products: [
-        { id: '10083165798739', title: 'Mens Strider', price: 89.99 },
-        { id: 'athletic_socks_001', title: 'Performance Athletic Socks', price: 19.99 },
-        { id: 'shoe_care_kit_001', title: 'Premium Shoe Care Kit', price: 29.99 }
-      ],
-      regular_total: 139.97,
-      bundle_price: 125.97,
-      discount_percent: 10,
-      savings_amount: 13.97,
-      discount_code: 'BUNDLE_FOOTWEAR_COMPLETE',
-      status: 'active',
-      source: 'ml', // 'ml' or 'manual'
-      confidence: 0.87,
-      created_at: '2024-01-15T10:30:00Z',
-      performance: {
-        views: 156,
-        clicks: 23,
-        conversions: 8,
-        revenue: 1007.76
-      }
-    },
-    {
-      id: 'bundle_2',
-      name: 'Athletic Performance Bundle',
-      description: 'Complete gear for athletes and fitness enthusiasts',
-      products: [
-        { id: '10083165798739', title: 'Mens Strider', price: 89.99 },
-        { id: 'water_bottle_premium', title: 'Insulated Water Bottle', price: 34.99 },
-        { id: 'workout_towel', title: 'Quick-Dry Workout Towel', price: 24.99 }
-      ],
-      regular_total: 149.97,
-      bundle_price: 134.97,
-      discount_percent: 10,
-      savings_amount: 15.00,
-      discount_code: 'BUNDLE_ATHLETIC_PERFORMANCE',
-      status: 'active',
-      source: 'ml',
-      confidence: 0.92,
-      created_at: '2024-01-10T09:15:00Z',
-      performance: {
-        views: 203,
-        clicks: 31,
-        conversions: 12,
-        revenue: 1619.64
-      }
-    },
-    {
-      id: 'bundle_3',
-      name: 'Running Essentials Bundle',
-      description: 'Everything you need for your running routine',
-      products: [
-        { id: 'running_shoes_premium', title: 'Premium Running Shoes', price: 149.99 },
-        { id: 'running_shorts', title: 'Performance Running Shorts', price: 39.99 },
-        { id: 'fitness_tracker', title: 'Fitness Activity Tracker', price: 99.99 }
-      ],
-      regular_total: 289.97,
-      bundle_price: 260.97,
-      discount_percent: 10,
-      savings_amount: 29.00,
-      discount_code: 'BUNDLE_RUNNING_ESSENTIALS',
-      status: 'active',
-      source: 'manual',
-      confidence: null,
-      created_at: '2024-01-20T14:20:00Z',
-      performance: {
-        views: 89,
-        clicks: 12,
-        conversions: 4,
-        revenue: 1043.88
-      }
+async function getBundlesForShop(shop: string) {
+  try {
+    const { admin } = await unauthenticated.admin(shop);
+    const { bundles, totalOrdersConsidered } = await getBundleInsights({
+      shop,
+      admin,
+      minPairOrders: 1,
+    });
+
+    if (!bundles.length) {
+      return [];
     }
-  ];
+
+    const productIds = Array.from(
+      new Set(bundles.flatMap((bundle) => bundle.productIds))
+    );
+
+    const productInfo = await fetchProductDetails(admin, productIds);
+
+    return bundles.map((bundle) => {
+      const products = bundle.productIds.map((productId, index) => {
+        const product = productInfo.get(productId);
+        const title =
+          product?.title ?? bundle.productTitles[index] ?? "Bundle Product";
+        const price = product?.price ?? fallbackUnitPrice(bundle);
+        return {
+          id: productId,
+          title,
+          price,
+        };
+      });
+
+      const regularTotal = bundle.regularRevenue;
+      const bundlePrice = bundle.revenue;
+      const savingsAmount = Math.max(0, regularTotal - bundlePrice);
+      const confidence =
+        totalOrdersConsidered > 0
+          ? Math.min(1, bundle.orderCount / totalOrdersConsidered)
+          : 0;
+
+      return {
+        id: bundle.id,
+        name: bundle.name,
+        description: bundle.productTitles.join(" + "),
+        products,
+        regular_total: roundCurrency(regularTotal),
+        bundle_price: roundCurrency(bundlePrice),
+        discount_percent: Number(bundle.averageDiscountPercent.toFixed(2)),
+        savings_amount: roundCurrency(savingsAmount),
+        discount_code: null,
+        status: bundle.status,
+        source: bundle.type,
+        confidence,
+        created_at: new Date().toISOString(),
+        performance: {
+          views: bundle.orderCount,
+          clicks: bundle.orderCount,
+          conversions: bundle.orderCount,
+          revenue: roundCurrency(bundle.revenue),
+        },
+      };
+    });
+  } catch (error) {
+    console.error("Failed to load bundles for shop", shop, error);
+    return [];
+  }
+}
+
+async function fetchProductDetails(
+  admin: { graphql: GraphQLFetcher },
+  productIds: string[]
+) {
+  const result = new Map<string, { title: string; price: number }>();
+
+  if (!productIds.length) return result;
+
+  const chunkSize = 20;
+  for (let i = 0; i < productIds.length; i += chunkSize) {
+    const chunk = productIds.slice(i, i + chunkSize);
+    try {
+      const response = await admin.graphql(
+        `#graphql
+          query BundleProducts($ids: [ID!]!) {
+            nodes(ids: $ids) {
+              ... on Product {
+                id
+                title
+                variants(first: 1) {
+                  edges {
+                    node {
+                      price
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `,
+        {
+          variables: {
+            ids: chunk.map((id) => `gid://shopify/Product/${id}`),
+          },
+        }
+      );
+
+      if (!response.ok) continue;
+      const payload = await response.json();
+      const nodes: any[] = payload?.data?.nodes ?? [];
+
+      nodes.forEach((node) => {
+        if (!node?.id) return;
+        const id = String(node.id).replace("gid://shopify/Product/", "");
+        const price = Number(
+          node?.variants?.edges?.[0]?.node?.price ?? undefined
+        );
+        result.set(id, {
+          title: node?.title ?? "Product",
+          price: Number.isFinite(price) ? price : 0,
+        });
+      });
+    } catch (error) {
+      console.warn("Failed to fetch product details chunk", error);
+    }
+  }
+
+  return result;
+}
+
+type GraphQLFetcher = (
+  query: string,
+  options?: { variables?: Record<string, unknown> }
+) => Promise<Response>;
+
+function fallbackUnitPrice(bundle: {
+  revenue: number;
+  totalQuantity?: number;
+}) {
+  const { revenue, totalQuantity } = bundle;
+  if (!totalQuantity || totalQuantity <= 0) {
+    return roundCurrency(revenue);
+  }
+  return roundCurrency(revenue / totalQuantity);
+}
+
+function roundCurrency(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 async function createBundle(shop: string, bundleData: any, request?: Request) {

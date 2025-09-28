@@ -41,12 +41,12 @@ function parseArgs() {
 }
 
 const args = parseArgs();
-const SHOP = (args.shop || process.env.SHOPIFY_SHOP || '').trim();
-const TOKEN = (args.token || process.env.SHOPIFY_ADMIN_TOKEN || '').trim();
-const COUNT = parseInt(args.count || process.env.ORDER_COUNT || '10', 10);
-const VARIANT_IDS = (args.variants || process.env.VARIANT_IDS || '').trim();
-const WINDOW_DAYS = parseInt(args.windowDays || process.env.WINDOW_DAYS || '90', 10);
-const INTERVAL_MS = parseInt(args.intervalMs || process.env.INTERVAL_MS || '600', 10);
+const SHOP = String(args.shop || process.env.SHOPIFY_SHOP || '').trim();
+const TOKEN = String(args.token || process.env.SHOPIFY_ADMIN_TOKEN || '').trim();
+const COUNT = parseInt(String(args.count || process.env.ORDER_COUNT || '10'), 10);
+const VARIANT_IDS = String(args.variants || process.env.VARIANT_IDS || '').trim();
+const WINDOW_DAYS = parseInt(String(args.windowDays || process.env.WINDOW_DAYS || '90'), 10);
+const INTERVAL_MS = parseInt(String(args.intervalMs || process.env.INTERVAL_MS || '600'), 10);
 const DRY_RUN = !!args['dry-run'] || String(process.env.DRY_RUN||'').toLowerCase()==='true';
 const API_VERSION = '2025-01';
 

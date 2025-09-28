@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Page,
   Layout,
@@ -26,36 +26,15 @@ import {
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
+import { getBundleInsights } from "~/models/bundleInsights.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
-  
-  // Load existing manual bundles (mock data for now)
-  const bundles = [
-    {
-      id: 1,
-      name: "Skincare Essentials",
-      type: "fixed",
-      discount: "15%",
-      products: 3,
-      status: "active",
-      views: 245,
-      conversions: 12,
-      revenue: 1450.00
-    },
-    {
-      id: 2, 
-      name: "Pick Any 5 Supplements",
-      type: "category_rule",
-      discount: "20%",
-      category: "Supplements",
-      minItems: 5,
-      status: "active", 
-      views: 189,
-      conversions: 8,
-      revenue: 2100.00
-    }
-  ];
+  const { admin, session } = await authenticate.admin(request);
+
+  const { bundles } = await getBundleInsights({
+    shop: session.shop,
+    admin,
+  });
 
   // Get available products for bundle creation
   const productsResp = await admin.graphql(`
@@ -107,7 +86,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     available: edge.node.variants?.edges?.[0]?.node?.availableForSale || false
   })) || [];
 
-  return json({ bundles, products });
+  const loaderBundles = bundles.map((bundle, index) => ({
+    id: bundle.id || index,
+    name: bundle.name,
+    productTitles: bundle.productTitles,
+    type: bundle.type,
+    discountPercent: bundle.averageDiscountPercent,
+    status: bundle.status,
+    orders: bundle.orderCount,
+    revenue: bundle.revenue,
+  }));
+
+  return json({ bundles: loaderBundles, products });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -147,6 +137,17 @@ export default function ManualBundles() {
   const [categoryRule, setCategoryRule] = useState("");
   const [minItems, setMinItems] = useState("2");
 
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    []
+  );
+
   const bundleTypeOptions = [
     { label: 'Fixed Bundle (Preset Products)', value: 'fixed' },
     { label: 'Category Rule (Customer Choice)', value: 'category_rule' },
@@ -169,19 +170,18 @@ export default function ManualBundles() {
     <div key={`name-${bundle.id}`}>
       <Text as="p" variant="bodyMd" fontWeight="semibold">{bundle.name}</Text>
       <Text as="p" variant="bodySm" tone="subdued">
-        {bundle.type === 'fixed' ? `${(bundle as any).products} products` : `Min ${(bundle as any).minItems} from ${(bundle as any).category}`}
+        {bundle.productTitles.join(', ')}
       </Text>
     </div>,
-    <Badge key={`type-${bundle.id}`} tone={bundle.type === 'fixed' ? 'info' : 'success'}>
-      {bundle.type === 'fixed' ? 'Fixed Bundle' : 'Category Rule'}
+    <Badge key={`type-${bundle.id}`} tone={bundle.type === 'manual' ? 'info' : 'success'}>
+      {bundle.type === 'manual' ? 'Manual' : 'ML Suggested'}
     </Badge>,
-    bundle.discount,
-    <Badge key={`status-${bundle.id}`} tone={bundle.status === 'active' ? 'success' : 'critical'}>
+    `${bundle.discountPercent.toFixed(1)}%`,
+    <Badge key={`status-${bundle.id}`} tone={bundle.status === 'active' ? 'success' : 'warning'}>
       {bundle.status}
     </Badge>,
-    bundle.views.toLocaleString(),
-    bundle.conversions,
-    `$${bundle.revenue.toFixed(2)}`,
+    bundle.orders,
+    currencyFormatter.format(bundle.revenue),
     <ButtonGroup key={`actions-${bundle.id}`}>
       <Button size="micro">Edit</Button>
       <Button size="micro" tone="critical">Delete</Button>
@@ -252,8 +252,8 @@ export default function ManualBundles() {
             {/* Bundles Table */}
             <Card>
               <DataTable
-                columnContentTypes={['text', 'text', 'text', 'text', 'numeric', 'numeric', 'numeric', 'text']}
-                headings={['Bundle', 'Type', 'Discount', 'Status', 'Views', 'Conversions', 'Revenue', 'Actions']}
+                columnContentTypes={['text', 'text', 'text', 'text', 'numeric', 'text', 'text']}
+                headings={['Bundle', 'Type', 'Avg. Discount', 'Status', 'Orders', 'Revenue', 'Actions']}
                 rows={bundleRows}
               />
             </Card>

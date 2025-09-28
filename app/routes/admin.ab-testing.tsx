@@ -22,7 +22,9 @@ import {
   Divider
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
+import { Prisma } from "@prisma/client";
 import { authenticate } from "../shopify.server";
+import db from "~/db.server";
 
 interface ABExperiment {
   id: number;
@@ -53,7 +55,7 @@ interface ABVariant {
 
 interface ExperimentResults {
   is_significant: boolean;
-  p_value: number;
+  p_value: number | null;
   confidence_interval_lower: number;
   confidence_interval_upper: number;
   conversion_rate_lift: number;
@@ -62,60 +64,209 @@ interface ExperimentResults {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
-  
-  // Return mock data for demonstration - shows the A/B testing framework in action
-  const experiments: ABExperiment[] = [
-    {
-      id: 1,
-      name: "Bundle Discount Test",
-      description: "Testing 10% vs 15% vs 20% discount rates",
-      test_type: "bundle_pricing",
-      status: "running",
-      traffic_allocation: 100,
-      primary_metric: "conversion_rate",
-      confidence_level: 95,
-      start_date: "2025-09-20T00:00:00Z",
-      variants: [
-        {
-          id: 1,
-          name: "Control (10%)",
-          description: "Current 10% discount",
-          traffic_percentage: 33,
-          is_control: true,
-          config_data: '{"discount_percentage": 10}',
-          total_visitors: 245,
-          total_conversions: 12,
-          total_revenue: 1450.00
-        },
-        {
-          id: 2,
-          name: "15% Discount",
-          description: "Increased discount",
-          traffic_percentage: 33,
-          is_control: false,
-          config_data: '{"discount_percentage": 15}',
-          total_visitors: 238,
-          total_conversions: 18,
-          total_revenue: 1620.00
-        },
-        {
-          id: 3,
-          name: "20% Discount",
-          description: "Maximum discount",
-          traffic_percentage: 34,
-          is_control: false,
-          config_data: '{"discount_percentage": 20}',
-          total_visitors: 251,
-          total_conversions: 22,
-          total_revenue: 1780.00
-        }
-      ]
-    }
-  ];
+  const { session } = await authenticate.admin(request);
+
+  const experimentsRaw = await db.$queryRaw<Array<any>>`
+    SELECT id, name, description, test_type, status, traffic_allocation, primary_metric,
+           confidence_level, start_date, end_date, created_at
+    FROM ab_experiments
+    WHERE shop_id = ${session.shop}
+    ORDER BY created_at DESC
+  `;
+
+  if (!experimentsRaw.length) {
+    return json({ experiments: [] });
+  }
+
+  const experimentIds = experimentsRaw.map((experiment) => experiment.id);
+
+  const variantsRaw = await db.$queryRaw<Array<any>>`
+    SELECT id, experiment_id, name, description, traffic_percentage, is_control,
+           config_data, total_visitors, total_conversions, total_revenue
+    FROM ab_variants
+    WHERE experiment_id IN (${Prisma.join(experimentIds)})
+    ORDER BY experiment_id ASC, created_at ASC
+  `;
+
+  const variantsByExperiment = new Map<number, ABVariant[]>();
+  for (const variant of variantsRaw) {
+    const trafficPercentage = Number(variant.traffic_percentage ?? 0);
+    const totalRevenue = Number(variant.total_revenue ?? 0);
+
+    const formattedVariant: ABVariant = {
+      id: variant.id,
+      name: variant.name,
+      description: variant.description ?? undefined,
+      traffic_percentage: Number.isFinite(trafficPercentage)
+        ? trafficPercentage
+        : 0,
+      is_control: Boolean(variant.is_control),
+      config_data: variant.config_data ?? "{}",
+      total_visitors: variant.total_visitors ?? 0,
+      total_conversions: variant.total_conversions ?? 0,
+      total_revenue: Number.isFinite(totalRevenue) ? totalRevenue : 0,
+    };
+
+    const list = variantsByExperiment.get(variant.experiment_id) ?? [];
+    list.push(formattedVariant);
+    variantsByExperiment.set(variant.experiment_id, list);
+  }
+
+  const experiments: ABExperiment[] = experimentsRaw.map((experiment) => {
+    const trafficAllocation = Number(experiment.traffic_allocation ?? 1) * 100;
+    const confidenceLevel = Number(experiment.confidence_level ?? 0) * 100;
+    const variants = variantsByExperiment.get(experiment.id) ?? [];
+    const results = computeExperimentResults(variants);
+
+    return {
+      id: experiment.id,
+      name: experiment.name,
+      description: experiment.description ?? undefined,
+      test_type: experiment.test_type,
+      status: experiment.status,
+      traffic_allocation: Number.isFinite(trafficAllocation)
+        ? trafficAllocation
+        : 100,
+      primary_metric: experiment.primary_metric,
+      confidence_level: Number.isFinite(confidenceLevel)
+        ? confidenceLevel
+        : 95,
+      start_date: experiment.start_date
+        ? new Date(experiment.start_date).toISOString()
+        : undefined,
+      end_date: experiment.end_date
+        ? new Date(experiment.end_date).toISOString()
+        : undefined,
+      variants,
+      results,
+    } satisfies ABExperiment;
+  });
 
   return json({ experiments });
 };
+
+function computeExperimentResults(variants: ABVariant[]): ExperimentResults | undefined {
+  if (!variants.length) return undefined;
+
+  const control = variants.find((variant) => variant.is_control) ?? variants[0];
+  const challengers = variants.filter((variant) => variant.id !== control.id);
+  if (!challengers.length) return undefined;
+
+  const sortedChallengers = [...challengers].sort((a, b) =>
+    conversionRate(b.total_conversions, b.total_visitors) -
+    conversionRate(a.total_conversions, a.total_visitors)
+  );
+
+  const challenger = sortedChallengers[0];
+
+  const controlRate = conversionRate(control.total_conversions, control.total_visitors);
+  const challengerRate = conversionRate(
+    challenger.total_conversions,
+    challenger.total_visitors
+  );
+
+  const controlRevenuePerVisitor = revenuePerVisitor(
+    control.total_revenue,
+    control.total_visitors
+  );
+  const challengerRevenuePerVisitor = revenuePerVisitor(
+    challenger.total_revenue,
+    challenger.total_visitors
+  );
+
+  const conversionLift = controlRate > 0
+    ? ((challengerRate - controlRate) / controlRate) * 100
+    : 0;
+
+  const revenueLift = controlRevenuePerVisitor > 0
+    ? ((challengerRevenuePerVisitor - controlRevenuePerVisitor) /
+        controlRevenuePerVisitor) * 100
+    : 0;
+
+  const stats = calculateSignificance(control, challenger);
+
+  return {
+    is_significant: stats.isSignificant,
+    p_value: stats.pValue,
+    confidence_interval_lower: stats.ciLower,
+    confidence_interval_upper: stats.ciUpper,
+    conversion_rate_lift: conversionLift,
+    revenue_lift: revenueLift,
+    winner_variant_id:
+      stats.isSignificant && challengerRate > controlRate
+        ? challenger.id
+        : undefined,
+  } satisfies ExperimentResults;
+}
+
+function calculateSignificance(control: ABVariant, challenger: ABVariant) {
+  const n1 = control.total_visitors ?? 0;
+  const n2 = challenger.total_visitors ?? 0;
+  const conv1 = control.total_conversions ?? 0;
+  const conv2 = challenger.total_conversions ?? 0;
+
+  if (n1 < 30 || n2 < 30) {
+    return { isSignificant: false, pValue: null, ciLower: 0, ciUpper: 0 };
+  }
+
+  const p1 = conversionRate(conv1, n1) / 100;
+  const p2 = conversionRate(conv2, n2) / 100;
+  const pooled = (conv1 + conv2) / (n1 + n2);
+  const stdErr = Math.sqrt(pooled * (1 - pooled) * (1 / n1 + 1 / n2));
+
+  if (!Number.isFinite(stdErr) || stdErr === 0) {
+    return { isSignificant: false, pValue: null, ciLower: 0, ciUpper: 0 };
+  }
+
+  const zScore = (p2 - p1) / stdErr;
+  const pValue = 2 * (1 - normalCdf(Math.abs(zScore)));
+
+  const diff = p2 - p1;
+  const seDiff = Math.sqrt((p1 * (1 - p1)) / n1 + (p2 * (1 - p2)) / n2);
+  const margin = 1.96 * seDiff;
+  const ciLower = (diff - margin) * 100;
+  const ciUpper = (diff + margin) * 100;
+
+  return {
+    isSignificant: pValue < 0.05,
+    pValue,
+    ciLower,
+    ciUpper,
+  };
+}
+
+function conversionRate(conversions: number, visitors: number) {
+  if (!visitors || visitors <= 0) return 0;
+  return (conversions / visitors) * 100;
+}
+
+function revenuePerVisitor(revenue: number, visitors: number) {
+  if (!visitors || visitors <= 0) return 0;
+  return revenue / visitors;
+}
+
+function normalCdf(value: number) {
+  return 0.5 * (1 + erf(value / Math.SQRT2));
+}
+
+function erf(x: number) {
+  const sign = x < 0 ? -1 : 1;
+  const absX = Math.abs(x);
+
+  const a1 = 0.254829592;
+  const a2 = -0.284496736;
+  const a3 = 1.421413741;
+  const a4 = -1.453152027;
+  const a5 = 1.061405429;
+  const p = 0.3275911;
+
+  const t = 1 / (1 + p * absX);
+  const y =
+    1 -
+    (((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-absX * absX));
+
+  return sign * y;
+}
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   await authenticate.admin(request);
@@ -407,17 +558,47 @@ export default function ABTestingPage() {
         >
           <Modal.Section>
             <BlockStack gap="400">
-              <Banner tone="success">
-                <Text as="p" variant="bodyMd">
-                  <strong>Significant Results Detected!</strong> The 20% discount variant is performing 78% better 
-                  than control with 8.76% conversion rate vs 4.90% control (p &lt; 0.001).
-                </Text>
-              </Banner>
+              {(() => {
+                const results = selectedExperiment.results;
+                if (!results) {
+                  return (
+                    <Banner tone="info">
+                      <Text as="p" variant="bodyMd">
+                        Not enough data yet for a statistical read. Keep the experiment running to gather more traffic.
+                      </Text>
+                    </Banner>
+                  );
+                }
+
+                const tone = results.is_significant ? "success" : "warning";
+                const conversionLift = results.conversion_rate_lift.toFixed(2);
+                const pValueText =
+                  results.p_value !== null
+                    ? `p = ${results.p_value.toPrecision(2)}`
+                    : "p-value unavailable";
+
+                return (
+                  <Banner tone={tone}>
+                    <Text as="p" variant="bodyMd">
+                      {results.is_significant ? (
+                        <strong>
+                          Significant uplift detected! Conversion lift of {conversionLift}% ({pValueText}).
+                        </strong>
+                      ) : (
+                        <strong>
+                          No significant winner yet. Conversion lift currently {conversionLift}% ({pValueText}).
+                        </strong>
+                      )}
+                    </Text>
+                  </Banner>
+                );
+              })()}
 
               {selectedExperiment.variants && selectedExperiment.variants.map((variant) => {
                 const conversionRate = calculateConversionRate(variant.total_conversions, variant.total_visitors);
                 const revenuePerVisitor = variant.total_visitors > 0 ? 
                   (variant.total_revenue / variant.total_visitors) : 0;
+                const winnerVariantId = selectedExperiment.results?.winner_variant_id;
                 
                 return (
                   <Card key={variant.id} background={variant.is_control ? "bg-surface-secondary" : undefined}>
@@ -425,7 +606,7 @@ export default function ABTestingPage() {
                       <InlineStack align="space-between">
                         <Text as="h3" variant="headingSm">{variant.name}</Text>
                         {variant.is_control && <Badge tone="info">Control</Badge>}
-                        {!variant.is_control && parseFloat(conversionRate) > 7 && (
+                        {!variant.is_control && winnerVariantId === variant.id && (
                           <Badge tone="success">Winner</Badge>
                         )}
                       </InlineStack>
@@ -462,18 +643,49 @@ export default function ABTestingPage() {
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">🎯 Key Insights & Recommendations</Text>
                   <BlockStack gap="200">
-                    <Text as="p" variant="bodyMd">
-                      <strong>✅ Winner Identified:</strong> 20% discount variant shows 78% higher conversion rate than control (8.76% vs 4.90%)
-                    </Text>
-                    <Text as="p" variant="bodyMd">
-                      <strong>💰 Revenue Impact:</strong> Revenue per visitor increased by 23% despite higher discount ($7.09 vs $5.92)
-                    </Text>
-                    <Text as="p" variant="bodyMd">
-                      <strong>📈 Statistical Confidence:</strong> Results are significant with 95% confidence (p &lt; 0.001)
-                    </Text>
-                    <Text as="p" variant="bodyMd">
-                      <strong>🚀 Recommendation:</strong> Roll out 20% discount to 100% of traffic for maximum impact
-                    </Text>
+                    {(() => {
+                      const results = selectedExperiment.results;
+                      const control = selectedExperiment.variants?.find((variant) => variant.is_control);
+                      const winner = selectedExperiment.variants?.find(
+                        (variant) => variant.id === results?.winner_variant_id
+                      );
+
+                      const controlRate = control
+                        ? calculateConversionRate(
+                            control.total_conversions,
+                            control.total_visitors
+                          )
+                        : "0.00";
+                      const winnerRate = winner
+                        ? calculateConversionRate(
+                            winner.total_conversions,
+                            winner.total_visitors
+                          )
+                        : "0.00";
+                      const revenueLift = results
+                        ? results.revenue_lift.toFixed(2)
+                        : "0.00";
+
+                      return (
+                        <>
+                          <Text as="p" variant="bodyMd">
+                            <strong>✅ Winner:</strong> {winner?.name ?? "No winner yet"}
+                            {winner && ` (conversion rate ${winnerRate}% vs control ${controlRate}%)`}
+                          </Text>
+                          <Text as="p" variant="bodyMd">
+                            <strong>💰 Revenue Impact:</strong> Revenue per visitor change {revenueLift}%
+                          </Text>
+                          <Text as="p" variant="bodyMd">
+                            <strong>📈 Confidence Interval:</strong> {results ? `${results.confidence_interval_lower.toFixed(2)}% to ${results.confidence_interval_upper.toFixed(2)}%` : 'Not available'}
+                          </Text>
+                          <Text as="p" variant="bodyMd">
+                            <strong>🚀 Recommendation:</strong> {results?.is_significant && winner
+                              ? `Roll out ${winner.name} to more traffic`
+                              : 'Continue running the test to gather more data'}
+                          </Text>
+                        </>
+                      );
+                    })()}
                   </BlockStack>
                 </BlockStack>
               </Card>

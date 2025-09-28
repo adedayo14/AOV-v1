@@ -202,6 +202,31 @@ export default function SettingsPage() {
 
   const [formSettings, setFormSettings] = useState(validateSettings(settings));
 
+  const mlDataRetentionRaw = (formSettings as any).mlDataRetentionDays ?? settings.mlDataRetentionDays ?? "90";
+  const parsedRetention = Number.parseInt(String(mlDataRetentionRaw), 10);
+  const mlRetentionDays = Number.isFinite(parsedRetention) && parsedRetention > 0 ? Math.round(parsedRetention) : 90;
+
+  const mlOrdersAnalyzedValue = Number((formSettings as any).mlTrainingOrderCount ?? 0);
+  const mlOrdersAnalyzed = Number.isFinite(mlOrdersAnalyzedValue) && mlOrdersAnalyzedValue > 0
+    ? Math.round(mlOrdersAnalyzedValue)
+    : 0;
+
+  const ordersBadgeText = mlOrdersAnalyzed > 0
+    ? `~${mlOrdersAnalyzed} orders analyzed`
+    : `Using last ${mlRetentionDays} days of orders`;
+
+  const dataQualityTone = formSettings.enableBehaviorTracking
+    ? "success"
+    : formSettings.enableAdvancedPersonalization
+    ? "info"
+    : "attention";
+
+  const dataQualityLabel = formSettings.enableBehaviorTracking
+    ? "Behavior tracking enabled"
+    : formSettings.enableAdvancedPersonalization
+    ? "Advanced personalization ready"
+    : "Order-only insights";
+
   // Theme colors handled by CSS variables and merchant color picker
 
   // Helper function to resolve CSS custom properties with fallbacks for preview
@@ -2598,9 +2623,9 @@ export default function SettingsPage() {
                           </Text>
                           
                           <InlineStack gap="300">
-                            <Badge tone="info">{`~${String(Math.max(0, Math.floor(Math.random() * 200) + 50))} orders analyzed`}</Badge>
-                            <Badge tone={Math.random() > 0.3 ? "success" : "attention"}>
-                              {Math.random() > 0.3 ? "Good data quality" : "Building data"}
+                            <Badge tone="info">{ordersBadgeText}</Badge>
+                            <Badge tone={dataQualityTone}>
+                              {dataQualityLabel}
                             </Badge>
                           </InlineStack>
                           

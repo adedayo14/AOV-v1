@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, Link } from "@remix-run/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Page,
   Layout,
@@ -30,57 +30,59 @@ import {
   MagicIcon
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import { getBundleInsights } from "~/models/bundleInsights.server";
 
-// Mock data - replace with real data from your API
-const mockBundles = [
-  {
-    id: "1",
-    name: "Summer Essentials",
-    products: ["Sunscreen SPF 50", "Beach Towel", "Sunglasses"],
-    discount: 15,
-    status: "active",
-    sales: 89,
-    revenue: 4230.50,
-    type: "manual"
-  },
-  {
-    id: "2", 
-    name: "Tech Starter Pack",
-    products: ["Wireless Charger", "Phone Case", "Screen Protector"],
-    discount: 20,
-    status: "active", 
-    sales: 67,
-    revenue: 3890.20,
-    type: "manual"
-  }
-];
+type LoaderBundle = {
+  id: string;
+  name: string;
+  productTitles: string[];
+  discountPercent: number;
+  status: "active" | "draft";
+  sales: number;
+  revenue: number;
+  type: string;
+};
 
-const mockAIOpportunities = [
-  {
-    id: "ai-1",
-    product1: "Yoga Mat",
-    product2: "Water Bottle", 
-    frequency: "78%",
-    potentialRevenue: 2450.00,
-    confidence: "High"
-  },
-  {
-    id: "ai-2",
-    product1: "Running Shoes",
-    product2: "Athletic Socks",
-    frequency: "65%", 
-    potentialRevenue: 1890.00,
-    confidence: "Medium"
-  }
-];
+type LoaderOpportunity = {
+  id: string;
+  productTitles: string[];
+  frequency: number;
+  potentialRevenue: number;
+  confidence: "High" | "Medium" | "Low";
+};
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
-  
-  // TODO: Replace with real data from your bundle management system
+  const { admin, session } = await authenticate.admin(request);
+
+  const { bundles, opportunities } = await getBundleInsights({
+    shop: session.shop,
+    admin,
+  });
+
+  const loaderBundles: LoaderBundle[] = bundles.map((bundle) => ({
+    id: bundle.id,
+    name: bundle.name,
+    productTitles: bundle.productTitles,
+    discountPercent: bundle.averageDiscountPercent,
+    status: bundle.status,
+    sales: bundle.orderCount,
+    revenue: bundle.revenue,
+    type: bundle.type,
+  }));
+
+  const loaderOpportunities: LoaderOpportunity[] = opportunities.map(
+    (opportunity) => ({
+      id: opportunity.id,
+      productTitles: opportunity.productTitles,
+      frequency: opportunity.frequency,
+      potentialRevenue: opportunity.potentialRevenue,
+      confidence: opportunity.confidence,
+    })
+  );
+
   return json({
-    bundles: mockBundles,
-    aiOpportunities: mockAIOpportunities
+    bundles: loaderBundles,
+    aiOpportunities: loaderOpportunities,
   });
 };
 
@@ -88,27 +90,57 @@ export default function ManageProducts() {
   const { bundles, aiOpportunities } = useLoaderData<typeof loader>();
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const bundleTableRows = bundles.map((bundle: any) => [
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    []
+  );
+
+  const percentFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(undefined, {
+        style: "percent",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }),
+    []
+  );
+
+  const bundleTableRows = bundles.map((bundle: LoaderBundle) => [
     bundle.name,
-    bundle.products.join(", "),
-    `${bundle.discount}%`,
-    <Badge key={bundle.id} tone={bundle.status === 'active' ? 'success' : 'info'}>
+    bundle.productTitles.join(", "),
+    `${bundle.discountPercent.toFixed(1)}%`,
+    <Badge
+      key={bundle.id}
+      tone={bundle.status === "active" ? "success" : "info"}
+    >
       {bundle.status}
     </Badge>,
     bundle.sales,
-    `$${bundle.revenue.toFixed(2)}`,
+    currencyFormatter.format(bundle.revenue),
     <ButtonGroup key={bundle.id}>
-      <Button size="micro" icon={EditIcon}>Edit</Button>
-      <Button size="micro" icon={DeleteIcon} tone="critical">Delete</Button>
+      <Button size="micro" icon={EditIcon}>
+        Edit
+      </Button>
+      <Button size="micro" icon={DeleteIcon} tone="critical">
+        Delete
+      </Button>
     </ButtonGroup>
   ]);
 
-  const aiOpportunityRows = aiOpportunities.map((opportunity: any) => [
-    `${opportunity.product1} + ${opportunity.product2}`,
-    opportunity.frequency,
+  const aiOpportunityRows = aiOpportunities.map((opportunity: LoaderOpportunity) => [
+    opportunity.productTitles.join(" + "),
+    percentFormatter.format(opportunity.frequency),
     opportunity.confidence,
-    `$${opportunity.potentialRevenue.toFixed(2)}`,
-    <Button key={opportunity.id} size="micro" variant="primary">Create Bundle</Button>
+    currencyFormatter.format(opportunity.potentialRevenue),
+    <Button key={opportunity.id} size="micro" variant="primary">
+      Create Bundle
+    </Button>
   ]);
 
   return (
@@ -203,7 +235,9 @@ export default function ManageProducts() {
                     <BlockStack gap="100">
                       <Text variant="bodySm" as="p" tone="subdued">Bundle Revenue</Text>
                       <Text variant="headingMd" as="p">
-                        ${bundles.reduce((sum, b) => sum + b.revenue, 0).toFixed(2)}
+                        {currencyFormatter.format(
+                          bundles.reduce((sum, b) => sum + b.revenue, 0)
+                        )}
                       </Text>
                     </BlockStack>
                   </Grid.Cell>
