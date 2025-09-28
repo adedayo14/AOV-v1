@@ -68,27 +68,35 @@ interface ExperimentResults {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  
   try {
-    const { session } = await authenticate.admin(request);
+    // Fetch existing A/B experiments for this shop
+    const experiments = await prisma.aBExperiment.findMany({
+      where: { shopId: session.shop },
+      include: {
+        variants: true,
+      },
+      orderBy: { createdAt: 'desc' }
+    });
 
-    if (!session?.shop) {
-      console.error("No shop in session");
-      return json({ experiments: [] });
-    }
-
-    // A/B Testing feature is currently being developed
-    // Database tables exist but TypeScript integration needs to be completed
-    console.log("A/B testing: Feature in development for shop", session.shop);
+    // Calculate results for each experiment
+    const experimentsWithResults = experiments.map((exp: any) => {
+      const results = _computeExperimentResults(exp.variants);
+      return { ...exp, results };
+    });
+    
+    console.log("A/B testing: Loaded", experimentsWithResults.length, "experiments for shop", session.shop);
     
     return json({ 
-      experiments: [] as ABExperiment[],
-      message: "A/B Testing feature is coming soon! Database is ready, just finalizing the integration."
+      experiments: experimentsWithResults,
+      message: "A/B Testing is now active! Create your first experiment to start optimizing."
     });
   } catch (error) {
     console.error("A/B testing loader error:", error);
     return json({ 
       experiments: [] as ABExperiment[],
-      error: error instanceof Error ? error.message : "Unknown error"
+      error: error instanceof Error ? error.message : "Failed to load A/B experiments"
     });
   }
 };
@@ -168,18 +176,109 @@ function erf(x: number) {
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
+  const formData = await request.formData();
+  const action = formData.get('action');
   
-  const data = await request.json();
-  console.log('A/B testing action:', data);
-  
-  // Database operations would go here when schema is implemented
-  return json({ success: true });
+  try {
+    if (action === 'create') {
+      const name = formData.get('name') as string;
+      const description = formData.get('description') as string;
+      const testType = formData.get('testType') as string;
+      const primaryMetric = formData.get('primaryMetric') as string;
+      const trafficAllocation = parseFloat(formData.get('trafficAllocation') as string) || 100;
+      const confidenceLevel = parseFloat(formData.get('confidenceLevel') as string) || 95;
+      
+      // Create new experiment
+      const experiment = await prisma.aBExperiment.create({
+        data: {
+          shopId: session.shop,
+          name,
+          description,
+          testType,
+          primaryMetric,
+          trafficAllocation: trafficAllocation / 100, // Convert percentage to decimal
+          confidenceLevel: confidenceLevel / 100, // Convert percentage to decimal
+          status: 'draft',
+        }
+      });
+      
+      // Create default control variant
+      await prisma.aBVariant.create({
+        data: {
+          experimentId: experiment.id,
+          name: 'Control',
+          description: 'Original version',
+          trafficPercentage: 0.5, // 50% traffic
+          isControl: true,
+        }
+      });
+      
+      // Create test variant
+      await prisma.aBVariant.create({
+        data: {
+          experimentId: experiment.id,
+          name: 'Variant A',
+          description: 'Test version',
+          trafficPercentage: 0.5, // 50% traffic
+          isControl: false,
+        }
+      });
+      
+      return json({ success: true, message: `Experiment "${name}" created successfully!` });
+    }
+    
+    if (action === 'delete') {
+      const experimentId = parseInt(formData.get('experimentId') as string);
+      
+      await prisma.aBExperiment.delete({
+        where: { id: experimentId }
+      });
+      
+      return json({ success: true, message: 'Experiment deleted successfully!' });
+    }
+    
+    if (action === 'start') {
+      const experimentId = parseInt(formData.get('experimentId') as string);
+      
+      await prisma.aBExperiment.update({
+        where: { id: experimentId },
+        data: { 
+          status: 'running',
+          startDate: new Date()
+        }
+      });
+      
+      return json({ success: true, message: 'Experiment started successfully!' });
+    }
+    
+    if (action === 'stop') {
+      const experimentId = parseInt(formData.get('experimentId') as string);
+      
+      await prisma.aBExperiment.update({
+        where: { id: experimentId },
+        data: { 
+          status: 'completed',
+          endDate: new Date()
+        }
+      });
+      
+      return json({ success: true, message: 'Experiment stopped successfully!' });
+    }
+    
+    return json({ success: false, error: 'Unknown action' }, { status: 400 });
+  } catch (error) {
+    console.error("A/B testing action error:", error);
+    return json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to perform action" 
+    }, { status: 500 });
+  }
 };
 
 export default function ABTestingPage() {
   const data = useLoaderData<typeof loader>();
-  const experiments: ABExperiment[] = [];
+  const experiments: ABExperiment[] = 'experiments' in data ? data.experiments : [];
   const errorMessage = 'error' in data && typeof data.error === 'string' ? data.error : null;
   const message = 'message' in data && typeof data.message === 'string' ? data.message : null;
   
@@ -270,9 +369,15 @@ export default function ABTestingPage() {
             </Banner>
           )}
           
-          {message && (
-            <Banner tone="info" title="A/B Testing Coming Soon">
-              <p>{message}</p>
+          {message && experiments.length === 0 && (
+            <Banner tone="success" title="Welcome to A/B Testing">
+              <p>A/B Testing is now active! Create your first experiment to start optimizing your recommendation algorithms, bundle pricing, and customer experience.</p>
+            </Banner>
+          )}
+          
+          {message && experiments.length > 0 && (
+            <Banner tone="info" title="A/B Testing Active">
+              <p>You have {experiments.length} experiment{experiments.length === 1 ? '' : 's'} configured. Monitor their performance and optimize your results.</p>
             </Banner>
           )}
           
@@ -505,18 +610,18 @@ export default function ABTestingPage() {
               })()}
 
               {selectedExperiment.variants && selectedExperiment.variants.map((variant) => {
-                const conversionRate = calculateConversionRate(variant.total_conversions, variant.total_visitors);
-                const revenuePerVisitor = variant.total_visitors > 0 ? 
-                  (variant.total_revenue / variant.total_visitors) : 0;
+                const conversionRate = calculateConversionRate(variant.totalConversions, variant.totalVisitors);
+                const revenuePerVisitor = variant.totalVisitors > 0 ?
+                  (variant.totalRevenue / variant.totalVisitors) : 0;
                 const winnerVariantId = selectedExperiment.results?.winner_variant_id;
                 
                 return (
-                  <Card key={variant.id} background={variant.is_control ? "bg-surface-secondary" : undefined}>
+                  <Card key={variant.id} background={variant.isControl ? "bg-surface-secondary" : undefined}>
                     <BlockStack gap="300">
                       <InlineStack align="space-between">
                         <Text as="h3" variant="headingSm">{variant.name}</Text>
-                        {variant.is_control && <Badge tone="info">Control</Badge>}
-                        {!variant.is_control && winnerVariantId === variant.id && (
+                        {variant.isControl && <Badge tone="info">Control</Badge>}
+                        {!variant.isControl && winnerVariantId === variant.id && (
                           <Badge tone="success">Winner</Badge>
                         )}
                       </InlineStack>
@@ -524,12 +629,12 @@ export default function ABTestingPage() {
                       <InlineStack gap="600">
                         <BlockStack gap="100">
                           <Text as="p" variant="bodySm" tone="subdued">Visitors</Text>
-                          <Text as="p" variant="headingMd">{variant.total_visitors.toLocaleString()}</Text>
+                          <Text as="p" variant="headingMd">{variant.totalVisitors.toLocaleString()}</Text>
                         </BlockStack>
                         
                         <BlockStack gap="100">
                           <Text as="p" variant="bodySm" tone="subdued">Conversions</Text>
-                          <Text as="p" variant="headingMd">{variant.total_conversions}</Text>
+                          <Text as="p" variant="headingMd">{variant.totalConversions}</Text>
                         </BlockStack>
                         
                         <BlockStack gap="100">
@@ -555,21 +660,21 @@ export default function ABTestingPage() {
                   <BlockStack gap="200">
                     {(() => {
                       const results = selectedExperiment.results;
-                      const control = selectedExperiment.variants?.find((variant) => variant.is_control);
+                      const control = selectedExperiment.variants?.find((variant) => variant.isControl);
                       const winner = selectedExperiment.variants?.find(
                         (variant) => variant.id === results?.winner_variant_id
                       );
 
                       const controlRate = control
                         ? calculateConversionRate(
-                            control.total_conversions,
-                            control.total_visitors
+                            control.totalConversions,
+                            control.totalVisitors
                           )
                         : "0.00";
                       const winnerRate = winner
                         ? calculateConversionRate(
-                            winner.total_conversions,
-                            winner.total_visitors
+                            winner.totalConversions,
+                            winner.totalVisitors
                           )
                         : "0.00";
                       const revenueLift = results
