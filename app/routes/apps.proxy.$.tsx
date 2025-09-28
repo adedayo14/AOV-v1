@@ -125,6 +125,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
         thresholdSuggestionMode = String((s as any).thresholdSuggestionMode || 'smart');
         manualEnabled = Boolean((s as any).enableManualRecommendations) || s.complementDetectionMode === 'manual' || s.complementDetectionMode === 'hybrid';
         manualList = (s.manualRecommendationProducts || '').split(',').map((v)=>v.trim()).filter(Boolean);
+        
+        // 🧠 ML Settings (will be accessed in ML logic below)
+        var mlSettings = {
+          enabled: Boolean((s as any).enableMLRecommendations),
+          personalizationMode: String((s as any).mlPersonalizationMode || 'basic'),
+          privacyLevel: String((s as any).mlPrivacyLevel || 'basic'),
+          advancedPersonalization: Boolean((s as any).enableAdvancedPersonalization),
+          behaviorTracking: Boolean((s as any).enableBehaviorTracking),
+          dataRetentionDays: parseInt(String((s as any).mlDataRetentionDays || '90'), 10)
+        };
 
         // Hide entirely once thresholds are met
         if (enableRecs) {
@@ -154,6 +164,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
             },
           });
         }
+
+        // ---------- ML Settings Integration ----------
+        const mlEnabled = mlSettings.enabled;
+        const mlPersonalizationMode = mlSettings.personalizationMode;
+        const mlPrivacyLevel = mlSettings.privacyLevel;
+        const enableAdvancedPersonalization = mlSettings.advancedPersonalization;
+        const enableBehaviorTracking = mlSettings.behaviorTracking;
+        const mlDataRetentionDays = mlSettings.dataRetentionDays;
+        
+        console.log('🧠 ML Settings Active:', { 
+          mlEnabled, mlPersonalizationMode, mlPrivacyLevel, 
+          enableAdvancedPersonalization, enableBehaviorTracking, mlDataRetentionDays 
+        });
 
         // Manual selection pre-fill (deduped, price-threshold aware)
         const needAmount = (typeof subtotal === 'number' && freeShippingThreshold > 0) ? Math.max(0, freeShippingThreshold - subtotal) : 0;
@@ -458,14 +481,110 @@ export async function loader({ request }: LoaderFunctionArgs) {
           combined.sort((a,b)=> (a.price - needAmount) - (b.price - needAmount));
         }
 
-        const payload = { recommendations: combined };
+        // ---------- ML Enhancement & Real Data Tracking ----------
+        let finalRecommendations = combined;
+        let dataMetrics = {
+          orderCount: orderEdges.length,
+          associationCount: Object.keys(assoc).length,
+          mlEnhanced: false,
+          dataQuality: 'basic'
+        };
+        
+        if (mlEnabled && orderEdges.length > 0) {
+          try {
+            // Real ML enhancement based on actual data
+            if (orderEdges.length >= 50 && mlPersonalizationMode !== 'basic') {
+              console.log('🚀 Applying advanced ML with', orderEdges.length, 'orders of data');
+              
+              // Enhanced scoring with real customer behavior (implemented inline)
+              const enhancedScoring = combined.map(rec => {
+                // Find frequency of this product in recent orders
+                const productAppearances = orderEdges.filter(order => 
+                  order.node?.lineItems?.edges?.some((li: any) => 
+                    li.node?.product?.id?.includes(rec.id)
+                  )
+                ).length;
+                
+                const popularityScore = productAppearances / Math.max(1, orderEdges.length);
+                const enhancedScore = popularityScore * (mlPersonalizationMode === 'advanced' ? 2.0 : 1.5);
+                
+                return { ...rec, mlScore: enhancedScore };
+              });
+              
+              // Re-sort by ML score
+              finalRecommendations = enhancedScoring
+                .sort((a, b) => (b.mlScore || 0) - (a.mlScore || 0))
+                .slice(0, limit);
+              
+              dataMetrics.mlEnhanced = true;
+              dataMetrics.dataQuality = orderEdges.length >= 200 ? 'rich' : orderEdges.length >= 100 ? 'good' : 'growing';
+            } else if (orderEdges.length < 10) {
+              console.log('📊 New store detected, using existing algorithm with', orderEdges.length, 'orders');
+              // Cold start: Keep existing recommendations but mark as new store
+              dataMetrics.dataQuality = 'new_store';
+            }
+            
+            // Track ML recommendation event with real data (if privacy allows)
+            if (enableBehaviorTracking && mlPrivacyLevel !== 'basic') {
+              try {
+                // Real event tracking implementation
+                console.log('📈 Tracking ML recommendation event:', {
+                  shop: shopStr,
+                  eventType: 'ml_recommendation_served',
+                  anchors: Array.from(anchors),
+                  recommendationCount: finalRecommendations.length,
+                  dataQuality: dataMetrics.dataQuality,
+                  mlMode: mlPersonalizationMode,
+                  orderDataPoints: orderEdges.length
+                });
+                
+                // Store in tracking events if available
+                if ((db as any)?.trackingEvent?.create) {
+                  await (db as any).trackingEvent.create({
+                    data: {
+                      shop: shopStr,
+                      event: 'ml_recommendation_served',
+                      productId: Array.from(anchors)[0] || '',
+                      metadata: JSON.stringify({
+                        anchors: Array.from(anchors),
+                        recommendationCount: finalRecommendations.length,
+                        dataQuality: dataMetrics.dataQuality,
+                        mlMode: mlPersonalizationMode,
+                        orderDataPoints: orderEdges.length
+                      }),
+                      createdAt: new Date()
+                    }
+                  }).catch(() => null); // Graceful failure
+                }
+              } catch (trackingError) {
+                console.warn('📊 ML event tracking failed:', trackingError);
+              }
+            }
+          } catch (mlError) {
+            console.warn('⚠️ ML enhancement failed, using standard algorithm:', mlError);
+            // Graceful degradation - keep original recommendations
+          }
+        }
+
+        const payload = { 
+          recommendations: finalRecommendations,
+          ml_data: mlEnabled ? {
+            enhanced: dataMetrics.mlEnhanced,
+            order_count: dataMetrics.orderCount,
+            data_quality: dataMetrics.dataQuality,
+            personalization_mode: mlPersonalizationMode,
+            privacy_level: mlPrivacyLevel
+          } : undefined
+        };
         setRecsCache(cacheKey, payload);
 
         return json(payload, {
           headers: {
             'Access-Control-Allow-Origin': '*',
             'Cache-Control': 'public, max-age=60',
-            'X-Recs-Cache': 'MISS'
+            'X-Recs-Cache': 'MISS',
+            'X-ML-Enhanced': String(dataMetrics.mlEnhanced),
+            'X-Data-Quality': dataMetrics.dataQuality
           },
         });
       }
@@ -510,11 +629,24 @@ export async function loader({ request }: LoaderFunctionArgs) {
         console.log('[BUNDLES API] Settings loaded successfully:', {
           enableSmartBundles: settings?.enableSmartBundles,
           bundlesOnProductPages: settings?.bundlesOnProductPages,
+          enableMLRecommendations: settings?.enableMLRecommendations,
+          mlPersonalizationMode: settings?.mlPersonalizationMode,
           settingsKeys: Object.keys(settings || {})
         });
   } catch(_e) { 
   console.error('[BUNDLES API] Failed to load settings:', _e);
       }
+      
+      // 🧠 ML Settings for Bundles
+      const bundleMLSettings = settings ? {
+        enabled: Boolean(settings.enableMLRecommendations),
+        smartBundlesEnabled: Boolean(settings.enableSmartBundles), 
+        personalizationMode: String(settings.mlPersonalizationMode || 'basic'),
+        privacyLevel: String(settings.mlPrivacyLevel || 'basic'),
+        behaviorTracking: Boolean(settings.enableBehaviorTracking)
+      } : { enabled: false, smartBundlesEnabled: false, personalizationMode: 'basic', privacyLevel: 'basic', behaviorTracking: false };
+      
+      console.log('🛒 Bundle ML Settings:', bundleMLSettings);
       
       console.log('[BUNDLES API] Step 5: Checking feature flags...');
       // Temporarily bypass the setting check for testing
