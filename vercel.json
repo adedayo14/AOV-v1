@@ -1,15 +1,1 @@
-{
-  "buildCommand": "npm run vercel-build",
-  "installCommand": "npm ci",
-  "functions": {
-    "api/*.js": {
-      "runtime": "@vercel/node@3.0.7"
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/api"
-    }
-  ]
-}
+{}
