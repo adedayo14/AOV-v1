@@ -9,7 +9,7 @@ export async function enhancedAuthenticate(request: Request) {
   try {
     const result = await authenticate.admin(request);
     return result;
-  } catch (error) {
+  } catch (_error) {
     // For fetcher/action calls or API-like requests, always return JSON error
     // (avoid redirects that can hang spinners)
     const isJsonAccept = request.headers.get('accept')?.includes('application/json');
