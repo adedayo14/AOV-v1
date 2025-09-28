@@ -5,9 +5,6 @@ import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
 import type { AppLoadContext, EntryContext } from "@remix-run/node";
 import { addDocumentResponseHeaders } from "./shopify.server";
-// Rate limiting is handled in middleware
-import { SecurityHeaders, getClientIP } from "./services/security.server";
-import { securityMonitor } from "./services/securityMonitor.server";
 
 const ABORT_DELAY = 5_000;
 
@@ -16,38 +13,11 @@ export default function handleRequest(
   responseStatusCode: number,
   responseHeaders: Headers,
   remixContext: EntryContext,
-  _loadContext: AppLoadContext
+  loadContext: AppLoadContext
 ) {
   addDocumentResponseHeaders(request, responseHeaders);
   
-  // Apply rate limiting
-  const ip = getClientIP(request);
-  const url = new URL(request.url);
-  const shop = url.searchParams.get('shop') || 'unknown';
-  
-  try {
-    // Rate limiting is handled in middleware, just log for monitoring
-    console.log('Processing request:', { shop, ip, path: url.pathname });
-  } catch (_error) {
-    // Log any errors but continue processing
-    console.warn('Error in entry server security check:', { shop, ip });
-  }
-
   // Add comprehensive security headers
-  Object.entries(SecurityHeaders).forEach(([key, value]) => {
-    responseHeaders.set(key, value);
-  });
-
-  // Log request for monitoring
-  const validation = securityMonitor.validateRequest({
-    headers: Object.fromEntries(request.headers.entries()),
-    url: url.pathname,
-    method: request.method
-  });
-
-  if (!validation.valid) {
-    console.warn('Security validation issues in entry server:', validation.issues);
-  }
   responseHeaders.set('X-Frame-Options', 'DENY');
   responseHeaders.set('X-Content-Type-Options', 'nosniff');
   responseHeaders.set('X-XSS-Protection', '1; mode=block');
@@ -174,5 +144,60 @@ function handleBrowserRequest(
     );
 
     setTimeout(abort, ABORT_DELAY);
+  });
+}
+
+  return new Promise((resolve, reject) => {
+    const { pipe, abort } = renderToPipeableStream(
+      <RemixServer
+        context={remixContext}
+        url={request.url}
+      />,
+      {
+      // Add comprehensive security headers
+      responseHeaders.set('X-Frame-Options', 'DENY');
+      responseHeaders.set('X-Content-Type-Options', 'nosniff');
+      responseHeaders.set('X-XSS-Protection', '1; mode=block');
+      responseHeaders.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+      responseHeaders.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+      // Add CSP for production
+      if (process.env.NODE_ENV === 'production') {
+        responseHeaders.set(
+          'Content-Security-Policy',
+          "default-src 'self'; " +
+          "script-src 'self' 'unsafe-inline' https://cdn.shopify.com; " +
+          "style-src 'self' 'unsafe-inline' https://cdn.shopify.com; " +
+          "img-src 'self' data: https: blob:; " +
+          "font-src 'self' data: https://cdn.shopify.com; " +
+          "connect-src 'self' https://*.myshopify.com https://cdn.shopify.com; " +
+          "frame-ancestors 'none';"
+        );
+      }
+        [callbackName]: () => {
+          const body = new PassThrough();
+          const stream = createReadableStreamFromReadable(body);
+
+          responseHeaders.set("Content-Type", "text/html");
+          resolve(
+            new Response(stream, {
+              headers: responseHeaders,
+              status: responseStatusCode,
+            })
+          );
+          pipe(body);
+        },
+        onShellError(error) {
+          reject(error);
+        },
+        onError(error) {
+          responseStatusCode = 500;
+          console.error(error);
+        },
+      }
+    );
+
+    // Automatically timeout the React renderer after 6 seconds, which ensures
+    // React has enough time to flush down the rejected boundary contents
+    setTimeout(abort, streamTimeout + 1000);
   });
 }

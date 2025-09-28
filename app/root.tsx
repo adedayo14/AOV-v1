@@ -6,6 +6,8 @@ import {
   ScrollRestoration,
 } from "@remix-run/react";
 import { IframeBreaker } from "./components/IframeBreaker";
+import { useRouteError, isRouteErrorResponse } from "@remix-run/react";
+import { useEffect, useState } from "react";
 
 export default function App() {
   return (
@@ -101,6 +103,80 @@ export default function App() {
         <IframeBreaker />
         <Outlet />
         <ScrollRestoration />
+        <Scripts />
+      </body>
+    </html>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  const [errorId] = useState(() => Math.random().toString(36).substr(2, 9));
+  
+  // Log to monitoring service
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Log to Sentry if available
+      if ((window as any).Sentry) {
+        (window as any).Sentry.captureException(error);
+      }
+      
+      // Also log to console for debugging
+      console.error('App Error:', {
+        errorId,
+        error,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }, [error, errorId]);
+
+  // Check if it's a known error type
+  if (isRouteErrorResponse(error)) {
+    return (
+      <html>
+        <head>
+          <title>{error.status} {error.statusText}</title>
+          <Meta />
+          <Links />
+        </head>
+        <body>
+          <div className="error-page">
+            <h1 className="error-status">{error.status}</h1>
+            <p className="error-message">{error.statusText}</p>
+            {error.data?.message && (
+              <p className="error-details">{error.data.message}</p>
+            )}
+            <p className="error-id">Error ID: {errorId}</p>
+          </div>
+          <Scripts />
+        </body>
+      </html>
+    );
+  }
+
+  return (
+    <html>
+      <head>
+        <title>Something went wrong | Cart Uplift</title>
+        <Meta />
+        <Links />
+      </head>
+      <body>
+        <div className="error-page">
+          <h1 className="error-title">Oops! Something went wrong</h1>
+          <p className="error-description">
+            We're working on fixing this issue. Please try refreshing the page.
+          </p>
+          {process.env.NODE_ENV === 'development' && error instanceof Error && (
+            <details className="error-details-dev">
+              <summary className="error-summary">Error Details (Development Only)</summary>
+              <pre className="error-stack">
+                {error.stack || error.message}
+              </pre>
+            </details>
+          )}
+          <p className="error-id">Error ID: {errorId}</p>
+        </div>
         <Scripts />
       </body>
     </html>
