@@ -227,7 +227,7 @@ export default function Index() {
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">Automated cross-sell suggestions</Text>
                     </div>
-                    <Link to="/app/dashboard">
+                    <Link to="/app/manage">
                       <Button size="micro">Manage Products</Button>
                     </Link>
                   </div>
