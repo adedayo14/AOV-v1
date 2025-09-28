@@ -481,19 +481,80 @@ export async function loader({ request }: LoaderFunctionArgs) {
           combined.sort((a,b)=> (a.price - needAmount) - (b.price - needAmount));
         }
 
+        // ---------- A/B Testing Integration ----------
+        let abTestVariant: string | null = null;
+        let abTestConfig: any = {};
+        
+        // Check for active A/B experiments
+        try {
+          const userId = url.searchParams.get('session_id') || url.searchParams.get('customer_id') || 'anonymous';
+          const abResponse = await fetch(`${url.origin}/apps/proxy/api/ab-testing?action=get_active_experiments`, {
+            headers: { 'X-Shopify-Shop-Domain': shopStr }
+          });
+          
+          if (abResponse.ok) {
+            const abData = await abResponse.json();
+            const activeExperiments = abData.experiments || [];
+            
+            // Find recommendation-related experiments
+            const recommendationExperiment = activeExperiments.find((exp: any) => 
+              exp.test_type === 'ml_algorithm' || exp.test_type === 'recommendation_copy'
+            );
+            
+            if (recommendationExperiment) {
+              // Get variant assignment
+              const variantResponse = await fetch(`${url.origin}/apps/proxy/api/ab-testing?action=get_variant&experiment_id=${recommendationExperiment.id}&user_id=${userId}`, {
+                headers: { 'X-Shopify-Shop-Domain': shopStr }
+              });
+              
+              if (variantResponse.ok) {
+                const variantData = await variantResponse.json();
+                abTestVariant = variantData.variant;
+                abTestConfig = variantData.config || {};
+                
+                console.log('🧪 A/B Test Active:', {
+                  experiment: recommendationExperiment.name,
+                  variant: abTestVariant,
+                  config: abTestConfig
+                });
+              }
+            }
+          }
+        } catch (abError) {
+          console.warn('⚠️ A/B testing check failed:', abError);
+        }
+
         // ---------- ML Enhancement & Real Data Tracking ----------
         let finalRecommendations = combined;
         let dataMetrics = {
           orderCount: orderEdges.length,
           associationCount: Object.keys(assoc).length,
           mlEnhanced: false,
-          dataQuality: 'basic'
+          dataQuality: 'basic',
+          abTestVariant: abTestVariant,
+          abTestConfig: abTestConfig
         };
         
-        if (mlEnabled && orderEdges.length > 0) {
+        // Apply A/B test overrides to ML configuration
+        let effectiveMlEnabled = mlEnabled;
+        let effectivePersonalizationMode = mlPersonalizationMode;
+        
+        if (abTestVariant && abTestConfig) {
+          if ('mlEnabled' in abTestConfig) {
+            effectiveMlEnabled = abTestConfig.mlEnabled;
+          }
+          if (abTestConfig.personalizationMode) {
+            effectivePersonalizationMode = abTestConfig.personalizationMode;
+          }
+          if (abTestConfig.algorithm) {
+            console.log('🧪 A/B Test Algorithm Override:', abTestConfig.algorithm);
+          }
+        }
+
+        if (effectiveMlEnabled && orderEdges.length > 0) {
           try {
             // Real ML enhancement based on actual data
-            if (orderEdges.length >= 50 && mlPersonalizationMode !== 'basic') {
+            if (orderEdges.length >= 50 && effectivePersonalizationMode !== 'basic') {
               console.log('🚀 Applying advanced ML with', orderEdges.length, 'orders of data');
               
               // Enhanced scoring with real customer behavior (implemented inline)
@@ -506,7 +567,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
                 ).length;
                 
                 const popularityScore = productAppearances / Math.max(1, orderEdges.length);
-                const enhancedScore = popularityScore * (mlPersonalizationMode === 'advanced' ? 2.0 : 1.5);
+                const enhancedScore = popularityScore * (effectivePersonalizationMode === 'advanced' ? 2.0 : 1.5);
                 
                 return { ...rec, mlScore: enhancedScore };
               });

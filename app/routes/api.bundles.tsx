@@ -126,7 +126,7 @@ export const action = withAuth(async ({ request }: ActionFunctionArgs) => {
     
     switch (actionType) {
       case 'create':
-        return await createBundle(shop, bundle);
+        return await createBundle(shop, bundle, request);
       case 'update':
         return await updateBundle(shop, bundle);
       case 'delete':
@@ -268,7 +268,7 @@ async function getBundlesForShop(_shop: string) {
   ];
 }
 
-async function createBundle(shop: string, bundleData: any) {
+async function createBundle(shop: string, bundleData: any, request?: Request) {
   console.log('Creating new bundle for shop:', shop);
   
   // Validate bundle data
@@ -276,10 +276,52 @@ async function createBundle(shop: string, bundleData: any) {
     return json({ error: 'Bundle must have a name and at least 2 products' }, { status: 400 });
   }
   
-  // Calculate pricing
+  // Calculate pricing with A/B testing integration
   const regularTotal = bundleData.products.reduce((sum: number, product: any) => 
     sum + parseFloat(product.price), 0);
-  const discountPercent = parseFloat(bundleData.discount_percent || '10');
+  let discountPercent = parseFloat(bundleData.discount_percent || '10');
+  
+  // Check for A/B test variant override
+  if (request) {
+    try {
+      const userId = request.headers.get('X-User-ID') || 'anonymous';
+      const abResponse = await fetch(`${new URL(request.url).origin}/api/ab-testing?action=get_variant&experiment_type=bundle_discount&user_id=${userId}`, {
+        headers: { 'X-Shopify-Shop-Domain': shop }
+      });
+      
+      if (abResponse.ok) {
+        const abData = await abResponse.json();
+        if (abData.variant && abData.config && abData.config.discountPercent) {
+          const originalDiscount = discountPercent;
+          discountPercent = abData.config.discountPercent;
+          console.log('🧪 Bundle discount A/B test active:', {
+            original: originalDiscount,
+            variant: abData.variant,
+            newDiscount: discountPercent
+          });
+          
+          // Track A/B test exposure
+          fetch(`${new URL(request.url).origin}/api/ab-testing`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'X-Shopify-Shop-Domain': shop 
+            },
+            body: JSON.stringify({
+              action: 'track_event',
+              experiment_id: abData.experiment_id,
+              user_id: userId,
+              event_type: 'bundle_shown',
+              properties: { bundle_id: `bundle_${Date.now()}`, discount: discountPercent }
+            })
+          }).catch(err => console.warn('A/B tracking failed:', err));
+        }
+      }
+    } catch (abError) {
+      console.warn('Bundle A/B test check failed:', abError);
+    }
+  }
+  
   const bundlePrice = regularTotal * (1 - discountPercent / 100);
   const savingsAmount = regularTotal - bundlePrice;
   
