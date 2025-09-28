@@ -1,16 +1,24 @@
-// Remix Vercel handler for production deployment
 import { createRequestHandler } from "@remix-run/vercel";
 
-// Import the server build
-let build;
-try {
-  build = await import("../build/server/index.js");
-} catch (error) {
-  console.error("Failed to import server build:", error);
-  throw new Error("Server build not found. Make sure to run 'npm run build' first.");
-}
+let handler;
 
-export default createRequestHandler({ 
-  build, 
-  mode: process.env.NODE_ENV || "production"
-});
+export default async function (request, response) {
+  if (!handler) {
+    // Lazy load the build on first request
+    try {
+      const build = await import("../build/server/index.js");
+      handler = createRequestHandler({ 
+        build, 
+        mode: process.env.NODE_ENV || "production" 
+      });
+    } catch (error) {
+      console.error("Failed to load Remix build:", error);
+      return response.status(500).json({ 
+        error: "Server configuration error",
+        message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  }
+  
+  return handler(request, response);
+}
