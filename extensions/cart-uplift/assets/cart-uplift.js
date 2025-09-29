@@ -84,7 +84,16 @@
       this.settings.enableNotes = Boolean(this.settings.enableNotes);
       this.settings.enableDiscountCode = this.settings.enableDiscountCode !== false; // DEFAULT TO TRUE
       this.settings.enableExpressCheckout = this.settings.enableExpressCheckout !== false; // DEFAULT TO TRUE
-      this.settings.autoOpenCart = this.settings.autoOpenCart !== false;
+      
+      // Handle both autoOpenCart (from API) and keepCartOpen (from theme design mode)
+      // In design mode, keepCartOpen overrides autoOpenCart for editor convenience
+      // When not in design mode, respect the actual autoOpenCart setting
+      if (this.settings.designMode && this.settings.keepCartOpen !== undefined) {
+        this.settings.autoOpenCart = Boolean(this.settings.keepCartOpen);
+      } else {
+        this.settings.autoOpenCart = Boolean(this.settings.autoOpenCart);
+      }
+      
       this.settings.enableTitleCaps = Boolean(this.settings.enableTitleCaps);
       
   // Set default gift notice text if not provided (now purely gift oriented, no shipping savings wording)

@@ -139,8 +139,8 @@
         var __isDesignMode = !!(window.Shopify && window.Shopify.designMode);
 
   window.CartUpliftSettings = Object.assign({}, window.CartUpliftSettings || {}, {
-          // Cart Behavior (auto-enabled in design mode)
-          keepCartOpen: __isDesignMode,
+          // Cart Behavior (controlled by theme setting in design mode)
+          keepCartOpen: __isDesignMode ? {{ block.settings.keep_cart_open | json }} : false,
           
           // Incentives
           incentiveType: {{ block.settings.incentive_type | json }},
@@ -211,9 +211,8 @@
             window.CartUpliftSettings.enableAnalytics = false;
             window.CartUpliftSettings.suppressAutoAdd = true;
             
-            // Enable automatic cart reopening for theme editor convenience
-            window.CartUpliftSettings.keepCartOpen = true;
-            console.info('[CartUplift] Theme editor mode: Auto-enabled keepCartOpen for editing convenience');
+            // Keep cart open setting is now controlled by theme setting, not forced
+            console.info('[CartUplift] Theme editor mode: keepCartOpen =', window.CartUpliftSettings.keepCartOpen);
             
             // Prevent accidental redirects initiated extremely early
             window.addEventListener('click', function(e){
