@@ -134,6 +134,89 @@ model Settings {
   updatedAt               DateTime @updatedAt
 }
 
+// Bundle Management System
+model Bundle {
+  id              String   @id @default(cuid())
+  shop            String
+  name            String
+  description     String?
+  type            String   // "manual", "category", "ai_suggested" 
+  status          String   @default("draft") // "draft", "active", "paused"
+  
+  // Discount Configuration
+  discountType    String   @default("percentage") // "percentage", "fixed"
+  discountValue   Float    @default(0)
+  
+  // Bundle Rules
+  categoryIds     String?  // JSON array of category IDs for category bundles
+  productIds      String   // JSON array of product IDs
+  minProducts     Int      @default(2) // Minimum products required for bundle
+  maxProducts     Int?     // Maximum products allowed (null = unlimited)
+  
+  // AI Bundle Settings
+  aiAutoApprove   Boolean  @default(false) // Auto-show AI bundles or require approval
+  aiDiscountMax   Float?   // Maximum discount AI can apply
+  
+  // Performance Tracking
+  totalViews      Int      @default(0)
+  totalAddToCart  Int      @default(0) 
+  totalPurchases  Int      @default(0)
+  totalRevenue    Float    @default(0)
+  
+  // Bundle Configuration
+  displayTitle    String?  // Custom title for storefront
+  displayRules    String?  // JSON: display conditions, triggers, etc.
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  bundles         BundleProduct[]
+  
+  @@index([shop])
+}
+
+model BundleProduct {
+  id         String   @id @default(cuid())
+  bundleId   String
+  productId  String   // Shopify product ID
+  variantId  String?  // Specific variant ID (optional)
+  position   Int      @default(0) // Order in bundle
+  required   Boolean  @default(false) // Required vs optional product
+  
+  // Product metadata (cached for performance)
+  productTitle  String?
+  productHandle String?
+  productPrice  Float?
+  
+  createdAt  DateTime @default(now())
+  
+  // Relations  
+  bundle     Bundle   @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  
+  @@index([bundleId])
+  @@index([productId])
+}
+
+// Customer Bundle Interactions
+model CustomerBundle {
+  id           String   @id @default(cuid())
+  shop         String
+  customerId   String?  // Shopify customer ID (null for anonymous)
+  bundleId     String
+  sessionId    String?  // For anonymous tracking
+  
+  action       String   // "view", "add_to_cart", "purchase"
+  cartValue    Float?   // Cart value when action occurred
+  discountApplied Float? // Actual discount applied
+  
+  createdAt    DateTime @default(now())
+  
+  @@index([shop])
+  @@index([bundleId])
+  @@index([customerId])
+}
+
 // A/B Testing Models (keep in sync with development schema)
 model ABExperiment {
   id                 Int       @id @default(autoincrement())

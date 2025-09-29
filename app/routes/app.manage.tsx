@@ -1,1 +1,1 @@
-export { loader, default } from "./admin.manage";
+export { loader, default } from "./admin.bundle-management-simple";

@@ -510,28 +510,36 @@ export default function ABTestingPage() {
         title="Create New A/B Test"
         primaryAction={{
           content: 'Create Experiment',
+          disabled: !newExperiment.name.trim(),
           onAction: () => {
+            if (!newExperiment.name.trim()) {
+              alert('Please enter an experiment name');
+              return;
+            }
+
             const formData = new FormData();
             formData.append('action', 'create');
-            formData.append('name', newExperiment.name);
-            formData.append('description', newExperiment.description);
+            formData.append('name', newExperiment.name.trim());
+            formData.append('description', newExperiment.description.trim());
             formData.append('testType', newExperiment.testType);
             formData.append('primaryMetric', newExperiment.primaryMetric);
             formData.append('trafficAllocation', String(newExperiment.trafficAllocation));
             formData.append('confidenceLevel', String(newExperiment.confidenceLevel));
             
             fetcher.submit(formData, { method: 'post' });
-            setShowCreateModal(false);
             
-            // Reset form
-            setNewExperiment({
-              name: '',
-              description: '',
-              testType: 'bundle_pricing',
-              primaryMetric: 'conversion_rate',
-              trafficAllocation: 100,
-              confidenceLevel: 95
-            });
+            // Reset form and close modal after slight delay
+            setTimeout(() => {
+              setNewExperiment({
+                name: '',
+                description: '',
+                testType: 'bundle_pricing',
+                primaryMetric: 'conversion_rate',
+                trafficAllocation: 100,
+                confidenceLevel: 95
+              });
+              setShowCreateModal(false);
+            }, 100);
           }
         }}
         secondaryActions={[{
