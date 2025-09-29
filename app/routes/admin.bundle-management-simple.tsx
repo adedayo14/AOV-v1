@@ -247,7 +247,7 @@ export default function SimpleBundleManagement() {
         availableCollections.length === 0 && !isLoadingCollections) {
       console.log('🔥 Loading collections via fetcher...');
       setIsLoadingCollections(true);
-      collectionsFetcher.load('/api/bundle-management?action=categories');
+      collectionsFetcher.load('/api/collections');
     }
   }, [showCreateModal, newBundle.bundleType, availableCollections.length, isLoadingCollections, collectionsFetcher]);
 
@@ -255,8 +255,8 @@ export default function SimpleBundleManagement() {
   useEffect(() => {
     if (collectionsFetcher.state === 'idle' && collectionsFetcher.data) {
       const data = collectionsFetcher.data as any;
-      if (data.success && data.categories) {
-        setAvailableCollections(data.categories);
+      if (data.success && data.collections) {
+        setAvailableCollections(data.collections);
       }
       setIsLoadingCollections(false);
     }
@@ -621,7 +621,7 @@ export default function SimpleBundleManagement() {
                         content: "Reload Collections",
                         onAction: () => {
                           setIsLoadingCollections(true);
-                          collectionsFetcher.load('/api/bundle-management?action=categories');
+                          collectionsFetcher.load('/api/collections');
                         },
                       }}
                     >

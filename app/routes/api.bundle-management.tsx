@@ -14,14 +14,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
     if (action === "bundles") {
       // Get all bundles for the shop
-  const bundles = await (prisma as any).bundle.findMany({
+      const bundles = await (prisma as any).bundle.findMany({
         where: { shop: session.shop },
         include: {
-          bundles: {
-            include: {
-              // We don't have product relation, so we'll fetch product data separately
-            }
-          }
+          bundles: true  // Include BundleProduct relations
         },
         orderBy: { createdAt: 'desc' }
       });
