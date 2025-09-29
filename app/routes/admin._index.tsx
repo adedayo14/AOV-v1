@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, useNavigate } from "@remix-run/react";
+import { useCallback } from "react";
 import {
   Page,
   Card,
@@ -122,6 +123,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function Index() {
   const { setupSteps, progressPercentage, shop, currentThemeId } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
+
+  const handleNavigate = useCallback((path: string) => {
+    navigate(path);
+  }, [navigate]);
 
   // Build absolute admin URL so it doesn't try to open inside the embed iframe
   const shopHandle = (shop || '').replace('.myshopify.com', '');
@@ -195,14 +201,14 @@ export default function Index() {
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">AI-powered product recommendations</Text>
                     </div>
-                    <Button size="micro" variant="primary" url="/admin/settings">Configure ML</Button>
+                    <Button size="micro" variant="primary" onClick={() => handleNavigate("/admin/settings")}>Configure ML</Button>
                   </div>
                   <div className="feature-item">
                     <div className="feature-content">
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">Dynamic free shipping incentives</Text>
                     </div>
-                    <Button size="micro" url="/admin/settings">Setup Threshold</Button>
+                    <Button size="micro" onClick={() => handleNavigate("/admin/settings")}>Setup Threshold</Button>
                   </div>
                 </div>
                 <div className="feature-column">
@@ -211,14 +217,14 @@ export default function Index() {
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">Automated cross-sell suggestions</Text>
                     </div>
-                    <Button size="micro" url="/admin/manage">Manage Products</Button>
+                    <Button size="micro" onClick={() => handleNavigate("/admin/manage")}>Manage Products</Button>
                   </div>
                   <div className="feature-item">
                     <div className="feature-content">
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">Cart progress & abandonment tracking</Text>
                     </div>
-                    <Button size="micro" url="/admin/dashboard">View Analytics</Button>
+                    <Button size="micro" onClick={() => handleNavigate("/admin/dashboard")}>View Analytics</Button>
                   </div>
                 </div>
                 <div className="feature-column">
@@ -227,21 +233,21 @@ export default function Index() {
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">Conversion rate optimization</Text>
                     </div>
-                    <Button size="micro" variant="primary" url="/admin/ab-testing">A/B Test</Button>
+                    <Button size="micro" variant="primary" onClick={() => handleNavigate("/admin/ab-testing")}>A/B Test</Button>
                   </div>
                   <div className="feature-item">
                     <div className="feature-content">
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">Customizable layouts & styling</Text>
                     </div>
-                    <Button size="micro" url="/admin/settings">Customize</Button>
+                    <Button size="micro" onClick={() => handleNavigate("/admin/settings")}>Customize</Button>
                   </div>
                 </div>
               </div>
             </BlockStack>
             <InlineStack gap="300">
-              <Button variant="primary" size="large" url="/app/settings">Configure Settings</Button>
-              <Button size="large" url="/app/dashboard">View Dashboard</Button>
+              <Button variant="primary" size="large" onClick={() => handleNavigate("/app/settings")}>Configure Settings</Button>
+              <Button size="large" onClick={() => handleNavigate("/app/dashboard")}>View Dashboard</Button>
             </InlineStack>
           </BlockStack>
         </Card>
@@ -335,7 +341,7 @@ export default function Index() {
               </div>
               
               <InlineStack gap="300">
-                <Button variant="primary" url="/app/settings">Complete Setup</Button>
+                <Button variant="primary" onClick={() => handleNavigate("/app/settings")}>Complete Setup</Button>
                 <Button variant="secondary" onClick={() => {
                   try {
                     if (typeof window !== 'undefined' && window.top) {
@@ -478,7 +484,7 @@ export default function Index() {
               </div>
               <div className="card-button-wrapper">
                 <div className="cartuplift-action-buttons">
-                  <Button variant="primary" size="large" url="/app/dashboard">View Dashboard</Button>
+                  <Button variant="primary" size="large" onClick={() => handleNavigate("/app/dashboard")}>View Dashboard</Button>
                 </div>
               </div>
             </Card>
