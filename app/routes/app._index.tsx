@@ -142,6 +142,20 @@ export default function Index() {
     ? `https://admin.shopify.com/store/${shopHandle}/themes/${currentThemeId}/editor?context=apps`
     : `https://admin.shopify.com/store/${shopHandle}/themes/current/editor?context=apps`;
 
+  // Enhanced navigation function that works in embedded app context
+  const navigateToPage = (path: string) => {
+    console.log('Navigation requested to:', path);
+    try {
+      // In embedded Shopify apps, we need to use standard navigate
+      navigate(path);
+      console.log('Navigation successful using standard navigate');
+    } catch (error) {
+      console.warn('Standard navigation failed, trying alternative method:', error);
+      // Fallback: use window location for embedded app context
+      window.location.href = path;
+    }
+  };
+
   return (
     <Page fullWidth>
       <TitleBar title="Cart Uplift - Smart Upsells & Cart Optimization" />
@@ -211,7 +225,7 @@ export default function Index() {
                     <Button 
                       size="micro" 
                       variant="primary"
-                      onClick={() => navigate('/app/settings')}
+                      onClick={() => navigateToPage('/app/settings')}
                     >
                       Configure ML
                     </Button>
@@ -234,7 +248,7 @@ export default function Index() {
                     </div>
                     <Button 
                       size="micro"
-                      onClick={() => navigate('/app/manage')}
+                      onClick={() => navigateToPage('/app/manage')}
                     >
                       Manage Products
                     </Button>
@@ -246,7 +260,7 @@ export default function Index() {
                     </div>
                     <Button 
                       size="micro"
-                      onClick={() => navigate('/app/dashboard')}
+                      onClick={() => navigateToPage('/app/dashboard')}
                     >
                       View Analytics
                     </Button>
@@ -261,7 +275,7 @@ export default function Index() {
                     <Button 
                       size="micro" 
                       variant="primary"
-                      onClick={() => navigate('/app/dashboard')}
+                      onClick={() => navigateToPage('/app/dashboard')}
                     >
                       View Dashboard
                     </Button>
@@ -283,15 +297,15 @@ export default function Index() {
             </BlockStack>
             <InlineStack gap="300">
               <Button 
-                variant="primary" 
+                variant="primary"
                 size="large"
-                onClick={() => navigate('/app/settings')}
+                onClick={() => navigateToPage('/app/settings')}
               >
                 Configure Settings
               </Button>
               <Button 
                 size="large"
-                onClick={() => navigate('/app/dashboard')}
+                onClick={() => navigateToPage('/app/dashboard')}
               >
                 View Dashboard
               </Button>
@@ -318,13 +332,14 @@ export default function Index() {
                   💡 <strong>Tip:</strong> Use dashboard insights to optimize your cart settings and maximize ROI.
                 </Text>
                 <div className="card-button-wrapper">
-                  <Button 
-                    variant="primary" 
-                    size="large"
-                    onClick={() => navigate('/app/dashboard')}
-                  >
-                    Open Dashboard
-                  </Button>
+                  <Link to="/app/dashboard">
+                    <Button 
+                      variant="primary" 
+                      size="large"
+                    >
+                      Open Dashboard
+                    </Button>
+                  </Link>
                 </div>
               </BlockStack>
             </Card>
@@ -347,13 +362,14 @@ export default function Index() {
                   🎯 <strong>Ready:</strong> Statistical significance testing and conversion tracking active.
                 </Text>
                 <div className="card-button-wrapper">
-                  <Button 
-                    variant="primary" 
-                    size="large"
-                    onClick={() => navigate('/app/ab-testing')}
-                  >
-                    Start A/B Testing
-                  </Button>
+                  <Link to="/app/ab-testing">
+                    <Button 
+                      variant="primary" 
+                      size="large"
+                    >
+                      Start A/B Testing
+                    </Button>
+                  </Link>
                 </div>
               </BlockStack>
             </Card>
@@ -447,12 +463,13 @@ export default function Index() {
               </div>
               
               <InlineStack gap="300">
-                <Button 
-                  variant="primary"
-                  onClick={() => navigate('/app/settings')}
-                >
-                  Complete Setup
-                </Button>
+                <Link to="/app/settings">
+                  <Button 
+                    variant="primary"
+                  >
+                    Complete Setup
+                  </Button>
+                </Link>
                 <a href={themeEditorUrl} target="_top" rel="noopener noreferrer">
                   <Button variant="secondary">Install Theme Embed</Button>
                 </a>
