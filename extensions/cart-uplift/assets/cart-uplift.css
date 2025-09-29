@@ -1540,18 +1540,10 @@ body.cartuplift-no-scroll {
 .cartuplift-grid-title { display:none !important; }
 .cartuplift-grid-price { display:none !important; }
 
-.cartuplift-grid-add-btn { background: #000; color:#fff; border:0; font-size:11px; font-weight:500; padding:6px 10px; line-height:1; border-radius:0; display:inline-flex; gap:6px; align-items:center; opacity:0; transform:translateY(6px); transition:opacity .3s ease, transform .3s ease, background .2s ease; }
-.cartuplift-grid-add-btn { background: #000; color:#fff; border:0; font-size:16px; font-weight:500; padding:0; line-height:1; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; box-shadow:0 1px 4px rgba(0,0,0,0.08); opacity:0; transform:translateY(6px); transition:opacity .3s ease, transform .3s ease, background .2s ease; }
-.cartuplift-grid-add-btn svg { width:24px; height:24px; display:block; stroke:#fff; }
-.cartuplift-grid-add-btn:hover { background:#fff; color:#000; }
-.cartuplift-grid-add-btn:hover svg { stroke:#000; }
-.cartuplift-grid-add-btn:active, .cartuplift-grid-add-btn:focus {
-  background: #000;
-  color: #fff;
-}
-.cartuplift-grid-add-btn:active svg, .cartuplift-grid-add-btn:focus svg {
-  stroke: #fff;
-}
+.cartuplift-grid-add-btn { background: #fff; color:#000; border:0; font-size:16px; font-weight:500; padding:0; line-height:1; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; box-shadow:0 1px 4px rgba(0,0,0,0.08); opacity:0; transform:translateY(6px); transition:opacity .3s ease, transform .3s ease; }
+.cartuplift-grid-add-btn svg { width:24px; height:24px; display:block; stroke:#000; }
+.cartuplift-grid-add-btn:hover, .cartuplift-grid-add-btn:active, .cartuplift-grid-add-btn:focus { background:#fff; color:#000; }
+.cartuplift-grid-add-btn:hover svg, .cartuplift-grid-add-btn:active svg, .cartuplift-grid-add-btn:focus svg { stroke:#000; }
 .cartuplift-grid-item:hover .cartuplift-grid-add-btn { opacity:1; transform:translateY(0); }
 .cartuplift-grid-add-btn svg { width:14px; height:14px; }
 .cartuplift-grid-add-btn:hover { background:#222; }
@@ -1563,7 +1555,7 @@ body.cartuplift-no-scroll {
 .cartuplift-grid-container .cartuplift-grid-price { display:none !important; }
 
 /* Limit to exactly 8 items visually (2 rows) */
-.cartuplift-grid-container > .cartuplift-grid-item:nth-child(n+4) { display:none !important; }
+
 
 /* Typography smoothing */
 .cartuplift-grid-container, .cartuplift-grid-container * { -webkit-font-smoothing: antialiased; }
