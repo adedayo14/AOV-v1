@@ -5,7 +5,7 @@
    ======================================== */
 :root {
   --cartuplift-primary: #1a1a1a;
-  --cartuplift-secondary: #666666;
+  --cartuplift-secondary: #666666;price 
   --cartuplift-border: #e5e5e5;
   --cartuplift-background: #ffffff;
   --cartuplift-cart-background: var(--cartuplift-background); /* Dedicated cart background */
@@ -1253,14 +1253,13 @@ body.cartuplift-no-scroll {
   object-fit: contain;
 }
 
-/* Column 2: Product Info (Title + Price + Variations) */
+/* Column 2: Product Info (Title only) */
 .cartuplift-product-info {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px; /* Reduced spacing between title and price */
+  gap: 6px;
   min-width: 0;
-  padding-top: 8px; /* Small padding to not align with top of image */
   justify-content: flex-start;
 }
 
@@ -1282,8 +1281,7 @@ body.cartuplift-no-scroll {
 
 /* Variation selector - only show if product has multiple variants */
 .cartuplift-product-variation {
-  margin-top: 6px; /* Small gap after price */
-  order: 3; /* Ensure it comes after price */
+  margin-top: 6px;
 }
 
 .cartuplift-size-dropdown {
@@ -1321,25 +1319,25 @@ body.cartuplift-no-scroll {
   display: none;
 }
 
-/* Column 3: Add Button Only */
+/* Column 3: Price and Add Button */
 .cartuplift-product-actions {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  justify-content: flex-end; /* Align button to bottom */
+  justify-content: space-between;
   flex-shrink: 0;
-  width: 70px; /* Wider since no price to accommodate */
+  width: 80px;
   height: 100%;
-  padding-bottom: 8px; /* Small padding from bottom edge */
+  padding-top: 4px;
 }
 
 .cartuplift-recommendation-card .cartuplift-recommendation-price {
-  font-size: 14px; /* Slightly smaller to match title */
+  font-size: 13px;
   font-weight: 600;
   color: #000;
   margin: 0;
-  text-align: left; /* Changed from right to left */
-  order: 2; /* Ensure it comes after title */
+  text-align: right;
+  margin-bottom: 8px;
 }
 
 .cartuplift-add-recommendation {
@@ -1354,7 +1352,6 @@ body.cartuplift-no-scroll {
   white-space: nowrap;
   min-width: 60px;
   text-align: center;
-  margin-top: auto; /* Keep auto to push to bottom */
   /* Removed transitions and hover effects */
 }
 
