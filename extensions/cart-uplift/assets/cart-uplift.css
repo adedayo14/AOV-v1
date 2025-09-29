@@ -1473,7 +1473,7 @@ body.cartuplift-no-scroll {
 .cartuplift-grid-container {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  grid-auto-rows: calc(70vw / 3 * 0.7); /* 3 items, height reduced by 30% */
+  grid-auto-rows: calc(100vw / 3); /* 3 items, each fully visible, square ratio */
   gap: 0;
   justify-content: stretch;
   width: 100vw;
@@ -1495,7 +1495,7 @@ body.cartuplift-no-scroll {
 .cartuplift-grid-item {
   position: relative;
   width: 100%; /* Full width of column */
-  height: calc(70vw / 3 * 0.7); /* 3 items, height reduced by 30% */
+  height: calc(100vw / 3); /* 3 items, each fully visible, square ratio */
   aspect-ratio: unset;
   cursor: pointer;
   overflow: hidden;
