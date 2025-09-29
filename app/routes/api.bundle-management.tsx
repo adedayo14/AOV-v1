@@ -49,6 +49,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       `);
 
       const responseJson = await response.json();
+      
+      if ((responseJson as any).errors) {
+        console.error('GraphQL errors:', (responseJson as any).errors);
+        return json({ 
+          success: false, 
+          error: 'Failed to fetch collections from Shopify',
+          categories: []
+        }, { status: 500 });
+      }
+      
       const collections = responseJson.data?.collections?.edges || [];
       
       return json({ 

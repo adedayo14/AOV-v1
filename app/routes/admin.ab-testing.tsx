@@ -202,13 +202,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       aBVariant: !!(prisma as any).aBVariant 
     });
     
-    if (!(prisma as any).aBExperiment) {
-      console.error('A/B Testing models not available in Prisma Client');
-      return json({ 
-        success: false, 
-        error: 'A/B Testing models are not available. Please ensure database is properly configured.' 
-      }, { status: 500 });
-    }
     if (action === 'create') {
       const name = formData.get('name') as string;
       const description = formData.get('description') as string || '';
@@ -220,7 +213,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       // Create experiment with control and variant
       const experiment = await (prisma as any).aBExperiment.create({
         data: {
-          shop,
+          shopId: shop,
           name,
           description,
           testType,
@@ -233,14 +226,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               {
                 name: 'Control',
                 description: 'Original version',
-                isControl: true,
-                trafficAllocation: 50
+                trafficPercentage: 50
               },
               {
                 name: 'Variant A',
                 description: 'Test variant',
-                isControl: false,
-                trafficAllocation: 50
+                trafficPercentage: 50
               }
             ]
           }
@@ -253,7 +244,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (action === 'delete') {
       const experimentId = parseInt(formData.get('experimentId') as string);
       
-      await prisma.aBExperiment.delete({
+      await (prisma as any).aBExperiment.delete({
         where: { id: experimentId }
       });
       
@@ -263,7 +254,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (action === 'start') {
       const experimentId = parseInt(formData.get('experimentId') as string);
       
-      await prisma.aBExperiment.update({
+      await (prisma as any).aBExperiment.update({
         where: { id: experimentId },
         data: { 
           status: 'running',
@@ -277,7 +268,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (action === 'stop') {
       const experimentId = parseInt(formData.get('experimentId') as string);
       
-      await prisma.aBExperiment.update({
+      await (prisma as any).aBExperiment.update({
         where: { id: experimentId },
         data: { 
           status: 'completed',
