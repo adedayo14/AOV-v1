@@ -11,7 +11,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
     if (action === "bundles") {
       // Get all bundles for the shop
-      const bundles = await prisma.bundle.findMany({
+  const bundles = await (prisma as any).bundle.findMany({
         where: { shop: session.shop },
         include: {
           bundles: {
@@ -195,7 +195,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
 
       // Create the bundle
-      const bundle = await prisma.bundle.create({
+  const bundle = await (prisma as any).bundle.create({
         data: {
           shop: session.shop,
           name,
@@ -226,7 +226,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               required: index === 0 // First product is required by default
             }));
 
-            await prisma.bundleProduct.createMany({
+            await (prisma as any).bundleProduct.createMany({
               data: bundleProducts
             });
           }
@@ -245,7 +245,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const status = formData.get('status') as string;
       const discountValue = parseFloat(formData.get('discountValue') as string);
 
-      const bundle = await prisma.bundle.update({
+  const bundle = await (prisma as any).bundle.update({
         where: { id: bundleId, shop: session.shop },
         data: {
           name,
@@ -261,7 +261,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (actionType === 'delete-bundle') {
       const bundleId = formData.get('bundleId') as string;
 
-      await prisma.bundle.delete({
+  await (prisma as any).bundle.delete({
         where: { id: bundleId, shop: session.shop }
       });
 
@@ -272,7 +272,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const bundleId = formData.get('bundleId') as string;
       const status = formData.get('status') as string;
 
-      const bundle = await prisma.bundle.update({
+  const bundle = await (prisma as any).bundle.update({
         where: { id: bundleId, shop: session.shop },
         data: { status }
       });
