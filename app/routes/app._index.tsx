@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
+import { Link, useLoaderData, useNavigate } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -134,6 +134,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function Index() {
   const { setupSteps, progressPercentage, currentThemeId, shop } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
 
   // Build absolute admin URL so it doesn't resolve to the app/dev origin
   const shopHandle = (shop || '').replace('.myshopify.com', '');
@@ -207,9 +208,13 @@ export default function Index() {
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">AI-powered product recommendations</Text>
                     </div>
-                    <Link to="/app/settings">
-                      <Button size="micro" variant="primary">Configure ML</Button>
-                    </Link>
+                    <Button 
+                      size="micro" 
+                      variant="primary"
+                      onClick={() => navigate('/app/settings')}
+                    >
+                      Configure ML
+                    </Button>
                   </div>
                   <div className="feature-item">
                     <div className="feature-content">
@@ -227,18 +232,24 @@ export default function Index() {
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">Automated cross-sell suggestions</Text>
                     </div>
-                    <Link to="/app/manage">
-                      <Button size="micro">Manage Products</Button>
-                    </Link>
+                    <Button 
+                      size="micro"
+                      onClick={() => navigate('/app/manage')}
+                    >
+                      Manage Products
+                    </Button>
                   </div>
                   <div className="feature-item">
                     <div className="feature-content">
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">Cart progress & abandonment tracking</Text>
                     </div>
-                    <Link to="/app/dashboard">
-                      <Button size="micro">View Analytics</Button>
-                    </Link>
+                    <Button 
+                      size="micro"
+                      onClick={() => navigate('/app/dashboard')}
+                    >
+                      View Analytics
+                    </Button>
                   </div>
                 </div>
                 <div className="feature-column">
@@ -247,29 +258,43 @@ export default function Index() {
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">Conversion rate optimization</Text>
                     </div>
-                    <Link to="/app/dashboard">
-                      <Button size="micro" variant="primary">View Dashboard</Button>
-                    </Link>
+                    <Button 
+                      size="micro" 
+                      variant="primary"
+                      onClick={() => navigate('/app/dashboard')}
+                    >
+                      View Dashboard
+                    </Button>
                   </div>
                   <div className="feature-item">
                     <div className="feature-content">
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">Customizable layouts & styling</Text>
                     </div>
-                    <Link to="/app/settings">
-                      <Button size="micro">Customize</Button>
-                    </Link>
+                    <Button 
+                      size="micro"
+                      onClick={() => navigate('/app/settings')}
+                    >
+                      Customize
+                    </Button>
                   </div>
                 </div>
               </div>
             </BlockStack>
             <InlineStack gap="300">
-              <Link to="/app/settings">
-                <Button variant="primary" size="large">Configure Settings</Button>
-              </Link>
-              <Link to="/app/dashboard">
-                <Button size="large">View Dashboard</Button>
-              </Link>
+              <Button 
+                variant="primary" 
+                size="large"
+                onClick={() => navigate('/app/settings')}
+              >
+                Configure Settings
+              </Button>
+              <Button 
+                size="large"
+                onClick={() => navigate('/app/dashboard')}
+              >
+                View Dashboard
+              </Button>
             </InlineStack>
           </BlockStack>
         </Card>
@@ -293,9 +318,13 @@ export default function Index() {
                   💡 <strong>Tip:</strong> Use dashboard insights to optimize your cart settings and maximize ROI.
                 </Text>
                 <div className="card-button-wrapper">
-                  <Link to="/app/dashboard">
-                    <Button variant="primary" size="large">Open Dashboard</Button>
-                  </Link>
+                  <Button 
+                    variant="primary" 
+                    size="large"
+                    onClick={() => navigate('/app/dashboard')}
+                  >
+                    Open Dashboard
+                  </Button>
                 </div>
               </BlockStack>
             </Card>
@@ -318,9 +347,13 @@ export default function Index() {
                   🎯 <strong>Ready:</strong> Statistical significance testing and conversion tracking active.
                 </Text>
                 <div className="card-button-wrapper">
-                  <Link to="/app/ab-testing">
-                    <Button variant="primary" size="large">Start A/B Testing</Button>
-                  </Link>
+                  <Button 
+                    variant="primary" 
+                    size="large"
+                    onClick={() => navigate('/app/ab-testing')}
+                  >
+                    Start A/B Testing
+                  </Button>
                 </div>
               </BlockStack>
             </Card>
@@ -414,9 +447,12 @@ export default function Index() {
               </div>
               
               <InlineStack gap="300">
-                <Link to="/app/settings">
-                  <Button variant="primary">Complete Setup</Button>
-                </Link>
+                <Button 
+                  variant="primary"
+                  onClick={() => navigate('/app/settings')}
+                >
+                  Complete Setup
+                </Button>
                 <a href={themeEditorUrl} target="_top" rel="noopener noreferrer">
                   <Button variant="secondary">Install Theme Embed</Button>
                 </a>
