@@ -212,6 +212,7 @@ export default function SimpleBundleManagement() {
   const loaderData = useLoaderData<typeof loader>();
   const productFetcher = useFetcher<typeof loader>();
   const actionFetcher = useFetcher<typeof action>();
+  const collectionsFetcher = useFetcher();
 
   // Handle both bundle and product data from loader
   const bundles = (loaderData as any).bundles || [];
@@ -229,6 +230,8 @@ export default function SimpleBundleManagement() {
     status: "active"
   });
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
+  const [availableCollections, setAvailableCollections] = useState<any[]>([]);
+  const [isLoadingCollections, setIsLoadingCollections] = useState(false);
 
   // Auto-load products when modal opens with manual type
   useEffect(() => {
@@ -237,6 +240,26 @@ export default function SimpleBundleManagement() {
       productFetcher.load('/admin/bundle-management-simple?loadProducts=true');
     }
   }, [showCreateModal, newBundle.bundleType, productFetcher]);
+
+  // Auto-load collections when modal opens with category type
+  useEffect(() => {
+    if (showCreateModal && newBundle.bundleType === 'category' && 
+        availableCollections.length === 0 && !isLoadingCollections) {
+      setIsLoadingCollections(true);
+      collectionsFetcher.load('/api/bundle-management?action=categories');
+    }
+  }, [showCreateModal, newBundle.bundleType, availableCollections.length, isLoadingCollections, collectionsFetcher]);
+
+  // Handle collections fetcher response
+  useEffect(() => {
+    if (collectionsFetcher.state === 'idle' && collectionsFetcher.data) {
+      const data = collectionsFetcher.data as any;
+      if (data.success && data.categories) {
+        setAvailableCollections(data.categories);
+      }
+      setIsLoadingCollections(false);
+    }
+  }, [collectionsFetcher.state, collectionsFetcher.data]);
 
   // Handle product fetcher state
   const isLoadingProducts = productFetcher.state === 'loading';
@@ -584,25 +607,59 @@ export default function SimpleBundleManagement() {
                     Choose which collections should be included in this category bundle. All products from selected collections will be eligible for bundling.
                   </Text>
                   
-                  <BlockStack gap="200">
-                    <TextField
-                      label="Collection Handle or ID"
-                      value=""
-                      onChange={() => {}}
-                      placeholder="e.g., summer-collection, electronics, featured-products"
-                      helpText="Enter Shopify collection handles separated by commas"
-                      autoComplete="off"
-                    />
-                    <Button
-                      onClick={() => {
-                        // This would typically load collections via GraphQL
-                        // For now, show a simple text input approach
-                        alert('Collection selection will be implemented with GraphQL collections query');
+                  {isLoadingCollections || collectionsFetcher.state !== "idle" ? (
+                    <BlockStack align="center" gap="300">
+                      <Spinner size="large" />
+                      <Text as="p">Loading collections...</Text>
+                    </BlockStack>
+                  ) : availableCollections.length === 0 ? (
+                    <EmptyState
+                      heading="No collections found"
+                      image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                      action={{
+                        content: "Reload Collections",
+                        onAction: () => {
+                          setIsLoadingCollections(true);
+                          collectionsFetcher.load('/api/bundle-management?action=categories');
+                        },
                       }}
                     >
-                      Load Collections
-                    </Button>
-                  </BlockStack>
+                      <p>No collections available in your store. Create some collections first.</p>
+                    </EmptyState>
+                  ) : (
+                    <ResourceList
+                      items={availableCollections}
+                      renderItem={(collection: any) => (
+                        <ResourceItem
+                          id={collection.id}
+                          onClick={() => {
+                            const isSelected = selectedCollections.includes(collection.id);
+                            if (isSelected) {
+                              setSelectedCollections(selectedCollections.filter((id: string) => id !== collection.id));
+                            } else {
+                              setSelectedCollections([...selectedCollections, collection.id]);
+                            }
+                          }}
+                        >
+                          <InlineStack gap="300">
+                            <Checkbox 
+                              label="" 
+                              checked={selectedCollections.includes(collection.id)} 
+                              onChange={() => {}} 
+                            />
+                            <BlockStack gap="100">
+                              <Text as="h3" variant="bodyMd">
+                                {collection.title}
+                              </Text>
+                              <Text as="p" variant="bodySm" tone="subdued">
+                                {collection.productsCount} products
+                              </Text>
+                            </BlockStack>
+                          </InlineStack>
+                        </ResourceItem>
+                      )}
+                    />
+                  )}
                   
                   {selectedCollections.length > 0 && (
                     <Banner tone="success">
