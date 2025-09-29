@@ -978,7 +978,7 @@ body.cartuplift-no-scroll {
   margin: 0;
   padding: 0;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400; /* Remove bold */
   letter-spacing: 0.05em;  
   text-transform: none !important;  /* explicit to avoid theme overrides */
   line-height: 24px;  
@@ -1032,6 +1032,7 @@ body.cartuplift-no-scroll {
   cursor: pointer;
   position: relative;
   z-index: 4; /* Keep above any overlapping elements */
+  margin-right: 12px; /* Add space from edge */
 }
 
 .cartuplift-recommendations-toggle svg {
@@ -1134,7 +1135,7 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-carousel-nav {
-  display: inline-flex !important;
+  display: none !important; /* Hide navigation arrows */
   align-items: center;
   justify-content: center;
   width: 28px;                /* Restored size for better visibility */
@@ -1184,13 +1185,13 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-carousel-dot {
-  width: 10px;
-  height: 10px;
+  width: 6px; /* Smaller circles */
+  height: 6px; /* Smaller circles */
   border-radius: 50%;
   background: #ccc;
   cursor: pointer;
-  transition: all 0.3s ease;
-  border: 1px solid #999;
+  transition: all 0.2s ease; /* Faster transition */
+  border: none; /* Remove border for cleaner look */
 }
 
 .cartuplift-carousel-dot:hover {
@@ -1199,7 +1200,7 @@ body.cartuplift-no-scroll {
 
 .cartuplift-carousel-dot.active {
   background: #333;
-  transform: scale(1.2);
+  transform: scale(1.1); /* Less scaling for smaller dots */
 }
 
 /* Product Cards - Updated for 80x80 images */
