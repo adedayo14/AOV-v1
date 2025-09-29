@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useFetcher } from "@remix-run/react";
+import { useLoaderData, useFetcher, useRevalidator } from "@remix-run/react";
 import { useState, useEffect } from "react";
 import {
   Page,
@@ -302,6 +302,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function ABTestingPage() {
   const data = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
+  const { revalidate } = useRevalidator();
   const experiments: ABExperiment[] = 'experiments' in data ? data.experiments : [];
   const errorMessage = 'error' in data && typeof data.error === 'string' ? data.error : null;
   const message = 'message' in data && typeof data.message === 'string' ? data.message : null;
@@ -333,9 +334,11 @@ export default function ABTestingPage() {
           confidenceLevel: 95
         });
         setShowCreateModal(false);
+        // Refresh experiments list so the new experiment appears immediately
+        revalidate();
       }
     }
-  }, [fetcher.state, fetcher.data, showCreateModal]);
+  }, [fetcher.state, fetcher.data, showCreateModal, revalidate]);
 
   const testTypeOptions = [
     { label: 'Bundle Pricing', value: 'bundle_pricing' },
@@ -528,7 +531,8 @@ export default function ABTestingPage() {
         title="Create New A/B Test"
         primaryAction={{
           content: 'Create Experiment',
-          disabled: !newExperiment.name.trim(),
+          disabled: !newExperiment.name.trim() || fetcher.state !== 'idle',
+          loading: fetcher.state !== 'idle',
           onAction: () => {
             if (!newExperiment.name.trim()) {
               alert('Please enter an experiment name');
@@ -541,8 +545,13 @@ export default function ABTestingPage() {
             formData.append('description', newExperiment.description.trim());
             formData.append('testType', newExperiment.testType);
             formData.append('primaryMetric', newExperiment.primaryMetric);
-            formData.append('trafficAllocation', String(newExperiment.trafficAllocation));
-            formData.append('confidenceLevel', String(newExperiment.confidenceLevel));
+            // Clamp values and ensure they are valid strings
+            const traffic = Math.max(0, Math.min(100, Number(newExperiment.trafficAllocation) || 100));
+            const conf = [90, 95, 99].includes(Number(newExperiment.confidenceLevel))
+              ? Number(newExperiment.confidenceLevel)
+              : 95;
+            formData.append('trafficAllocation', String(traffic));
+            formData.append('confidenceLevel', String(conf));
             
             fetcher.submit(formData, { method: 'post' });
           }
@@ -553,6 +562,12 @@ export default function ABTestingPage() {
         }]}
       >
         <Modal.Section>
+          {/* Action error feedback */}
+          {fetcher.state === 'idle' && fetcher.data && !(fetcher.data as any).success && (fetcher.data as any).error && (
+            <Banner tone="critical" title="Could not create experiment">
+              <p>{(fetcher.data as any).error}</p>
+            </Banner>
+          )}
           <FormLayout>
             <TextField
               label="Experiment Name"
