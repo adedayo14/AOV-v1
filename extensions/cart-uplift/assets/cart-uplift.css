@@ -1528,7 +1528,7 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-grid-image { position: relative; width:100%; height:100%; }
-.cartuplift-grid-image img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; /* Changed from cover to contain to show full image */ }
+.cartuplift-grid-image img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#fff; /* Fill space, no cropping */ }
 
 /* Hover content container - ONLY button, no title/price on image */
 .cartuplift-grid-hover { position:absolute; inset:0; display:flex; flex-direction:column; opacity:0; transition:opacity .28s ease; padding:6px 6px 8px; justify-content:flex-end; align-items:center; }
