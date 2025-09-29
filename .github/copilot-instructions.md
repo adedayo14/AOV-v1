@@ -125,6 +125,17 @@ const { admin } = await unauthenticated.admin(shop);
 4. **Bundle Generation**: Always check manual settings first, then fall through ML chain
 5. **Theme Extension**: Keep JavaScript vanilla (no build step) for maximum theme compatibility
 
-No shortcut or using mock data. Always ensure real data integration and production readiness in all code changes.
+## Development Server Best Practices
 
-dont hardcode any shopify store urls or api keys. Always use environment variables or session data to access shop-specific information.
+- **Never use `sleep` commands** when starting `npm run dev` - the Shopify CLI handles initialization timing automatically
+- Run `npm run dev` with `isBackground: true` parameter to avoid blocking other operations
+- Check server status with `get_terminal_output` if needed, but don't artificially delay with sleep
+- The development server will show initialization progress and ready status when available
+- Trust the Shopify CLI to manage tunnel setup, webhook forwarding, and app preview timing
+
+## Code Quality Standards
+
+- No shortcuts or mock data - always ensure real data integration and production readiness
+- Don't hardcode Shopify store URLs or API keys - use environment variables or session data
+- Follow TypeScript strict mode and handle all potential undefined/null cases
+- Use proper error boundaries for embedded app components

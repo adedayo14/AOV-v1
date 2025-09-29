@@ -17,7 +17,13 @@ import {
   Select,
   FormLayout,
   ButtonGroup,
-  Banner
+  Banner,
+  ResourceList,
+  ResourceItem,
+  Thumbnail,
+  Checkbox,
+  EmptyState,
+  Spinner
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { PlusIcon } from "@shopify/polaris-icons";
@@ -39,7 +45,9 @@ interface Bundle {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const loadProducts = url.searchParams.get('loadProducts') === 'true';
 
   try {
     // Get all bundles for the shop
@@ -48,10 +56,49 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    return json({ success: true, bundles });
+    let products = [];
+    
+    // Load products if requested
+    if (loadProducts) {
+      const productQuery = `
+        query getProducts($first: Int!) {
+          products(first: $first) {
+            edges {
+              node {
+                id
+                title
+                handle
+                featuredImage {
+                  url
+                }
+                variants(first: 1) {
+                  edges {
+                    node {
+                      id
+                      price
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const productResponse = await admin.graphql(productQuery, {
+        variables: { first: 50 }
+      });
+      
+      const productData = await productResponse.json();
+      if (productData.data?.products?.edges) {
+        products = productData.data.products.edges.map((edge: any) => edge.node);
+      }
+    }
+
+    return json({ success: true, bundles, products });
   } catch (error) {
     console.error("Bundle loader error:", error);
-    return json({ success: false, bundles: [], error: "Failed to load bundles" });
+    return json({ success: false, bundles: [], products: [], error: "Failed to load bundles" });
   }
 };
 
@@ -121,11 +168,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function BundleManagement() {
-  const { bundles = [] } = useLoaderData<typeof loader>();
+  const { bundles = [], products = [] } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   
   // Modal and form state
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   
   // Form state
   const [bundleForm, setBundleForm] = useState({
@@ -134,7 +182,8 @@ export default function BundleManagement() {
     type: 'manual',
     discountType: 'percentage',
     discountValue: 10,
-    minProducts: 2
+    minProducts: 2,
+    selectedProducts: [] as string[]
   });
 
   // Bundle type options
@@ -195,6 +244,14 @@ export default function BundleManagement() {
     </ButtonGroup>
   ]);
 
+  // Load products when modal opens and type is manual
+  const loadProducts = () => {
+    if (!loadingProducts && products.length === 0) {
+      setLoadingProducts(true);
+      fetcher.load('/admin/bundle-management-simple?loadProducts=true');
+    }
+  };
+
   // Reset form
   const resetForm = () => {
     setBundleForm({
@@ -203,7 +260,8 @@ export default function BundleManagement() {
       type: 'manual',
       discountType: 'percentage',
       discountValue: 10,
-      minProducts: 2
+      minProducts: 2,
+      selectedProducts: []
     });
   };
 
@@ -222,6 +280,7 @@ export default function BundleManagement() {
     formData.append('discountType', bundleForm.discountType);
     formData.append('discountValue', bundleForm.discountValue.toString());
     formData.append('minProducts', bundleForm.minProducts.toString());
+    formData.append('productIds', JSON.stringify(bundleForm.selectedProducts));
 
     fetcher.submit(formData, { method: 'post' });
 
@@ -366,9 +425,90 @@ export default function BundleManagement() {
               label="Bundle Type"
               options={bundleTypeOptions}
               value={bundleForm.type}
-              onChange={(value) => setBundleForm({...bundleForm, type: value})}
-              helpText="Manual bundles require product selection after creation"
+              onChange={(value) => {
+                setBundleForm({...bundleForm, type: value});
+                if (value === 'manual' && products.length === 0) {
+                  loadProducts();
+                }
+              }}
+              helpText="Choose how products are selected for this bundle"
             />
+
+            {bundleForm.type === 'manual' && (
+              <Card>
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingSm">Select Products for Bundle</Text>
+                  {loadingProducts ? (
+                    <BlockStack align="center" gap="300">
+                      <Spinner size="large" />
+                      <Text as="p">Loading products...</Text>
+                    </BlockStack>
+                  ) : products.length === 0 ? (
+                    <EmptyState
+                      heading="No products found"
+                      action={{
+                        content: 'Load Products',
+                        onAction: loadProducts
+                      }}
+                      image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                    >
+                      <p>Click to load your store's products for bundle selection.</p>
+                    </EmptyState>
+                  ) : (
+                    <ResourceList
+                      items={products.slice(0, 10)}
+                      renderItem={(product: any) => (
+                        <ResourceItem
+                          id={product.id}
+                          onClick={() => {
+                            const isSelected = bundleForm.selectedProducts.includes(product.id);
+                            if (isSelected) {
+                              setBundleForm({
+                                ...bundleForm,
+                                selectedProducts: bundleForm.selectedProducts.filter(id => id !== product.id)
+                              });
+                            } else {
+                              setBundleForm({
+                                ...bundleForm,
+                                selectedProducts: [...bundleForm.selectedProducts, product.id]
+                              });
+                            }
+                          }}
+                        >
+                          <InlineStack gap="300">
+                            <Checkbox
+                              label=""
+                              checked={bundleForm.selectedProducts.includes(product.id)}
+                              onChange={() => {}}
+                            />
+                            <Thumbnail
+                              source={product.featuredImage?.url || ''}
+                              alt={product.title}
+                              size="small"
+                            />
+                            <BlockStack gap="100">
+                              <Text as="h3" variant="bodyMd">
+                                {product.title}
+                              </Text>
+                              <Text as="p" variant="bodySm" tone="subdued">
+                                ${product.variants.edges[0]?.node.price || '0.00'}
+                              </Text>
+                            </BlockStack>
+                          </InlineStack>
+                        </ResourceItem>
+                      )}
+                    />
+                  )}
+                  {bundleForm.selectedProducts.length > 0 && (
+                    <Banner tone="success">
+                      <Text as="p" variant="bodyMd">
+                        {bundleForm.selectedProducts.length} product{bundleForm.selectedProducts.length === 1 ? '' : 's'} selected for this bundle
+                      </Text>
+                    </Banner>
+                  )}
+                </BlockStack>
+              </Card>
+            )}
 
             <InlineStack gap="400">
               <Select
@@ -404,7 +544,14 @@ export default function BundleManagement() {
 
             <Banner tone="info">
               <Text as="p" variant="bodyMd">
-                After creating the bundle, you'll be able to select specific products, configure advanced settings, and set up approval workflows.
+                {bundleForm.type === 'manual' && bundleForm.selectedProducts.length > 0 
+                  ? `Ready to create bundle with ${bundleForm.selectedProducts.length} selected product${bundleForm.selectedProducts.length === 1 ? '' : 's'}.`
+                  : bundleForm.type === 'manual' 
+                    ? 'Please select products above for your manual bundle.'
+                    : bundleForm.type === 'category'
+                      ? 'Category bundles automatically include all products from selected collections.'
+                      : 'AI bundles use machine learning to create intelligent product combinations.'
+                }
               </Text>
             </Banner>
           </FormLayout>
