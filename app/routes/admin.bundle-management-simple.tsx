@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useFetcher, useRevalidator } from "@remix-run/react";
+import { useLoaderData, useFetcher } from "@remix-run/react";
 import { useEffect, useState } from "react";
 import {
   Page,
@@ -233,7 +233,7 @@ export default function SimpleBundleManagement() {
         !productFetcher.data?.products && productFetcher.state === 'idle') {
       productFetcher.load('/admin/bundle-management-simple?loadProducts=true');
     }
-  }, [showCreateModal, newBundle.bundleType]);
+  }, [showCreateModal, newBundle.bundleType, productFetcher]);
 
   // Handle product fetcher state
   const isLoadingProducts = productFetcher.state === 'loading';
@@ -352,15 +352,7 @@ export default function SimpleBundleManagement() {
           variant="primary"
           icon={PlusIcon}
           onClick={() => {
-            setBundleForm({
-              name: "",
-              description: "",
-              type: "manual",
-              discountType: "percentage",
-              discountValue: 10,
-              minProducts: 2,
-              selectedProducts: [],
-            });
+            resetForm();
             setShowCreateModal(true);
           }}
         >
@@ -460,8 +452,8 @@ export default function SimpleBundleManagement() {
         title="Create New Bundle"
         primaryAction={{
           content: "Create Bundle",
-          disabled: !bundleForm.name.trim() || mutateFetcher.state !== "idle",
-          onAction: handleSubmit,
+          disabled: !newBundle.name.trim() || actionFetcher.state !== "idle",
+          onAction: handleCreateBundle,
         }}
         secondaryActions={[
           {
@@ -476,8 +468,8 @@ export default function SimpleBundleManagement() {
           <FormLayout>
             <TextField
               label="Bundle Name"
-              value={bundleForm.name}
-              onChange={(value) => setBundleForm({ ...bundleForm, name: value })}
+              value={newBundle.name}
+              onChange={(value) => setNewBundle({ ...newBundle, name: value })}
               placeholder="e.g., Summer Beach Essentials"
               autoComplete="off"
               helpText="This name will be shown to customers"
@@ -485,8 +477,8 @@ export default function SimpleBundleManagement() {
 
             <TextField
               label="Description (Optional)"
-              value={bundleForm.description}
-              onChange={(value) => setBundleForm({ ...bundleForm, description: value })}
+              value={newBundle.description}
+              onChange={(value) => setNewBundle({ ...newBundle, description: value })}
               placeholder="Brief description of the bundle"
               multiline={2}
               autoComplete="off"
@@ -495,23 +487,23 @@ export default function SimpleBundleManagement() {
             <Select
               label="Bundle Type"
               options={bundleTypeOptions}
-              value={bundleForm.type}
+              value={newBundle.bundleType}
               onChange={(value) => {
-                setBundleForm({ ...bundleForm, type: value });
-                if (value === "manual" && productList.length === 0) {
-                  loadProducts();
+                setNewBundle({ ...newBundle, bundleType: value });
+                if (value === "manual" && availableProducts.length === 0) {
+                  productFetcher.load('/admin/bundle-management-simple?loadProducts=true');
                 }
               }}
               helpText="Choose how products are selected for this bundle"
             />
 
-            {bundleForm.type === "manual" && (
+            {newBundle.bundleType === "manual" && (
               <Card>
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
                     Select Products for Bundle
                   </Text>
-                  {loadingProducts || productFetcher.state !== "idle" ? (
+                  {isLoadingProducts || productFetcher.state !== "idle" ? (
                     <BlockStack align="center" gap="300">
                       <Spinner size="large" />
                       <Text as="p">Loading products...</Text>
@@ -520,12 +512,12 @@ export default function SimpleBundleManagement() {
                     <Banner tone="critical" title="Failed to load products">
                       <p>{productLoadError}</p>
                     </Banner>
-                  ) : productList.length === 0 ? (
+                  ) : availableProducts.length === 0 ? (
                     <EmptyState
                       heading="No products found"
                       action={{
                         content: "Load Products",
-                        onAction: loadProducts,
+                        onAction: () => productFetcher.load('/admin/bundle-management-simple?loadProducts=true'),
                       }}
                       image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
                     >
@@ -533,27 +525,21 @@ export default function SimpleBundleManagement() {
                     </EmptyState>
                   ) : (
                     <ResourceList
-                      items={productList.slice(0, 25)}
+                      items={availableProducts.slice(0, 25)}
                       renderItem={(product: any) => (
                         <ResourceItem
                           id={product.id}
                           onClick={() => {
-                            const isSelected = bundleForm.selectedProducts.includes(product.id);
+                            const isSelected = selectedProducts.includes(product.id);
                             if (isSelected) {
-                              setBundleForm({
-                                ...bundleForm,
-                                selectedProducts: bundleForm.selectedProducts.filter((id) => id !== product.id),
-                              });
+                              setSelectedProducts(selectedProducts.filter((id: string) => id !== product.id));
                             } else {
-                              setBundleForm({
-                                ...bundleForm,
-                                selectedProducts: [...bundleForm.selectedProducts, product.id],
-                              });
+                              setSelectedProducts([...selectedProducts, product.id]);
                             }
                           }}
                         >
                           <InlineStack gap="300">
-                            <Checkbox label="" checked={bundleForm.selectedProducts.includes(product.id)} onChange={() => {}} />
+                            <Checkbox label="" checked={selectedProducts.includes(product.id)} onChange={() => {}} />
                             <Thumbnail source={product.featuredImage?.url || ""} alt={product.title} size="small" />
                             <BlockStack gap="100">
                               <Text as="h3" variant="bodyMd">
@@ -569,10 +555,10 @@ export default function SimpleBundleManagement() {
                     />
                   )}
 
-                  {bundleForm.selectedProducts.length > 0 && (
+                  {selectedProducts.length > 0 && (
                     <Banner tone="success">
                       <Text as="p" variant="bodyMd">
-                        {bundleForm.selectedProducts.length} product{bundleForm.selectedProducts.length === 1 ? "" : "s"} selected for this bundle
+                        {selectedProducts.length} product{selectedProducts.length === 1 ? "" : "s"} selected for this bundle
                       </Text>
                     </Banner>
                   )}
@@ -584,15 +570,15 @@ export default function SimpleBundleManagement() {
               <Select
                 label="Discount Type"
                 options={discountTypeOptions}
-                value={bundleForm.discountType}
-                onChange={(value) => setBundleForm({ ...bundleForm, discountType: value })}
+                value={newBundle.discountType}
+                onChange={(value) => setNewBundle({ ...newBundle, discountType: value })}
               />
               <TextField
-                label={bundleForm.discountType === "percentage" ? "Discount %" : "Discount $"}
+                label={newBundle.discountType === "percentage" ? "Discount %" : "Discount $"}
                 type="number"
-                value={bundleForm.discountValue.toString()}
-                onChange={(value) => setBundleForm({ ...bundleForm, discountValue: parseFloat(value) || 0 })}
-                suffix={bundleForm.discountType === "percentage" ? "%" : "$"}
+                value={newBundle.discountValue.toString()}
+                onChange={(value) => setNewBundle({ ...newBundle, discountValue: parseFloat(value) || 0 })}
+                suffix={newBundle.discountType === "percentage" ? "%" : "$"}
                 autoComplete="off"
               />
             </InlineStack>
@@ -600,19 +586,19 @@ export default function SimpleBundleManagement() {
             <TextField
               label="Minimum Products"
               type="number"
-              value={bundleForm.minProducts.toString()}
-              onChange={(value) => setBundleForm({ ...bundleForm, minProducts: parseInt(value) || 2 })}
+              value={newBundle.minProducts.toString()}
+              onChange={(value) => setNewBundle({ ...newBundle, minProducts: parseInt(value) || 2 })}
               helpText="Minimum number of products required for bundle discount"
               autoComplete="off"
             />
 
             <Banner tone="info">
               <Text as="p" variant="bodyMd">
-                {bundleForm.type === "manual" && bundleForm.selectedProducts.length > 0
-                  ? `Ready to create bundle with ${bundleForm.selectedProducts.length} selected product${bundleForm.selectedProducts.length === 1 ? "" : "s"}.`
-                  : bundleForm.type === "manual"
+                {newBundle.bundleType === "manual" && selectedProducts.length > 0
+                  ? `Ready to create bundle with ${selectedProducts.length} selected product${selectedProducts.length === 1 ? "" : "s"}.`
+                  : newBundle.bundleType === "manual"
                   ? "Please select products above for your manual bundle."
-                  : bundleForm.type === "category"
+                  : newBundle.bundleType === "category"
                   ? "Category bundles automatically include all products from selected collections."
                   : "AI bundles use machine learning to create intelligent product combinations."}
               </Text>
