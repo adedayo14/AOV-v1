@@ -1325,12 +1325,12 @@ body.cartuplift-no-scroll {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  justify-content: space-between; /* Changed to space-between for better distribution */
+  justify-content: flex-start; /* Changed to flex-start for precise positioning */
   flex-shrink: 0;
   width: 78px; /* Slightly slimmer to free space for title */
   height: 100%; /* Span full card height to align Add button with bottom */
   min-height: 80px; /* Reduce to tighten space under Add button */
-  padding-top: 2px; /* Small padding to align with image */
+  padding-top: 58px; /* Position price to align with bottom of 80px image (80-22=58px) */
 }
 
 .cartuplift-recommendation-card .cartuplift-recommendation-price {
@@ -1353,7 +1353,7 @@ body.cartuplift-no-scroll {
   white-space: nowrap;
   min-width: 60px;
   text-align: center;
-  margin-top: auto;
+  margin-top: auto; /* Keep auto to push to bottom */
   /* Removed transitions and hover effects */
 }
 
