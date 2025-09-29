@@ -2011,13 +2011,19 @@
         // Only return the scroll track; controls are rendered outside the scroll container
         return `
           <div class="cartuplift-recommendations-track">
-            ${this.recommendations.map(product => `
+            ${this.recommendations.map(product => {
+              const reviewHtml = this.formatProductReview(product);
+              return `
               <div class="cartuplift-recommendation-card">
                 <div class="cartuplift-card-content">
                   <div class="cartuplift-product-image">
                     <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
                   </div>
-                  <div class="cartuplift-product-info">${this.generateVariantSelector(product)}</div>
+                  <div class="cartuplift-product-info">
+                    <h4 class="cartuplift-product-title"><a href="${product.url}" class="cartuplift-product-link">${product.title}</a></h4>
+                    ${reviewHtml ? `<div class="cartuplift-product-review">${reviewHtml}</div>` : ''}
+                    ${this.generateVariantSelector(product)}
+                  </div>
                   <div class="cartuplift-product-actions">
                     <div class="cartuplift-recommendation-price">${this.formatMoney(product.priceCents || 0)}</div>
                     <button class="cartuplift-add-recommendation" data-product-id="${product.id}" data-variant-id="${product.variant_id}">
@@ -2026,25 +2032,30 @@
                   </div>
                 </div>
               </div>
-            `).join('')}
+            `;
+            }).join('')}
           </div>
         `;
       } else if (layout === 'grid') {
         // Dynamic Grid Layout - 6 items (2 rows) or 3 items (1 row) based on available products
         return this.generateDynamicGrid();
       } else {
-        return this.recommendations.map(product => `
+        return this.recommendations.map(product => {
+          const reviewHtml = this.formatProductReview(product);
+          return `
           <div class="cartuplift-recommendation-item">
             <img src="${product.image || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'}" alt="${product.title}" loading="lazy" onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
             <div class="cartuplift-recommendation-info">
               <h4><a href="${product.url}" class="cartuplift-product-link">${product.title}</a></h4>
+              ${reviewHtml ? `<div class="cartuplift-product-review">${reviewHtml}</div>` : ''}
               <div class="cartuplift-recommendation-price">${this.formatMoney(product.priceCents || 0)}</div>
             </div>
             <button class="cartuplift-add-recommendation-circle" data-variant-id="${product.variant_id}">
               +
             </button>
           </div>
-        `).join('');
+        `;
+        }).join('');
       }
     }
 
@@ -4404,6 +4415,58 @@
       }
       
       return '$' + amount;
+    }
+
+    /** Format product review display from metafields or common review apps */
+    formatProductReview(product) {
+      // Check for common review app metafields and formats
+      const metafields = product.metafields || {};
+      
+      // Judge.me format
+      if (metafields['judgeme.reviews']) {
+        const judgeData = metafields['judgeme.reviews'];
+        if (judgeData.rating && judgeData.rating > 0) {
+          return `⭐ ${judgeData.rating}`;
+        }
+      }
+      
+      // Yotpo format
+      if (metafields.yotpo && metafields.yotpo.reviews_average) {
+        const rating = parseFloat(metafields.yotpo.reviews_average);
+        if (rating > 0) {
+          return `⭐ ${rating.toFixed(1)}`;
+        }
+      }
+      
+      // Custom rating metafield
+      if (metafields.reviews && metafields.reviews.rating) {
+        const rating = parseFloat(metafields.reviews.rating);
+        if (rating > 0) {
+          return `⭐ ${rating.toFixed(1)}`;
+        }
+      }
+      
+      // Shopify Product Reviews (legacy)
+      if (metafields.spr && metafields.spr.reviews) {
+        const sprData = typeof metafields.spr.reviews === 'string' 
+          ? JSON.parse(metafields.spr.reviews) 
+          : metafields.spr.reviews;
+        if (sprData.rating && sprData.rating > 0) {
+          return `⭐ ${sprData.rating.toFixed(1)}`;
+        }
+      }
+      
+      // Direct rating properties (some themes/apps add these)
+      if (product.rating && product.rating > 0) {
+        return `⭐ ${parseFloat(product.rating).toFixed(1)}`;
+      }
+      
+      if (product.reviews_score && product.reviews_score > 0) {
+        return `⭐ ${parseFloat(product.reviews_score).toFixed(1)}`;
+      }
+      
+      // No review data found
+      return '';
     }
 
     processGiftNoticeTemplate(template, giftItemsTotal, giftItems = []) {
