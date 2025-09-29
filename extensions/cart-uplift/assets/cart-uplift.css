@@ -953,12 +953,12 @@ body.cartuplift-no-scroll {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding-left: 16px;
-  padding-top: 4px; /* Reduced for tighter spacing */
-  padding-bottom: 2px; /* Reduced for tighter spacing */
-  padding-right: 16px; /* Reduced to move toggle closer to edge */
+  /* padding-left: 16px; */
+  /* padding-top: 4px; */
+  /* padding-bottom: 2px; */
+  /* padding-right: 16px; */
   background: var(--cartuplift-recommendations-bg);
-  height: 38px;  /* Reduced to match tighter padding */
+  /* height: 38px; */
   box-sizing: border-box;
   position: relative;
   z-index: 3; /* Ensure header/toggle are clickable above scroll content on mobile */
@@ -966,11 +966,11 @@ body.cartuplift-no-scroll {
 
 .cartuplift-recommendations.collapsed .cartuplift-recommendations-header {
   margin-bottom: 0;
-  padding-left: 12px;
-  padding-top: 4px; /* Reduced for tighter spacing */
-  padding-bottom: 4px; /* Reduced for tighter spacing */
-  padding-right: 20px; 
-  height: 32px; /* Reduced to match tighter padding */
+  /* padding-left: 12px; */
+  /* padding-top: 4px; */
+  /* padding-bottom: 4px; */
+  /* padding-right: 20px; */
+  /* height: 32px; */
   box-sizing: border-box;
 }
 
@@ -1681,7 +1681,12 @@ body.cartuplift-no-scroll {
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     -ms-overflow-style: none;
+    scrollbar-width: none; /* Firefox */
     padding: 0;
+  }
+
+  .cartuplift-recommendations-row .cartuplift-recommendations-content::-webkit-scrollbar {
+    display: none;
   }
 
   /* Cancel outer section padding on mobile so cards can truly fill width */
