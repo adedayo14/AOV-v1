@@ -1472,11 +1472,12 @@ body.cartuplift-no-scroll {
 /* --- Minimal COS-style Grid (desktop) --- */
 .cartuplift-grid-container {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* 3 columns by default, full width */
-  grid-auto-rows: 104px; /* Restore previous height for grid items */
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 1fr;
   gap: 0;
   justify-content: stretch;
-  width: 100%;
+  width: 100vw;
+  max-width: 100vw;
   background: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
@@ -1494,7 +1495,8 @@ body.cartuplift-no-scroll {
 .cartuplift-grid-item {
   position: relative;
   width: 100%; /* Full width of column */
-  height: 104px; /* Uniform height for all layouts */
+  aspect-ratio: 1 / 1; /* Make grid items square */
+  height: auto;
   cursor: pointer;
   overflow: hidden;
   background: #ffffff;
