@@ -1185,13 +1185,15 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-carousel-dot {
-  width: 6px; /* Smaller circles */
-  height: 6px; /* Smaller circles */
+  width: 4px; /* Even smaller circles */
+  height: 4px; /* Even smaller circles */
   border-radius: 50%;
   background: #ccc;
   cursor: pointer;
   transition: all 0.2s ease; /* Faster transition */
   border: none; /* Remove border for cleaner look */
+  font-weight: normal; /* Ensure no bold inheritance */
+  font-size: 0; /* Hide any text content */
 }
 
 .cartuplift-carousel-dot:hover {
@@ -1200,7 +1202,7 @@ body.cartuplift-no-scroll {
 
 .cartuplift-carousel-dot.active {
   background: #333;
-  transform: scale(1.1); /* Less scaling for smaller dots */
+  /* No scaling to keep consistent small size */
 }
 
 /* Product Cards - Updated for 80x80 images */
@@ -1649,13 +1651,13 @@ body.cartuplift-no-scroll {
   }
   
   .cartuplift-carousel-dot {
-  width: 6px;  /* smaller dots */
-  height: 6px; /* smaller dots */
+  width: 4px;  /* even smaller dots */
+  height: 4px; /* even smaller dots */
     border-radius: 50%;
   background: transparent; /* outline-only by default */
     cursor: pointer;
   transition: background 0.2s ease, transform 0.2s ease;
-    border: 2px solid #000; /* black outline */
+    border: 1px solid #000; /* thinner black outline */
   box-shadow: none;
   padding: 0;               /* reset button padding */
   line-height: 1;           /* avoid vertical stretching */
@@ -1664,6 +1666,8 @@ body.cartuplift-no-scroll {
   display: inline-block;    /* predictable sizing */
   box-sizing: content-box;  /* keep width/height as the circle size */
   aspect-ratio: 1 / 1;      /* enforce perfect circle */
+  font-weight: normal;      /* ensure no bold inheritance */
+  font-size: 0;             /* hide any text content */
   }
 
   .cartuplift-carousel-dot.active {
