@@ -204,13 +204,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     
     if (action === 'create') {
       const name = formData.get('name') as string;
-      const description = formData.get('description') as string || '';
+      const description = (formData.get('description') as string) || '';
       const testType = formData.get('testType') as string;
       const primaryMetric = formData.get('primaryMetric') as string;
-      const trafficAllocation = Number(formData.get('trafficAllocation'));
-      const confidenceLevel = Number(formData.get('confidenceLevel'));
-      
-      // Create experiment with control and variant
+      const rawTrafficAllocation = Number(formData.get('trafficAllocation')) || 100;
+      const rawConfidenceLevel = Number(formData.get('confidenceLevel')) || 95;
+
+      const normalizedTrafficAllocation = Math.min(Math.max(rawTrafficAllocation / 100, 0.1), 1);
+      const normalizedConfidence = rawConfidenceLevel > 1 ? rawConfidenceLevel / 100 : rawConfidenceLevel;
+
+      console.log('🔥 A/B Testing: Normalized values', {
+        rawTrafficAllocation,
+        normalizedTrafficAllocation,
+        rawConfidenceLevel,
+        normalizedConfidence
+      });
+
       const experiment = await (prisma as any).aBExperiment.create({
         data: {
           shopId: shop,
@@ -219,19 +228,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           testType,
           primaryMetric,
           status: 'draft',
-          trafficAllocation,
-          confidenceLevel,
+          trafficAllocation: normalizedTrafficAllocation,
+          confidenceLevel: normalizedConfidence,
           variants: {
             create: [
               {
                 name: 'Control',
                 description: 'Original version',
-                trafficPercentage: 50
+                isControl: true,
+                trafficPercentage: 0.5,
+                configData: '{}'
               },
               {
                 name: 'Variant A',
                 description: 'Test variant',
-                trafficPercentage: 50
+                isControl: false,
+                trafficPercentage: 0.5,
+                configData: '{}'
               }
             ]
           }
@@ -293,7 +306,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function ABTestingPage() {
   const data = useLoaderData<typeof loader>();
-  const fetcher = useFetcher<typeof action>();
+  const createFetcher = useFetcher<typeof action>();
+  const tableFetcher = useFetcher<typeof action>();
   const experiments: ABExperiment[] = 'experiments' in data ? data.experiments : [];
   const errorMessage = 'error' in data && typeof data.error === 'string' ? data.error : null;
   const message = 'message' in data && typeof data.message === 'string' ? data.message : null;
@@ -313,13 +327,16 @@ export default function ABTestingPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [tableAction, setTableAction] = useState<{ id: number; type: 'start' | 'stop' | 'delete' } | null>(null);
+  const [tableActionSuccess, setTableActionSuccess] = useState<string | null>(null);
+  const [tableActionError, setTableActionError] = useState<string | null>(null);
 
   // Handle fetcher state changes
   useEffect(() => {
-    if (fetcher.state === 'idle' && fetcher.data) {
+    if (createFetcher.state === 'idle' && createFetcher.data) {
       setIsSubmitting(false);
       
-      if (fetcher.data.success) {
+      if (createFetcher.data.success) {
         // Success - close modal and reset form
         setShowCreateModal(false);
         setActionError(null);
@@ -334,13 +351,33 @@ export default function ABTestingPage() {
         // The loader will automatically re-run due to navigation
       } else {
         // Error - show message but keep modal open
-        setActionError((fetcher.data as any).error || 'An error occurred');
+        setActionError((createFetcher.data as any).error || 'An error occurred');
       }
-    } else if (fetcher.state === 'submitting') {
+    } else if (createFetcher.state === 'submitting') {
       setIsSubmitting(true);
       setActionError(null);
     }
-  }, [fetcher.state, fetcher.data]);
+  }, [createFetcher.state, createFetcher.data]);
+
+  useEffect(() => {
+    if (tableFetcher.state === 'idle' && tableAction) {
+      const payload = tableFetcher.data;
+      if (payload?.success) {
+        const message = payload && typeof (payload as any).message === 'string'
+          ? (payload as any).message
+          : 'Action completed successfully!';
+        setTableActionSuccess(message);
+        setTableActionError(null);
+      } else {
+        setTableActionError((payload as any)?.error || 'Failed to run action');
+        setTableActionSuccess(null);
+      }
+      setTableAction(null);
+    } else if (tableFetcher.state === 'submitting') {
+      setTableActionSuccess(null);
+      setTableActionError(null);
+    }
+  }, [tableFetcher.state, tableFetcher.data, tableAction]);
 
   const handleCreateExperiment = () => {
     console.log('🔥 A/B Testing: Starting experiment creation...');
@@ -360,7 +397,19 @@ export default function ABTestingPage() {
     formData.append('confidenceLevel', String(newExperiment.confidenceLevel));
     
     console.log('🔥 A/B Testing: Submitting form data:', Array.from(formData.entries()));
-    fetcher.submit(formData, { method: 'post' });
+    createFetcher.submit(formData, { method: 'post' });
+  };
+
+  const handleTableAction = (type: 'start' | 'stop' | 'delete', experimentId: number) => {
+    if (type === 'delete' && !confirm('Delete this experiment? This cannot be undone.')) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('action', type);
+    formData.append('experimentId', String(experimentId));
+    setTableAction({ id: experimentId, type });
+    tableFetcher.submit(formData, { method: 'post' });
   };
 
   const testTypeOptions = [
@@ -394,11 +443,51 @@ export default function ABTestingPage() {
     return visitors > 0 ? ((conversions / visitors) * 100).toFixed(2) : '0.00';
   };
 
-    const experimentsTableRows: (string | JSX.Element)[][] = experiments.length > 0 ? experiments.map((exp: ABExperiment) => {
+  const experimentsTableRows: (string | JSX.Element)[][] = experiments.length > 0 ? experiments.map((exp: ABExperiment) => {
     const totalVisitors = exp.variants?.reduce((sum: number, v: any) => sum + (v.totalVisitors || 0), 0) || 0;
     const totalConversions = exp.variants?.reduce((sum: number, v: any) => sum + (v.totalConversions || 0), 0) || 0;
     const totalRevenue = exp.variants?.reduce((sum: number, v: any) => sum + (v.totalRevenue || 0), 0) || 0;
     const conversionRate = calculateConversionRate(totalConversions, totalVisitors);
+
+    const actionInFlight = !!(tableAction && tableAction.id === exp.id && tableFetcher.state === 'submitting');
+
+    const startButton = (exp.status === 'draft' || exp.status === 'paused') ? (
+      <Button
+        key="start"
+        size="micro"
+        variant="primary"
+        loading={actionInFlight && tableAction?.type === 'start'}
+        disabled={actionInFlight}
+        onClick={() => handleTableAction('start', exp.id)}
+      >
+        Start
+      </Button>
+    ) : null;
+
+    const stopButton = exp.status === 'running' ? (
+      <Button
+        key="stop"
+        size="micro"
+        loading={actionInFlight && tableAction?.type === 'stop'}
+        disabled={actionInFlight}
+        onClick={() => handleTableAction('stop', exp.id)}
+      >
+        Stop
+      </Button>
+    ) : null;
+
+    const deleteButton = exp.status !== 'running' ? (
+      <Button
+        key="delete"
+        tone="critical"
+        size="micro"
+        loading={actionInFlight && tableAction?.type === 'delete'}
+        disabled={actionInFlight}
+        onClick={() => handleTableAction('delete', exp.id)}
+      >
+        Delete
+      </Button>
+    ) : null;
 
     return [
       exp.name,
@@ -408,6 +497,9 @@ export default function ABTestingPage() {
       `${conversionRate}%`,
       `$${totalRevenue.toFixed(2)}`,
       <ButtonGroup key={exp.id}>
+        {startButton}
+        {stopButton}
+        {deleteButton}
         <Button 
           size="micro" 
           onClick={() => {
@@ -445,6 +537,18 @@ export default function ABTestingPage() {
           {message && experiments.length > 0 && (
             <Banner tone="info" title="A/B Testing Active">
               <p>You have {experiments.length} experiment{experiments.length === 1 ? '' : 's'} configured. Monitor their performance and optimize your results.</p>
+            </Banner>
+          )}
+
+          {tableActionSuccess && (
+            <Banner tone="success" onDismiss={() => setTableActionSuccess(null)}>
+              <p>{tableActionSuccess}</p>
+            </Banner>
+          )}
+
+          {tableActionError && (
+            <Banner tone="critical" onDismiss={() => setTableActionError(null)}>
+              <p>{tableActionError}</p>
             </Banner>
           )}
           

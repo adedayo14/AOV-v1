@@ -303,7 +303,7 @@ export default function SimpleBundleManagement() {
     }
 
     const formData = new FormData();
-    formData.append('action', 'create');
+    formData.append('action', 'create-bundle');
     formData.append('name', newBundle.name);
     formData.append('description', newBundle.description);
     formData.append('bundleType', newBundle.bundleType);
