@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useFetcher } from "@remix-run/react";
+import { useFetcher, useLoaderData, useRevalidator } from "@remix-run/react";
 import { useState, useEffect } from "react";
 import {
   Page,
@@ -308,6 +308,7 @@ export default function ABTestingPage() {
   const data = useLoaderData<typeof loader>();
   const createFetcher = useFetcher<typeof action>();
   const tableFetcher = useFetcher<typeof action>();
+  const revalidator = useRevalidator();
   const experiments: ABExperiment[] = 'experiments' in data ? data.experiments : [];
   const errorMessage = 'error' in data && typeof data.error === 'string' ? data.error : null;
   const message = 'message' in data && typeof data.message === 'string' ? data.message : null;
@@ -337,7 +338,7 @@ export default function ABTestingPage() {
       setIsSubmitting(false);
       
       if (createFetcher.data.success) {
-        // Success - close modal and reset form
+        // Success - close modal, reset form, and refresh data
         setShowCreateModal(false);
         setActionError(null);
         setNewExperiment({
@@ -348,7 +349,8 @@ export default function ABTestingPage() {
           trafficAllocation: 100,
           confidenceLevel: 95
         });
-        // The loader will automatically re-run due to navigation
+        // Refresh the loader data
+        revalidator.revalidate();
       } else {
         // Error - show message but keep modal open
         setActionError((createFetcher.data as any).error || 'An error occurred');
@@ -357,7 +359,7 @@ export default function ABTestingPage() {
       setIsSubmitting(true);
       setActionError(null);
     }
-  }, [createFetcher.state, createFetcher.data]);
+  }, [createFetcher.state, createFetcher.data, revalidator]);
 
   useEffect(() => {
     if (tableFetcher.state === 'idle' && tableAction) {
@@ -368,6 +370,8 @@ export default function ABTestingPage() {
           : 'Action completed successfully!';
         setTableActionSuccess(message);
         setTableActionError(null);
+        // Refresh the loader data after table actions
+        revalidator.revalidate();
       } else {
         setTableActionError((payload as any)?.error || 'Failed to run action');
         setTableActionSuccess(null);
@@ -377,7 +381,7 @@ export default function ABTestingPage() {
       setTableActionSuccess(null);
       setTableActionError(null);
     }
-  }, [tableFetcher.state, tableFetcher.data, tableAction]);
+  }, [tableFetcher.state, tableFetcher.data, tableAction, revalidator]);
 
   const handleCreateExperiment = () => {
     console.log('🔥 A/B Testing: Starting experiment creation...');

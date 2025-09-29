@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
-import { useMemo, useState } from "react";
+import { useFetcher, useLoaderData } from "@remix-run/react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Page,
   Layout,
@@ -30,74 +30,86 @@ import { getBundleInsights } from "~/models/bundleInsights.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
-
-  const { bundles } = await getBundleInsights({
-    shop: session.shop,
-    admin,
-  });
-
-  // Get available products for bundle creation
-  const productsResp = await admin.graphql(`
-    #graphql
-    query getProducts($first: Int!) {
-      products(first: $first) {
-        edges {
-          node {
-            id
-            title
-            handle
-            vendor
-            status
-            variants(first: 1) {
-              edges {
-                node {
-                  id
-                  price
-                  availableForSale
+  const shop = session.shop;
+  
+  try {
+    // Fetch existing bundles
+    const bundles = await prisma.productBundle.findMany({
+      where: { shop },
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    // Fetch products for bundle selection
+    const productsResponse = await admin.graphql(`
+      #graphql
+      query getProductsForBundles {
+        products(first: 100) {
+          edges {
+            node {
+              id
+              title
+              handle
+              images(first: 1) {
+                edges {
+                  node { url }
                 }
               }
-            }
-            media(first: 1) {
-              edges {
-                node {
-                  ... on MediaImage {
-                    image {
-                      url
-                    }
-                  }
+              variants(first: 1) {
+                edges {
+                  node { price }
                 }
               }
             }
           }
         }
       }
-    }
-  `, { variables: { first: 50 } });
-
-  const productsData = await productsResp.json();
-  const products = productsData?.data?.products?.edges?.map((edge: any) => ({
-    id: edge.node.id.replace('gid://shopify/Product/', ''),
-    title: edge.node.title,
-    handle: edge.node.handle,
-    vendor: edge.node.vendor,
-    status: edge.node.status,
-    price: edge.node.variants?.edges?.[0]?.node?.price || "0",
-    image: edge.node.media?.edges?.[0]?.node?.image?.url,
-    available: edge.node.variants?.edges?.[0]?.node?.availableForSale || false
-  })) || [];
-
-  const loaderBundles = bundles.map((bundle, index) => ({
-    id: bundle.id || index,
-    name: bundle.name,
-    productTitles: bundle.productTitles,
-    type: bundle.type,
-    discountPercent: bundle.averageDiscountPercent,
-    status: bundle.status,
-    orders: bundle.orderCount,
-    revenue: bundle.revenue,
-  }));
-
-  return json({ bundles: loaderBundles, products });
+    `);
+    
+    // Fetch collections for category bundles
+    const collectionsResponse = await admin.graphql(`
+      #graphql
+      query getCollectionsForBundles {
+        collections(first: 100) {
+          edges {
+            node {
+              id
+              title
+              handle
+              productsCount
+            }
+          }
+        }
+      }
+    `);
+    
+    const productsData = await productsResponse.json();
+    const collectionsData = await collectionsResponse.json();
+    
+    const products = productsData.data?.products?.edges?.map((edge: any) => ({
+      id: edge.node.id,
+      title: edge.node.title,
+      handle: edge.node.handle,
+      image: edge.node.images?.edges?.[0]?.node?.url || null,
+      price: edge.node.variants?.edges?.[0]?.node?.price || '0'
+    })) || [];
+    
+    const collections = collectionsData.data?.collections?.edges?.map((edge: any) => ({
+      id: edge.node.id,
+      title: edge.node.title,
+      handle: edge.node.handle,
+      productsCount: edge.node.productsCount
+    })) || [];
+    
+    return json({ bundles, products, collections });
+  } catch (error) {
+    console.error('Failed to load bundles data:', error);
+    return json({ 
+      bundles: [], 
+      products: [], 
+      collections: [],
+      error: 'Failed to load data' 
+    });
+  }
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -125,8 +137,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return json({ error: "Invalid action" }, { status: 400 });
 };
 
-export default function ManualBundles() {
-  const { bundles, products } = useLoaderData<typeof loader>();
+export default function Bundles() {
+  const { bundles, products, collections } = useLoaderData<typeof loader>();
+  const fetcher = useFetcher();
+  const revalidator = useRevalidator();
   
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [bundleType, setBundleType] = useState("fixed");
@@ -136,7 +150,12 @@ export default function ManualBundles() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [categoryRule, setCategoryRule] = useState("");
   const [minItems, setMinItems] = useState("2");
-
+  const [editingBundle, setEditingBundle] = useState<any>(null);
+  const [showBundleModal, setShowBundleModal] = useState(false);
+  const [bundleDescription, setBundleDescription] = useState("");
+  const [isActive, setIsActive] = useState(true);
+  const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
+  
   const currencyFormatter = useMemo(
     () =>
       new Intl.NumberFormat(undefined, {
@@ -187,6 +206,71 @@ export default function ManualBundles() {
       <Button size="micro" tone="critical">Delete</Button>
     </ButtonGroup>
   ]);
+
+  // Handle fetcher state changes for automatic refresh
+  useEffect(() => {
+    if (fetcher.state === 'idle' && fetcher.data) {
+      if (fetcher.data.success) {
+        // Refresh the loader data after successful actions
+        revalidator.revalidate();
+        
+        // Reset form if creating/updating bundle
+        if (showBundleModal) {
+          setShowBundleModal(false);
+          setBundleName('');
+          setBundleDescription('');
+          setSelectedProducts([]);
+          setSelectedCollections([]);
+          setDiscountType('percentage');
+          setDiscountAmount(10);
+          setIsActive(true);
+          setEditingBundle(null);
+        }
+      }
+    }
+  }, [fetcher.state, fetcher.data, revalidator, showBundleModal]);
+  
+  const handleSaveBundle = () => {
+    const formData = new FormData();
+    formData.append('intent', editingBundle ? 'update' : 'create');
+    formData.append('name', bundleName);
+    formData.append('description', bundleDescription);
+    formData.append('discountType', discountType);
+    formData.append('discountAmount', discountValue.toString());
+    
+    // For category bundles, send collections; otherwise send products
+    if (bundleType === 'category') {
+      formData.append('collectionIds', JSON.stringify(selectedCollections));
+    } else {
+      formData.append('productIds', JSON.stringify(selectedProducts));
+    }
+    
+    formData.append('bundleType', bundleType);
+    formData.append('isActive', isActive.toString());
+    
+    if (editingBundle) {
+      formData.append('bundleId', editingBundle.id);
+    }
+    
+    fetcher.submit(formData, { method: 'post' });
+  };
+
+  const handleDeleteBundle = (bundleId: string) => {
+    const formData = new FormData();
+    formData.append('intent', 'delete');
+    formData.append('bundleId', bundleId);
+    
+    fetcher.submit(formData, { method: 'post' });
+  };
+
+  const handleToggleBundle = (bundleId: string, currentState: boolean) => {
+    const formData = new FormData();
+    formData.append('intent', 'toggle');
+    formData.append('bundleId', bundleId);
+    formData.append('isActive', (!currentState).toString());
+    
+    fetcher.submit(formData, { method: 'post' });
+  };
 
   return (
     <Page>
@@ -395,6 +479,140 @@ export default function ManualBundles() {
           </FormLayout>
         </Modal.Section>
       </Modal>
+
+      {/* Old Create Bundle Modal (for reference)
+      <Modal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="Create New Bundle"
+        primaryAction={{
+          content: 'Create Bundle',
+          onAction: () => {
+            // Handle bundle creation
+            console.log('Creating bundle...', {
+              name: bundleName,
+              type: bundleType,
+              discountType,
+              discountValue,
+              selectedProducts,
+              categoryRule,
+              minItems
+            });
+            setShowCreateModal(false);
+          },
+        }}
+        secondaryActions={[
+          {
+            content: 'Cancel',
+            onAction: () => setShowCreateModal(false),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <FormLayout>
+            <TextField
+              label="Bundle Name"
+              value={bundleName}
+              onChange={setBundleName}
+              placeholder="e.g., Skincare Essentials"
+              autoComplete="off"
+            />
+
+            <Select
+              label="Bundle Type"
+              options={bundleTypeOptions}
+              value={bundleType}
+              onChange={setBundleType}
+            />
+
+            <InlineStack gap="200">
+              <Box minWidth="150px">
+                <Select
+                  label="Discount Type"
+                  options={discountTypeOptions}
+                  value={discountType}
+                  onChange={setDiscountType}
+                />
+              </Box>
+              <TextField
+                label={discountType === 'percentage' ? 'Percentage (%)' : 'Amount ($)'}
+                value={discountValue}
+                onChange={setDiscountValue}
+                type="number"
+                autoComplete="off"
+              />
+            </InlineStack>
+
+            {bundleType === 'fixed' && (
+              <div>
+                <Text variant="headingSm" as="h3">Select Products</Text>
+                <Box paddingBlockStart="200">
+                  <ResourceList
+                    resourceName={{ singular: 'product', plural: 'products' }}
+                    items={products.slice(0, 10)}
+                    renderItem={(product) => {
+                      const { id, title, vendor, price, image } = product;
+                      const isSelected = selectedProducts.includes(id);
+                      
+                      return (
+                        <ResourceItem
+                          id={id}
+                          onClick={() => toggleProductSelection(id)}
+                        >
+                          <InlineStack gap="300">
+                            <Checkbox 
+                              label=""
+                              checked={isSelected}
+                              onChange={() => toggleProductSelection(id)}
+                            />
+                            <Avatar 
+                              source={image || ''} 
+                            />
+                            <div>
+                              <Text as="p" variant="bodyMd" fontWeight="semibold">{title}</Text>
+                              <Text as="p" variant="bodySm" tone="subdued">{vendor} • ${price}</Text>
+                            </div>
+                          </InlineStack>
+                        </ResourceItem>
+                      );
+                    }}
+                  />
+                </Box>
+              </div>
+            )}
+
+            {bundleType === 'category_rule' && (
+              <div>
+                <TextField
+                  label="Category/Collection Rule"
+                  value={categoryRule}
+                  onChange={setCategoryRule}
+                  placeholder="e.g., Supplements, Skincare"
+                  helpText="Customers can pick products from this category"
+                  autoComplete="off"
+                />
+                <TextField
+                  label="Minimum Items Required"
+                  value={minItems}
+                  onChange={setMinItems}
+                  type="number"
+                  helpText="How many items must customers select to get the discount"
+                  autoComplete="off"
+                />
+              </div>
+            )}
+
+            <Banner title="Bundle Preview" tone="info">
+              <Text as="p">
+                {bundleType === 'fixed' 
+                  ? `Fixed bundle with ${selectedProducts.length} selected products, ${discountValue}${discountType === 'percentage' ? '%' : '$'} discount`
+                  : `Category rule: Pick ${minItems}+ from ${categoryRule || 'selected category'}, save ${discountValue}${discountType === 'percentage' ? '%' : '$'}`
+                }
+              </Text>
+            </Banner>
+          </FormLayout>
+        </Modal.Section>
+      </Modal> */}
     </Page>
   );
 }
