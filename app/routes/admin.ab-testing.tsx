@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, useFetcher } from "@remix-run/react";
 import { useState } from "react";
 import {
   Page,
@@ -301,6 +301,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function ABTestingPage() {
   const data = useLoaderData<typeof loader>();
+  const fetcher = useFetcher();
   const experiments: ABExperiment[] = 'experiments' in data ? data.experiments : [];
   const errorMessage = 'error' in data && typeof data.error === 'string' ? data.error : null;
   const message = 'message' in data && typeof data.message === 'string' ? data.message : null;
@@ -407,9 +408,17 @@ export default function ABTestingPage() {
             <BlockStack gap="400">
               <InlineStack align="space-between">
                 <Text as="h2" variant="headingMd">Active Experiments</Text>
-                <Badge tone="info">
-                  {`${experiments.filter(e => e && e.status === 'running').length} Running`}
-                </Badge>
+                <InlineStack gap="200">
+                  <Badge tone="info">
+                    {`${experiments.filter(e => e && e.status === 'running').length} Running`}
+                  </Badge>
+                  <Button 
+                    variant="primary"
+                    onClick={() => setShowCreateModal(true)}
+                  >
+                    Create Experiment
+                  </Button>
+                </InlineStack>
               </InlineStack>
               
               <DataTable
@@ -502,8 +511,27 @@ export default function ABTestingPage() {
         primaryAction={{
           content: 'Create Experiment',
           onAction: () => {
-            console.log('Creating experiment:', newExperiment);
+            const formData = new FormData();
+            formData.append('action', 'create');
+            formData.append('name', newExperiment.name);
+            formData.append('description', newExperiment.description);
+            formData.append('testType', newExperiment.testType);
+            formData.append('primaryMetric', newExperiment.primaryMetric);
+            formData.append('trafficAllocation', String(newExperiment.trafficAllocation));
+            formData.append('confidenceLevel', String(newExperiment.confidenceLevel));
+            
+            fetcher.submit(formData, { method: 'post' });
             setShowCreateModal(false);
+            
+            // Reset form
+            setNewExperiment({
+              name: '',
+              description: '',
+              testType: 'bundle_pricing',
+              primaryMetric: 'conversion_rate',
+              trafficAllocation: 100,
+              confidenceLevel: 95
+            });
           }
         }}
         secondaryActions={[{
