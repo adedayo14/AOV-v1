@@ -1,7 +1,7 @@
 import { json, redirect } from "@remix-run/node";
 import { useActionData, useFetcher, useLoaderData, useNavigation, useSubmit } from "@remix-run/react";
 import { useEffect, useState } from "react";
-import { authenticate } from "~/auth.server";
+import { authenticate } from "../shopify.server";
 import { prisma } from "~/db.server";
 import { Page, Card, EmptyState } from "@shopify/polaris";
 // Note: ExperimentCard component needs to be created or imported from correct location
