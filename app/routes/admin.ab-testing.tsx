@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useFetcher, useRevalidator } from "@remix-run/react";
+import { useLoaderData, useFetcher } from "@remix-run/react";
 import { useState, useEffect } from "react";
 import {
   Page,
@@ -189,66 +189,58 @@ function erf(x: number) {
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
+  const shop = session.shop;
   const formData = await request.formData();
   const action = formData.get('action');
-  
+
   try {
-    // Defensive: ensure Prisma Client has A/B testing models
-    const hasABModels = (prisma as any)?.aBExperiment && typeof (prisma as any).aBExperiment.create === 'function';
-    if (!hasABModels) {
-      const details = {
-        prismaExists: !!prisma,
-        aBExperimentExists: !!(prisma as any)?.aBExperiment,
-        createExists: !!(prisma as any)?.aBExperiment?.create,
-      };
-      console.error('Prisma A/B models unavailable in action:', details);
-      return json({ success: false, error: 'A/B Testing models are not available in the Prisma Client. Please regenerate Prisma Client.' }, { status: 500 });
+    // Check if Prisma AB models are available
+    if (!prisma.aBExperiment) {
+      console.error('A/B Testing models not available in Prisma Client');
+      return json({ 
+        success: false, 
+        error: 'A/B Testing models are not available. Please ensure database is properly configured.' 
+      }, { status: 500 });
     }
     if (action === 'create') {
       const name = formData.get('name') as string;
-      const description = formData.get('description') as string;
+      const description = formData.get('description') as string || '';
       const testType = formData.get('testType') as string;
       const primaryMetric = formData.get('primaryMetric') as string;
-      const trafficAllocation = parseFloat(formData.get('trafficAllocation') as string) || 100;
-      const confidenceLevel = parseFloat(formData.get('confidenceLevel') as string) || 95;
+      const trafficAllocation = Number(formData.get('trafficAllocation'));
+      const confidenceLevel = Number(formData.get('confidenceLevel'));
       
-      // Create new experiment
-      const experiment = await prisma.aBExperiment.create({
+      // Create experiment with control and variant
+      const experiment = await (prisma as any).aBExperiment.create({
         data: {
-          shopId: session.shop,
+          shop,
           name,
           description,
           testType,
           primaryMetric,
-          trafficAllocation: trafficAllocation / 100, // Convert percentage to decimal
-          confidenceLevel: confidenceLevel / 100, // Convert percentage to decimal
           status: 'draft',
+          trafficAllocation,
+          confidenceLevel,
+          variants: {
+            create: [
+              {
+                name: 'Control',
+                description: 'Original version',
+                isControl: true,
+                trafficAllocation: 50
+              },
+              {
+                name: 'Variant A',
+                description: 'Test variant',
+                isControl: false,
+                trafficAllocation: 50
+              }
+            ]
+          }
         }
       });
       
-      // Create default control variant
-      await prisma.aBVariant.create({
-        data: {
-          experimentId: experiment.id,
-          name: 'Control',
-          description: 'Original version',
-          trafficPercentage: 0.5, // 50% traffic
-          isControl: true,
-        }
-      });
-      
-      // Create test variant
-      await prisma.aBVariant.create({
-        data: {
-          experimentId: experiment.id,
-          name: 'Variant A',
-          description: 'Test version',
-          trafficPercentage: 0.5, // 50% traffic
-          isControl: false,
-        }
-      });
-      
-      return json({ success: true, message: `Experiment "${name}" created successfully!` });
+      return json({ success: true, experiment });
     }
     
     if (action === 'delete') {
@@ -289,20 +281,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ success: true, message: 'Experiment stopped successfully!' });
     }
     
-    return json({ success: false, error: 'Unknown action' }, { status: 400 });
+    // ...existing code for other actions...
+
+    return json({ success: false, error: 'Unknown action' });
   } catch (error) {
-    console.error("A/B testing action error:", error);
+    console.error('A/B Testing action error:', error);
     return json({ 
       success: false, 
-      error: error instanceof Error ? error.message : "Failed to perform action" 
+      error: error instanceof Error ? error.message : 'Failed to process request' 
     }, { status: 500 });
   }
 };
 
 export default function ABTestingPage() {
   const data = useLoaderData<typeof loader>();
-  const fetcher = useFetcher();
-  const { revalidate } = useRevalidator();
+  const fetcher = useFetcher<typeof action>();
   const experiments: ABExperiment[] = 'experiments' in data ? data.experiments : [];
   const errorMessage = 'error' in data && typeof data.error === 'string' ? data.error : null;
   const message = 'message' in data && typeof data.message === 'string' ? data.message : null;
@@ -320,11 +313,18 @@ export default function ABTestingPage() {
     confidenceLevel: 95
   });
 
-  // Handle successful form submission
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  // Handle fetcher state changes
   useEffect(() => {
-    if (fetcher.state === 'idle' && fetcher.data && showCreateModal) {
-      if ((fetcher.data as any)?.success) {
-        // Reset form and close modal on successful creation
+    if (fetcher.state === 'idle' && fetcher.data) {
+      setIsSubmitting(false);
+      
+      if (fetcher.data.success) {
+        // Success - close modal and reset form
+        setShowCreateModal(false);
+        setActionError(null);
         setNewExperiment({
           name: '',
           description: '',
@@ -333,12 +333,34 @@ export default function ABTestingPage() {
           trafficAllocation: 100,
           confidenceLevel: 95
         });
-        setShowCreateModal(false);
-        // Refresh experiments list so the new experiment appears immediately
-        revalidate();
+        // The loader will automatically re-run due to navigation
+      } else {
+        // Error - show message but keep modal open
+        setActionError((fetcher.data as any).error || 'An error occurred');
       }
+    } else if (fetcher.state === 'submitting') {
+      setIsSubmitting(true);
+      setActionError(null);
     }
-  }, [fetcher.state, fetcher.data, showCreateModal, revalidate]);
+  }, [fetcher.state, fetcher.data]);
+
+  const handleCreateExperiment = () => {
+    if (!newExperiment.name.trim()) {
+      setActionError('Experiment name is required');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('action', 'create');
+    formData.append('name', newExperiment.name);
+    formData.append('description', newExperiment.description);
+    formData.append('testType', newExperiment.testType);
+    formData.append('primaryMetric', newExperiment.primaryMetric);
+    formData.append('trafficAllocation', String(newExperiment.trafficAllocation));
+    formData.append('confidenceLevel', String(newExperiment.confidenceLevel));
+    
+    fetcher.submit(formData, { method: 'post' });
+  };
 
   const testTypeOptions = [
     { label: 'Bundle Pricing', value: 'bundle_pricing' },
@@ -527,48 +549,39 @@ export default function ABTestingPage() {
       {/* Create Experiment Modal */}
       <Modal
         open={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
+        onClose={() => {
+          if (!isSubmitting) {
+            setShowCreateModal(false);
+            setActionError(null);
+          }
+        }}
         title="Create New A/B Test"
         primaryAction={{
-          content: 'Create Experiment',
-          disabled: !newExperiment.name.trim() || fetcher.state !== 'idle',
-          loading: fetcher.state !== 'idle',
-          onAction: () => {
-            if (!newExperiment.name.trim()) {
-              alert('Please enter an experiment name');
-              return;
-            }
-
-            const formData = new FormData();
-            formData.append('action', 'create');
-            formData.append('name', newExperiment.name.trim());
-            formData.append('description', newExperiment.description.trim());
-            formData.append('testType', newExperiment.testType);
-            formData.append('primaryMetric', newExperiment.primaryMetric);
-            // Clamp values and ensure they are valid strings
-            const traffic = Math.max(0, Math.min(100, Number(newExperiment.trafficAllocation) || 100));
-            const conf = [90, 95, 99].includes(Number(newExperiment.confidenceLevel))
-              ? Number(newExperiment.confidenceLevel)
-              : 95;
-            formData.append('trafficAllocation', String(traffic));
-            formData.append('confidenceLevel', String(conf));
-            
-            fetcher.submit(formData, { method: 'post' });
-          }
+          content: isSubmitting ? 'Creating...' : 'Create Experiment',
+          onAction: handleCreateExperiment,
+          disabled: isSubmitting,
+          loading: isSubmitting
         }}
         secondaryActions={[{
           content: 'Cancel',
-          onAction: () => setShowCreateModal(false)
+          onAction: () => {
+            if (!isSubmitting) {
+              setShowCreateModal(false);
+              setActionError(null);
+            }
+          },
+          disabled: isSubmitting
         }]}
       >
         <Modal.Section>
           {/* Action error feedback */}
-          {fetcher.state === 'idle' && fetcher.data && !(fetcher.data as any).success && (fetcher.data as any).error && (
-            <Banner tone="critical" title="Could not create experiment">
-              <p>{(fetcher.data as any).error}</p>
-            </Banner>
-          )}
-          <FormLayout>
+          <BlockStack gap="400">
+            {actionError && (
+              <Banner tone="critical" onDismiss={() => setActionError(null)}>
+                <p>{actionError}</p>
+              </Banner>
+            )}
+            <FormLayout>
             <TextField
               label="Experiment Name"
               value={newExperiment.name}
@@ -639,6 +652,7 @@ export default function ABTestingPage() {
               </Text>
             </Banner>
           </FormLayout>
+          </BlockStack>
         </Modal.Section>
       </Modal>
 

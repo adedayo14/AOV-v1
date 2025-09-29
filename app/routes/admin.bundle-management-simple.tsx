@@ -46,58 +46,98 @@ interface Bundle {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
+  const shop = session.shop;
+  
   const url = new URL(request.url);
-  const loadProducts = url.searchParams.get("loadProducts") === "true";
-
-  try {
-  const bundles = await (prisma as any).bundle.findMany({
-      where: { shop: session.shop },
-      orderBy: { createdAt: "desc" },
-    });
-
-    let products: any[] = [];
-
-    if (loadProducts) {
-      const productQuery = `
-        query getProducts($first: Int!) {
-          products(first: $first) {
+  const loadProducts = url.searchParams.get('loadProducts') === 'true';
+  
+  if (loadProducts) {
+    try {
+      const response = await admin.graphql(`
+        #graphql
+        query getProducts {
+          products(first: 50) {
             edges {
               node {
                 id
                 title
                 handle
-                featuredImage { url }
-                variants(first: 1) { edges { node { id price } } }
+                status
+                featuredImage {
+                  url
+                  altText
+                }
+                priceRangeV2 {
+                  minVariantPrice {
+                    amount
+                    currencyCode
+                  }
+                }
+                variants(first: 1) {
+                  edges {
+                    node {
+                      id
+                      price
+                    }
+                  }
+                }
               }
             }
           }
         }
-      `;
-
-      const productResponse = await admin.graphql(productQuery, {
-        variables: { first: 50 },
-      });
-
-      if (!productResponse.ok) {
-        const text = await productResponse.text();
-        console.warn("Admin GraphQL products error:", productResponse.status, text);
-        return json({ success: false, bundles, products: [], error: `Products request failed (${productResponse.status})` }, { status: 502 });
+      `);
+      
+      const responseJson = await response.json();
+      
+      // Check for GraphQL errors
+      if ((responseJson as any).errors) {
+        console.error('GraphQL errors:', (responseJson as any).errors);
+        return json({ 
+          success: false, 
+          error: 'Failed to load products: ' + (responseJson as any).errors[0]?.message,
+          products: []
+        }, { status: 500 });
       }
-      const productData = await productResponse.json();
-      const gqlErrors = (productData as any)?.errors;
-      if (gqlErrors) {
-        console.warn("Admin GraphQL products errors:", gqlErrors);
-        return json({ success: false, bundles, products: [], error: "Products request returned errors" }, { status: 502 });
-      }
-      if (productData.data?.products?.edges) {
-        products = productData.data.products.edges.map((edge: any) => edge.node);
-      }
+      
+      const products = responseJson.data?.products?.edges?.map((edge: any) => ({
+        id: edge.node.id,
+        title: edge.node.title,
+        handle: edge.node.handle,
+        image: edge.node.featuredImage?.url || '',
+        price: edge.node.priceRangeV2?.minVariantPrice?.amount || 
+               edge.node.variants?.edges?.[0]?.node?.price || '0'
+      })) || [];
+      
+      return json({ success: true, products });
+    } catch (error) {
+      console.error('Failed to load products:', error);
+      return json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to load products',
+        products: []
+      }, { status: 500 });
     }
-
-    return json({ success: true, bundles, products });
+  }
+  
+  // Load bundles
+  try {
+    const bundles = await (prisma as any).bundle.findMany({
+      where: { shop },
+      include: {
+        products: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    return json({ success: true, bundles, products: [] });
   } catch (error) {
-    console.error("Bundle loader error:", error);
-    return json({ success: false, bundles: [], products: [], error: "Failed to load bundles" }, { status: 500 });
+    console.error('Failed to load bundles:', error);
+    return json({ 
+      success: true, 
+      bundles: [], 
+      products: [],
+      error: 'Failed to load bundles'
+    });
   }
 };
 
@@ -166,26 +206,91 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 };
 
-export default function BundleManagement() {
-  const { bundles = [], products = [] } = useLoaderData<typeof loader>();
-  const productFetcher = useFetcher();
-  const mutateFetcher = useFetcher();
-  const { revalidate } = useRevalidator();
+export default function SimpleBundleManagement() {
+  const loaderData = useLoaderData<typeof loader>();
+  const productFetcher = useFetcher<typeof loader>();
+  const actionFetcher = useFetcher<typeof action>();
 
+  // Handle both bundle and product data from loader
+  const bundles = (loaderData as any).bundles || [];
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [loadingProducts, setLoadingProducts] = useState(false);
-  const [productList, setProductList] = useState<any[]>(products);
-  const [productLoadError, setProductLoadError] = useState<string | null>(null);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
 
-  const [bundleForm, setBundleForm] = useState({
+  const [newBundle, setNewBundle] = useState({
     name: "",
     description: "",
-    type: "manual",
+    bundleType: "manual",
     discountType: "percentage",
     discountValue: 10,
     minProducts: 2,
-    selectedProducts: [] as string[],
+    maxProducts: 10,
+    status: "active"
   });
+
+  // Auto-load products when modal opens with manual type
+  useEffect(() => {
+    if (showCreateModal && newBundle.bundleType === 'manual' && 
+        !productFetcher.data?.products && productFetcher.state === 'idle') {
+      productFetcher.load('/admin/bundle-management-simple?loadProducts=true');
+    }
+  }, [showCreateModal, newBundle.bundleType]);
+
+  // Handle product fetcher state
+  const isLoadingProducts = productFetcher.state === 'loading';
+  const productLoadError = productFetcher.data && !productFetcher.data.success 
+    ? (productFetcher.data as any).error 
+    : null;
+  const availableProducts = productFetcher.data?.products || [];
+
+  // Handle action fetcher state
+  useEffect(() => {
+    if (actionFetcher.state === 'idle' && actionFetcher.data) {
+      if (actionFetcher.data.success) {
+        setShowCreateModal(false);
+        resetForm();
+        // Reload bundles
+        window.location.reload();
+      }
+    }
+  }, [actionFetcher.state, actionFetcher.data]);
+
+  const resetForm = () => {
+    setNewBundle({
+      name: "",
+      description: "",
+      bundleType: "manual",
+      discountType: "percentage",
+      discountValue: 10,
+      minProducts: 2,
+      maxProducts: 10,
+      status: "active"
+    });
+    setSelectedProducts([]);
+  };
+
+  const handleCreateBundle = () => {
+    if (!newBundle.name.trim()) {
+      alert('Bundle name is required');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('action', 'create');
+    formData.append('name', newBundle.name);
+    formData.append('description', newBundle.description);
+    formData.append('bundleType', newBundle.bundleType);
+    formData.append('discountType', newBundle.discountType);
+    formData.append('discountValue', String(newBundle.discountValue));
+    formData.append('minProducts', String(newBundle.minProducts));
+    formData.append('maxProducts', String(newBundle.maxProducts));
+    formData.append('status', newBundle.status);
+    
+    if (newBundle.bundleType === 'manual' && selectedProducts.length > 0) {
+      formData.append('productIds', JSON.stringify(selectedProducts));
+    }
+    
+    actionFetcher.submit(formData, { method: 'post' });
+  };
 
   const bundleTypeOptions = [
     { label: "Manual Bundle (Select specific products)", value: "manual" },
@@ -216,7 +321,7 @@ export default function BundleManagement() {
           formData.append("action", "toggle-status");
           formData.append("bundleId", bundle.id);
           formData.append("status", bundle.status === "active" ? "paused" : "active");
-          mutateFetcher.submit(formData, { method: "post" });
+          actionFetcher.submit(formData, { method: "post" });
         }}
       >
         {bundle.status === "active" ? "Pause" : "Activate"}
@@ -229,7 +334,7 @@ export default function BundleManagement() {
             const formData = new FormData();
             formData.append("action", "delete-bundle");
             formData.append("bundleId", bundle.id);
-            mutateFetcher.submit(formData, { method: "post" });
+            actionFetcher.submit(formData, { method: "post" });
           }
         }}
       >
@@ -237,79 +342,6 @@ export default function BundleManagement() {
       </Button>
     </ButtonGroup>,
   ]);
-
-  const loadProducts = () => {
-    if (!loadingProducts && productList.length === 0 && productFetcher.state === "idle") {
-      setProductLoadError(null);
-      setLoadingProducts(true);
-      productFetcher.load("/admin/bundle-management-simple?loadProducts=true");
-    }
-  };
-
-  // Auto-load products when opening the modal with Manual type selected
-  useEffect(() => {
-    if (showCreateModal && bundleForm.type === "manual" && productList.length === 0) {
-      loadProducts();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showCreateModal, bundleForm.type]);
-
-  useEffect(() => {
-    if (productFetcher.state === "idle") {
-      const data: any = productFetcher.data;
-      // End of a load cycle – stop spinner
-      if (loadingProducts) setLoadingProducts(false);
-      if (data && typeof data === "object") {
-        if (data.success && Array.isArray(data.products)) {
-          setProductList(data.products);
-          setProductLoadError(null);
-        } else {
-          setProductLoadError(data.error || "Failed to load products");
-        }
-      } else if (loadingProducts) {
-        // No data returned (likely non-200); show a generic error
-        setProductLoadError("Failed to load products");
-      }
-    }
-  }, [productFetcher.state, productFetcher.data, loadingProducts]);
-
-  useEffect(() => {
-    if (mutateFetcher.state === "idle" && mutateFetcher.data) {
-      const data: any = mutateFetcher.data;
-      if (data?.success) {
-        setShowCreateModal(false);
-        setBundleForm({
-          name: "",
-          description: "",
-          type: "manual",
-          discountType: "percentage",
-          discountValue: 10,
-          minProducts: 2,
-          selectedProducts: [],
-        });
-        revalidate();
-      }
-    }
-  }, [mutateFetcher.state, mutateFetcher.data, revalidate]);
-
-  const handleSubmit = () => {
-    if (!bundleForm.name.trim()) {
-      alert("Please enter a bundle name");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("action", "create-bundle");
-    formData.append("name", bundleForm.name);
-    formData.append("description", bundleForm.description);
-    formData.append("type", bundleForm.type);
-    formData.append("discountType", bundleForm.discountType);
-    formData.append("discountValue", bundleForm.discountValue.toString());
-    formData.append("minProducts", bundleForm.minProducts.toString());
-    formData.append("productIds", JSON.stringify(bundleForm.selectedProducts));
-
-    mutateFetcher.submit(formData, { method: "post" });
-  };
 
   return (
     <Page
