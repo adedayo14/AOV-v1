@@ -2,7 +2,7 @@ import { json } from "@remix-run/node";
 import { useEffect, useState } from "react";
 import { Button, Card, FormLayout, Select, Text, TextField } from "@shopify/polaris";
 
-import { prisma } from "~/db.server";
+import prisma from "~/db.server";
 import { authenticate } from "~/shopify.server";
 
 // ...existing code...
