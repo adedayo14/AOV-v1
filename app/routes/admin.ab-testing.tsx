@@ -436,7 +436,7 @@ export default function ABTestingPage() {
           )}
           
           {message && experiments.length === 0 && (
-            <Banner tone="success" title="Welcome to A/B Testing">
+            <Banner tone="success" title="Welcome to A/B Testing v1">
               <p>A/B Testing is now active! Create your first experiment to start optimizing your recommendation algorithms, bundle pricing, and customer experience.</p>
             </Banner>
           )}

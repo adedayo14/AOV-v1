@@ -150,13 +150,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (actionType === "create-bundle") {
       const name = formData.get("name") as string;
       const description = formData.get("description") as string;
-      const type = formData.get("type") as string;
+      const bundleType = formData.get("bundleType") as string;
       const discountType = formData.get("discountType") as string;
       const discountValue = parseFloat(formData.get("discountValue") as string);
       const minProducts = parseInt(formData.get("minProducts") as string) || 2;
       const productIds = (formData.get("productIds") as string) || "[]";
+      const collectionIds = (formData.get("collectionIds") as string) || "[]";
 
-      if (!name || !type || discountValue < 0) {
+      if (!name || !bundleType || discountValue < 0) {
         return json({ success: false, error: "Invalid bundle data" }, { status: 400 });
       }
 
@@ -165,11 +166,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           shop: session.shop,
           name,
           description,
-          type,
+          type: bundleType,
           discountType,
           discountValue,
           minProducts,
-          productIds,
+          productIds: bundleType === 'manual' ? productIds : "[]",
+          collectionIds: bundleType === 'category' ? collectionIds : "[]",
           status: "draft",
         },
       });
@@ -226,6 +228,7 @@ export default function SimpleBundleManagement() {
     maxProducts: 10,
     status: "active"
   });
+  const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
 
   // Auto-load products when modal opens with manual type
   useEffect(() => {
@@ -266,6 +269,7 @@ export default function SimpleBundleManagement() {
       status: "active"
     });
     setSelectedProducts([]);
+    setSelectedCollections([]);
   };
 
   const handleCreateBundle = () => {
@@ -287,6 +291,10 @@ export default function SimpleBundleManagement() {
     
     if (newBundle.bundleType === 'manual' && selectedProducts.length > 0) {
       formData.append('productIds', JSON.stringify(selectedProducts));
+    }
+    
+    if (newBundle.bundleType === 'category' && selectedCollections.length > 0) {
+      formData.append('collectionIds', JSON.stringify(selectedCollections));
     }
     
     actionFetcher.submit(formData, { method: 'post' });
@@ -598,8 +606,10 @@ export default function SimpleBundleManagement() {
                   ? `Ready to create bundle with ${selectedProducts.length} selected product${selectedProducts.length === 1 ? "" : "s"}.`
                   : newBundle.bundleType === "manual"
                   ? "Please select products above for your manual bundle."
+                  : newBundle.bundleType === "category" && selectedCollections.length > 0
+                  ? `Ready to create category bundle with ${selectedCollections.length} collection${selectedCollections.length === 1 ? "" : "s"}.`
                   : newBundle.bundleType === "category"
-                  ? "Category bundles automatically include all products from selected collections."
+                  ? "Please select collections above for your category bundle."
                   : "AI bundles use machine learning to create intelligent product combinations."}
               </Text>
             </Banner>
