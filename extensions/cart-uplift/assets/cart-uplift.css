@@ -1177,7 +1177,7 @@ body.cartuplift-no-scroll {
   justify-content: center;
   gap: 8px;
   position: absolute;
-  bottom: 8px;
+  bottom: -10px; /* Move further down, closer to section bottom */
   left: 50%;
   transform: translateX(-50%);
   z-index: 20; /* Higher z-index for mobile visibility */
@@ -1640,7 +1640,7 @@ body.cartuplift-no-scroll {
     justify-content: center;
     gap: 6px;
     position: absolute;
-    bottom: 8px;
+    bottom: -10px; /* Move further down, closer to section bottom */
     left: 50%;
     z-index: 20;
     transform: translateX(-50%);
