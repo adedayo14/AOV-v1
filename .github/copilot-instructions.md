@@ -139,3 +139,15 @@ const { admin } = await unauthenticated.admin(shop);
 - Don't hardcode Shopify store URLs or API keys - use environment variables or session data
 - Follow TypeScript strict mode and handle all potential undefined/null cases
 - Use proper error boundaries for embedded app components
+
+## Git Commit Standards
+
+- **Keep commit messages concise** - Use single line format: `type: brief description`
+- **Use conventional commits**: `feat:`, `fix:`, `refactor:`, `docs:`, `style:`
+- **Maximum 50 characters** for commit subject line
+- **Examples**: 
+  - `feat: add product selection to bundles`
+  - `fix: resolve A/B testing save issue` 
+  - `refactor: improve bundle API performance`
+- **Avoid lengthy descriptions** - keep details in code comments, not commits
+- **One logical change per commit** - don't bundle unrelated fixes

@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -319,6 +319,24 @@ export default function ABTestingPage() {
     confidenceLevel: 95
   });
 
+  // Handle successful form submission
+  useEffect(() => {
+    if (fetcher.state === 'idle' && fetcher.data && showCreateModal) {
+      if ((fetcher.data as any)?.success) {
+        // Reset form and close modal on successful creation
+        setNewExperiment({
+          name: '',
+          description: '',
+          testType: 'bundle_pricing',
+          primaryMetric: 'conversion_rate',
+          trafficAllocation: 100,
+          confidenceLevel: 95
+        });
+        setShowCreateModal(false);
+      }
+    }
+  }, [fetcher.state, fetcher.data, showCreateModal]);
+
   const testTypeOptions = [
     { label: 'Bundle Pricing', value: 'bundle_pricing' },
     { label: 'ML Algorithm', value: 'ml_algorithm' },
@@ -527,19 +545,6 @@ export default function ABTestingPage() {
             formData.append('confidenceLevel', String(newExperiment.confidenceLevel));
             
             fetcher.submit(formData, { method: 'post' });
-            
-            // Reset form and close modal after slight delay
-            setTimeout(() => {
-              setNewExperiment({
-                name: '',
-                description: '',
-                testType: 'bundle_pricing',
-                primaryMetric: 'conversion_rate',
-                trafficAllocation: 100,
-                confidenceLevel: 95
-              });
-              setShowCreateModal(false);
-            }, 100);
           }
         }}
         secondaryActions={[{
