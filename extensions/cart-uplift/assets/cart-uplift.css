@@ -1547,7 +1547,7 @@ body.cartuplift-no-scroll {
 .cartuplift-grid-container .cartuplift-grid-price { display:none !important; }
 
 /* Limit to exactly 8 items visually (2 rows) */
-.cartuplift-grid-container > .cartuplift-grid-item:nth-child(n+9) { display:none !important; }
+.cartuplift-grid-container > .cartuplift-grid-item:nth-child(n+4) { display:none !important; }
 
 /* Typography smoothing */
 .cartuplift-grid-container, .cartuplift-grid-container * { -webkit-font-smoothing: antialiased; }
