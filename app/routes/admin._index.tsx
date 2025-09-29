@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
+import { useLoaderData } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -195,18 +195,14 @@ export default function Index() {
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">AI-powered product recommendations</Text>
                     </div>
-                    <Link to="/admin/settings">
-                      <Button size="micro" variant="primary">Configure ML</Button>
-                    </Link>
+                    <Button size="micro" variant="primary" url="/admin/settings">Configure ML</Button>
                   </div>
                   <div className="feature-item">
                     <div className="feature-content">
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">Dynamic free shipping incentives</Text>
                     </div>
-                    <Link to="/admin/settings">
-                      <Button size="micro">Setup Threshold</Button>
-                    </Link>
+                    <Button size="micro" url="/admin/settings">Setup Threshold</Button>
                   </div>
                 </div>
                 <div className="feature-column">
@@ -215,18 +211,14 @@ export default function Index() {
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">Automated cross-sell suggestions</Text>
                     </div>
-                    <Link to="/admin/manage">
-                      <Button size="micro">Manage Products</Button>
-                    </Link>
+                    <Button size="micro" url="/admin/manage">Manage Products</Button>
                   </div>
                   <div className="feature-item">
                     <div className="feature-content">
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">Cart progress & abandonment tracking</Text>
                     </div>
-                    <Link to="/admin/dashboard">
-                      <Button size="micro">View Analytics</Button>
-                    </Link>
+                    <Button size="micro" url="/admin/dashboard">View Analytics</Button>
                   </div>
                 </div>
                 <div className="feature-column">
@@ -235,29 +227,21 @@ export default function Index() {
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">Conversion rate optimization</Text>
                     </div>
-                    <Link to="/admin/ab-testing">
-                      <Button size="micro" variant="primary">A/B Test</Button>
-                    </Link>
+                    <Button size="micro" variant="primary" url="/admin/ab-testing">A/B Test</Button>
                   </div>
                   <div className="feature-item">
                     <div className="feature-content">
                       <span className="feature-checkmark">✓</span>
                       <Text variant="bodyMd" as="span">Customizable layouts & styling</Text>
                     </div>
-                    <Link to="/admin/settings">
-                      <Button size="micro">Customize</Button>
-                    </Link>
+                    <Button size="micro" url="/admin/settings">Customize</Button>
                   </div>
                 </div>
               </div>
             </BlockStack>
             <InlineStack gap="300">
-              <Link to="/app/settings">
-                <Button variant="primary" size="large">Configure Settings</Button>
-              </Link>
-              <Link to="/app/dashboard">
-                <Button size="large">View Dashboard</Button>
-              </Link>
+              <Button variant="primary" size="large" url="/app/settings">Configure Settings</Button>
+              <Button size="large" url="/app/dashboard">View Dashboard</Button>
             </InlineStack>
           </BlockStack>
         </Card>
@@ -351,12 +335,18 @@ export default function Index() {
               </div>
               
               <InlineStack gap="300">
-                <Link to="/app/settings">
-                  <Button variant="primary">Complete Setup</Button>
-                </Link>
-                <a href={themeEditorUrl} target="_top" rel="noopener noreferrer">
-                  <Button variant="secondary">Install Theme Embed</Button>
-                </a>
+                <Button variant="primary" url="/app/settings">Complete Setup</Button>
+                <Button variant="secondary" onClick={() => {
+                  try {
+                    if (typeof window !== 'undefined' && window.top) {
+                      window.top.location.href = themeEditorUrl;
+                    } else {
+                      window.location.href = themeEditorUrl;
+                    }
+                  } catch {
+                    window.location.href = themeEditorUrl;
+                  }
+                }}>Install Theme Embed</Button>
               </InlineStack>
             </BlockStack>
           </Card>
@@ -488,14 +478,7 @@ export default function Index() {
               </div>
               <div className="card-button-wrapper">
                 <div className="cartuplift-action-buttons">
-                  <Link to="/app/dashboard">
-                    <Button 
-                      variant="primary"
-                      size="large"
-                    >
-                      View Dashboard
-                    </Button>
-                  </Link>
+                  <Button variant="primary" size="large" url="/app/dashboard">View Dashboard</Button>
                 </div>
               </div>
             </Card>
