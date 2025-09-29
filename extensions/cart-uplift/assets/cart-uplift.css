@@ -1228,7 +1228,7 @@ body.cartuplift-no-scroll {
 .cartuplift-card-content {
   display: flex;
   flex-direction: row;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
   align-items: flex-start;
   height: 100%;
@@ -1253,15 +1253,15 @@ body.cartuplift-no-scroll {
   object-fit: contain;
 }
 
-/* Column 2: Product Info (Title + Variations) */
+/* Column 2: Product Info (Title + Price + Variations) */
 .cartuplift-product-info {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px; /* tighter spacing */
+  gap: 2px; /* Reduced spacing between title and price */
   min-width: 0;
-  padding-top: 0; /* remove extra top padding */
-  height: 100%; /* Allow pushing variation to the bottom */
+  padding-top: 8px; /* Small padding to not align with top of image */
+  justify-content: flex-start;
 }
 
 .cartuplift-recommendation-card h4 {
@@ -1276,13 +1276,14 @@ body.cartuplift-no-scroll {
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
-  margin-bottom: 4px; /* Add margin for consistent spacing */
+  margin-bottom: 0; /* Remove margin - price will be close */
   text-transform: none !important;
 }
 
 /* Variation selector - only show if product has multiple variants */
 .cartuplift-product-variation {
-  margin-top: 4px; /* Move up from auto to position higher */
+  margin-top: 6px; /* Small gap after price */
+  order: 3; /* Ensure it comes after price */
 }
 
 .cartuplift-size-dropdown {
@@ -1320,25 +1321,25 @@ body.cartuplift-no-scroll {
   display: none;
 }
 
-/* Column 3: Price + Add Button */
+/* Column 3: Add Button Only */
 .cartuplift-product-actions {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  justify-content: flex-start; /* Changed to flex-start for precise positioning */
+  justify-content: flex-end; /* Align button to bottom */
   flex-shrink: 0;
-  width: 78px; /* Slightly slimmer to free space for title */
-  height: 100%; /* Span full card height to align Add button with bottom */
-  min-height: 80px; /* Reduce to tighten space under Add button */
-  padding-top: 58px; /* Position price to align with bottom of 80px image (80-22=58px) */
+  width: 70px; /* Wider since no price to accommodate */
+  height: 100%;
+  padding-bottom: 8px; /* Small padding from bottom edge */
 }
 
 .cartuplift-recommendation-card .cartuplift-recommendation-price {
-  font-size: 15px;
+  font-size: 14px; /* Slightly smaller to match title */
   font-weight: 600;
   color: #000;
   margin: 0;
-  text-align: right;
+  text-align: left; /* Changed from right to left */
+  order: 2; /* Ensure it comes after title */
 }
 
 .cartuplift-add-recommendation {
