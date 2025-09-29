@@ -899,7 +899,7 @@ body.cartuplift-no-scroll {
 
 .cartuplift-recommendations {
   background: var(--cartuplift-recommendations-bg);
-  padding: 4px 0; /* Reduced from 8px */
+  padding: 2px 0; /* Further reduced for tighter spacing */
   margin: 0;
   border-top: none;
   flex-shrink: 0;
@@ -907,7 +907,7 @@ body.cartuplift-no-scroll {
   overflow: visible;
   position: relative;
   display: block;
-  margin-top: 8px; /* reduced to bring section up and reveal voucher */
+  margin-top: 4px; /* Further reduced for tighter spacing */
   /* STABILITY: Prevent layout shift and shaking */
   min-height: 60px; /* Reserve space to prevent jumping */
   will-change: auto; /* Avoid unnecessary GPU acceleration */
@@ -954,11 +954,11 @@ body.cartuplift-no-scroll {
   align-items: center;
   width: 100%;
   padding-left: 16px;
-  padding-top: 8px;
-  padding-bottom: 4px; /* Further reduced for tighter spacing */
+  padding-top: 4px; /* Reduced for tighter spacing */
+  padding-bottom: 2px; /* Reduced for tighter spacing */
   padding-right: 16px; /* Reduced to move toggle closer to edge */
   background: var(--cartuplift-recommendations-bg);
-  height: 46px;  /* Increased from 36px to account for bottom padding */
+  height: 38px;  /* Reduced to match tighter padding */
   box-sizing: border-box;
   position: relative;
   z-index: 3; /* Ensure header/toggle are clickable above scroll content on mobile */
@@ -967,10 +967,10 @@ body.cartuplift-no-scroll {
 .cartuplift-recommendations.collapsed .cartuplift-recommendations-header {
   margin-bottom: 0;
   padding-left: 12px;
-  padding-top: 8px;
-  padding-bottom: 8px;
+  padding-top: 4px; /* Reduced for tighter spacing */
+  padding-bottom: 4px; /* Reduced for tighter spacing */
   padding-right: 20px; 
-  height: 36px;  
+  height: 32px; /* Reduced to match tighter padding */
   box-sizing: border-box;
 }
 
