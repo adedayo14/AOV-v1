@@ -1480,6 +1480,13 @@ body.cartuplift-no-scroll {
   border-radius: 8px;
   overflow: hidden;
   margin: 0 16px; /* Add horizontal margin for better spacing */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* Hide scrollbar for webkit browsers on grid container */
+.cartuplift-grid-container::-webkit-scrollbar {
+  display: none;
 }
 
 .cartuplift-grid-item {
@@ -1551,7 +1558,14 @@ body.cartuplift-no-scroll {
     grid-template-rows: 1fr;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
   /* Removed legacy -webkit-overflow-scrolling for compatibility */
+  }
+  
+  /* Hide scrollbar for webkit browsers */
+  .cartuplift-grid-container::-webkit-scrollbar {
+    display: none;
   }
   
   .cartuplift-grid-item {
