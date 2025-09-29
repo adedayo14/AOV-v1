@@ -1472,15 +1472,16 @@ body.cartuplift-no-scroll {
 /* --- Minimal COS-style Grid (desktop) --- */
 .cartuplift-grid-container {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* 3 equal columns instead of 4 fixed-width */
-  grid-auto-rows: 80px; /* Reduced from 104px to 80px for smaller images */
-  gap: 0; /* No gaps - single rectangle divided into sections */
-  justify-content: center;
+  grid-template-columns: repeat(3, 1fr); /* 3 columns by default, full width */
+  grid-auto-rows: 104px; /* Restore previous height for grid items */
+  gap: 0;
+  justify-content: stretch;
+  width: 100%;
   background: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   overflow: hidden;
-  margin: 0 16px; /* Add horizontal margin for better spacing */
+  margin: 0;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
 }
@@ -1493,7 +1494,7 @@ body.cartuplift-no-scroll {
 .cartuplift-grid-item {
   position: relative;
   width: 100%; /* Full width of column */
-  height: 80px; /* Reduced from 104px to 80px */
+  height: 104px; /* Uniform height for all layouts */
   cursor: pointer;
   overflow: hidden;
   background: #ffffff;
