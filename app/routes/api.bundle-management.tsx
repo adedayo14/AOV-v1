@@ -4,9 +4,12 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
+  console.log('🔥 Bundle Management API: Request received');
   const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
   const action = url.searchParams.get("action");
+  
+  console.log('🔥 Bundle Management API called:', { action, shop: session.shop });
 
   try {
     if (action === "bundles") {

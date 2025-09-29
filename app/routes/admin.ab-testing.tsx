@@ -352,6 +352,8 @@ export default function ABTestingPage() {
   }, [fetcher.state, fetcher.data]);
 
   const handleCreateExperiment = () => {
+    console.log('🔥 A/B Testing: Starting experiment creation...');
+    
     if (!newExperiment.name.trim()) {
       setActionError('Experiment name is required');
       return;
@@ -366,6 +368,7 @@ export default function ABTestingPage() {
     formData.append('trafficAllocation', String(newExperiment.trafficAllocation));
     formData.append('confidenceLevel', String(newExperiment.confidenceLevel));
     
+    console.log('🔥 A/B Testing: Submitting form data:', Array.from(formData.entries()));
     fetcher.submit(formData, { method: 'post' });
   };
 

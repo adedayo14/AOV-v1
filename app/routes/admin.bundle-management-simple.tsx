@@ -245,6 +245,7 @@ export default function SimpleBundleManagement() {
   useEffect(() => {
     if (showCreateModal && newBundle.bundleType === 'category' && 
         availableCollections.length === 0 && !isLoadingCollections) {
+      console.log('🔥 Loading collections via fetcher...');
       setIsLoadingCollections(true);
       collectionsFetcher.load('/api/bundle-management?action=categories');
     }
