@@ -1,24 +1,24 @@
-// Switch Prisma schema at build time based on environment
-// If DATABASE_URL is present, use schema.production.prisma; otherwise keep default
-import { copyFileSync, existsSync } from 'fs';
+// Production-only schema validation
+// Ensures DATABASE_URL is configured for PostgreSQL production database
+import { existsSync } from 'fs';
 import { resolve } from 'path';
 
 try {
   const hasDbUrl = !!process.env.DATABASE_URL;
-  const prismaDir = resolve(process.cwd(), 'prisma');
-  const devSchema = resolve(prismaDir, 'schema.prisma');
-  const prodSchema = resolve(prismaDir, 'schema.production.prisma');
+  const schemaPath = resolve(process.cwd(), 'prisma', 'schema.prisma');
 
-  if (hasDbUrl) {
-    if (existsSync(prodSchema)) {
-      copyFileSync(prodSchema, devSchema);
-      console.log('[Prisma] Using production schema (schema.production.prisma -> schema.prisma)');
-    } else {
-      console.warn('[Prisma] Expected production schema not found at', prodSchema);
-    }
-  } else {
-    console.log('[Prisma] Using development schema (SQLite)');
+  if (!hasDbUrl) {
+    console.error('[Prisma] ERROR: DATABASE_URL not configured. This app requires PostgreSQL.');
+    process.exit(1);
   }
+
+  if (!existsSync(schemaPath)) {
+    console.error('[Prisma] ERROR: Schema file not found at', schemaPath);
+    process.exit(1);
+  }
+
+  console.log('[Prisma] ✅ PostgreSQL schema validated');
 } catch (e) {
-  console.warn('[Prisma] Schema selection step failed (continuing):', e?.message || e);
+  console.error('[Prisma] Schema validation failed:', e?.message || e);
+  process.exit(1);
 }

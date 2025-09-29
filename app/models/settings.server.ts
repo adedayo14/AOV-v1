@@ -141,14 +141,11 @@ export async function getSettings(shop: string): Promise<SettingsData> {
       return getDefaultSettings();
     }
 
-    // Determine environment (dev uses SQLite)
-    const isDevelopment = process.env.DATABASE_URL?.includes('sqlite') || !process.env.DATABASE_DATABASE_URL;
+    // Production PostgreSQL environment
 
-    // In production, mirror grid-caps to global caps (DB lacks a separate column)
+    // In production, mirror grid-caps to global caps
     const enableTitleCapsVal = (settings as any).enableTitleCaps ?? false;
-    const enableRecommendationTitleCapsVal = isDevelopment
-      ? (settings as any).enableRecommendationTitleCaps ?? false
-      : enableTitleCapsVal;
+    const enableRecommendationTitleCapsVal = (settings as any).enableRecommendationTitleCaps ?? enableTitleCapsVal;
 
     return {
       enableApp: settings.enableApp,
@@ -298,23 +295,13 @@ export async function saveSettings(shop: string, settingsData: Partial<SettingsD
       }
     }
     
-    // Only include dev-only fields if we're in development (detect by database URL)
-    const isDevelopment = process.env.DATABASE_URL?.includes('sqlite') || !process.env.DATABASE_DATABASE_URL;
-    
-    if (isDevelopment) {
-      for (const field of devOnlyFields) {
-        const key = field as keyof SettingsData;
-        const val = settingsData[key as keyof SettingsData];
-        if (val !== undefined) {
-          console.log(`🔧 Including dev-only field ${String(field)} in save operation`);
-          (filteredData as any)[key] = val;
-        }
-      }
-    } else {
-      console.log('🔧 Production mode: excluding dev-only fields:', devOnlyFields);
-      // Mirror grid caps into global caps if provided via UI toggle
-      if (settingsData.enableRecommendationTitleCaps !== undefined) {
-        (filteredData as any).enableTitleCaps = Boolean(settingsData.enableRecommendationTitleCaps);
+    // Include all fields for production PostgreSQL database
+    for (const field of devOnlyFields) {
+      const key = field as keyof SettingsData;
+      const val = settingsData[key as keyof SettingsData];
+      if (val !== undefined) {
+        console.log(`🔧 Including field ${String(field)} in save operation`);
+        (filteredData as any)[key] = val;
       }
     }
     

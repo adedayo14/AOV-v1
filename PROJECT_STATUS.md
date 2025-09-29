@@ -8,8 +8,8 @@
 - **AI Bundle Opportunities**: Generated from real co-purchase patterns in your store orders
 
 ### ✅ **Database Consolidation** 
-- **Single Database**: Consolidated from multiple databases to one clean `dev.sqlite`
-- **Removed Duplicates**: Eliminated `dev.db`, backup SQL files, and redundant schemas
+- **Production Database**: PostgreSQL via Neon/Vercel integration
+- **Clean Setup**: Removed all SQLite files, test data, and duplicate schemas
 - **Clean Schema**: Proper Prisma setup with A/B testing and bundle analytics tables
 
 ### ✅ **Project Organization**
@@ -32,7 +32,7 @@
 ### **Database Structure**
 ```
 prisma/
-├── dev.sqlite          # Single consolidated database
+├── schema.prisma       # PostgreSQL production schema
 ├── schema.prisma       # Development schema  
 ├── schema.production.prisma # Production schema
 └── migrations/         # Version-controlled migrations

@@ -1,11 +1,11 @@
-// Prisma schema - SQLite for local development
+// Single Prisma schema - Production PostgreSQL
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.sqlite"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Session {
@@ -24,8 +24,6 @@ model Session {
   locale        String?
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
-
-  @@map("Session")
 }
 
 model Settings {
@@ -38,7 +36,7 @@ model Settings {
   showOnlyOnCartPage      Boolean  @default(false)
   autoOpenCart            Boolean  @default(true)
   enableFreeShipping      Boolean  @default(false)
-  freeShippingThreshold   Float    @default(100)
+  freeShippingThreshold   Float    @default(0)
   
   // Advanced Features
   enableRecommendations   Boolean  @default(false)
@@ -48,25 +46,24 @@ model Settings {
   enableExpressCheckout   Boolean  @default(true)
   enableAnalytics         Boolean  @default(false)
   // Dev-only fields for title case options
-  enableTitleCaps         Boolean  @default(false)
   enableRecommendationTitleCaps Boolean @default(false)
+  // Dev-only toggle in dev schema; safe to keep for prod alignment
   
   // Cart Behavior & Position
   cartPosition            String   @default("bottom-right")
   cartIcon                String   @default("cart")
   
   // Messages & Text
-  freeShippingText        String   @default("You're {{ amount }} away from free shipping!")
+  freeShippingText        String   @default("You're {amount} away from free shipping!")
   freeShippingAchievedText String  @default("🎉 Congratulations! You've unlocked free shipping!")
   recommendationsTitle    String   @default("You might also like")
   actionText              String   @default("Add discount code")
   addButtonText           String   @default("Add")
   checkoutButtonText      String   @default("CHECKOUT")
   applyButtonText         String   @default("Apply")
-  // Inline link texts (storefront)
+  // Optional link texts (present in dev schema)
   discountLinkText        String   @default("+ Got a promotion code?")
   notesLinkText           String   @default("+ Add order notes")
-  
   
   // Appearance
   backgroundColor         String   @default("#ffffff")
@@ -77,16 +74,34 @@ model Settings {
   shippingBarBackgroundColor String @default("#f0f0f0")
   shippingBarColor        String   @default("#121212")
   
-  // Layout and Recommendations - IMPORTANT: Default is "carousel"
-  recommendationLayout    String   @default("carousel")
-  maxRecommendations      Int      @default(4)
+  // Recommendation Settings
+  recommendationLayout    String   @default("horizontal")
+  maxRecommendations      Int      @default(6)
   maxRecommendationProducts Int    @default(4)
   complementDetectionMode String   @default("automatic")
   manualRecommendationProducts String @default("")
   
-  // ML/AI Recommendation Settings
-  enableMLRecommendations Boolean  @default(false)
+  // Progress Bar System
+  progressBarMode         String   @default("free-shipping") // "free-shipping", "gift-gating", "combined"
+  enableGiftGating        Boolean  @default(false)
+  giftProgressStyle       String   @default("single-next") // "stacked", "single-multi", "single-next"
+  giftThresholds          String   @default("[]") // JSON array of gift thresholds
+
+  // Legacy and UI fields used in dev schema (safe as additive columns)
+  stickyCartShowIcon      Boolean  @default(true)
+  stickyCartShowCount     Boolean  @default(true)
+  stickyCartShowTotal     Boolean  @default(true)
+  stickyCartBackgroundColor String @default("#000000")
+  stickyCartTextColor     String   @default("#ffffff")
+  stickyCartCountBadgeColor String @default("#ff4444")
+  stickyCartCountBadgeTextColor String @default("#ffffff")
+  stickyCartBorderRadius  Int      @default(25)
+  giftNoticeText          String   @default("Free gift added: {{product}} (worth {{amount}})")
+  giftPriceText           String   @default("FREE")
+
+  // ML/Privacy Settings (required for AI Personalization section)
   mlPersonalizationMode   String   @default("basic")
+  enableMLRecommendations Boolean  @default(false)
   mlPrivacyLevel          String   @default("basic")
   enableAdvancedPersonalization Boolean @default(false)
   enableBehaviorTracking  Boolean  @default(false)
@@ -95,59 +110,31 @@ model Settings {
   enableThresholdBasedSuggestions Boolean @default(false)
   thresholdSuggestionMode String   @default("smart")
   enableManualRecommendations Boolean @default(false)
-  
+
   // Smart Bundle Settings
   enableSmartBundles      Boolean  @default(false)
-  bundlesOnProductPages   Boolean  @default(false)
+  bundlesOnProductPages   Boolean  @default(true)
   bundlesInCartDrawer     Boolean  @default(false)
   bundlesOnCollectionPages Boolean @default(false)
-  defaultBundleDiscount   String   @default("10")
-  
-  // Sticky Cart Settings
-  stickyCartShowIcon           Boolean @default(true)
-  stickyCartShowCount          Boolean @default(true)
-  stickyCartShowTotal          Boolean @default(true)
-  stickyCartBackgroundColor    String  @default("#000000")
-  stickyCartTextColor          String  @default("#ffffff")
-  stickyCartCountBadgeColor    String  @default("#ff4444")
-  stickyCartCountBadgeTextColor String @default("#ffffff")
-  stickyCartBorderRadius       Int     @default(25)
-  
-  // Progress Bar System
-  progressBarMode         String   @default("free-shipping")
-  enableGiftGating        Boolean  @default(false)
-  giftProgressStyle       String   @default("single-next")
-  giftThresholds          String   @default("[]")
-  giftNoticeText          String   @default("Free gift added: {{product}} (worth {{amount}})")
-  giftPriceText           String   @default("FREE")
+  bundlesOnCartPage       Boolean  @default(false)
+  bundlesOnCheckoutPage   Boolean  @default(false)
+  defaultBundleDiscount   String   @default("15")
+  bundleTitleTemplate     String   @default("Complete your setup")
+  bundleDiscountPrefix    String   @default("BUNDLE")
+  bundleConfidenceThreshold String @default("medium")
+  bundleSavingsFormat     String   @default("both")
+  showIndividualPricesInBundle Boolean @default(true)
+  autoApplyBundleDiscounts Boolean @default(true)
 
   // Theme App Embed Status
   themeEmbedEnabled       Boolean  @default(false)
   themeEmbedLastSeen      DateTime?
   
-  // Enhanced Bundle Display Settings
-  enableEnhancedBundles   Boolean  @default(false)
-  showPurchaseCounts      Boolean  @default(false)
-  showRecentlyViewed      Boolean  @default(false)
-  showTestimonials        Boolean  @default(false)
-  showTrustBadges         Boolean  @default(false)
-  highlightHighValue      Boolean  @default(false)
-  enhancedImages          Boolean  @default(false)
-  animatedSavings         Boolean  @default(false)
-  highValueThreshold      Int      @default(150)
-  bundlePriority          String   @default("value")
-  badgeHighValueText      String   @default("Best Value")
-  badgePopularText        String   @default("Most Popular")
-  badgeTrendingText       String   @default("Trending")
-  testimonialsList        String   @default("[]")
-  
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
-
-  @@map("Settings")
 }
 
-// A/B Testing Models
+// A/B Testing Models (keep in sync with development schema)
 model ABExperiment {
   id                 Int       @id @default(autoincrement())
   shopId            String    @map("shop_id")

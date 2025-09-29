@@ -102,10 +102,10 @@ Please read the [documentation for @shopify/shopify-app-remix](https://www.npmjs
 
 ### Application Storage
 
-This template uses [Prisma](https://www.prisma.io/) to store session data, by default using an [SQLite](https://www.sqlite.org/index.html) database.
-The database is defined as a Prisma schema in `prisma/schema.prisma`.
+This app uses [Prisma](https://www.prisma.io/) with PostgreSQL for production data storage via Neon database hosted on Vercel.
+The database schema is defined in `prisma/schema.prisma` and includes session data, app settings, and A/B testing functionality.
 
-This use of SQLite works in production if your app runs as a single instance.
+The production setup uses a single PostgreSQL database for all data storage.
 The database that works best for you depends on the data your app needs and how it is queried.
 You can run your database of choice on a server yourself or host it with a SaaS company.
 Here's a short list of databases providers that provide a free tier to get started:

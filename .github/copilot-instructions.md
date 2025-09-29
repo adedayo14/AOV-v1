@@ -6,7 +6,7 @@ Cart Uplift is a Shopify app built with Remix that provides an enhanced cart dra
 ## Architecture & Key Components
 
 ### Core Stack
-- **Backend**: Remix (Node.js) with Prisma ORM + SQLite (dev) / Production DB
+- **Backend**: Remix (Node.js) with Prisma ORM + PostgreSQL (Production)
 - **Frontend**: React + Shopify Polaris + App Bridge
 - **Shopify Integration**: `@shopify/shopify-app-remix` with session storage
 - **Extension**: Shopify Theme App Extension (JavaScript/Liquid)
@@ -44,9 +44,8 @@ npm run inv:increase   # Bulk inventory management
 ```
 
 ### Dual Schema Pattern
-- Development uses SQLite (`schema.prisma`)
-- Production auto-switches to `schema.production.prisma` when `DATABASE_DATABASE_URL` exists
-- Build script handles this transition automatically
+- Single PostgreSQL schema for production deployment
+- Uses Neon PostgreSQL database via Vercel environment variables
 
 ### Theme Extension Development
 - Extension lives in `/extensions/cart-uplift/`
@@ -59,7 +58,6 @@ npm run inv:increase   # Bulk inventory management
 - **Fallback Chain**: Manual bundles → Co-purchase analysis → Shopify recommendations → Content-based filtering
 - **Bundle Sources**: `"ml"` | `"rules"` | `"manual"` - always track source for analytics
 - **Dynamic Pricing**: Stepped discounts based on bundle value (10-25%)
-- **Test Orders**: Always tag with `ML_SEED,CartUplift` and set `test: true`
 
 ### Settings Management Pattern
 ```typescript
@@ -101,7 +99,7 @@ const { admin } = await unauthenticated.admin(shop);
 - Settings from `Settings` model passed through theme editor variables
 
 ### ML Training Data
-- Orders marked `test: true` with tags for safe development
+
 - Co-purchase analysis requires minimum order volume
 - Content-based fallback uses Shopify product recommendations API
 
@@ -109,7 +107,7 @@ const { admin } = await unauthenticated.admin(shop);
 
 ### Development
 - Uses Shopify CLI tunnel for webhook/OAuth testing  
-- SQLite database for rapid iteration
+- PostgreSQL database via Vercel/Neon integration
 - HMR on port 64999 for embedded app development
 
 ### Production  
@@ -117,15 +115,7 @@ const { admin } = await unauthenticated.admin(shop);
 - Vercel serverless deployment via `/api/index.js`
 - Database migrations via `prisma db push` (no migration files in production)
 
-### Testing ML Features
-Use provided scripts with development stores:
-```bash
-# Generate realistic order history
-npm run ml:seed -- --shop dev-store.myshopify.com --count 100 --windowDays 90
 
-# Ensure inventory for testing
-npm run inv:increase -- --shop dev-store.myshopify.com --by 100
-```
 
 ## Common Patterns to Follow
 
@@ -134,3 +124,7 @@ npm run inv:increase -- --shop dev-store.myshopify.com --by 100
 3. **GraphQL**: Use admin.graphql() with proper error checking, prefer over REST when possible
 4. **Bundle Generation**: Always check manual settings first, then fall through ML chain
 5. **Theme Extension**: Keep JavaScript vanilla (no build step) for maximum theme compatibility
+
+No shortcut or using mock data. Always ensure real data integration and production readiness in all code changes.
+
+dont hardcode any shopify store urls or api keys. Always use environment variables or session data to access shop-specific information.
