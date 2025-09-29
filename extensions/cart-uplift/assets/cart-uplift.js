@@ -88,10 +88,18 @@
       // Handle both autoOpenCart (from API) and keepCartOpen (from theme design mode)
       // In design mode, keepCartOpen overrides autoOpenCart for editor convenience
       // When not in design mode, respect the actual autoOpenCart setting
+      console.log('🔧 Cart open settings debug:', {
+        designMode: this.settings.designMode,
+        keepCartOpen: this.settings.keepCartOpen,
+        autoOpenCart: this.settings.autoOpenCart
+      });
+      
       if (this.settings.designMode && this.settings.keepCartOpen !== undefined) {
         this.settings.autoOpenCart = Boolean(this.settings.keepCartOpen);
+        console.log('🔧 Design mode: setting autoOpenCart to', this.settings.autoOpenCart, 'based on keepCartOpen:', this.settings.keepCartOpen);
       } else {
         this.settings.autoOpenCart = Boolean(this.settings.autoOpenCart);
+        console.log('🔧 Normal mode: setting autoOpenCart to', this.settings.autoOpenCart);
       }
       
       this.settings.enableTitleCaps = Boolean(this.settings.enableTitleCaps);
@@ -650,12 +658,26 @@
           const response = await fetch(apiUrl);
           if (response.ok) {
             const newSettings = await response.json();
+            
             // Preserve theme-chosen layout if present
             if (this.settings.recommendationLayoutSource === 'theme') {
               newSettings.recommendationLayout = this.settings.recommendationLayout;
               newSettings.recommendationsLayout = this.settings.recommendationsLayout || newSettings.recommendationsLayout;
               newSettings.recommendationLayoutSource = 'theme';
             }
+            
+            // Preserve design mode settings - don't let API override theme editor choices
+            if (this.settings.designMode) {
+              console.log('🔧 Preserving design mode settings during API refresh');
+              newSettings.designMode = this.settings.designMode;
+              if (this.settings.keepCartOpen !== undefined) {
+                newSettings.keepCartOpen = this.settings.keepCartOpen;
+                // Don't let API autoOpenCart override design mode keepCartOpen
+                newSettings.autoOpenCart = this.settings.keepCartOpen;
+                console.log('🔧 Preserved keepCartOpen:', this.settings.keepCartOpen, 'autoOpenCart set to:', newSettings.autoOpenCart);
+              }
+            }
+            
             this.settings = Object.assign(this.settings, newSettings);
             window.CartUpliftSettings = Object.assign(window.CartUpliftSettings || {}, newSettings);
             this.updateDrawerContent();
@@ -4325,10 +4347,18 @@
               if (this.settings.enableApp) {
                 this.flyToCart();
               }
+              console.log('🔧 Cart add detected. Settings check:', {
+                autoOpenCart: this.settings.autoOpenCart,
+                enableApp: this.settings.enableApp,
+                willOpen: this.settings.autoOpenCart && this.settings.enableApp
+              });
               if (this.settings.autoOpenCart && this.settings.enableApp) {
+                console.log('🔧 Auto-opening cart after item added');
                 // Hide theme notifications only when we open our drawer
                 this.hideThemeNotifications();
                 this.openDrawer();
+              } else {
+                console.log('🔧 NOT opening cart - autoOpenCart or enableApp is false');
               }
             }, 100);
           }
@@ -4367,10 +4397,18 @@
                 if (self.settings.enableApp) {
                   self.flyToCart();
                 }
+                console.log('🔧 XHR Cart add detected. Settings check:', {
+                  autoOpenCart: self.settings.autoOpenCart,
+                  enableApp: self.settings.enableApp,
+                  willOpen: self.settings.autoOpenCart && self.settings.enableApp
+                });
                 if (self.settings.autoOpenCart && self.settings.enableApp) {
+                  console.log('🔧 Auto-opening cart after XHR item added');
                   // Hide theme notifications only when we open our drawer
                   self.hideThemeNotifications();
                   self.openDrawer();
+                } else {
+                  console.log('🔧 NOT opening cart via XHR - autoOpenCart or enableApp is false');
                 }
               }, 100);
             }
