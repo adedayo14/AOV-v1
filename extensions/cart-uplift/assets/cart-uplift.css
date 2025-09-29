@@ -1138,9 +1138,9 @@ body.cartuplift-no-scroll {
   display: none !important; /* Hide navigation arrows */
   align-items: center;
   justify-content: center;
-  width: 28px;                /* Restored size for better visibility */
-  height: 28px;               /* Restored size for better visibility */
-  border: 2px solid #111;     /* Restored border for better visibility */
+  width: 24px;  /* Match collapse button size */
+  height: 24px; /* Match collapse button size */
+  border: 1px solid #111; /* Match collapse button border */
   border-radius: 50%;
   background: transparent;
   cursor: pointer;
@@ -1153,9 +1153,9 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-carousel-nav:hover {
+  border-color: #999; /* Match collapse button hover */
   background: #f5f5f5;
-  border-color: #666;
-  transform: scale(1.05);
+  /* Remove scale transform to match collapse button */
 }
 
 .cartuplift-carousel-nav:disabled {
@@ -1164,11 +1164,11 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-carousel-nav svg {
-  width: 12px;  /* Increased for better visibility */
-  height: 12px; /* Increased for better visibility */
+  width: 10px;  /* Match collapse button icon size */
+  height: 10px; /* Match collapse button icon size */
   display: block;
   color: #333;
-  stroke-width: 2; /* Restored for better visibility */
+  stroke-width: 2; /* Keep for better visibility */
 }
 
 /* Dot Navigation - Hidden on desktop, shown on mobile */
