@@ -1475,7 +1475,7 @@ body.cartuplift-no-scroll {
 .cartuplift-grid-container {
   display: grid;
   grid-template-columns: repeat(3, 1fr); /* 3 equal columns instead of 4 fixed-width */
-  grid-auto-rows: 104px;
+  grid-auto-rows: 80px; /* Reduced from 104px to 80px for smaller images */
   gap: 0; /* No gaps - single rectangle divided into sections */
   justify-content: center;
   background: #ffffff;
@@ -1495,7 +1495,7 @@ body.cartuplift-no-scroll {
 .cartuplift-grid-item {
   position: relative;
   width: 100%; /* Full width of column */
-  height: 104px;
+  height: 80px; /* Reduced from 104px to 80px */
   cursor: pointer;
   overflow: hidden;
   background: #ffffff;
@@ -1505,7 +1505,7 @@ body.cartuplift-no-scroll {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px;
+  padding: 8px; /* Reduced padding from 12px to 8px */
   box-sizing: border-box;
 }
 
@@ -1526,7 +1526,7 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-grid-image { position: relative; width:100%; height:100%; }
-.cartuplift-grid-image img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.cartuplift-grid-image img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; /* Changed from cover to contain to show full image */ }
 
 /* Hover content container - ONLY button, no title/price on image */
 .cartuplift-grid-hover { position:absolute; inset:0; display:flex; flex-direction:column; opacity:0; transition:opacity .28s ease; padding:6px 6px 8px; justify-content:flex-end; align-items:center; }
