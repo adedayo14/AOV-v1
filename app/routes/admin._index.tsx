@@ -246,8 +246,8 @@ export default function Index() {
               </div>
             </BlockStack>
             <InlineStack gap="300">
-              <Button variant="primary" size="large" onClick={() => handleNavigate("/app/settings")}>Configure Settings</Button>
-              <Button size="large" onClick={() => handleNavigate("/app/dashboard")}>View Dashboard</Button>
+              <Button variant="primary" size="large" onClick={() => handleNavigate("/admin/settings")}>Configure Settings</Button>
+              <Button size="large" onClick={() => handleNavigate("/admin/dashboard")}>View Dashboard</Button>
             </InlineStack>
           </BlockStack>
         </Card>
@@ -341,7 +341,7 @@ export default function Index() {
               </div>
               
               <InlineStack gap="300">
-                <Button variant="primary" onClick={() => handleNavigate("/app/settings")}>Complete Setup</Button>
+                <Button variant="primary" onClick={() => handleNavigate("/admin/settings")}>Complete Setup</Button>
                 <Button variant="secondary" onClick={() => {
                   try {
                     if (typeof window !== 'undefined' && window.top) {
@@ -484,7 +484,7 @@ export default function Index() {
               </div>
               <div className="card-button-wrapper">
                 <div className="cartuplift-action-buttons">
-                  <Button variant="primary" size="large" onClick={() => handleNavigate("/app/dashboard")}>View Dashboard</Button>
+                  <Button variant="primary" size="large" onClick={() => handleNavigate("/admin/dashboard")}>View Dashboard</Button>
                 </div>
               </div>
             </Card>
