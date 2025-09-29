@@ -78,7 +78,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         variables: { first: 50 },
       });
 
+      if (!productResponse.ok) {
+        const text = await productResponse.text();
+        console.warn("Admin GraphQL products error:", productResponse.status, text);
+        return json({ success: false, bundles, products: [], error: `Products request failed (${productResponse.status})` }, { status: 502 });
+      }
       const productData = await productResponse.json();
+      const gqlErrors = (productData as any)?.errors;
+      if (gqlErrors) {
+        console.warn("Admin GraphQL products errors:", gqlErrors);
+        return json({ success: false, bundles, products: [], error: "Products request returned errors" }, { status: 502 });
+      }
       if (productData.data?.products?.edges) {
         products = productData.data.products.edges.map((edge: any) => edge.node);
       }
@@ -236,19 +246,32 @@ export default function BundleManagement() {
     }
   };
 
+  // Auto-load products when opening the modal with Manual type selected
+  useEffect(() => {
+    if (showCreateModal && bundleForm.type === "manual" && productList.length === 0) {
+      loadProducts();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCreateModal, bundleForm.type]);
+
   useEffect(() => {
     if (productFetcher.state === "idle") {
-      setLoadingProducts(false);
       const data: any = productFetcher.data;
+      // End of a load cycle – stop spinner
+      if (loadingProducts) setLoadingProducts(false);
       if (data && typeof data === "object") {
         if (data.success && Array.isArray(data.products)) {
           setProductList(data.products);
-        } else if (data.error) {
-          setProductLoadError(data.error);
+          setProductLoadError(null);
+        } else {
+          setProductLoadError(data.error || "Failed to load products");
         }
+      } else if (loadingProducts) {
+        // No data returned (likely non-200); show a generic error
+        setProductLoadError("Failed to load products");
       }
     }
-  }, [productFetcher.state, productFetcher.data]);
+  }, [productFetcher.state, productFetcher.data, loadingProducts]);
 
   useEffect(() => {
     if (mutateFetcher.state === "idle" && mutateFetcher.data) {
@@ -478,7 +501,7 @@ export default function BundleManagement() {
                     </EmptyState>
                   ) : (
                     <ResourceList
-                      items={productList.slice(0, 10)}
+                      items={productList.slice(0, 25)}
                       renderItem={(product: any) => (
                         <ResourceItem
                           id={product.id}

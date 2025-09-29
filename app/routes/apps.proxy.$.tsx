@@ -659,6 +659,84 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }
   }
 
+  // GET /apps/proxy/api/products
+  // Lightweight product search for theme/app proxy contexts
+  if (path.includes('/api/products')) {
+    try {
+      const { session } = await authenticate.public.appProxy(request);
+      const shop = session?.shop;
+      if (!shop) return json({ products: [], error: 'Unauthorized' }, { status: 401, headers: { 'Access-Control-Allow-Origin': '*' } });
+
+      const q = url.searchParams.get('query') || '';
+      const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10)));
+
+      const { admin } = await unauthenticated.admin(shop as string);
+      const resp = await admin.graphql(`#graphql
+        query getProducts($first: Int!, $query: String) {
+          products(first: $first, query: $query) {
+            edges {
+              node {
+                id
+                title
+                handle
+                status
+                featuredImage { url altText }
+                priceRangeV2 { minVariantPrice { amount currencyCode } }
+                variants(first: 10) {
+                  edges { node { id title price availableForSale } }
+                }
+              }
+            }
+            pageInfo { hasNextPage }
+          }
+        }
+      `, { variables: { first: limit, query: q ? `title:*${q}* OR vendor:*${q}* OR tag:*${q}*` : '' } });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        console.warn('Proxy products HTTP error:', resp.status, text);
+        return json({ products: [], error: `HTTP ${resp.status}` }, { status: 502, headers: { 'Access-Control-Allow-Origin': '*' } });
+      }
+      const data: any = await resp.json();
+      if (!data?.data) {
+        console.warn('Proxy products GraphQL error:', data?.errors);
+        return json({ products: [], error: 'GraphQL error' }, { status: 502, headers: { 'Access-Control-Allow-Origin': '*' } });
+      }
+
+      const products = (data.data.products.edges || []).map((edge: any) => {
+        const n = edge.node;
+        const variants = (n.variants?.edges || []).map((ve: any) => ({
+          id: ve.node.id,
+          title: ve.node.title,
+          price: typeof ve.node.price === 'number' ? ve.node.price : parseFloat(ve.node.price ?? '0') || 0,
+          availableForSale: ve.node.availableForSale,
+        }));
+        const minPriceAmount = n.priceRangeV2?.minVariantPrice?.amount;
+        const currency = n.priceRangeV2?.minVariantPrice?.currencyCode || 'USD';
+        const minPrice = typeof minPriceAmount === 'number' ? minPriceAmount : parseFloat(minPriceAmount ?? '0') || (variants[0]?.price ?? 0);
+        return {
+          id: n.id,
+          title: n.title,
+          handle: n.handle,
+          status: n.status,
+          image: n.featuredImage?.url || null,
+          imageAlt: n.featuredImage?.altText || n.title,
+          minPrice,
+          currency,
+          price: minPrice,
+          variants,
+        };
+      });
+
+      return json({ products, hasNextPage: Boolean(data.data.products.pageInfo?.hasNextPage) }, {
+        headers: { 'Access-Control-Allow-Origin': '*' }
+      });
+    } catch (e) {
+      console.error('Proxy products error:', e);
+      return json({ products: [], error: 'unavailable' }, { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
+    }
+  }
+
   // GET /apps/proxy/api/bundles
   // Returns simple, high-confidence bundles for PDP based on recent co-purchases.
   if (path.includes('/api/bundles')) {
