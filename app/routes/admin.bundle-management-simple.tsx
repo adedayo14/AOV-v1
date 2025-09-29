@@ -574,6 +574,47 @@ export default function SimpleBundleManagement() {
               </Card>
             )}
 
+            {newBundle.bundleType === "category" && (
+              <Card>
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingSm">
+                    Select Collections for Bundle
+                  </Text>
+                  <Text as="p" tone="subdued">
+                    Choose which collections should be included in this category bundle. All products from selected collections will be eligible for bundling.
+                  </Text>
+                  
+                  <BlockStack gap="200">
+                    <TextField
+                      label="Collection Handle or ID"
+                      value=""
+                      onChange={() => {}}
+                      placeholder="e.g., summer-collection, electronics, featured-products"
+                      helpText="Enter Shopify collection handles separated by commas"
+                      autoComplete="off"
+                    />
+                    <Button
+                      onClick={() => {
+                        // This would typically load collections via GraphQL
+                        // For now, show a simple text input approach
+                        alert('Collection selection will be implemented with GraphQL collections query');
+                      }}
+                    >
+                      Load Collections
+                    </Button>
+                  </BlockStack>
+                  
+                  {selectedCollections.length > 0 && (
+                    <Banner tone="success">
+                      <Text as="p" variant="bodyMd">
+                        {selectedCollections.length} collection{selectedCollections.length === 1 ? '' : 's'} selected for this bundle
+                      </Text>
+                    </Banner>
+                  )}
+                </BlockStack>
+              </Card>
+            )}
+
             <InlineStack gap="400">
               <Select
                 label="Discount Type"

@@ -193,8 +193,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const action = formData.get('action');
 
+  console.log('A/B Testing Action called:', { action, shop });
+
   try {
     // Check if Prisma AB models are available
+    console.log('Checking Prisma AB models:', { 
+      aBExperiment: !!prisma.aBExperiment,
+      aBVariant: !!(prisma as any).aBVariant 
+    });
+    
     if (!prisma.aBExperiment) {
       console.error('A/B Testing models not available in Prisma Client');
       return json({ 
