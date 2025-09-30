@@ -1466,12 +1466,7 @@ body.cartuplift-no-scroll {
 
 /* Grid Layout - for premium grid display */
 .cartuplift-recommendations-grid .cartuplift-recommendations-content {
-  padding: 8px 0 12px 0; /* Remove left/right padding for grid, keep top/bottom */
-}
-
-/* Grid Layout - for premium grid display */
-.cartuplift-recommendations-grid .cartuplift-recommendations-content {
-  padding: 12px 16px;
+  padding: 12px 0;
   background: var(--cartuplift-recommendations-bg);
 }
 
@@ -1486,6 +1481,7 @@ body.cartuplift-no-scroll {
   margin: 0;
   padding: 0;
   height: 200px;
+  width: 100%;
 }
 
 .cartuplift-grid-item {
