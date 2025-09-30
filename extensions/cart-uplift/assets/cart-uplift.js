@@ -3612,7 +3612,7 @@
 
       const modal = document.createElement('div');
       modal.className = 'cartuplift-product-modal';
-      modal.style.zIndex = '99999'; // Ensure high z-index
+      modal.style.zIndex = '1000001'; // Higher than cart drawer (1000000)
       
       try {
         modal.innerHTML = this.generateProductModalHTML(productData, gridIndex);
@@ -3628,11 +3628,11 @@
       // Add modal event listeners
       this.attachProductModalHandlers(modal, productData, gridIndex);
       
-      // Show modal with animation
-      setTimeout(() => {
+      // Show modal with animation - single smooth slide
+      requestAnimationFrame(() => {
         modal.classList.add('show');
-        console.log('🛒 Modal show class added, computed z-index:', window.getComputedStyle(modal).zIndex);
-      }, 10);
+        console.log('🛒 Modal shown smoothly');
+      });
     }
 
     // Generate HTML for product modal
@@ -3738,6 +3738,7 @@
 
     // Close product modal
     closeProductModal(modal) {
+      modal.classList.remove('show');
       modal.classList.add('hiding');
       setTimeout(() => {
         if (modal._keyHandler) {
