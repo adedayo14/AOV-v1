@@ -953,7 +953,8 @@ body.cartuplift-no-scroll {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 4px 16px 2px 16px;
+  padding: 8px 16px;
+  margin-bottom: 16px;
   background: var(--cartuplift-recommendations-bg);
   box-sizing: border-box;
   position: relative;
