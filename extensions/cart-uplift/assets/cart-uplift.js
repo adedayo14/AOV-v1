@@ -3602,13 +3602,17 @@
 
     // Show product modal for variant selection
     showProductModal(productData, gridIndex) {
+      console.log('🛒 Creating product modal for:', productData.title);
+      
       const existingModal = document.querySelector('.cartuplift-product-modal');
       if (existingModal) {
+        console.log('🛒 Removing existing modal');
         existingModal.remove();
       }
 
       const modal = document.createElement('div');
       modal.className = 'cartuplift-product-modal';
+      modal.style.zIndex = '99999'; // Ensure high z-index
       
       try {
         modal.innerHTML = this.generateProductModalHTML(productData, gridIndex);
@@ -3619,12 +3623,16 @@
       
       // Add to body (will cover cart area)
       document.body.appendChild(modal);
+      console.log('🛒 Modal added to DOM, z-index:', modal.style.zIndex);
       
       // Add modal event listeners
       this.attachProductModalHandlers(modal, productData, gridIndex);
       
       // Show modal with animation
-      setTimeout(() => modal.classList.add('show'), 10);
+      setTimeout(() => {
+        modal.classList.add('show');
+        console.log('🛒 Modal show class added, computed z-index:', window.getComputedStyle(modal).zIndex);
+      }, 10);
     }
 
     // Generate HTML for product modal

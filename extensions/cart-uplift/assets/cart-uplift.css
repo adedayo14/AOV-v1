@@ -3418,7 +3418,7 @@ body.cartuplift-no-scroll {
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 10000;
+  z-index: 99999;
   opacity: 0;
   visibility: hidden;
   transition: all 0.3s ease;
@@ -3445,7 +3445,7 @@ body.cartuplift-no-scroll {
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 10001;
+  z-index: 99998;
 }
 
 .cartuplift-modal-content {
@@ -3459,7 +3459,7 @@ body.cartuplift-no-scroll {
   overflow-y: auto;
   transform: translateX(100%);
   transition: transform 0.3s ease;
-  z-index: 10002;
+  z-index: 99999;
 }
 
 .cartuplift-product-modal.show .cartuplift-modal-content {
@@ -3480,7 +3480,7 @@ body.cartuplift-no-scroll {
   justify-content: center;
   cursor: pointer;
   color: #666;
-  z-index: 10003;
+  z-index: 100000;
   transition: all 0.2s ease;
 }
 
@@ -3564,8 +3564,8 @@ body.cartuplift-no-scroll {
 
 .cartuplift-modal-add-btn {
   width: 100%;
-  background: #2563eb;
-  color: white;
+  background: var(--cartuplift-primary-color, var(--color-primary, var(--buttons-color, #000)));
+  color: var(--cartuplift-primary-text-color, var(--color-primary-text, var(--buttons-text-color, #fff)));
   border: none;
   border-radius: 8px;
   padding: 16px 24px;
@@ -3576,9 +3576,9 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-modal-add-btn:hover {
-  background: #1d4ed8;
+  opacity: 0.9;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .cartuplift-modal-add-btn:active {
