@@ -3263,13 +3263,11 @@
           const productTitle = gridItem ? gridItem.dataset.title : `Product ${variantId}`;
           
           // Check if we need to show variant selector or add directly
-          console.log('🛒 Grid add click:', { productHandle, variantId, gridIndex, productTitle });
-          
           if (productHandle && variantId) {
             await this.handleGridProductAdd(productHandle, variantId, gridIndex, productTitle);
           } else if (variantId) {
             // Fallback: add directly if no handle but have variantId
-            console.log('🛒 Fallback: adding directly to cart');
+            console.warn('🛒 No product handle found, adding directly to cart');
             this.addToCart(variantId, 1);
             
             // Dynamic grid: swap in next recommendation
@@ -3566,8 +3564,6 @@
     // Handle grid product add - check variants and show modal if needed
     async handleGridProductAdd(productHandle, variantId, gridIndex, productTitle) {
       try {
-        console.log('🛒 Fetching product data for handle:', productHandle);
-        
         // Fetch product data to check variants
         const productResponse = await fetch(`/products/${productHandle}.js`);
         if (!productResponse.ok) {
@@ -3578,30 +3574,16 @@
         }
         
         const productData = await productResponse.json();
-        console.log('🛒 Product data fetched:', { 
-          id: productData.id, 
-          title: productData.title,
-          variantCount: productData.variants ? productData.variants.length : 0 
-        });
         
         // Check if product has multiple variants with meaningful differences
         const availableVariants = productData.variants ? productData.variants.filter(v => v.available) : [];
         const hasMultipleVariants = availableVariants.length > 1;
         
-        console.log('🛒 Variant analysis:', { 
-          totalVariants: productData.variants ? productData.variants.length : 0,
-          availableVariants: availableVariants.length,
-          hasMultipleVariants,
-          variants: availableVariants.map(v => ({ id: v.id, title: v.title, available: v.available }))
-        });
-        
         if (hasMultipleVariants) {
           // Show product modal for variant selection
-          console.log('🛒 Showing product modal for variant selection');
           this.showProductModal(productData, gridIndex);
         } else {
           // Add directly to cart for simple products
-          console.log('🛒 Adding single variant to cart');
           this.addToCart(variantId, 1);
           
           // Dynamic grid: swap in next recommendation
@@ -3620,11 +3602,8 @@
 
     // Show product modal for variant selection
     showProductModal(productData, gridIndex) {
-      console.log('🛒 Creating product modal for:', productData.title);
-      
       const existingModal = document.querySelector('.cartuplift-product-modal');
       if (existingModal) {
-        console.log('🛒 Removing existing modal');
         existingModal.remove();
       }
 
@@ -3633,7 +3612,6 @@
       
       try {
         modal.innerHTML = this.generateProductModalHTML(productData, gridIndex);
-        console.log('🛒 Modal HTML generated successfully');
       } catch (error) {
         console.error('🛒 Error generating modal HTML:', error);
         return;
@@ -3641,16 +3619,12 @@
       
       // Add to body (will cover cart area)
       document.body.appendChild(modal);
-      console.log('🛒 Modal added to body');
       
       // Add modal event listeners
       this.attachProductModalHandlers(modal, productData, gridIndex);
       
       // Show modal with animation
-      setTimeout(() => {
-        modal.classList.add('show');
-        console.log('🛒 Modal shown with animation');
-      }, 10);
+      setTimeout(() => modal.classList.add('show'), 10);
     }
 
     // Generate HTML for product modal
@@ -5921,6 +5895,7 @@
       return {
         id: product.id,
         title: product.title || product.product_title || 'Untitled',
+        handle: product.handle || null, // Preserve product handle for variant detection
         // Convert price to cents for consistent formatting
         priceCents: basePrice ? Math.round(parseFloat(basePrice) * 100) : 0,
         image: product.featured_image?.src || product.featured_image || product.image || product.images?.[0]?.src || 
