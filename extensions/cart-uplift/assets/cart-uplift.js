@@ -3263,8 +3263,23 @@
           const productTitle = gridItem ? gridItem.dataset.title : `Product ${variantId}`;
           
           // Check if we need to show variant selector or add directly
+          console.log('🛒 Grid add click:', { productHandle, variantId, gridIndex, productTitle });
+          
           if (productHandle && variantId) {
             await this.handleGridProductAdd(productHandle, variantId, gridIndex, productTitle);
+          } else if (variantId) {
+            // Fallback: add directly if no handle but have variantId
+            console.log('🛒 Fallback: adding directly to cart');
+            this.addToCart(variantId, 1);
+            
+            // Dynamic grid: swap in next recommendation
+            if (gridIndex !== undefined) {
+              setTimeout(() => {
+                this.swapInNextRecommendation(parseInt(gridIndex));
+              }, 500);
+            }
+          } else {
+            console.error('🛒 No variant ID found for add to cart');
           }
           
           if (this.settings.enableAnalytics) CartAnalytics.trackEvent('product_click', {
@@ -3551,25 +3566,36 @@
     // Handle grid product add - check variants and show modal if needed
     async handleGridProductAdd(productHandle, variantId, gridIndex, productTitle) {
       try {
+        console.log('🛒 Fetching product data for handle:', productHandle);
+        
         // Fetch product data to check variants
         const productResponse = await fetch(`/products/${productHandle}.js`);
         if (!productResponse.ok) {
-          console.error('Failed to fetch product data');
+          console.error('🛒 Failed to fetch product data, status:', productResponse.status);
           // Fallback to direct add
           this.addToCart(variantId, 1);
           return;
         }
         
         const productData = await productResponse.json();
+        console.log('🛒 Product data fetched:', { 
+          id: productData.id, 
+          title: productData.title,
+          variantCount: productData.variants ? productData.variants.length : 0 
+        });
         
         // Check if product has multiple variants (more than just default)
         const hasMultipleVariants = productData.variants && productData.variants.length > 1;
         
+        console.log('🛒 Has multiple variants:', hasMultipleVariants);
+        
         if (hasMultipleVariants) {
           // Show product modal for variant selection
+          console.log('🛒 Showing product modal');
           this.showProductModal(productData, gridIndex);
         } else {
           // Add directly to cart for simple products
+          console.log('🛒 Adding single variant to cart');
           this.addToCart(variantId, 1);
           
           // Dynamic grid: swap in next recommendation
