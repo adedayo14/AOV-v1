@@ -3780,9 +3780,12 @@
       const availableVariants = productData.variants.filter(v => v.available);
       
       // Use first variant price if product price is 0 or undefined
-      const initialPrice = (productData.price && productData.price > 0) 
+      const initialPriceDollars = (productData.price && productData.price > 0) 
         ? productData.price 
         : (availableVariants.length > 0 ? availableVariants[0].price : 0);
+      
+      // Convert to cents for formatMoney function
+      const initialPriceCents = Math.round(initialPriceDollars * 100);
       
       return `
         <div class="cartuplift-modal-backdrop">
@@ -3800,8 +3803,8 @@
               
               <div class="cartuplift-modal-details">
                 <h2 class="cartuplift-modal-title">${productData.title}</h2>
-                <div class="cartuplift-modal-price" data-price="${initialPrice}">
-                  ${this.formatMoney(initialPrice)}
+                <div class="cartuplift-modal-price" data-price="${initialPriceCents}">
+                  ${this.formatMoney(initialPriceCents)}
                 </div>
                 
                 ${productData.description ? `
@@ -3813,11 +3816,14 @@
                 <div class="cartuplift-modal-variants">
                   <label for="cartuplift-variant-select">Select Option:</label>
                   <select id="cartuplift-variant-select" class="cartuplift-variant-select">
-                    ${availableVariants.map(variant => `
-                      <option value="${variant.id}" data-price="${variant.price}">
-                        ${variant.title} - ${this.formatMoney(variant.price)}
-                      </option>
-                    `).join('')}
+                    ${availableVariants.map(variant => {
+                      const variantPriceCents = Math.round(variant.price * 100);
+                      return `
+                        <option value="${variant.id}" data-price="${variant.price}">
+                          ${variant.title} - ${this.formatMoney(variantPriceCents)}
+                        </option>
+                      `;
+                    }).join('')}
                   </select>
                 </div>
                 
@@ -3851,8 +3857,12 @@
       variantSelect.addEventListener('change', (e) => {
         const selectedOption = e.target.options[e.target.selectedIndex];
         const price = selectedOption.dataset.price;
-        priceDisplay.textContent = this.formatMoney(price);
-        priceDisplay.dataset.price = price;
+        // Parse price and convert to cents (formatMoney expects cents)
+        const priceValue = parseFloat(price) || 0;
+        const priceInCents = Math.round(priceValue * 100);
+        console.log('CartUplift: Variant price change - raw:', price, 'dollars:', priceValue, 'cents:', priceInCents); // Debug log
+        priceDisplay.textContent = this.formatMoney(priceInCents);
+        priceDisplay.dataset.price = priceInCents;
       });
       
       // Add to cart handler
