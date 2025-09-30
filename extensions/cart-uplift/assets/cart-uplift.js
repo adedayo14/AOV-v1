@@ -2112,7 +2112,7 @@
       this._nextRecommendationIndex = visibleCount;
       
       const gridHtml = `
-        <div class="cartuplift-grid-title-row" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div class="cartuplift-grid-title-row" style="margin: 0 16px 8px; display: flex; justify-content: space-between; align-items: center;">
           <div class="cartuplift-grid-title" id="cartuplift-active-title">${productsToShow[0]?.title || ''}</div>
           <div class="cartuplift-grid-price" id="cartuplift-active-price">${this.formatMoney(productsToShow[0]?.priceCents || 0)}</div>
         </div>

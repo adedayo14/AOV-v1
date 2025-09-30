@@ -1466,7 +1466,7 @@ body.cartuplift-no-scroll {
 
 /* Grid Layout - for premium grid display */
 .cartuplift-recommendations-grid .cartuplift-recommendations-content {
-  padding: 12px 0;
+  padding: 0;
   background: var(--cartuplift-recommendations-bg);
 }
 
@@ -1478,10 +1478,10 @@ body.cartuplift-no-scroll {
   background: #fff;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
-  margin: 0;
+  margin: 0 -16px;
   padding: 0;
   height: 200px;
-  width: 100%;
+  width: calc(100% + 32px);
 }
 
 .cartuplift-grid-item {
