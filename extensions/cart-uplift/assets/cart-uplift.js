@@ -2451,43 +2451,72 @@
     
   scrollToIndex(scrollContainer, index) {
       if (!scrollContainer) return;
-      const targetScroll = index * this.scrollAmount;
+      
+      // Find all recommendation cards in this container
+      const cards = scrollContainer.querySelectorAll('.cartuplift-recommendation-card, .cartuplift-recommendation-item');
+      
+      if (!cards || index >= cards.length) return;
+      
+      const targetCard = cards[index];
+      if (!targetCard) return;
+      
+      // Calculate the scroll position to center the target card
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const cardRect = targetCard.getBoundingClientRect();
+      
+      // Calculate offset relative to the scroll container's current scroll position
+      const targetScroll = scrollContainer.scrollLeft + (cardRect.left - containerRect.left) - (containerRect.width - cardRect.width) / 2;
       
       scrollContainer.scrollTo({
-        left: targetScroll,
+        left: Math.max(0, targetScroll),
         behavior: 'smooth'
       });
     }
 
     scrollPrev(scrollContainer) {
       if (!scrollContainer) return;
-      const currentScroll = scrollContainer.scrollLeft;
-      const targetScroll = Math.max(0, currentScroll - this.scrollAmount);
       
-      
-      scrollContainer.scrollTo({
-        left: targetScroll,
-        behavior: 'smooth'
-      });
+      // Find the current card index and scroll to previous
+      const currentIndex = this.getCurrentCardIndex(scrollContainer);
+      if (currentIndex > 0) {
+        this.scrollToIndex(scrollContainer, currentIndex - 1);
+      }
     }
 
     scrollNext(scrollContainer) {
       if (!scrollContainer) return;
-      const currentScroll = scrollContainer.scrollLeft;
-      const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
-      let targetScroll = currentScroll + this.scrollAmount;
       
-      // If we would overshoot, scroll to the end
-      if (targetScroll >= maxScroll) {
-        targetScroll = maxScroll;
+      // Find the current card index and scroll to next
+      const cards = scrollContainer.querySelectorAll('.cartuplift-recommendation-card, .cartuplift-recommendation-item');
+      const currentIndex = this.getCurrentCardIndex(scrollContainer);
+      if (currentIndex < cards.length - 1) {
+        this.scrollToIndex(scrollContainer, currentIndex + 1);
       }
-      
-      
-      scrollContainer.scrollTo({
-        left: targetScroll,
-        behavior: 'smooth'
-      });
     }
+
+    getCurrentCardIndex(scrollContainer) {
+      const cards = scrollContainer.querySelectorAll('.cartuplift-recommendation-card, .cartuplift-recommendation-item');
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const containerCenter = containerRect.left + containerRect.width / 2;
+      
+      let closestIndex = 0;
+      let closestDistance = Infinity;
+      
+      cards.forEach((card, index) => {
+        const cardRect = card.getBoundingClientRect();
+        const cardCenter = cardRect.left + cardRect.width / 2;
+        const distance = Math.abs(cardCenter - containerCenter);
+        
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestIndex = index;
+        }
+      });
+      
+      return closestIndex;
+    }
+    
+
 
     updateCarouselButtons(scrollContainer) {
       if (!scrollContainer) {
@@ -2546,8 +2575,7 @@
       const dots = document.querySelectorAll('.cartuplift-carousel-dot');
       if (dots.length === 0) return;
       
-      const scrollLeft = scrollContainer.scrollLeft;
-  const currentIndex = Math.round(scrollLeft / this.scrollAmount);
+      const currentIndex = this.getCurrentCardIndex(scrollContainer);
       
       dots.forEach((dot, index) => {
         const isActive = index === currentIndex;
