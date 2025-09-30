@@ -120,6 +120,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  console.log('📦 BUNDLES ACTION: ===== STARTING =====');
+  console.log('📦 Bundles Action: Request method:', request.method);
+  console.log('📦 Bundles Action: Request URL:', request.url);
+  
+  try {
+    const { session } = await authenticate.admin(request);
+    const shop = session.shop;
+    console.log('📦 Bundles Action: Authentication successful, shop:', shop);
+    
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+    console.log('📦 Bundles Action: Form data parsed, intent:', intent);
+  } catch (authError) {
+    console.error('❌ Bundles Action: Authentication failed:', authError);
+    return json({ success: false, message: "Authentication failed" }, { status: 401 });
+  }
+  
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
   const formData = await request.formData();
@@ -203,10 +220,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     });
 
-    return json({ success: true, message: `Bundle ${intent}d successfully!` });
+    const response = json({ success: true, message: `Bundle ${intent}d successfully!` });
+    console.log('📦 Bundles Action: Returning success response');
+    return response;
   } catch (error) {
-    console.error(`Failed to ${intent} bundle:`, error);
-    return json({ error: `Failed to ${intent} bundle` }, { status: 500 });
+    console.error(`❌ Failed to ${intent} bundle:`, error);
+    console.error('❌ Bundles Action: Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    const errorResponse = json({ error: `Failed to ${intent} bundle` }, { status: 500 });
+    console.log('📦 Bundles Action: Returning error response');
+    return errorResponse;
+  } finally {
+    console.log('📦 BUNDLES ACTION: ===== COMPLETED =====');
   }
 };
 

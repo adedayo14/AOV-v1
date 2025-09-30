@@ -188,6 +188,23 @@ function erf(x: number) {
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  console.log('🔬 A/B TESTING ACTION: ===== STARTING =====');
+  console.log('🔬 A/B Testing Action: Request method:', request.method);
+  console.log('🔬 A/B Testing Action: Request URL:', request.url);
+  
+  try {
+    const { session } = await authenticate.admin(request);
+    const shop = session.shop;
+    console.log('🔬 A/B Testing Action: Authentication successful, shop:', shop);
+    
+    const formData = await request.formData();
+    const action = formData.get('action');
+    console.log('🔬 A/B Testing Action: Form data parsed, action:', action);
+  } catch (authError) {
+    console.error('❌ A/B Testing Action: Authentication failed:', authError);
+    return json({ success: false, message: "Authentication failed" }, { status: 401 });
+  }
+  
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
   const formData = await request.formData();
@@ -294,13 +311,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     
     // ...existing code for other actions...
 
-    return json({ success: false, error: 'Unknown action' });
+    console.log('🔬 A/B Testing Action: Unknown action received:', action);
+    const response = json({ success: false, error: 'Unknown action' });
+    console.log('🔬 A/B Testing Action: Returning unknown action response');
+    return response;
   } catch (error) {
-    console.error('A/B Testing action error:', error);
-    return json({ 
+    console.error('❌ A/B Testing action error:', error);
+    console.error('❌ A/B Testing action error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    const errorResponse = json({ 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to process request' 
     }, { status: 500 });
+    console.log('🔬 A/B Testing Action: Returning error response');
+    return errorResponse;
+  } finally {
+    console.log('🔬 A/B TESTING ACTION: ===== COMPLETED =====');
   }
 };
 
