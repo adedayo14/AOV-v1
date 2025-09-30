@@ -953,12 +953,8 @@ body.cartuplift-no-scroll {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  /* padding-left: 16px; */
-  /* padding-top: 4px; */
-  /* padding-bottom: 2px; */
-  /* padding-right: 16px; */
+  padding: 4px 16px 2px 16px;
   background: var(--cartuplift-recommendations-bg);
-  /* height: 38px; */
   box-sizing: border-box;
   position: relative;
   z-index: 3; /* Ensure header/toggle are clickable above scroll content on mobile */

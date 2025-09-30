@@ -2350,39 +2350,16 @@
       const originalTitle = container.getAttribute('data-original-title') || titleEl.textContent;
       this._originalRecommendationsTitle = originalTitle;
       
-      // Get or create price display element next to collapse arrow
-      let priceEl = document.querySelector('.cartuplift-active-price');
-      if (!priceEl) {
-        priceEl = document.createElement('span');
-        priceEl.className = 'cartuplift-active-price';
-        priceEl.style.cssText = 'margin-left: 8px; font-weight: 500; color: #666; display: none;';
-        
-        // Insert next to collapse button if it exists
-        const collapseBtn = document.querySelector('.cartuplift-toggle-button');
-        if (collapseBtn) {
-          collapseBtn.parentNode.insertBefore(priceEl, collapseBtn.nextSibling);
-        } else {
-          // Otherwise add to title container
-          titleEl.parentNode.appendChild(priceEl);
-        }
-      }
-      
       container.querySelectorAll('.cartuplift-grid-item').forEach(item => {
         item.addEventListener('mouseenter', () => {
           const title = item.getAttribute('data-title');
-          const price = item.getAttribute('data-price');
           if (title && titleEl) titleEl.textContent = title;
-          if (price && priceEl) {
-            priceEl.textContent = price;
-            priceEl.style.display = 'inline';
-          }
         });
       });
       
-      // Restore original values when leaving entire grid
+      // Restore original title when leaving entire grid
       container.addEventListener('mouseleave', () => {
         titleEl.textContent = this._originalRecommendationsTitle;
-        if (priceEl) priceEl.style.display = 'none';
       });
     }
 
