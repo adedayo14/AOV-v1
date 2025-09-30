@@ -98,7 +98,8 @@
         this.settings.autoOpenCart = Boolean(this.settings.keepCartOpen);
         console.log('🔧 Design mode: setting autoOpenCart to', this.settings.autoOpenCart, 'based on keepCartOpen:', this.settings.keepCartOpen);
       } else {
-        this.settings.autoOpenCart = Boolean(this.settings.autoOpenCart);
+        // Default to true if undefined (before API loads)
+        this.settings.autoOpenCart = this.settings.autoOpenCart !== false;
         console.log('🔧 Normal mode: setting autoOpenCart to', this.settings.autoOpenCart);
       }
       
@@ -479,9 +480,11 @@
         this.updateDrawerContent();
       }
       
-      // IMPORTANT: Check if recommendations settings have arrived
-      // Give a small delay to allow the upsell embed to load
+      // IMPORTANT: Refresh settings from API to get autoOpenCart and other admin settings
       setTimeout(async () => {
+        // Refresh settings from API first
+        await this.refreshSettingsFromAPI();
+        
         // Re-check settings from window
         if (window.CartUpliftSettings) {
           this.settings = Object.assign({}, this.settings, window.CartUpliftSettings);
@@ -493,7 +496,7 @@
           this._recommendationsLoaded = true;
           this.updateDrawerContent();
         }
-      }, 500);
+      }, 200); // Faster timing to ensure API settings load quickly
       
 
       // Listen for late settings injection (upsell embed) and refresh recommendations

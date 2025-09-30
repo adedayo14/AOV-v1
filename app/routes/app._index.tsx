@@ -346,14 +346,13 @@ export default function Index() {
                   💡 <strong>Tip:</strong> Use dashboard insights to optimize your cart settings and maximize ROI.
                 </Text>
                 <div className="card-button-wrapper">
-                  <Link to="/app/dashboard">
-                    <Button 
-                      variant="primary" 
-                      size="large"
-                    >
-                      Open Dashboard
-                    </Button>
-                  </Link>
+                  <Button 
+                    variant="primary" 
+                    size="large"
+                    onClick={() => navigateToPage('/app/dashboard')}
+                  >
+                    Open Dashboard
+                  </Button>
                 </div>
               </BlockStack>
             </Card>
@@ -376,14 +375,13 @@ export default function Index() {
                   🎯 <strong>Ready:</strong> Statistical significance testing and conversion tracking active.
                 </Text>
                 <div className="card-button-wrapper">
-                  <Link to="/app/ab-testing">
-                    <Button 
-                      variant="primary" 
-                      size="large"
-                    >
-                      Start A/B Testing
-                    </Button>
-                  </Link>
+                  <Button 
+                    variant="primary" 
+                    size="large"
+                    onClick={() => navigateToPage('/app/ab-testing')}
+                  >
+                    Start A/B Testing
+                  </Button>
                 </div>
               </BlockStack>
             </Card>
