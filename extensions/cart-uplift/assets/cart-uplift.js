@@ -2130,16 +2130,22 @@
                      loading="lazy" 
                      decoding="async" 
                      onerror="this.src='https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png'">
+                <div class="cartuplift-grid-hover">
+                  <button class="cartuplift-grid-add-btn" 
+                          data-variant-id="${product.variant_id}" 
+                          data-grid-index="${index}"
+                          aria-label="Add ${product.title}">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="#fff" class="size-6">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                  </button>
+                </div>
               </div>
-              <div class="cartuplift-grid-hover">
-                <button class="cartuplift-grid-add-btn" 
-        data-variant-id="${product.variant_id}" 
-        data-grid-index="${index}"
-        aria-label="Add ${product.title}">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="#000" class="size-6">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-      </svg>
-                </button>
+              <div class="cartuplift-grid-meta">
+                <div class="cartuplift-grid-title-row">
+                  <div class="cartuplift-grid-title">${product.title}</div>
+                  <div class="cartuplift-grid-price">${this.formatMoney(product.priceCents || 0)}</div>
+                </div>
               </div>
             </div>`).join('')}
         </div>

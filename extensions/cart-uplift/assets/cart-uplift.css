@@ -1469,118 +1469,182 @@ body.cartuplift-no-scroll {
   padding: 8px 0 12px 0; /* Remove left/right padding for grid, keep top/bottom */
 }
 
-/* --- Minimal COS-style Grid (desktop) --- */
+/* Grid Layout - for premium grid display */
+.cartuplift-recommendations-grid .cartuplift-recommendations-content {
+  padding: 12px 16px;
+  background: var(--cartuplift-recommendations-bg);
+}
+
+/* --- Minimal Grid Layout matching reference --- */
 .cartuplift-grid-container {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  grid-auto-rows: 1fr;
-  gap: 0;
-  justify-content: stretch;
-  width: 100vw;
-  max-width: 100vw;
-  margin-left: calc(-1 * ((100vw - 100%) / 2)); /* Remove any left space for true edge-to-edge */
-  height: 140px; /* Fixed height for rectangle split into 3 */
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  overflow: hidden;
+  gap: 16px;
+  background: transparent;
   margin: 0;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
-}
-
-/* Hide scrollbar for webkit browsers on grid container */
-.cartuplift-grid-container::-webkit-scrollbar {
-  display: none;
+  padding: 0;
 }
 
 .cartuplift-grid-item {
   position: relative;
-  width: 100%; /* Full width of column */
-  height: 100%; /* Fill container height */
-  aspect-ratio: unset;
-  cursor: pointer;
-  overflow: hidden;
-  background: #ffffff;
-  border-right: 1px solid transparent; /* Hidden border that will show on hover */
-  border-bottom: 1px solid transparent; /* Hidden border that will show on hover */
-  transition: border-color .2s ease, background-color .2s ease;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px; /* Reduced padding from 12px to 8px */
-  box-sizing: border-box;
-}
-
-/* Remove borders on last column and last row items */
-.cartuplift-grid-item:nth-child(3n) {
-  border-right: none; /* No right border on last column */
+  flex-direction: column;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
 }
 
 .cartuplift-grid-item:hover {
-  background-color: #f8f8f8;
-  border-right-color: #d0d0d0;
-  border-bottom-color: #d0d0d0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
-/* Remove hover border on last column */
-.cartuplift-grid-item:nth-child(3n):hover {
-  border-right-color: transparent;
+/* Image container - takes ~60% of height */
+.cartuplift-grid-image {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-.cartuplift-grid-image { position: relative; width:100%; height:100%; }
-.cartuplift-grid-image img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#fff; /* Fill space, no cropping */ }
+.cartuplift-grid-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
 
-/* Hover content container - ONLY button, no title/price on image */
-.cartuplift-grid-hover { position:absolute; inset:0; display:flex; flex-direction:column; opacity:0; transition:opacity .28s ease; padding:6px 6px 8px; justify-content:flex-end; align-items:center; }
-.cartuplift-grid-item:hover .cartuplift-grid-hover { opacity:1; }
+/* Info container below image */
+.cartuplift-grid-meta {
+  display: flex !important;
+  flex-direction: column;
+  padding: 8px 10px 10px;
+  gap: 2px;
+  background: #fff;
+}
 
-/* HIDE old meta elements that were showing title/price on image */
-.cartuplift-grid-meta { display:none !important; }
-.cartuplift-grid-title { display:none !important; }
-.cartuplift-grid-price { display:none !important; }
+/* Title and price on same row */
+.cartuplift-grid-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
 
-.cartuplift-grid-add-btn { background: #fff; color:#000; border:0; font-size:16px; font-weight:500; padding:0; line-height:1; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; box-shadow:0 1px 4px rgba(0,0,0,0.08); opacity:0; transform:translateY(6px); transition:opacity .3s ease, transform .3s ease; }
-.cartuplift-grid-add-btn svg { width:24px; height:24px; display:block; stroke:#000; }
-.cartuplift-grid-add-btn:hover, .cartuplift-grid-add-btn:active, .cartuplift-grid-add-btn:focus { background:#fff; color:#000; }
-.cartuplift-grid-add-btn:hover svg, .cartuplift-grid-add-btn:active svg, .cartuplift-grid-add-btn:focus svg { stroke:#000; }
-.cartuplift-grid-item:hover .cartuplift-grid-add-btn { opacity:1; transform:translateY(0); }
-.cartuplift-grid-add-btn svg { width:14px; height:14px; }
-.cartuplift-grid-add-btn:hover { background:#222; }
+.cartuplift-grid-title {
+  display: -webkit-box !important;
+  display: block !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  color: #333 !important;
+  line-height: 1.3 !important;
+  margin: 0 !important;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
 
-/* Hide ALL old overlay styles completely */
-.cartuplift-grid-overlay { display:none !important; }
-.cartuplift-grid-container .cartuplift-grid-overlay { display:none !important; }
-.cartuplift-grid-container .cartuplift-grid-title { display:none !important; }
-.cartuplift-grid-container .cartuplift-grid-price { display:none !important; }
+.cartuplift-grid-price {
+  display: block !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  color: #000 !important;
+  white-space: nowrap;
+  margin: 0 !important;
+  flex-shrink: 0;
+}
 
-/* Limit to exactly 8 items visually (2 rows) */
+/* Add button on hover - centered over image */
+.cartuplift-grid-hover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.9);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
 
+.cartuplift-grid-item:hover .cartuplift-grid-hover {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cartuplift-grid-add-btn {
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.cartuplift-grid-add-btn:hover {
+  transform: scale(1.1);
+}
+
+.cartuplift-grid-add-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+/* Hide old overlay styles */
+.cartuplift-grid-overlay {
+  display: none !important;
+}
 
 /* Typography smoothing */
-.cartuplift-grid-container, .cartuplift-grid-container * { -webkit-font-smoothing: antialiased; }
+.cartuplift-grid-container,
+.cartuplift-grid-container * {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
 /* Mobile adjustments for grid */
 @media (max-width: 768px) {
   .cartuplift-grid-container {
-    grid-template-columns: 2fr 2fr 1fr;
-    grid-template-rows: 1fr;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
-  /* Removed legacy -webkit-overflow-scrolling for compatibility */
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
   
-  /* Hide scrollbar for webkit browsers */
-  .cartuplift-grid-container::-webkit-scrollbar {
-    display: none;
+  .cartuplift-grid-title {
+    font-size: 10px !important;
   }
   
-  .cartuplift-grid-item {
-    scroll-snap-align: start;
-    min-width: calc(50% - 8px);
+  .cartuplift-grid-price {
+    font-size: 10px !important;
   }
+  
+  .cartuplift-grid-add-btn {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .cartuplift-grid-add-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+}
   
   .cartuplift-grid-item:nth-child(3n) {
     min-width: 25%;
@@ -2084,6 +2148,10 @@ body.cartuplift-no-scroll {
 
 /* Action Button Styles */
 .cartuplift-action-section {
+  margin: 0;
+}
+
+/* Ensure no extra spacing when inside scrollable content */
   margin: 0;
 }
 
