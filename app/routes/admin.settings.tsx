@@ -415,10 +415,11 @@ export default function SettingsPage() {
       console.log('❌ Admin Settings: No data received after submission');
       submittingRef.current = false;
       setShowSuccessBanner(false);
-      setErrorMessage('We could not confirm if settings were saved. Please refresh and try again.');
+      // More helpful error message for production issues
+      setErrorMessage('Settings save timeout. The settings may have been saved. Please refresh the page to verify.');
       setShowErrorBanner(true);
       try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch { /* noop */ }
-      const t = setTimeout(() => setShowErrorBanner(false), 6000);
+      const t = setTimeout(() => setShowErrorBanner(false), 8000);
       return () => clearTimeout(t);
     }
 
