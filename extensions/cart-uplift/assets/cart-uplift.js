@@ -2113,8 +2113,8 @@
       
       const gridHtml = `
         <div class="cartuplift-grid-title-row" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-          <div class="cartuplift-grid-title">${productsToShow[0]?.title || ''}</div>
-          <div class="cartuplift-grid-price">${this.formatMoney(productsToShow[0]?.priceCents || 0)}</div>
+          <div class="cartuplift-grid-title" id="cartuplift-active-title">${productsToShow[0]?.title || ''}</div>
+          <div class="cartuplift-grid-price" id="cartuplift-active-price">${this.formatMoney(productsToShow[0]?.priceCents || 0)}</div>
         </div>
         <div class="cartuplift-grid-container${isCollapsed ? ' collapsed' : ''}" 
              data-original-title="${(this.settings.recommendationsTitle || 'You might also like').replace(/"/g,'&quot;')}"
@@ -2344,25 +2344,29 @@
     attachGridHoverHandlers() {
       const container = document.querySelector('.cartuplift-grid-container');
       if (!container) return;
-      const headerTitleEl = document.querySelector('.cartuplift-recommendations-title');
-      if (!headerTitleEl) return;
-      const original = container.getAttribute('data-original-title') || headerTitleEl.textContent;
-      this._originalRecommendationsTitle = original;
+      
+      // Get the title and price display elements above the grid
+      const titleEl = document.getElementById('cartuplift-active-title');
+      const priceEl = document.getElementById('cartuplift-active-price');
+      if (!titleEl || !priceEl) return;
+      
+      // Store original values
+      const originalTitle = titleEl.textContent;
+      const originalPrice = priceEl.textContent;
+      
       container.querySelectorAll('.cartuplift-grid-item').forEach(item => {
         item.addEventListener('mouseenter', () => {
-          const t = item.getAttribute('data-title');
-          if (t && headerTitleEl) headerTitleEl.textContent = t;
-        });
-        item.addEventListener('mouseleave', (e) => {
-          // Only restore if moving outside the item (not to a child)
-          if (!container.matches(':hover') && headerTitleEl) {
-            headerTitleEl.textContent = this._originalRecommendationsTitle;
-          }
+          const title = item.getAttribute('data-title');
+          const price = item.getAttribute('data-price');
+          if (title && titleEl) titleEl.textContent = title;
+          if (price && priceEl) priceEl.textContent = price;
         });
       });
-      // Restore when leaving entire grid
+      
+      // Restore original values when leaving entire grid
       container.addEventListener('mouseleave', () => {
-        if (headerTitleEl) headerTitleEl.textContent = this._originalRecommendationsTitle;
+        titleEl.textContent = originalTitle;
+        priceEl.textContent = originalPrice;
       });
     }
 

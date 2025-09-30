@@ -1479,26 +1479,33 @@ body.cartuplift-no-scroll {
 .cartuplift-grid-container {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  background: transparent;
+  gap: 0;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
   margin: 0;
   padding: 0;
+  height: 200px;
 }
 
 .cartuplift-grid-item {
   position: relative;
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border-radius: 8px;
+  background: transparent;
+  border-right: 1px solid #e0e0e0;
   overflow: hidden;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: background-color 0.2s ease;
   cursor: pointer;
+  height: 100%;
+}
+
+.cartuplift-grid-item:last-child {
+  border-right: none;
 }
 
 .cartuplift-grid-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  background-color: #f8f8f8;
 }
 
 /* Image container - takes ~60% of height */
