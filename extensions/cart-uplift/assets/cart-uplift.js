@@ -3584,14 +3584,20 @@
           variantCount: productData.variants ? productData.variants.length : 0 
         });
         
-        // Check if product has multiple variants (more than just default)
-        const hasMultipleVariants = productData.variants && productData.variants.length > 1;
+        // Check if product has multiple variants with meaningful differences
+        const availableVariants = productData.variants ? productData.variants.filter(v => v.available) : [];
+        const hasMultipleVariants = availableVariants.length > 1;
         
-        console.log('🛒 Has multiple variants:', hasMultipleVariants);
+        console.log('🛒 Variant analysis:', { 
+          totalVariants: productData.variants ? productData.variants.length : 0,
+          availableVariants: availableVariants.length,
+          hasMultipleVariants,
+          variants: availableVariants.map(v => ({ id: v.id, title: v.title, available: v.available }))
+        });
         
         if (hasMultipleVariants) {
           // Show product modal for variant selection
-          console.log('🛒 Showing product modal');
+          console.log('🛒 Showing product modal for variant selection');
           this.showProductModal(productData, gridIndex);
         } else {
           // Add directly to cart for simple products
@@ -3614,23 +3620,37 @@
 
     // Show product modal for variant selection
     showProductModal(productData, gridIndex) {
+      console.log('🛒 Creating product modal for:', productData.title);
+      
       const existingModal = document.querySelector('.cartuplift-product-modal');
       if (existingModal) {
+        console.log('🛒 Removing existing modal');
         existingModal.remove();
       }
 
       const modal = document.createElement('div');
       modal.className = 'cartuplift-product-modal';
-      modal.innerHTML = this.generateProductModalHTML(productData, gridIndex);
+      
+      try {
+        modal.innerHTML = this.generateProductModalHTML(productData, gridIndex);
+        console.log('🛒 Modal HTML generated successfully');
+      } catch (error) {
+        console.error('🛒 Error generating modal HTML:', error);
+        return;
+      }
       
       // Add to body (will cover cart area)
       document.body.appendChild(modal);
+      console.log('🛒 Modal added to body');
       
       // Add modal event listeners
       this.attachProductModalHandlers(modal, productData, gridIndex);
       
       // Show modal with animation
-      setTimeout(() => modal.classList.add('show'), 10);
+      setTimeout(() => {
+        modal.classList.add('show');
+        console.log('🛒 Modal shown with animation');
+      }, 10);
     }
 
     // Generate HTML for product modal
