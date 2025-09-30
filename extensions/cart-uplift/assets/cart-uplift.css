@@ -988,7 +988,7 @@ body.cartuplift-no-scroll {
 
 /* Product title in carousel cards */
 .cartuplift-product-title {
-  margin: 8px 0 4px 0 !important;
+  margin: 0 !important;
   padding: 0 !important;
   font-size: 13px !important;
   font-weight: 500 !important;
@@ -1257,7 +1257,7 @@ body.cartuplift-no-scroll {
   flex-direction: column;
   gap: 6px;
   min-width: 0;
-  justify-content: flex-start;
+  justify-content: center;
 }
 
 .cartuplift-recommendation-card h4 {
@@ -1499,6 +1499,7 @@ body.cartuplift-no-scroll {
 
 .cartuplift-grid-item:hover {
   background-color: #f8f8f8;
+  border: 1px solid var(--cartuplift-button-color, #000);
 }
 
 /* Image container - takes ~60% of height */
@@ -1626,8 +1627,12 @@ body.cartuplift-no-scroll {
 @media (max-width: 768px) {
   .cartuplift-grid-container {
     grid-template-columns: repeat(2, 1fr) !important;
-    gap: 12px;
+    gap: 0 !important;
     max-width: 100%;
+    margin: 0 !important;
+    width: 100% !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 0 !important;
   }
   
   .cartuplift-grid-item {
@@ -1657,6 +1662,17 @@ body.cartuplift-no-scroll {
   .cartuplift-grid-add-btn svg {
     width: 18px;
     height: 18px;
+  }
+  
+  /* Ensure recommendations section has no padding on mobile */
+  .cartuplift-recommendations-grid {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  .cartuplift-recommendations-grid .cartuplift-recommendations-content {
+    padding: 0 !important;
+    margin: 0 !important;
   }
 }
 
@@ -1713,9 +1729,9 @@ body.cartuplift-no-scroll {
   
   /* Ensure each card spans the container width minus track side padding */
   .cartuplift-recommendation-card {
-    flex: 0 0 calc(100% - 32px);
-    max-width: calc(100% - 32px);
-    min-width: calc(100% - 32px);
+    flex: 0 0 85vw;
+    max-width: 85vw;
+    min-width: 85vw;
     scroll-snap-align: start;
     scroll-snap-stop: always;
     background: white;
