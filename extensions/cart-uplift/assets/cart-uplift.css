@@ -1478,7 +1478,7 @@ body.cartuplift-no-scroll {
 /* --- Minimal Grid Layout matching reference --- */
 .cartuplift-grid-container {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   background: transparent;
   margin: 0;
@@ -1522,11 +1522,7 @@ body.cartuplift-no-scroll {
 
 /* Info container below image */
 .cartuplift-grid-meta {
-  display: flex !important;
-  flex-direction: column;
-  padding: 8px 10px 10px;
-  gap: 2px;
-  background: #fff;
+  display: none !important;
 }
 
 /* Title and price on same row */

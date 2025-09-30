@@ -2112,6 +2112,10 @@
       this._nextRecommendationIndex = visibleCount;
       
       const gridHtml = `
+        <div class="cartuplift-grid-title-row" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+          <div class="cartuplift-grid-title">${productsToShow[0]?.title || ''}</div>
+          <div class="cartuplift-grid-price">${this.formatMoney(productsToShow[0]?.priceCents || 0)}</div>
+        </div>
         <div class="cartuplift-grid-container${isCollapsed ? ' collapsed' : ''}" 
              data-original-title="${(this.settings.recommendationsTitle || 'You might also like').replace(/"/g,'&quot;')}"
              data-mode="${isCollapsed ? 'collapsed' : 'standard'}"
@@ -2141,13 +2145,7 @@
                   </button>
                 </div>
               </div>
-              <div class="cartuplift-grid-meta">
-                <div class="cartuplift-grid-title-row">
-                  <div class="cartuplift-grid-title">${product.title}</div>
-                  <div class="cartuplift-grid-price">${this.formatMoney(product.priceCents || 0)}</div>
-                </div>
-              </div>
-            </div>`).join('')}
+            </div>`).slice(0, 4).join('')}
         </div>
       `;
       
