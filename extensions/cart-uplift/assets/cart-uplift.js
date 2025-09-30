@@ -2342,24 +2342,44 @@
       const container = document.querySelector('.cartuplift-grid-container');
       if (!container) return;
       
-      // Get the main recommendations title element
+      // Get the main recommendations title element and collapse button
       const titleEl = document.querySelector('.cartuplift-recommendations-title');
-      if (!titleEl) return;
+      const collapseBtn = document.querySelector('.cartuplift-recommendations-toggle');
+      if (!titleEl || !collapseBtn) return;
       
       // Store original title
       const originalTitle = container.getAttribute('data-original-title') || titleEl.textContent;
       this._originalRecommendationsTitle = originalTitle;
       
+      // Create price element that will replace the collapse button
+      let priceEl = document.querySelector('.cartuplift-hover-price');
+      if (!priceEl) {
+        priceEl = document.createElement('span');
+        priceEl.className = 'cartuplift-hover-price';
+        priceEl.style.cssText = 'font-weight: 500; color: #333; display: none;';
+        collapseBtn.parentNode.insertBefore(priceEl, collapseBtn.nextSibling);
+      }
+      
       container.querySelectorAll('.cartuplift-grid-item').forEach(item => {
         item.addEventListener('mouseenter', () => {
           const title = item.getAttribute('data-title');
+          const price = item.getAttribute('data-price');
+          
+          // Update title and show price, hide collapse button
           if (title && titleEl) titleEl.textContent = title;
+          if (price && priceEl) {
+            priceEl.textContent = price;
+            priceEl.style.display = 'inline';
+          }
+          collapseBtn.style.display = 'none';
         });
       });
       
-      // Restore original title when leaving entire grid
+      // Restore original state when leaving entire grid
       container.addEventListener('mouseleave', () => {
         titleEl.textContent = this._originalRecommendationsTitle;
+        if (priceEl) priceEl.style.display = 'none';
+        collapseBtn.style.display = 'inline-flex';
       });
     }
 
