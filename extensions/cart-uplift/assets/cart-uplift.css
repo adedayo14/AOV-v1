@@ -3418,15 +3418,20 @@ body.cartuplift-no-scroll {
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 99999;
+  z-index: 1000001 !important;
   opacity: 0;
   visibility: hidden;
-  transition: all 0.3s ease;
+  transition: opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), visibility 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .cartuplift-product-modal.show {
   opacity: 1;
   visibility: visible;
+}
+
+.cartuplift-product-modal.show .cartuplift-modal-content {
+  transform: translateX(0);
+  opacity: 1;
 }
 
 .cartuplift-product-modal.hiding {
@@ -3436,6 +3441,7 @@ body.cartuplift-no-scroll {
 
 .cartuplift-product-modal.hiding .cartuplift-modal-content {
   transform: translateX(100%);
+  opacity: 0;
 }
 
 .cartuplift-modal-backdrop {
@@ -3445,21 +3451,29 @@ body.cartuplift-no-scroll {
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 99998;
+  z-index: 1000000;
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.cartuplift-product-modal.show .cartuplift-modal-backdrop {
+  opacity: 1;
 }
 
 .cartuplift-modal-content {
   position: fixed;
   top: 0;
   right: 0;
-  width: 400px;
-  height: 100%;
-  background: white;
-  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  bottom: 0;
+  width: var(--cartuplift-drawer-width);
+  max-width: 90vw;
+  background: var(--cartuplift-background);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
   overflow-y: auto;
   transform: translateX(100%);
-  transition: transform 0.3s ease;
-  z-index: 99999;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  z-index: 1000001 !important;
+  opacity: 0;
 }
 
 .cartuplift-product-modal.show .cartuplift-modal-content {
@@ -3480,7 +3494,7 @@ body.cartuplift-no-scroll {
   justify-content: center;
   cursor: pointer;
   color: #666;
-  z-index: 100000;
+  z-index: 1000002;
   transition: all 0.2s ease;
 }
 
@@ -3585,10 +3599,11 @@ body.cartuplift-no-scroll {
   transform: translateY(0);
 }
 
-/* Mobile responsive adjustments */
+/* Mobile responsive adjustments - match cart behavior */
 @media (max-width: 768px) {
   .cartuplift-modal-content {
-    width: 100%;
+    width: 100vw;
+    max-width: none;
     right: 0;
   }
   
