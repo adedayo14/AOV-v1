@@ -223,6 +223,8 @@ export default function SettingsPage() {
   const productsFetcher = useFetcher();
   
   console.log('📦 Admin Settings Page: Initial settings:', settings);
+  console.log('📦 Admin Settings Page: Current location:', window.location.href);
+  console.log('📦 Admin Settings Page: User agent:', navigator.userAgent);
 
   // Default color constants - avoid green fallbacks
   const DEFAULT_SHIPPING_COLOR = '#121212'; // Dark neutral instead of blue
@@ -409,6 +411,19 @@ export default function SettingsPage() {
     if (fetcher.state === 'submitting') {
       console.log('📤 Admin Settings: Submission started');
       submittingRef.current = true;
+      
+      // Add timeout to prevent infinite loading
+      const timeoutId = setTimeout(() => {
+        if (submittingRef.current && fetcher.state === 'submitting') {
+          console.log('⏰ Admin Settings: Form submission timeout after 15 seconds');
+          submittingRef.current = false;
+          setShowSuccessBanner(false);
+          setErrorMessage('Form submission timed out. Please try again or refresh the page.');
+          setShowErrorBanner(true);
+        }
+      }, 15000);
+      
+      return () => clearTimeout(timeoutId);
     }
     
     if (fetcher.state === 'idle' && submittingRef.current && !fetcher.data) {
@@ -483,12 +498,23 @@ export default function SettingsPage() {
 
   const handleSubmit = () => {
     console.log('🚀 Admin Settings: Starting save with formSettings:', formSettings);
+    console.log('🚀 Admin Settings: Current URL:', window.location.href);
+    console.log('🚀 Admin Settings: Fetcher state before submit:', fetcher.state);
+    
     const formData = new FormData();
     Object.entries(formSettings).forEach(([key, value]) => {
       formData.append(key, String(value));
     });
     console.log('🚀 Admin Settings: Submitting formData:', Object.fromEntries(formData));
-    fetcher.submit(formData, { method: "post", action: "." });
+    console.log('🚀 Admin Settings: Form action will be:', ".");
+    
+    try {
+      fetcher.submit(formData, { method: "post", action: "." });
+      console.log('🚀 Admin Settings: Fetcher.submit called successfully');
+      console.log('🚀 Admin Settings: Fetcher state after submit:', fetcher.state);
+    } catch (error) {
+      console.error('❌ Admin Settings: Fetcher.submit failed:', error);
+    }
   };
 
   const updateSetting = (key: string, value: any) => {
