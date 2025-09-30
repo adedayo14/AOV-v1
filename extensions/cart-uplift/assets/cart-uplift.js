@@ -3780,12 +3780,12 @@
       const availableVariants = productData.variants.filter(v => v.available);
       
       // Use first variant price if product price is 0 or undefined
-      const initialPriceDollars = (productData.price && productData.price > 0) 
+      const initialPrice = (productData.price && productData.price > 0) 
         ? productData.price 
         : (availableVariants.length > 0 ? availableVariants[0].price : 0);
       
-      // Convert to cents for formatMoney function
-      const initialPriceCents = Math.round(initialPriceDollars * 100);
+      // Check if price is already in cents (if > 100, likely in cents; if < 100, likely in dollars)
+      const initialPriceCents = initialPrice > 100 ? initialPrice : Math.round(initialPrice * 100);
       
       return `
         <div class="cartuplift-modal-backdrop">
@@ -3817,10 +3817,11 @@
                   <label for="cartuplift-variant-select">Select Option:</label>
                   <select id="cartuplift-variant-select" class="cartuplift-variant-select">
                     ${availableVariants.map(variant => {
-                      const variantPriceCents = Math.round(variant.price * 100);
+                      // Check if price is already in cents or dollars for display
+                      const displayPriceCents = variant.price > 100 ? variant.price : Math.round(variant.price * 100);
                       return `
                         <option value="${variant.id}" data-price="${variant.price}">
-                          ${variant.title} - ${this.formatMoney(variantPriceCents)}
+                          ${variant.title} - ${this.formatMoney(displayPriceCents)}
                         </option>
                       `;
                     }).join('')}
@@ -3857,10 +3858,10 @@
       variantSelect.addEventListener('change', (e) => {
         const selectedOption = e.target.options[e.target.selectedIndex];
         const price = selectedOption.dataset.price;
-        // Parse price and convert to cents (formatMoney expects cents)
+        // Parse price and check if already in cents or dollars
         const priceValue = parseFloat(price) || 0;
-        const priceInCents = Math.round(priceValue * 100);
-        console.log('CartUplift: Variant price change - raw:', price, 'dollars:', priceValue, 'cents:', priceInCents); // Debug log
+        const priceInCents = priceValue > 100 ? priceValue : Math.round(priceValue * 100);
+        console.log('CartUplift: Variant price change - raw:', price, 'parsed:', priceValue, 'final cents:', priceInCents); // Debug log
         priceDisplay.textContent = this.formatMoney(priceInCents);
         priceDisplay.dataset.price = priceInCents;
       });
