@@ -62,12 +62,25 @@ export const loader = withAuth(async ({ auth }) => {
 });
 
 export const action = withAuthAction(async ({ request, auth }) => {
+  console.log('🔧 ADMIN SETTINGS ACTION: ===== STARTING =====');
   console.log('🔧 Admin Settings Action: Starting with shop:', auth.session.shop);
+  console.log('🔧 Admin Settings Action: Request method:', request.method);
+  console.log('🔧 Admin Settings Action: Request URL:', request.url);
+  
   const shop = auth.session.shop;
+  
+  try {
+    const formData = await request.formData();
+    const settings = Object.fromEntries(formData);
+    console.log('🔧 Admin Settings Action: Received settings:', Object.keys(settings).length, 'fields');
+    console.log('🔧 Admin Settings Action: Settings keys:', Object.keys(settings));
+  } catch (formError) {
+    console.error('❌ Admin Settings Action: Failed to parse form data:', formError);
+    return json({ success: false, message: "Failed to parse form data" }, { status: 400 });
+  }
   
   const formData = await request.formData();
   const settings = Object.fromEntries(formData);
-  console.log('🔧 Admin Settings Action: Received settings:', Object.keys(settings).length, 'fields');
   
   // Convert string values to appropriate types
   const processedSettings = {
@@ -154,17 +167,31 @@ export const action = withAuthAction(async ({ request, auth }) => {
   
   try {
     console.log('🔧 Admin Settings Action: About to save settings...');
-    await saveSettings(shop, processedSettings);
-    console.log('✅ Admin Settings Action: Save successful!');
+    console.log('🔧 Admin Settings Action: Processed settings keys:', Object.keys(processedSettings));
+    console.log('🔧 Admin Settings Action: Shop value:', shop);
+    
+    const result = await saveSettings(shop, processedSettings);
+    console.log('✅ Admin Settings Action: Save successful! Result:', result);
     console.log('🔄 SETTINGS DEBUG - Action saved:', {
       recommendationLayout: processedSettings.recommendationLayout,
       enableRecommendations: processedSettings.enableRecommendations,
       shop: shop
     });
-    return json({ success: true, message: "Settings saved successfully!" });
+    
+    const response = json({ success: true, message: "Settings saved successfully!" });
+    console.log('🔧 Admin Settings Action: Returning success response');
+    return response;
   } catch (error) {
     console.error("❌ Admin Settings Action: Error saving settings:", error);
-    return json({ success: false, message: "Failed to save settings" }, { status: 500 });
+    console.error("❌ Admin Settings Action: Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+    const errorResponse = json({ 
+      success: false, 
+      message: error instanceof Error ? error.message : "Failed to save settings" 
+    }, { status: 500 });
+    console.log('🔧 Admin Settings Action: Returning error response');
+    return errorResponse;
+  } finally {
+    console.log('🔧 ADMIN SETTINGS ACTION: ===== COMPLETED =====');
   }
 });
 
