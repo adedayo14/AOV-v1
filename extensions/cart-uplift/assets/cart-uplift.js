@@ -3354,6 +3354,7 @@
           e.target.classList.contains('cartuplift-recommendations-toggle') ||
           e.target.closest('.cartuplift-recommendations-toggle')
         ) {
+          console.log('CartUplift: Recommendations toggle clicked'); // Debug log
           e.preventDefault();
           e.stopPropagation();
           
@@ -3373,11 +3374,13 @@
           
           if (recommendations) {
             const isCollapsed = recommendations.classList.contains('collapsed');
+            console.log('CartUplift: Before toggle - isCollapsed:', isCollapsed); // Debug log
             recommendations.classList.toggle('collapsed');
+            const nowCollapsed = recommendations.classList.contains('collapsed');
+            console.log('CartUplift: After toggle - nowCollapsed:', nowCollapsed); // Debug log
             // Update content aria-hidden
             const content = recommendations.querySelector('#cartuplift-recommendations-content');
             if (content) {
-              const nowCollapsed = recommendations.classList.contains('collapsed');
               content.setAttribute('aria-hidden', nowCollapsed ? 'true' : 'false');
             }
             // Update arrow direction with your SVGs
@@ -3392,7 +3395,6 @@
               }
             }
             // Sync aria state
-            const nowCollapsed = recommendations.classList.contains('collapsed');
             toggleButton.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
           }
         } else if (e.target.classList.contains('cartuplift-carousel-nav') || e.target.closest('.cartuplift-carousel-nav')) {
