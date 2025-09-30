@@ -1631,7 +1631,7 @@ body.cartuplift-no-scroll {
   }
   
   .cartuplift-grid-item {
-    height: 240px !important; /* Fixed height for mobile */
+    height: 180px !important; /* Reduced height for mobile to not cover other content */
     min-width: auto !important;
     width: 100% !important;
   }
@@ -1676,13 +1676,26 @@ body.cartuplift-no-scroll {
     visibility: hidden !important;
   }
   
+  /* Ensure column/list layout also has mobile snap scrolling */
+  .cartuplift-recommendations-column .cartuplift-recommendations-content {
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+  }
+  
+  .cartuplift-recommendations-column .cartuplift-recommendation-item {
+    scroll-snap-align: start;
+    scroll-snap-stop: normal;
+  }
+  
   /* Mobile: Full width cards with swipe */
   .cartuplift-recommendations-row .cartuplift-recommendations-content {
     overflow-x: auto;
+    overflow-y: hidden;
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
     -ms-overflow-style: none;
     padding: 0 16px; /* match preview inset on mobile */
+    position: relative;
   }
   
   .cartuplift-recommendations-row .cartuplift-recommendations-content::-webkit-scrollbar {
@@ -1695,13 +1708,15 @@ body.cartuplift-no-scroll {
     padding: 0 0 8px 0; /* container provides side padding */
     min-width: max-content; /* Ensure scrolling works on mobile */
     width: max-content;
+    height: 100%;
   }
   
   /* Ensure each card spans the container width minus track side padding */
   .cartuplift-recommendation-card {
     flex: 0 0 calc(100% - 32px);
     max-width: calc(100% - 32px);
-    scroll-snap-align: center;
+    min-width: calc(100% - 32px);
+    scroll-snap-align: start;
     scroll-snap-stop: always;
     background: white;
     border-radius: 12px;
