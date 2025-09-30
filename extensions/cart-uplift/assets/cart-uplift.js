@@ -2121,6 +2121,7 @@
           ${productsToShow.map((product, index) => `
             <div class="cartuplift-grid-item" 
                  data-product-id="${product.id}" 
+                 data-product-handle="${product.handle || ''}"
                  data-variant-id="${product.variant_id}" 
                  data-title="${product.title.replace(/"/g,'&quot;')}" 
                  data-price="${this.formatMoney(product.priceCents || 0)}"
@@ -3180,7 +3181,7 @@
       });
 
       // Quantity controls and recommendations toggle
-      container.addEventListener('click', (e) => {
+      container.addEventListener('click', async (e) => {
         if (e.target.classList.contains('cartuplift-qty-plus')) {
           const line = e.target.dataset.line;
           const display = container.querySelector(`[data-line="${line}"] .cartuplift-qty-display`);
@@ -3257,25 +3258,19 @@
           const button = e.target.classList.contains('cartuplift-grid-add-btn') ? e.target : e.target.closest('.cartuplift-grid-add-btn');
           const variantId = button.dataset.variantId;
           const gridIndex = button.dataset.gridIndex;
-          const productTitle = button.dataset.productTitle || `Product ${variantId}`;
+          const gridItem = button.closest('.cartuplift-grid-item');
+          const productHandle = gridItem ? gridItem.dataset.productHandle : null;
+          const productTitle = gridItem ? gridItem.dataset.title : `Product ${variantId}`;
           
-          // Track grid button click and add to cart
-          if (variantId) {
-            this.addToCart(variantId, 1, productTitle);
-            
-            // Dynamic grid: swap in next recommendation
-            if (gridIndex !== undefined) {
-              setTimeout(() => {
-                this.swapInNextRecommendation(parseInt(gridIndex));
-              }, 500); // Small delay to let add animation complete
-            }
+          // Check if we need to show variant selector or add directly
+          if (productHandle && variantId) {
+            await this.handleGridProductAdd(productHandle, variantId, gridIndex, productTitle);
           }
+          
           if (this.settings.enableAnalytics) CartAnalytics.trackEvent('product_click', {
             productId: variantId,
             productTitle: productTitle
           });
-          
-          this.addToCart(variantId, 1);
         } else if (
           e.target.classList.contains('cartuplift-recommendations-toggle') ||
           e.target.closest('.cartuplift-recommendations-toggle')
@@ -3551,6 +3546,177 @@
           this._addToCartBusy = false;
         }, 500);
       }
+    }
+
+    // Handle grid product add - check variants and show modal if needed
+    async handleGridProductAdd(productHandle, variantId, gridIndex, productTitle) {
+      try {
+        // Fetch product data to check variants
+        const productResponse = await fetch(`/products/${productHandle}.js`);
+        if (!productResponse.ok) {
+          console.error('Failed to fetch product data');
+          // Fallback to direct add
+          this.addToCart(variantId, 1);
+          return;
+        }
+        
+        const productData = await productResponse.json();
+        
+        // Check if product has multiple variants (more than just default)
+        const hasMultipleVariants = productData.variants && productData.variants.length > 1;
+        
+        if (hasMultipleVariants) {
+          // Show product modal for variant selection
+          this.showProductModal(productData, gridIndex);
+        } else {
+          // Add directly to cart for simple products
+          this.addToCart(variantId, 1);
+          
+          // Dynamic grid: swap in next recommendation
+          if (gridIndex !== undefined) {
+            setTimeout(() => {
+              this.swapInNextRecommendation(parseInt(gridIndex));
+            }, 500);
+          }
+        }
+      } catch (error) {
+        console.error('Error handling grid product add:', error);
+        // Fallback to direct add
+        this.addToCart(variantId, 1);
+      }
+    }
+
+    // Show product modal for variant selection
+    showProductModal(productData, gridIndex) {
+      const existingModal = document.querySelector('.cartuplift-product-modal');
+      if (existingModal) {
+        existingModal.remove();
+      }
+
+      const modal = document.createElement('div');
+      modal.className = 'cartuplift-product-modal';
+      modal.innerHTML = this.generateProductModalHTML(productData, gridIndex);
+      
+      // Add to body (will cover cart area)
+      document.body.appendChild(modal);
+      
+      // Add modal event listeners
+      this.attachProductModalHandlers(modal, productData, gridIndex);
+      
+      // Show modal with animation
+      setTimeout(() => modal.classList.add('show'), 10);
+    }
+
+    // Generate HTML for product modal
+    generateProductModalHTML(productData, gridIndex) {
+      const availableVariants = productData.variants.filter(v => v.available);
+      
+      return `
+        <div class="cartuplift-modal-backdrop">
+          <div class="cartuplift-modal-content">
+            <button class="cartuplift-modal-close" aria-label="Close">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+            
+            <div class="cartuplift-modal-product">
+              <div class="cartuplift-modal-image">
+                <img src="${productData.featured_image || ''}" alt="${productData.title}" />
+              </div>
+              
+              <div class="cartuplift-modal-details">
+                <h2 class="cartuplift-modal-title">${productData.title}</h2>
+                <div class="cartuplift-modal-price" data-price="${productData.price}">
+                  ${this.formatMoney(productData.price)}
+                </div>
+                
+                ${productData.description ? `
+                  <div class="cartuplift-modal-description">
+                    ${productData.description.substring(0, 200)}${productData.description.length > 200 ? '...' : ''}
+                  </div>
+                ` : ''}
+                
+                <div class="cartuplift-modal-variants">
+                  <label for="cartuplift-variant-select">Select Option:</label>
+                  <select id="cartuplift-variant-select" class="cartuplift-variant-select">
+                    ${availableVariants.map(variant => `
+                      <option value="${variant.id}" data-price="${variant.price}">
+                        ${variant.title} - ${this.formatMoney(variant.price)}
+                      </option>
+                    `).join('')}
+                  </select>
+                </div>
+                
+                <button class="cartuplift-modal-add-btn" data-grid-index="${gridIndex}">
+                  Add to Cart
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Attach event handlers to product modal
+    attachProductModalHandlers(modal, productData, gridIndex) {
+      const closeBtn = modal.querySelector('.cartuplift-modal-close');
+      const backdrop = modal.querySelector('.cartuplift-modal-backdrop');
+      const addBtn = modal.querySelector('.cartuplift-modal-add-btn');
+      const variantSelect = modal.querySelector('.cartuplift-variant-select');
+      const priceDisplay = modal.querySelector('.cartuplift-modal-price');
+      
+      // Close handlers
+      closeBtn.addEventListener('click', () => this.closeProductModal(modal));
+      backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) {
+          this.closeProductModal(modal);
+        }
+      });
+      
+      // Variant selection updates price
+      variantSelect.addEventListener('change', (e) => {
+        const selectedOption = e.target.options[e.target.selectedIndex];
+        const price = selectedOption.dataset.price;
+        priceDisplay.textContent = this.formatMoney(price);
+        priceDisplay.dataset.price = price;
+      });
+      
+      // Add to cart handler
+      addBtn.addEventListener('click', async () => {
+        const selectedVariantId = variantSelect.value;
+        if (selectedVariantId) {
+          await this.addToCart(selectedVariantId, 1);
+          this.closeProductModal(modal);
+          
+          // Dynamic grid: swap in next recommendation
+          if (gridIndex !== undefined) {
+            setTimeout(() => {
+              this.swapInNextRecommendation(parseInt(gridIndex));
+            }, 500);
+          }
+        }
+      });
+      
+      // Keyboard handler for ESC key
+      const keyHandler = (e) => {
+        if (e.key === 'Escape') {
+          this.closeProductModal(modal);
+        }
+      };
+      document.addEventListener('keydown', keyHandler);
+      modal._keyHandler = keyHandler; // Store for cleanup
+    }
+
+    // Close product modal
+    closeProductModal(modal) {
+      modal.classList.add('hiding');
+      setTimeout(() => {
+        if (modal._keyHandler) {
+          document.removeEventListener('keydown', modal._keyHandler);
+        }
+        modal.remove();
+      }, 300);
     }
 
     // Remove invalid recommendations to prevent future 422 errors
