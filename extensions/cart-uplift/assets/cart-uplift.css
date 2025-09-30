@@ -1625,16 +1625,28 @@ body.cartuplift-no-scroll {
 /* Mobile adjustments for grid */
 @media (max-width: 768px) {
   .cartuplift-grid-container {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr) !important;
     gap: 12px;
+    max-width: 100%;
+  }
+  
+  .cartuplift-grid-item {
+    height: 240px !important; /* Fixed height for mobile */
+    min-width: auto !important;
+    width: 100% !important;
+  }
+  
+  .cartuplift-grid-item:nth-child(n) {
+    min-width: auto !important; /* Override any nth-child rules */
   }
   
   .cartuplift-grid-title {
-    font-size: 10px !important;
+    font-size: 11px !important;
+    line-height: 1.2 !important;
   }
   
   .cartuplift-grid-price {
-    font-size: 10px !important;
+    font-size: 11px !important;
   }
   
   .cartuplift-grid-add-btn {
@@ -1645,11 +1657,6 @@ body.cartuplift-no-scroll {
   .cartuplift-grid-add-btn svg {
     width: 18px;
     height: 18px;
-  }
-}
-  
-  .cartuplift-grid-item:nth-child(3n) {
-    min-width: 25%;
   }
 }
 
@@ -1673,8 +1680,9 @@ body.cartuplift-no-scroll {
   .cartuplift-recommendations-row .cartuplift-recommendations-content {
     overflow-x: auto;
     scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
     -ms-overflow-style: none;
-  padding: 0 16px; /* match preview inset on mobile */
+    padding: 0 16px; /* match preview inset on mobile */
   }
   
   .cartuplift-recommendations-row .cartuplift-recommendations-content::-webkit-scrollbar {
@@ -1693,10 +1701,11 @@ body.cartuplift-no-scroll {
   .cartuplift-recommendation-card {
     flex: 0 0 calc(100% - 32px);
     max-width: calc(100% - 32px);
-    scroll-snap-align: start;
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
     background: white;
     border-radius: 12px;
-  padding: 16px; /* keep even padding on mobile too */
+    padding: 16px; /* keep even padding on mobile too */
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   }
   

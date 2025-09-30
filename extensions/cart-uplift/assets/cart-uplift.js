@@ -3245,11 +3245,34 @@
         } else if (e.target.classList.contains('cartuplift-add-recommendation-circle')) {
           e.preventDefault();
           e.stopPropagation();
-          const variantId = e.target.dataset.variantId;
-          if (variantId) {
-            this.addVariantToCart(variantId);
+          e.stopImmediatePropagation();
+          
+          const button = e.target;
+          if (button.dataset.processing === 'true') return;
+          button.dataset.processing = 'true';
+          
+          const listItem = e.target.closest('.cartuplift-recommendation-item');
+          if (!listItem) {
+            button.dataset.processing = 'false';
+            return;
           }
-          // Title is no longer needed for this inline add flow (hover reveals title visually)
+          
+          const productLink = listItem.querySelector('.cartuplift-product-link');
+          if (!productLink) {
+            button.dataset.processing = 'false';
+            return;
+          }
+          
+          const productUrl = productLink.getAttribute('href');
+          const productHandle = productUrl ? productUrl.split('/').pop().split('?')[0] : null;
+          const variantId = e.target.dataset.variantId;
+          const productTitle = productLink.textContent;
+          
+          if (productHandle && variantId) {
+            this.handleListProductAdd(productHandle, variantId, productTitle, button);
+          } else {
+            button.dataset.processing = 'false';
+          }
           
           // Track product click
         } else if (e.target.classList.contains('cartuplift-grid-add-btn') || e.target.closest('.cartuplift-grid-add-btn')) {
@@ -3612,6 +3635,76 @@
         console.error('Error handling grid product add:', error);
         // Fallback to direct add
         this.addToCart(variantId, 1);
+      }
+    }
+
+    async handleListProductAdd(productHandle, variantId, productTitle, button) {
+      try {
+        // Fetch product data to check variants
+        const productResponse = await fetch(`/products/${productHandle}.js`);
+        if (!productResponse.ok) {
+          console.error('🛒 Failed to fetch product data, status:', productResponse.status);
+          // Fallback to direct add
+          this.addToCart(variantId, 1);
+          button.dataset.processing = 'false';
+          return;
+        }
+        
+        const productData = await productResponse.json();
+        
+        // Check if product has multiple variants with meaningful differences
+        const availableVariants = productData.variants ? productData.variants.filter(v => v.available) : [];
+        const hasMultipleVariants = availableVariants.length > 1;
+        
+        if (hasMultipleVariants) {
+          // Show product modal for variant selection
+          this.showProductModal(productData);
+          button.dataset.processing = 'false';
+        } else {
+          // Add directly to cart for simple products
+          await this.addToCart(variantId, 1);
+          button.dataset.processing = 'false';
+        }
+      } catch (error) {
+        console.error('Error handling list product add:', error);
+        // Fallback to direct add
+        this.addToCart(variantId, 1);
+        button.dataset.processing = 'false';
+      }
+    }
+
+    async handleListProductAdd(productHandle, variantId, productTitle, button) {
+      try {
+        // Fetch product data to check variants
+        const productResponse = await fetch(`/products/${productHandle}.js`);
+        if (!productResponse.ok) {
+          console.error('🛒 Failed to fetch product data, status:', productResponse.status);
+          // Fallback to direct add
+          this.addToCart(variantId, 1);
+          button.dataset.processing = 'false';
+          return;
+        }
+        
+        const productData = await productResponse.json();
+        
+        // Check if product has multiple variants with meaningful differences
+        const availableVariants = productData.variants ? productData.variants.filter(v => v.available) : [];
+        const hasMultipleVariants = availableVariants.length > 1;
+        
+        if (hasMultipleVariants) {
+          // Show product modal for variant selection
+          this.showProductModal(productData);
+          button.dataset.processing = 'false';
+        } else {
+          // Add directly to cart for simple products
+          await this.addToCart(variantId, 1);
+          button.dataset.processing = 'false';
+        }
+      } catch (error) {
+        console.error('Error handling list product add:', error);
+        // Fallback to direct add
+        this.addToCart(variantId, 1);
+        button.dataset.processing = 'false';
       }
     }
 
