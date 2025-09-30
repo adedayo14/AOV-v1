@@ -3779,6 +3779,11 @@
     generateProductModalHTML(productData, gridIndex) {
       const availableVariants = productData.variants.filter(v => v.available);
       
+      // Use first variant price if product price is 0 or undefined
+      const initialPrice = (productData.price && productData.price > 0) 
+        ? productData.price 
+        : (availableVariants.length > 0 ? availableVariants[0].price : 0);
+      
       return `
         <div class="cartuplift-modal-backdrop">
           <div class="cartuplift-modal-content">
@@ -3795,8 +3800,8 @@
               
               <div class="cartuplift-modal-details">
                 <h2 class="cartuplift-modal-title">${productData.title}</h2>
-                <div class="cartuplift-modal-price" data-price="${productData.price}">
-                  ${this.formatMoney(productData.price)}
+                <div class="cartuplift-modal-price" data-price="${initialPrice}">
+                  ${this.formatMoney(initialPrice)}
                 </div>
                 
                 ${productData.description ? `
