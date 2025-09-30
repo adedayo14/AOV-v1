@@ -2112,10 +2112,7 @@
       this._nextRecommendationIndex = visibleCount;
       
       const gridHtml = `
-        <div class="cartuplift-grid-title-row" style="margin: 0 16px 8px; display: flex; justify-content: space-between; align-items: center;">
-          <div class="cartuplift-grid-title" id="cartuplift-active-title">${productsToShow[0]?.title || ''}</div>
-          <div class="cartuplift-grid-price" id="cartuplift-active-price">${this.formatMoney(productsToShow[0]?.priceCents || 0)}</div>
-        </div>
+
         <div class="cartuplift-grid-container${isCollapsed ? ' collapsed' : ''}" 
              data-original-title="${(this.settings.recommendationsTitle || 'You might also like').replace(/"/g,'&quot;')}"
              data-mode="${isCollapsed ? 'collapsed' : 'standard'}"
@@ -2345,28 +2342,47 @@
       const container = document.querySelector('.cartuplift-grid-container');
       if (!container) return;
       
-      // Get the title and price display elements above the grid
-      const titleEl = document.getElementById('cartuplift-active-title');
-      const priceEl = document.getElementById('cartuplift-active-price');
-      if (!titleEl || !priceEl) return;
+      // Get the main recommendations title element
+      const titleEl = document.querySelector('.cartuplift-recommendations-title');
+      if (!titleEl) return;
       
-      // Store original values
-      const originalTitle = titleEl.textContent;
-      const originalPrice = priceEl.textContent;
+      // Store original title
+      const originalTitle = container.getAttribute('data-original-title') || titleEl.textContent;
+      this._originalRecommendationsTitle = originalTitle;
+      
+      // Get or create price display element next to collapse arrow
+      let priceEl = document.querySelector('.cartuplift-active-price');
+      if (!priceEl) {
+        priceEl = document.createElement('span');
+        priceEl.className = 'cartuplift-active-price';
+        priceEl.style.cssText = 'margin-left: 8px; font-weight: 500; color: #666; display: none;';
+        
+        // Insert next to collapse button if it exists
+        const collapseBtn = document.querySelector('.cartuplift-toggle-button');
+        if (collapseBtn) {
+          collapseBtn.parentNode.insertBefore(priceEl, collapseBtn.nextSibling);
+        } else {
+          // Otherwise add to title container
+          titleEl.parentNode.appendChild(priceEl);
+        }
+      }
       
       container.querySelectorAll('.cartuplift-grid-item').forEach(item => {
         item.addEventListener('mouseenter', () => {
           const title = item.getAttribute('data-title');
           const price = item.getAttribute('data-price');
           if (title && titleEl) titleEl.textContent = title;
-          if (price && priceEl) priceEl.textContent = price;
+          if (price && priceEl) {
+            priceEl.textContent = price;
+            priceEl.style.display = 'inline';
+          }
         });
       });
       
       // Restore original values when leaving entire grid
       container.addEventListener('mouseleave', () => {
-        titleEl.textContent = originalTitle;
-        priceEl.textContent = originalPrice;
+        titleEl.textContent = this._originalRecommendationsTitle;
+        if (priceEl) priceEl.style.display = 'none';
       });
     }
 
