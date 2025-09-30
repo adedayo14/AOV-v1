@@ -144,15 +144,29 @@ export default function Index() {
 
   // Enhanced navigation function that works in embedded app context
   const navigateToPage = (path: string) => {
-    console.log('Navigation requested to:', path);
+    console.log('🚀 Navigation requested to:', path);
+    console.log('🔍 Current location:', window.location.href);
+    
     try {
-      // In embedded Shopify apps, we need to use standard navigate
-      navigate(path);
-      console.log('Navigation successful using standard navigate');
+      // Add a small delay to ensure the click event is properly handled
+      setTimeout(() => {
+        console.log('🔄 Attempting navigation with useNavigate...');
+        navigate(path);
+        console.log('✅ Navigation successful using standard navigate');
+      }, 10);
     } catch (error) {
-      console.warn('Standard navigation failed, trying alternative method:', error);
-      // Fallback: use window location for embedded app context
-      window.location.href = path;
+      console.error('❌ Standard navigation failed:', error);
+      console.log('🔄 Trying window.location fallback...');
+      try {
+        // Construct full URL for embedded app context
+        const baseUrl = window.location.origin;
+        const fullUrl = `${baseUrl}${path}`;
+        console.log('🔗 Navigating to full URL:', fullUrl);
+        window.location.href = fullUrl;
+      } catch (fallbackError) {
+        console.error('❌ All navigation methods failed:', fallbackError);
+        alert(`Navigation failed. Please manually navigate to: ${path}`);
+      }
     }
   };
 
