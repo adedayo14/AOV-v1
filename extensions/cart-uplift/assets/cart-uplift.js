@@ -2145,7 +2145,7 @@
                   </button>
                 </div>
               </div>
-            </div>`).slice(0, 4).join('')}
+            </div>`).slice(0, 3).join('')}
         </div>
       `;
       

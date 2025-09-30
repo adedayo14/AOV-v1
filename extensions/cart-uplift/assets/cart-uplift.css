@@ -1478,7 +1478,7 @@ body.cartuplift-no-scroll {
 /* --- Minimal Grid Layout matching reference --- */
 .cartuplift-grid-container {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 0;
   background: #fff;
   border: 1px solid #e0e0e0;
@@ -1510,9 +1510,11 @@ body.cartuplift-no-scroll {
 
 /* Image container - takes ~60% of height */
 .cartuplift-grid-image {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  aspect-ratio: 1;
+  height: 100%;
   background: #fafafa;
   display: flex;
   align-items: center;
