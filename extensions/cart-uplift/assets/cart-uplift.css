@@ -3452,6 +3452,7 @@ body.cartuplift-no-scroll {
   transform: translateX(100%);
   transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   z-index: 1000001 !important;
+  will-change: transform; /* Optimize for animation */
 }
 
 .cartuplift-product-modal.show .cartuplift-modal-content {

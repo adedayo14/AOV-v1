@@ -3255,7 +3255,17 @@
         } else if (e.target.classList.contains('cartuplift-grid-add-btn') || e.target.closest('.cartuplift-grid-add-btn')) {
           e.preventDefault();
           e.stopPropagation();
+          e.stopImmediatePropagation(); // Stop all other handlers
+          
           const button = e.target.classList.contains('cartuplift-grid-add-btn') ? e.target : e.target.closest('.cartuplift-grid-add-btn');
+          
+          // Prevent multiple rapid clicks
+          if (button.dataset.processing === 'true') {
+            console.log('🛒 Button already processing, ignoring click');
+            return;
+          }
+          button.dataset.processing = 'true';
+          
           const variantId = button.dataset.variantId;
           const gridIndex = button.dataset.gridIndex;
           const gridItem = button.closest('.cartuplift-grid-item');
@@ -3279,6 +3289,11 @@
           } else {
             console.error('🛒 No variant ID found for add to cart');
           }
+          
+          // Reset processing flag after a delay
+          setTimeout(() => {
+            button.dataset.processing = 'false';
+          }, 1000);
           
           if (this.settings.enableAnalytics) CartAnalytics.trackEvent('product_click', {
             productId: variantId,
@@ -3602,35 +3617,37 @@
 
     // Show product modal for variant selection
     showProductModal(productData, gridIndex) {
+      // Prevent multiple rapid opens
+      if (this._modalOpening || document.querySelector('.cartuplift-product-modal')) {
+        console.log('🛒 Modal already opening/open, ignoring duplicate call');
+        return;
+      }
+      
+      this._modalOpening = true;
       console.log('🛒 Creating product modal for:', productData.title);
       
-      const existingModal = document.querySelector('.cartuplift-product-modal');
-      if (existingModal) {
-        console.log('🛒 Removing existing modal');
-        existingModal.remove();
-      }
-
       const modal = document.createElement('div');
       modal.className = 'cartuplift-product-modal';
-      modal.style.zIndex = '1000001'; // Higher than cart drawer (1000000)
+      modal.style.zIndex = '1000001';
       
       try {
         modal.innerHTML = this.generateProductModalHTML(productData, gridIndex);
       } catch (error) {
         console.error('🛒 Error generating modal HTML:', error);
+        this._modalOpening = false;
         return;
       }
       
-      // Add to body (will cover cart area)
+      // Add to body
       document.body.appendChild(modal);
-      console.log('🛒 Modal added to DOM, z-index:', modal.style.zIndex);
       
       // Add modal event listeners
       this.attachProductModalHandlers(modal, productData, gridIndex);
       
-      // Show modal with animation - single smooth slide
+      // Show modal with single animation frame
       requestAnimationFrame(() => {
         modal.classList.add('show');
+        this._modalOpening = false;
         console.log('🛒 Modal shown smoothly');
       });
     }
@@ -3740,11 +3757,14 @@
     closeProductModal(modal) {
       modal.classList.remove('show');
       modal.classList.add('hiding');
+      
       setTimeout(() => {
         if (modal._keyHandler) {
           document.removeEventListener('keydown', modal._keyHandler);
         }
         modal.remove();
+        // Reset opening flag when modal is fully closed
+        this._modalOpening = false;
       }, 300);
     }
 
