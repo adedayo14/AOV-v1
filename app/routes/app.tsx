@@ -14,14 +14,17 @@ export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
 
-  return { apiKey: process.env.SHOPIFY_API_KEY || "" };
+  // Use the client_id from shopify.app.toml as fallback
+  const apiKey = process.env.SHOPIFY_API_KEY || "06d17c445a3713f419add1e31894bcc3";
+  
+  return { apiKey };
 };
 
 export default function App() {
   const { apiKey } = useLoaderData<typeof loader>();
 
   return (
-    <AppProvider isEmbeddedApp apiKey={apiKey}>
+    <AppProvider isEmbeddedApp apiKey={apiKey || "06d17c445a3713f419add1e31894bcc3"}>
       <AppBridgeInitializer apiKey={apiKey} />
       <SessionStatus />
       <NavMenu>
