@@ -137,24 +137,7 @@ export default function AppSettings() {
 
   // Main JSX return
   return (
-    <Page
-      primaryAction={{
-        content: "Save Settings",
-        onAction: () => {
-          // Trigger form submit via fetcher.Form
-          const form = document.getElementById('settings-form') as HTMLFormElement;
-          if (form) {
-            const formData = new FormData(form);
-            // Add all current formSettings to FormData
-            Object.entries(formSettings).forEach(([key, value]) => {
-              formData.set(key, String(value));
-            });
-            fetcher.submit(formData, { method: "post" });
-          }
-        },
-        loading: fetcher.state === "submitting",
-      }}
-    >
+    <Page>
       {/* ...existing JSX code... */}
 
       <fetcher.Form method="post" id="settings-form">
@@ -605,6 +588,20 @@ export default function AppSettings() {
           </Modal.Section>
         </Modal>
       )}
+
+      {/* Save Button */}
+      <Card>
+        <InlineStack align="end">
+          <Button
+            variant="primary"
+            size="large"
+            submit
+            loading={fetcher.state === "submitting"}
+          >
+            {fetcher.state === "submitting" ? "Saving..." : "Save Settings"}
+          </Button>
+        </InlineStack>
+      </Card>
 
       </fetcher.Form>
     </Page>
