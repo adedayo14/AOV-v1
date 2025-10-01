@@ -113,10 +113,19 @@ export const action = withAuthAction(async ({ request, auth }) => {
   try {
     await saveSettings(shop, processedSettings);
 
-    return json({ success: true, message: "Settings saved successfully!" });
+    return json({ success: true, message: "Settings saved successfully!" }, {
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
   } catch (error) {
     console.error("Error saving settings:", error);
-    return json({ success: false, message: "Failed to save settings" }, { status: 500 });
+    return json({ success: false, message: "Failed to save settings" }, {
+      status: 500,
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
   }
 });
 
