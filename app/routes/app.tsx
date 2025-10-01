@@ -1,5 +1,5 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "@remix-run/node";
-import { Outlet, useLoaderData, useRouteError } from "@remix-run/react";
+import { Outlet, useLoaderData, useRouteError, Link } from "@remix-run/react";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { NavMenu } from "@shopify/app-bridge-react";
@@ -8,7 +8,6 @@ import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { authenticate } from "../shopify.server";
 import { SessionStatus } from "../components/SessionStatus";
 import { AppBridgeInitializer } from "../components/AppBridgeInitializer";
-import AppNavLink from "../components/AppNavLink";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
@@ -26,13 +25,13 @@ export default function App() {
       <AppBridgeInitializer apiKey={apiKey} />
       <SessionStatus />
       <NavMenu>
-        <AppNavLink to="/app" rel="home">
+        <Link to="/app" rel="home">
           Home v2.2
-        </AppNavLink>
-        <AppNavLink to="/app/dashboard">📊 Analytics & Performance</AppNavLink>
-        <AppNavLink to="/app/ab-testing">🧪 A/B Testing</AppNavLink>
-        <AppNavLink to="/app/settings">⚙️ Settings</AppNavLink>
-        <AppNavLink to="/app/manage">🎛️ Manage Products & Bundles</AppNavLink>
+        </Link>
+        <Link to="/app/dashboard">📊 Analytics & Performance</Link>
+        <Link to="/app/ab-testing">🧪 A/B Testing</Link>
+        <Link to="/app/settings">⚙️ Settings</Link>
+        <Link to="/app/manage">🎛️ Manage Products & Bundles</Link>
       </NavMenu>
       <Outlet />
     </AppProvider>
