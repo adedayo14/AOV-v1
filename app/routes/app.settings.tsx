@@ -17,7 +17,11 @@ import {
   Divider,
   Modal,
   Spinner,
+  Icon,
 } from "@shopify/polaris";
+import {
+  CheckIcon,
+} from '@shopify/polaris-icons';
 import { withAuth, withAuthAction } from "../utils/auth.server";
 import { getSettings, saveSettings } from "../models/settings.server";
 
@@ -80,6 +84,7 @@ export default function AppSettings() {
   const [showSuccessBanner, setShowSuccessBanner] = React.useState(false);
   const [showErrorBanner, setShowErrorBanner] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [buttonSuccess, setButtonSuccess] = React.useState(false);
   const [showProductSelector, setShowProductSelector] = React.useState(false);
   const [selectedProducts, setSelectedProducts] = React.useState<any[]>([]);
   const [productSearchQuery, setProductSearchQuery] = React.useState("");
@@ -103,10 +108,15 @@ export default function AppSettings() {
       if (data?.success) {
         setShowSuccessBanner(true);
         setShowErrorBanner(false);
-        setTimeout(() => setShowSuccessBanner(false), 3000);
+        setButtonSuccess(true);
+        setTimeout(() => {
+          setShowSuccessBanner(false);
+          setButtonSuccess(false);
+        }, 3000);
       } else {
         setShowErrorBanner(true);
         setErrorMessage(data?.message || 'Failed to save settings');
+        setButtonSuccess(false);
         setTimeout(() => setShowErrorBanner(false), 5000);
       }
     }
@@ -589,19 +599,25 @@ export default function AppSettings() {
         </Modal>
       )}
 
-      {/* Save Button */}
-      <Card>
-        <InlineStack align="end">
-          <Button
-            variant="primary"
-            size="large"
-            submit
-            loading={fetcher.state === "submitting"}
-          >
-            {fetcher.state === "submitting" ? "Saving..." : "Save Settings"}
-          </Button>
-        </InlineStack>
-      </Card>
+        {/* Save Button */}
+        <Card>
+          <InlineStack align="end">
+            <Button
+              variant="primary"
+              tone={buttonSuccess ? "success" : undefined}
+              size="large"
+              submit
+              loading={fetcher.state === "submitting"}
+              icon={buttonSuccess ? <Icon source={CheckIcon} /> : undefined}
+            >
+              {fetcher.state === "submitting" 
+                ? "Saving..." 
+                : buttonSuccess 
+                  ? "Saved!" 
+                  : "Save Settings"}
+            </Button>
+          </InlineStack>
+        </Card>
 
       </fetcher.Form>
     </Page>
