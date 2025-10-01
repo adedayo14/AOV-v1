@@ -22,3 +22,4 @@ node_modules
 .shopify/*
 .shopify.lock
 .vercel
+.env*.local
