@@ -1,12 +1,12 @@
 import { Page, Card, Text } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 
-export default function Dashboard() {
+export default function Settings() {
   return (
     <Page>
-      <TitleBar title="Dashboard v2" />
+      <TitleBar title="Settings v2" />
       <Card>
-        <Text as="p">This is the dashboard page. Navigation is working!</Text>
+        <Text as="p">This is the settings page. Navigation is working!</Text>
       </Card>
     </Page>
   );
