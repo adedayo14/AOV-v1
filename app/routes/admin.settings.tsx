@@ -1,6 +1,6 @@
                                                                                                                                                                                                                                                                                                               import * as React from "react";
 import { json } from "@remix-run/node";
-import { useLoaderData, useFetcher } from "@remix-run/react";
+import { useLoaderData, useFetcher, useSubmit, useNavigation } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -66,21 +66,33 @@ export const action = withAuthAction(async ({ request, auth }) => {
   console.log('🔧 Admin Settings Action: Starting with shop:', auth.session.shop);
   console.log('🔧 Admin Settings Action: Request method:', request.method);
   console.log('🔧 Admin Settings Action: Request URL:', request.url);
+  console.log('🔧 Admin Settings Action: Request headers:', Object.fromEntries(request.headers.entries()));
   
   const shop = auth.session.shop;
   
+  let formData;
+  let settings;
+  
   try {
-    const formData = await request.formData();
-    const settings = Object.fromEntries(formData);
+    formData = await request.formData();
+    settings = Object.fromEntries(formData);
     console.log('🔧 Admin Settings Action: Received settings:', Object.keys(settings).length, 'fields');
-    console.log('🔧 Admin Settings Action: Settings keys:', Object.keys(settings));
+    console.log('🔧 Admin Settings Action: First 10 setting keys:', Object.keys(settings).slice(0, 10));
   } catch (formError) {
     console.error('❌ Admin Settings Action: Failed to parse form data:', formError);
-    return json({ success: false, message: "Failed to parse form data" }, { status: 400 });
+    return json(
+      { success: false, message: "Failed to parse form data" }, 
+      { 
+        status: 400,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        }
+      }
+    );
   }
   
-  const formData = await request.formData();
-  const settings = Object.fromEntries(formData);
   
   // Convert string values to appropriate types
   const processedSettings = {
@@ -178,7 +190,16 @@ export const action = withAuthAction(async ({ request, auth }) => {
       shop: shop
     });
     
-    const response = json({ success: true, message: "Settings saved successfully!" });
+    const response = json(
+      { success: true, message: "Settings saved successfully!" },
+      {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        }
+      }
+    );
     console.log('🔧 Admin Settings Action: Returning success response');
     return response;
   } catch (error) {
@@ -187,7 +208,14 @@ export const action = withAuthAction(async ({ request, auth }) => {
     const errorResponse = json({ 
       success: false, 
       message: error instanceof Error ? error.message : "Failed to save settings" 
-    }, { status: 500 });
+    }, { 
+      status: 500,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      }
+    });
     console.log('🔧 Admin Settings Action: Returning error response');
     return errorResponse;
   } finally {
@@ -501,19 +529,28 @@ export default function SettingsPage() {
     console.log('🚀 Admin Settings: Current URL:', window.location.href);
     console.log('🚀 Admin Settings: Fetcher state before submit:', fetcher.state);
     
+    // Convert settings to FormData
     const formData = new FormData();
     Object.entries(formSettings).forEach(([key, value]) => {
       formData.append(key, String(value));
     });
+    
     console.log('🚀 Admin Settings: Submitting formData:', Object.fromEntries(formData));
-    console.log('🚀 Admin Settings: Form action will be:', ".");
+    console.log('🚀 Admin Settings: Form action will be:', window.location.pathname);
     
     try {
-      fetcher.submit(formData, { method: "post", action: "." });
+      // Use explicit action path for embedded apps
+      fetcher.submit(formData, { 
+        method: "post", 
+        action: window.location.pathname,
+        encType: "application/x-www-form-urlencoded"
+      });
       console.log('🚀 Admin Settings: Fetcher.submit called successfully');
       console.log('🚀 Admin Settings: Fetcher state after submit:', fetcher.state);
     } catch (error) {
       console.error('❌ Admin Settings: Fetcher.submit failed:', error);
+      setShowErrorBanner(true);
+      setErrorMessage('Failed to submit form: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
