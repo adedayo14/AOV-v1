@@ -1,0 +1,17 @@
+
+> dev
+> shopify app dev
+
+╭─ info ───────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│  Using shopify.app.toml for default values:                                  │
+│                                                                              │
+│    • Org:             RAW                                                    │
+│    • App:             cart-uplift-app                                        │
+│    • Dev store:       test-lab-101.myshopify.com                             │
+│    • Update URLs:     No                                                     │
+│                                                                              │
+│   You can pass `--reset` to your command to reset your app configuration.    │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+

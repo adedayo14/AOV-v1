@@ -285,7 +285,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         // Build decayed stats
         const LN2_OVER_HL = Math.log(2) / HALF_LIFE_DAYS;
         type Assoc = { co:number; wco:number; rev:number; wrev:number; aov:number };
-        const assoc: Record<string, { product: any; with: Record<string, Assoc>; wAppear:number; price:number; handle:string; vendor?:string; image?:string } > = {};
+        const assoc: Record<string, { product: any; copurchases: Record<string, Assoc>; wAppear:number; price:number; handle:string; vendor?:string; image?:string } > = {};
         const wAppear: Record<string, number> = {};
 
         const getPid = (gid?: string) => (gid||'').replace('gid://shopify/Product/','');
@@ -311,7 +311,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
             if (!seen.has(it.pid)) {
               wAppear[it.pid] = (wAppear[it.pid]||0)+w;
               seen.add(it.pid);
-              if (!assoc[it.pid]) assoc[it.pid] = { product: { id: it.pid, title: it.title }, with: {}, wAppear: 0, price: it.price, handle: it.handle, vendor: it.vendor, image: it.img };
+              if (!assoc[it.pid]) assoc[it.pid] = { product: { id: it.pid, title: it.title }, copurchases: {}, wAppear: 0, price: it.price, handle: it.handle, vendor: it.vendor, image: it.img };
               assoc[it.pid].wAppear += w;
               assoc[it.pid].price = it.price; assoc[it.pid].handle = it.handle; assoc[it.pid].image = it.img; assoc[it.pid].product.title = it.title; assoc[it.pid].vendor = it.vendor;
             }
@@ -320,12 +320,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
           // pairs
           for (let i=0;i<items.length;i++) for (let j=i+1;j<items.length;j++) {
             const a = items[i], b = items[j];
-            if (!assoc[a.pid]) assoc[a.pid] = { product:{id:a.pid,title:a.title}, with:{}, wAppear:0, price:a.price, handle:a.handle, vendor:a.vendor, image:a.img };
-            if (!assoc[b.pid]) assoc[b.pid] = { product:{id:b.pid,title:b.title}, with:{}, wAppear:0, price:b.price, handle:b.handle, vendor:b.vendor, image:b.img };
-            if (!assoc[a.pid].with[b.pid]) assoc[a.pid].with[b.pid] = { co:0,wco:0,rev:0,wrev:0,aov:0 };
-            if (!assoc[b.pid].with[a.pid]) assoc[b.pid].with[a.pid] = { co:0,wco:0,rev:0,wrev:0,aov:0 };
-            assoc[a.pid].with[b.pid].co++; assoc[a.pid].with[b.pid].wco+=w;
-            assoc[b.pid].with[a.pid].co++; assoc[b.pid].with[a.pid].wco+=w;
+            if (!assoc[a.pid]) assoc[a.pid] = { product:{id:a.pid,title:a.title}, copurchases:{}, wAppear:0, price:a.price, handle:a.handle, vendor:a.vendor, image:a.img };
+            if (!assoc[b.pid]) assoc[b.pid] = { product:{id:b.pid,title:b.title}, copurchases:{}, wAppear:0, price:b.price, handle:b.handle, vendor:b.vendor, image:b.img };
+            if (!assoc[a.pid].copurchases[b.pid]) assoc[a.pid].copurchases[b.pid] = { co:0,wco:0,rev:0,wrev:0,aov:0 };
+            if (!assoc[b.pid].copurchases[a.pid]) assoc[b.pid].copurchases[a.pid] = { co:0,wco:0,rev:0,wrev:0,aov:0 };
+            assoc[a.pid].copurchases[b.pid].co++; assoc[a.pid].copurchases[b.pid].wco+=w;
+            assoc[b.pid].copurchases[a.pid].co++; assoc[b.pid].copurchases[a.pid].wco+=w;
           }
         }
 
@@ -344,7 +344,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           const aStats = assoc[a];
           const wA = aStats?.wAppear || 0;
           if (!aStats || wA <= 0) continue;
-          for (const [b, ab] of Object.entries(aStats.with)) {
+          for (const [b, ab] of Object.entries(aStats.copurchases)) {
             if (anchors.has(b)) continue; // don’t recommend items already in context
             const wB = assoc[b]?.wAppear || 0;
             if (wB <= 0) continue;
@@ -1028,7 +1028,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           const HALF_LIFE_DAYS = 60;
           const LN2_OVER_HL = Math.log(2) / HALF_LIFE_DAYS;
           const wAppear: Record<string, number> = {};
-          const assoc: Record<string, { with: Record<string, { wco:number }>, wAppear:number } > = {};
+          const assoc: Record<string, { copurchases: Record<string, { wco:number }>, wAppear:number } > = {};
           for (const e of orderEdges) {
             const n = e.node;
             const createdAt = new Date(n.createdAt);
@@ -1045,12 +1045,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
             for (const it of items) { if (!seen.has(it.pid)) { wAppear[it.pid] = (wAppear[it.pid]||0)+w; seen.add(it.pid); } }
             for (let i=0;i<items.length;i++) for (let j=i+1;j<items.length;j++) {
               const a = items[i].pid, b = items[j].pid;
-              assoc[a] = assoc[a] || { with: {}, wAppear: 0 } as any;
-              assoc[b] = assoc[b] || { with: {}, wAppear: 0 } as any;
-              assoc[a].with[b] = assoc[a].with[b] || { wco: 0 } as any;
-              assoc[b].with[a] = assoc[b].with[a] || { wco: 0 } as any;
-              assoc[a].with[b].wco += w;
-              assoc[b].with[a].wco += w;
+              assoc[a] = assoc[a] || { copurchases: {}, wAppear: 0 } as any;
+              assoc[b] = assoc[b] || { copurchases: {}, wAppear: 0 } as any;
+              assoc[a].copurchases[b] = assoc[a].copurchases[b] || { wco: 0 } as any;
+              assoc[b].copurchases[a] = assoc[b].copurchases[a] || { wco: 0 } as any;
+              assoc[a].copurchases[b].wco += w;
+              assoc[b].copurchases[a].wco += w;
               (assoc[a].wAppear as number) += w; (assoc[b].wAppear as number) += w;
             }
           }
@@ -1061,8 +1061,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
           const aStats = assoc[anchor] as any;
           const totalW = Object.values(wAppear).reduce((a,b)=>a+b,0) || 1;
           if (aStats) {
-            console.log(`[BUNDLES API] Anchor product ${anchor} found in ${Object.keys(aStats.with).length} associations`);
-            for (const [b, ab] of Object.entries(aStats.with)) {
+            console.log(`[BUNDLES API] Anchor product ${anchor} found in ${Object.keys(aStats.copurchases).length} associations`);
+            for (const [b, ab] of Object.entries(aStats.copurchases)) {
               if (b === anchor) continue;
               const wB = wAppear[b] || 0; if (wB <= 0) continue;
               const confidence = (ab as any).wco / Math.max(1e-6, (aStats.wAppear as number) || 1);
