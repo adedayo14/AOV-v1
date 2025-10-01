@@ -28,8 +28,11 @@ import { getSettings, saveSettings } from "../models/settings.server";
 const { useState, useEffect, useRef } = React;
 
 export const loader = withAuth(async ({ auth }) => {
+  console.log('📥 [LOADER v2.0] Settings loader called');
   const shop = auth.session.shop;
+  console.log('📥 [LOADER v2.0] Shop:', shop);
   const settings = await getSettings(shop);
+  console.log('📥 [LOADER v2.0] Settings loaded successfully');
 
   
   // Get shop currency information
@@ -60,13 +63,20 @@ export const loader = withAuth(async ({ auth }) => {
 });
 
 export const action = withAuthAction(async ({ request, auth }) => {
-  console.log('🔥 [ACTION v2.0] Form action called!');
+  console.log('🔥 [ACTION v2.0] =====================================');
+  console.log('🔥 [ACTION v2.0] Form action DEFINITELY CALLED!');
+  console.log('🔥 [ACTION v2.0] Request method:', request.method);
+  console.log('🔥 [ACTION v2.0] Request URL:', request.url);
+  console.log('🔥 [ACTION v2.0] Request headers:', Object.fromEntries(request.headers.entries()));
+  console.log('🔥 [ACTION v2.0] =====================================');
+  
   const shop = auth.session.shop;
   console.log('🔥 [ACTION v2.0] Shop:', shop);
   
   const formData = await request.formData();
   const settings = Object.fromEntries(formData);
   console.log('🔥 [ACTION v2.0] Settings received:', Object.keys(settings).length, 'fields');
+  console.log('🔥 [ACTION v2.0] First 3 settings:', Object.entries(settings).slice(0, 3));
   
   // Convert string values to appropriate types
   const processedSettings = {
