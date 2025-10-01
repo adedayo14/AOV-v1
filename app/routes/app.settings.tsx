@@ -60,10 +60,13 @@ export const loader = withAuth(async ({ auth }) => {
 });
 
 export const action = withAuthAction(async ({ request, auth }) => {
+  console.log('🔥 [ACTION v2.0] Form action called!');
   const shop = auth.session.shop;
+  console.log('🔥 [ACTION v2.0] Shop:', shop);
   
   const formData = await request.formData();
   const settings = Object.fromEntries(formData);
+  console.log('🔥 [ACTION v2.0] Settings received:', Object.keys(settings).length, 'fields');
   
   // Convert string values to appropriate types
   const processedSettings = {
@@ -111,7 +114,9 @@ export const action = withAuthAction(async ({ request, auth }) => {
   };
   
   try {
+    console.log('🔥 [ACTION v2.0] Attempting to save settings...');
     await saveSettings(shop, processedSettings);
+    console.log('🔥 [ACTION v2.0] Settings saved successfully!');
 
     return json({ success: true, message: "Settings saved successfully!" }, {
       headers: {
@@ -119,7 +124,7 @@ export const action = withAuthAction(async ({ request, auth }) => {
       }
     });
   } catch (error) {
-    console.error("Error saving settings:", error);
+    console.error("🔥 [ACTION v2.0] Error saving settings:", error);
     return json({ success: false, message: "Failed to save settings" }, {
       status: 500,
       headers: {
@@ -341,11 +346,14 @@ export default function SettingsPage() {
 
 
   const handleSubmit = () => {
+    console.log('🚀 [FORM SUBMIT v2.0] Starting form submission...');
     const formData = new FormData();
     Object.entries(formSettings).forEach(([key, value]) => {
       formData.append(key, String(value));
     });
-  fetcher.submit(formData, { method: "post", action: "." });
+    console.log('🚀 [FORM SUBMIT v2.0] FormData created with', formData.entries().next().value);
+    fetcher.submit(formData, { method: "post", action: "." });
+    console.log('🚀 [FORM SUBMIT v2.0] Fetcher.submit called');
   };
 
   const updateSetting = (key: string, value: any) => {
