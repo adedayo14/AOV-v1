@@ -179,7 +179,7 @@ export default function Index() {
           <BlockStack gap="500">
             <BlockStack gap="300">
               <Text as="h1" variant="headingXl">
-                Welcome to Cart Uplift 🚀
+                Welcome to Cart Uplift 🚀 v1
               </Text>
               <Text variant="bodyLg" as="p">
                 Boost your store's revenue with intelligent cart optimization and upselling features:

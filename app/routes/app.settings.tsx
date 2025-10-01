@@ -287,12 +287,36 @@ export default function SettingsPage() {
   // Initialize form settings with defaults if needed
   useEffect(() => {
     // Settings initialization handled by validateSettings function
+    
+    // Monitor network requests for debugging
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+      console.log('🌐 [NETWORK] Fetch called:', args[0]);
+      return originalFetch.apply(this, args)
+        .then(response => {
+          console.log('🌐 [NETWORK] Response received:', response.status, response.statusText, 'for', args[0]);
+          return response;
+        })
+        .catch(error => {
+          console.error('🌐 [NETWORK] Fetch error:', error, 'for', args[0]);
+          throw error;
+        });
+    };
+    
+    return () => {
+      window.fetch = originalFetch;
+    };
   }, []);
 
   // Auto-hide banners and handle all outcomes, including session expiry
   useEffect(() => {
+    console.log('📊 [FETCHER STATE] State changed to:', fetcher.state, 'Data:', fetcher.data);
+    
     // Track transitions to detect silent failures
-    if (fetcher.state === 'submitting') submittingRef.current = true;
+    if (fetcher.state === 'submitting') {
+      console.log('📊 [FETCHER STATE] Form is submitting...');
+      submittingRef.current = true;
+    }
     if (fetcher.state === 'idle' && submittingRef.current && !fetcher.data) {
       submittingRef.current = false;
       setShowSuccessBanner(false);
@@ -347,13 +371,26 @@ export default function SettingsPage() {
 
   const handleSubmit = () => {
     console.log('🚀 [FORM SUBMIT v2.0] Starting form submission...');
+    console.log('🚀 [FORM SUBMIT v2.0] Current URL:', window.location.href);
+    console.log('🚀 [FORM SUBMIT v2.0] Fetcher state:', fetcher.state);
+    
     const formData = new FormData();
     Object.entries(formSettings).forEach(([key, value]) => {
       formData.append(key, String(value));
     });
-    console.log('🚀 [FORM SUBMIT v2.0] FormData created with', formData.entries().next().value);
-    fetcher.submit(formData, { method: "post", action: "." });
-    console.log('🚀 [FORM SUBMIT v2.0] Fetcher.submit called');
+    
+    const firstEntry = Array.from(formData.entries())[0];
+    console.log('🚀 [FORM SUBMIT v2.0] FormData entries count:', Array.from(formData.entries()).length);
+    console.log('🚀 [FORM SUBMIT v2.0] First entry:', firstEntry);
+    console.log('🚀 [FORM SUBMIT v2.0] Sample entries:', Array.from(formData.entries()).slice(0, 3));
+    
+    // For new embedded auth strategy, don't specify action - let Remix figure it out
+    try {
+      fetcher.submit(formData, { method: "post" });
+      console.log('🚀 [FORM SUBMIT v2.0] Fetcher.submit called successfully');
+    } catch (error) {
+      console.error('🚀 [FORM SUBMIT v2.0] ERROR during submit:', error);
+    }
   };
 
   const updateSetting = (key: string, value: any) => {
