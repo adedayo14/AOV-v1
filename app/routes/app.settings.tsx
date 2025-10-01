@@ -46,13 +46,20 @@ export const loader = withAuth(async ({ auth }) => {
 // Action: Save settings to database
 export const action = withAuthAction(async ({ request, auth }) => {
   console.log('🔧 APP SETTINGS ACTION: Starting save...');
+  console.log('🔧 Request method:', request.method);
+  console.log('🔧 Request URL:', request.url);
+  console.log('🔧 Content-Type:', request.headers.get('content-type'));
+  
   const shop = auth.session.shop;
+  console.log('🔧 Shop:', shop);
   
   try {
     const formData = await request.formData();
     const settings = Object.fromEntries(formData);
     
     console.log('🔧 APP Settings Action: Received', Object.keys(settings).length, 'fields');
+    console.log('🔧 Form Data Keys:', Object.keys(settings));
+    console.log('🔧 Sample settings:', Object.fromEntries(Object.entries(settings).slice(0, 5)));
     
     // Convert string values to appropriate types (simplified version)
     const processedSettings: any = {};
