@@ -161,7 +161,11 @@ export default function AppSettings() {
     <Page>
       {/* ...existing JSX code... */}
 
-      <fetcher.Form method="post" id="settings-form">
+      <fetcher.Form 
+        method="post" 
+        id="settings-form"
+        onSubmit={() => console.log('[BROWSER LOG] Form submission initiated...')}
+      >
         {/* Hidden fields for all settings */}
         {Object.entries(formSettings).map(([key, value]) => (
           <input key={key} type="hidden" name={key} value={String(value)} />
@@ -617,7 +621,12 @@ export default function AppSettings() {
               variant="primary"
               tone={buttonSuccess ? "success" : undefined}
               size="large"
-              submit
+              onClick={() => {
+                const form = document.getElementById('settings-form') as HTMLFormElement;
+                if (form) {
+                  form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                }
+              }}
               loading={fetcher.state === "submitting"}
               icon={buttonSuccess ? <Icon source={CheckIcon} /> : undefined}
             >
