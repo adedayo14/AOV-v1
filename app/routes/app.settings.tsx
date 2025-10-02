@@ -106,13 +106,61 @@ export default function AppSettings() {
   const dataQualityTone = loaderData.dataQualityTone || "info";
   const dataQualityLabel = loaderData.dataQualityLabel || "Low";
   const cartIconOptions = loaderData.cartIconOptions || [];
+  const [isSaving, setIsSaving] = React.useState(false);
 
   // Helper: update a setting
   const updateSetting = (key: string, value: any) => {
     setFormSettings((prev: any) => ({ ...prev, [key]: value }));
   };
 
-  // Handle fetcher response for success/error messages
+  // Handle save via direct fetch to API route
+  const handleSaveSettings = async () => {
+    console.log('[SETTINGS] Save button clicked');
+    setIsSaving(true);
+    setShowSuccessBanner(false);
+    setShowErrorBanner(false);
+
+    try {
+      // Create form data from settings
+      const formData = new FormData();
+      Object.entries(formSettings).forEach(([key, value]) => {
+        formData.append(key, String(value));
+      });
+
+      console.log('[SETTINGS] Sending to /api/settings...');
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        body: formData,
+      });
+
+      console.log('[SETTINGS] Response status:', response.status);
+      const data = await response.json();
+      console.log('[SETTINGS] Response data:', data);
+
+      if (data.success) {
+        setShowSuccessBanner(true);
+        setButtonSuccess(true);
+        setTimeout(() => {
+          setShowSuccessBanner(false);
+          setButtonSuccess(false);
+        }, 3000);
+      } else {
+        setShowErrorBanner(true);
+        setErrorMessage(data.error || 'Failed to save settings');
+        setButtonSuccess(false);
+        setTimeout(() => setShowErrorBanner(false), 5000);
+      }
+    } catch (error: any) {
+      console.error('[SETTINGS] Error:', error);
+      setShowErrorBanner(true);
+      setErrorMessage(error.message || 'Failed to save settings');
+      setTimeout(() => setShowErrorBanner(false), 5000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle fetcher response for success/error messages (kept for compatibility)
   React.useEffect(() => {
     if (fetcher.state === 'idle' && fetcher.data) {
       const data: any = fetcher.data;
@@ -161,16 +209,9 @@ export default function AppSettings() {
     <Page>
       {/* ...existing JSX code... */}
 
-      <fetcher.Form 
-        method="post" 
-        id="settings-form"
-        onSubmit={() => console.log('[BROWSER LOG] Form submission initiated...')}
-      >
-        {/* Hidden fields for all settings */}
-        {Object.entries(formSettings).map(([key, value]) => (
-          <input key={key} type="hidden" name={key} value={String(value)} />
-        ))}
-
+      <div id="settings-form">
+        {/* Content wrapper - no longer needs to be a form */}
+        
         <div className="cartuplift-settings-layout">{(showSuccessBanner || showErrorBanner) && (
           <div className="cartuplift-success-banner">
             {showSuccessBanner && (
@@ -621,16 +662,11 @@ export default function AppSettings() {
               variant="primary"
               tone={buttonSuccess ? "success" : undefined}
               size="large"
-              onClick={() => {
-                const form = document.getElementById('settings-form') as HTMLFormElement;
-                if (form) {
-                  form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-                }
-              }}
-              loading={fetcher.state === "submitting"}
+              onClick={handleSaveSettings}
+              loading={isSaving}
               icon={buttonSuccess ? <Icon source={CheckIcon} /> : undefined}
             >
-              {fetcher.state === "submitting" 
+              {isSaving
                 ? "Saving..." 
                 : buttonSuccess 
                   ? "Saved!" 
@@ -639,7 +675,7 @@ export default function AppSettings() {
           </InlineStack>
         </Card>
 
-      </fetcher.Form>
+      </div>
     </Page>
   );
 }
