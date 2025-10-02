@@ -14,14 +14,25 @@ import polarisTranslations from "@shopify/polaris/locales/en.json";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 
 import { login } from "../../shopify.server";
+import { redirect } from "@remix-run/node";
 
 import { loginErrorMessage } from "./error.server";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const errors = loginErrorMessage(await login(request));
+  const url = new URL(request.url);
+  const hasHost = url.searchParams.has("host");
+  const isEmbedded = url.searchParams.get("embedded") === "1";
+  const ref = request.headers.get("referer") || "";
+  const fromAdmin = ref.includes("admin.shopify.com") || ref.includes(".myshopify.com");
 
+  // If we have Shopify embedded context, don't show the manual login form; go to /auth instead
+  if (hasHost || isEmbedded || fromAdmin) {
+    return redirect(`/auth${url.search}`);
+  }
+
+  const errors = loginErrorMessage(await login(request));
   return { errors, polarisTranslations };
 };
 

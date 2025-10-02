@@ -16,25 +16,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   // Use the client_id from shopify.app.toml as fallback
   const apiKey = process.env.SHOPIFY_API_KEY || "06d17c445a3713f419add1e31894bcc3";
+  const search = new URL(request.url).search; // keep host/shop/embedded on nav links
   
-  return { apiKey };
+  return { apiKey, search };
 };
 
 export default function App() {
-  const { apiKey } = useLoaderData<typeof loader>();
+  const { apiKey, search } = useLoaderData<typeof loader>();
 
   return (
     <AppProvider isEmbeddedApp apiKey={apiKey || "06d17c445a3713f419add1e31894bcc3"}>
       <AppBridgeInitializer apiKey={apiKey} />
       <SessionStatus />
       <NavMenu>
-        <a href="/app" rel="home">
+        <a href={`/app${search}`} rel="home">
           Home
         </a>
-        <a href="/app/dashboard">📊 Analytics & Performance</a>
-        <a href="/app/ab-testing">🧪 A/B Testing</a>
-        <a href="/app/settings">⚙️ Settings</a>
-        <a href="/app/manage">🎛️ Manage Products & Bundles</a>
+        <a href={`/app/dashboard${search}`}>📊 Analytics & Performance</a>
+        <a href={`/app/ab-testing${search}`}>🧪 A/B Testing</a>
+        <a href={`/app/settings${search}`}>⚙️ Settings</a>
+        <a href={`/app/manage${search}`}>🎛️ Manage Products & Bundles</a>
       </NavMenu>
       <Outlet />
     </AppProvider>
