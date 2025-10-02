@@ -331,14 +331,30 @@ export default function ABTestingPage() {
       variantCount: adjustedVariants.length
     });
     
-    console.log("[A/B Testing UI] Submitting to server via fetcher...");
-    try {
-  // Submit to the page action to verify action reachability end-to-end
-  fetcher.submit(data, { method: "post", action: "/app/ab-testing" });
-  console.log("[A/B Testing UI] Fetcher.submit() completed - sent to /app/ab-testing");
-    } catch (error) {
-      console.error("[A/B Testing UI] Fetcher.submit() error:", error);
-    }
+    console.log("[A/B Testing UI] Submitting to server via fetch (admin API)...");
+    (async () => {
+      try {
+        const resp = await fetch("/api/ab-testing-admin", {
+          method: "POST",
+          body: data,
+          credentials: "include"
+        });
+        const jsonResp = await resp.json().catch(() => null);
+        if (!resp.ok || !jsonResp?.success) {
+          console.error("[A/B Testing UI] Admin API error:", jsonResp || resp.statusText);
+        } else {
+          console.log("[A/B Testing UI] Admin API success:", jsonResp);
+          setSuccessMessage(jsonResp.message || "Experiment created");
+          setTimeout(() => setSuccessMessage(null), 5000);
+          if (jsonResp.experiment) {
+            setExperiments(prev => [jsonResp.experiment, ...prev]);
+          }
+          setShowCreateModal(false);
+        }
+      } catch (error) {
+        console.error("[A/B Testing UI] fetch error:", error);
+      }
+    })();
   };
 
   const handleToggleExperiment = (experimentId: number) => {
