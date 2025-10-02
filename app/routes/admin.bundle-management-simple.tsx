@@ -572,13 +572,13 @@ export default function SimpleBundleManagement() {
                         >
                           <InlineStack gap="300">
                             <Checkbox label="" checked={selectedProducts.includes(product.id)} onChange={() => {}} />
-                            <Thumbnail source={product.featuredImage?.url || ""} alt={product.title} size="small" />
+                            <Thumbnail source={product.image || ""} alt={product.title} size="small" />
                             <BlockStack gap="100">
                               <Text as="h3" variant="bodyMd">
                                 {product.title}
                               </Text>
                               <Text as="p" variant="bodySm" tone="subdued">
-                                ${product.variants.edges[0]?.node.price || "0.00"}
+                                ${product.price || "0.00"}
                               </Text>
                             </BlockStack>
                           </InlineStack>

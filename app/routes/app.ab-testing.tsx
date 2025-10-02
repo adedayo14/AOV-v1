@@ -41,18 +41,23 @@ interface SerializedABExperiment {
 
 // Loader to fetch existing experiments
 export const loader: LoaderFunction = async ({ request }) => {
-  await authenticate.admin(request);
-  const experiments = await prisma.aBExperiment.findMany({
-    orderBy: { createdAt: "desc" },
-  });
-  // Serialize Date and Decimal fields to be JSON-safe
-  return json(experiments.map(exp => ({ 
+  try {
+    await authenticate.admin(request);
+    const experiments = await prisma.aBExperiment.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    // Serialize Date and Decimal fields to be JSON-safe
+    return json(experiments.map(exp => ({ 
     ...exp, 
     createdAt: exp.createdAt.toISOString(), 
     updatedAt: exp.updatedAt.toISOString(),
     // Convert Decimal to string for JSON serialization
     trafficAllocation: exp.trafficAllocation.toString(),
   })));
+  } catch (error) {
+    console.error("Error loading A/B experiments:", error);
+    return json([]);
+  }
 };
 
 export default function ABTestingPage() {
