@@ -115,6 +115,7 @@ export default function AppSettings() {
 
   // Handle save via direct fetch to API route
   const handleSaveSettings = async () => {
+    alert('🔥 BUTTON CLICKED! Check console for logs.');
     console.log("=".repeat(80));
     console.log('[SETTINGS CLIENT] Save button clicked at:', new Date().toISOString());
     console.log('[SETTINGS CLIENT] Current settings count:', Object.keys(formSettings).length);
