@@ -333,12 +333,12 @@ export default function ABTestingPage() {
     
     console.log("[A/B Testing UI] Submitting to server via fetcher...");
     try {
-      // Explicitly specify the action URL to ensure it goes to the right place
+      // TEST: Using separate API route to diagnose Vercel routing issue
       fetcher.submit(data, { 
         method: "post",
-        action: "/app/ab-testing"
+        action: "/api/ab-test"
       });
-      console.log("[A/B Testing UI] Fetcher.submit() completed");
+      console.log("[A/B Testing UI] Fetcher.submit() completed - sent to /api/ab-test");
     } catch (error) {
       console.error("[A/B Testing UI] Fetcher.submit() error:", error);
     }
