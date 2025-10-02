@@ -7,7 +7,7 @@ import {
 } from "@remix-run/react";
 import { IframeBreaker } from "./components/IframeBreaker";
 import { useRouteError, isRouteErrorResponse } from "@remix-run/react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 export default function App() {
   // Hard-code the API key to avoid hydration mismatch
@@ -41,7 +41,7 @@ export default function App() {
 
 export function ErrorBoundary() {
   const error = useRouteError();
-  const [errorId] = useState(() => Math.random().toString(36).substr(2, 9));
+  const errorId = 'error-' + Date.now();
   
   // Log to monitoring service
   useEffect(() => {

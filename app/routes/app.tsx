@@ -1,5 +1,6 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "@remix-run/node";
 import { Outlet, useLoaderData, useRouteError } from "@remix-run/react";
+import { useEffect } from "react";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { NavMenu } from "@shopify/app-bridge-react";
@@ -47,23 +48,31 @@ export function ErrorBoundary() {
   const error = useRouteError();
   
   // Handle session-related errors more gracefully
+  useEffect(() => {
+    if (error && typeof error === 'object' && 'status' in error) {
+      const responseError = error as { status: number; statusText?: string };
+      
+      if (responseError.status === 401) {
+        // For embedded apps, use App Bridge for re-authentication
+        if (typeof window !== 'undefined') {
+          if (window.top !== window.self) {
+            // In iframe - use App Bridge reauth
+            window.parent.postMessage({ 
+              message: 'Shopify.API.reauthorizeApplication' 
+            }, '*');
+          } else {
+            // Not in iframe - redirect to auth
+            window.location.href = '/auth';
+          }
+        }
+      }
+    }
+  }, [error]);
+  
   if (error && typeof error === 'object' && 'status' in error) {
     const responseError = error as { status: number; statusText?: string };
     
     if (responseError.status === 401) {
-      // For embedded apps, use App Bridge for re-authentication
-      if (typeof window !== 'undefined') {
-        if (window.top !== window.self) {
-          // In iframe - use App Bridge reauth
-          window.parent.postMessage({ 
-            message: 'Shopify.API.reauthorizeApplication' 
-          }, '*');
-        } else {
-          // Not in iframe - redirect to auth
-          window.location.href = '/auth';
-        }
-      }
-      
       return (
                 <div>
           <h2>Cart Uplift App</h2>
