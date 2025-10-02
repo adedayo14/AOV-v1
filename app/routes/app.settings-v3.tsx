@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useActionData, useNavigation, Form } from "@remix-run/react";
+import { useLoaderData, useActionData, useNavigation, Form, useSearchParams } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -34,7 +34,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, redirect } = await authenticate.admin(request);
   const shop = session.shop;
   
   console.log(`[SETTINGS V3 ACTION] ✅✅✅ Action called for shop: ${shop}`);
@@ -56,10 +56,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     await saveSettings(shop, settings);
     console.log('[SETTINGS V3 ACTION] ✅ Settings saved successfully');
     
-    return json({ 
-      success: true, 
-      message: "Settings saved successfully!" 
-    });
+    // Use Shopify's redirect helper for embedded apps
+    return redirect(`/app/settings-v3?success=true`);
   } catch (error) {
     console.error("[SETTINGS V3 ACTION] ❌ Error:", error);
     return json({ 
@@ -74,6 +72,7 @@ export default function SettingsV3() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const shopify = useAppBridge();
+  const [searchParams] = useSearchParams();
   
   // Local state for form fields
   const [autoOpenCart, setAutoOpenCart] = useState(settings.autoOpenCart !== false);
@@ -89,12 +88,19 @@ export default function SettingsV3() {
   
   const isSubmitting = navigation.state === "submitting";
 
-  // Show toast when action completes
+  // Show toast when redirected back with success
+  useEffect(() => {
+    if (searchParams.get('success') === 'true') {
+      shopify.toast.show("✅ Settings saved successfully!");
+      // Clean up the URL
+      window.history.replaceState({}, '', '/app/settings-v3');
+    }
+  }, [searchParams, shopify]);
+
+  // Show toast when action completes (for errors)
   useEffect(() => {
     if (actionData) {
-      if (actionData.success) {
-        shopify.toast.show("✅ Settings saved successfully!");
-      } else {
+      if (!actionData.success) {
         shopify.toast.show(`❌ ${actionData.message}`, { isError: true });
       }
     }
@@ -106,9 +112,10 @@ export default function SettingsV3() {
       
       <Form method="post">
         <BlockStack gap="500">
-          {actionData && (
+          {/* Success shown via toast after redirect */}
+          {actionData && !actionData.success && (
             <Banner 
-              tone={actionData.success ? "success" : "critical"}
+              tone="critical"
               onDismiss={() => window.location.reload()}
             >
               {actionData.message}
