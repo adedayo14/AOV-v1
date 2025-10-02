@@ -3,19 +3,30 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
 export async function action({ request }: ActionFunctionArgs) {
+  console.log("[api.ab-testing-admin] === ACTION STARTED ===");
+  console.log("[api.ab-testing-admin] Method:", request.method);
+  console.log("[api.ab-testing-admin] URL:", request.url);
+  
   try {
+    console.log("[api.ab-testing-admin] Authenticating...");
     const { session } = await authenticate.admin(request);
     const shop = session.shop;
+    console.log("[api.ab-testing-admin] Authenticated for shop:", shop);
 
+    console.log("[api.ab-testing-admin] Parsing form data...");
     const formData = await request.formData();
     const intent = String(formData.get("intent") || "");
+    console.log("[api.ab-testing-admin] Intent:", intent);
 
     if (intent === "create") {
+      console.log("[api.ab-testing-admin] Processing create intent...");
       const name = String(formData.get("name") || "");
       const description = String(formData.get("description") || "");
       const testType = String(formData.get("testType") || "free_shipping");
       const trafficAllocation = Number(formData.get("trafficAllocation") || 100);
       const variantsRaw = String(formData.get("variants") || "[]");
+      
+      console.log("[api.ab-testing-admin] Parsed data:", { name, testType, trafficAllocation, variantsRaw: variantsRaw.substring(0, 100) + '...' });
 
       let variantsData: Array<any> = [];
       try {
@@ -26,9 +37,11 @@ export async function action({ request }: ActionFunctionArgs) {
       }
 
       if (!name || variantsData.length < 2) {
+        console.log("[api.ab-testing-admin] Validation failed:", { name: !!name, variantCount: variantsData.length });
         return json({ success: false, error: "Name and at least 2 variants are required" }, { status: 400 });
       }
 
+      console.log("[api.ab-testing-admin] Creating experiment in database...");
       const experiment = await prisma.aBExperiment.create({
         data: {
           shopId: shop,
@@ -55,13 +68,19 @@ export async function action({ request }: ActionFunctionArgs) {
         },
         include: { variants: true }
       });
-
+      
+      console.log("[api.ab-testing-admin] Experiment created successfully:", experiment.id);
       return json({ success: true, message: "Experiment created", experiment });
     }
 
+    console.log("[api.ab-testing-admin] Invalid intent:", intent);
     return json({ success: false, error: "Invalid intent" }, { status: 400 });
   } catch (error) {
-    console.error("[api.ab-testing-admin] error:", error);
+    console.error("[api.ab-testing-admin] ERROR:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      cause: error instanceof Error ? error.cause : undefined
+    });
     return json({ success: false, error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

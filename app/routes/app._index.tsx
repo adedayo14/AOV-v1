@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, useNavigate } from "@remix-run/react";
 import { useCallback } from "react";
 import {
   Page,
@@ -69,12 +69,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function Index() {
   const { setupSteps, progressPercentage, shop, currentThemeId } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
 
   const completedSteps = setupSteps.filter(step => step.completed).length;
 
   const handleNavigate = useCallback((path: string) => {
-    window.location.href = path;
-  }, []);
+    navigate(path);
+  }, [navigate]);
 
   // Build absolute admin URL so it doesn't try to open inside the embed iframe
   const shopHandle = (shop || '').replace('.myshopify.com', '');
