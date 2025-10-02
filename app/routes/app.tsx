@@ -31,8 +31,9 @@ export default function App() {
       <SessionStatus />
       <NavMenu>
         <a href={`/app${search}`} rel="home">
-          Dashboard
+          Home
         </a>
+        <a href={`/app/dashboard${search}`}>Dashboard</a>
         <a href={`/app/settings${search}`}>Settings</a>
         <a href={`/app/manage${search}`}>Bundles</a>
         <a href={`/app/ab-testing${search}`}>A/B Testing</a>
