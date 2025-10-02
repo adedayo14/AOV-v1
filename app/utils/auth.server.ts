@@ -28,9 +28,10 @@ export async function enhancedAuthenticate(request: Request) {
       );
     }
 
-    // For full page loads, redirect to re-auth
+    // For full page loads, redirect to /auth preserving query (host/shop/embedded)
     const url = new URL(request.url);
-    throw redirect(`/auth/login?shop=${url.searchParams.get('shop') || ''}`);
+    const search = url.search; // includes host/shop/embedded
+    throw redirect(`/auth${search}`);
   }
 }
 
