@@ -263,7 +263,7 @@ export default function SimpleBundleManagement() {
   }, [collectionsFetcher.state, collectionsFetcher.data]);
 
   // Handle product fetcher state
-  const isLoadingProducts = productFetcher.state === 'loading';
+  const isLoadingProducts = productFetcher.state !== 'idle';
   const productLoadError = productFetcher.data && !productFetcher.data.success 
     ? (productFetcher.data as any).error 
     : null;
@@ -535,7 +535,7 @@ export default function SimpleBundleManagement() {
                   <Text as="h3" variant="headingSm">
                     Select Products for Bundle
                   </Text>
-                  {isLoadingProducts || productFetcher.state !== "idle" ? (
+                  {isLoadingProducts ? (
                     <BlockStack align="center" gap="300">
                       <Spinner size="large" />
                       <Text as="p">Loading products...</Text>

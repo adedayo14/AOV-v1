@@ -121,11 +121,39 @@ export default function ABTestingPage() {
     }
   }, [experimentName, shopify]);
 
+  const handleDeleteExperiment = useCallback(async (experimentId: number) => {
+    if (!confirm('Are you sure you want to delete this experiment?')) return;
+    
+    try {
+      const url = new URL(window.location.href);
+      const shop = url.searchParams.get('shop');
+      
+      const response = await fetch('/api/ab-testing-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', experimentId, shop })
+      });
+      
+      if (response.ok) {
+        shopify.toast.show('Experiment deleted successfully');
+        window.location.reload();
+      } else {
+        shopify.toast.show('Failed to delete experiment', { isError: true });
+      }
+    } catch (error) {
+      console.error('Error deleting experiment:', error);
+      shopify.toast.show('Failed to delete experiment', { isError: true });
+    }
+  }, [shopify]);
+
   const rows = experiments.map((exp) => [
     exp.name,
-    exp.status,
+    exp.status.charAt(0).toUpperCase() + exp.status.slice(1),
     exp.testType,
     new Date(exp.createdAt).toLocaleDateString(),
+    <Button key={`delete-${exp.id}`} size="micro" tone="critical" onClick={() => handleDeleteExperiment(exp.id)}>
+      Delete
+    </Button>
   ]);
 
   return (
@@ -140,8 +168,8 @@ export default function ABTestingPage() {
           <LegacyCard>
             {experiments.length > 0 ? (
               <DataTable
-                columnContentTypes={["text", "text", "text", "text"]}
-                headings={["Name", "Status", "Type", "Created At"]}
+                columnContentTypes={["text", "text", "text", "text", "text"]}
+                headings={["Name", "Status", "Type", "Created At", "Actions"]}
                 rows={rows}
               />
             ) : (

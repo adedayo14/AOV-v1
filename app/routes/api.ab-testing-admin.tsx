@@ -11,10 +11,15 @@ export async function action({ request }: ActionFunctionArgs) {
   try {
     const contentType = request.headers.get('content-type');
     let shop: string;
-    let formData: FormData;
+    let formData: FormData | undefined;
+    let jsonData: any = null;
     
-    // Check if shop is passed in form data (bypass auth)
-    if (contentType?.includes('multipart/form-data') || contentType?.includes('application/x-www-form-urlencoded')) {
+    // Check for JSON content type (from fetch calls)
+    if (contentType?.includes('application/json')) {
+      jsonData = await request.json();
+      shop = jsonData.shop;
+      console.log("[api.ab-testing-admin] Using shop from JSON data:", shop);
+    } else if (contentType?.includes('multipart/form-data') || contentType?.includes('application/x-www-form-urlencoded')) {
       formData = await request.formData();
       const shopFromForm = formData.get("shop");
       
@@ -36,6 +41,28 @@ export async function action({ request }: ActionFunctionArgs) {
       shop = session.shop;
       formData = await request.formData();
       console.log("[api.ab-testing-admin] Authenticated for shop:", shop);
+    }
+
+    // Handle JSON action (delete)
+    if (jsonData) {
+      const action = jsonData.action;
+      console.log("[api.ab-testing-admin] JSON Action:", action);
+      
+      if (action === 'delete') {
+        const experimentId = Number(jsonData.experimentId);
+        console.log("[api.ab-testing-admin] Deleting experiment:", experimentId);
+        
+        await prisma.aBExperiment.delete({
+          where: { id: experimentId }
+        });
+        
+        console.log("[api.ab-testing-admin] Experiment deleted successfully");
+        return json({ success: true, message: "Experiment deleted" });
+      }
+    }
+
+    if (!formData) {
+      return json({ success: false, error: "No form data provided" }, { status: 400 });
     }
 
     console.log("[api.ab-testing-admin] Parsing form data...");
