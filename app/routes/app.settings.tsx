@@ -45,40 +45,44 @@ export const loader = withAuth(async ({ auth }) => {
 
 // Action: Save settings to database
 export const action = withAuthAction(async ({ request, auth }) => {
-  console.log('🔧 APP SETTINGS ACTION: Starting save...');
-  console.log('🔧 Request method:', request.method);
-  console.log('🔧 Request URL:', request.url);
-  console.log('🔧 Content-Type:', request.headers.get('content-type'));
-  
   const shop = auth.session.shop;
-  console.log('🔧 Shop:', shop);
-  
+  console.log(`[SETTINGS ACTION] Received request for shop: ${shop}`);
+
   try {
     const formData = await request.formData();
     const settings = Object.fromEntries(formData);
-    
-    console.log('🔧 APP Settings Action: Received', Object.keys(settings).length, 'fields');
-    console.log('🔧 Form Data Keys:', Object.keys(settings));
-    console.log('🔧 Sample settings:', Object.fromEntries(Object.entries(settings).slice(0, 5)));
-    
-    // Convert string values to appropriate types (simplified version)
-    const processedSettings: any = {};
+    console.log(`[SETTINGS ACTION] Parsed ${Object.keys(settings).length} fields from formData.`);
+
+    // Convert string values to appropriate types
+    const processedSettings: { [key: string]: any } = {};
     for (const [key, value] of Object.entries(settings)) {
-      if (value === 'true') processedSettings[key] = true;
-      else if (value === 'false') processedSettings[key] = false;
-      else if (!isNaN(Number(value)) && value !== '') processedSettings[key] = Number(value);
-      else processedSettings[key] = String(value);
+      if (typeof value !== 'string') {
+        processedSettings[key] = value;
+        continue;
+      }
+      if (value === 'true') {
+        processedSettings[key] = true;
+      } else if (value === 'false') {
+        processedSettings[key] = false;
+      } else if (!isNaN(Number(value)) && value.trim() !== '') {
+        processedSettings[key] = Number(value);
+      } else {
+        processedSettings[key] = value;
+      }
     }
-    
+    console.log('[SETTINGS ACTION] Processed settings object:', processedSettings);
+
+    console.log('[SETTINGS ACTION] Attempting to save settings to the database...');
     await saveSettings(shop, processedSettings);
-    console.log('✅ APP Settings Action: Save successful!');
+    console.log('✅ [SETTINGS ACTION] Successfully saved settings to the database.');
     
     return json({ success: true, message: "Settings saved successfully!" });
   } catch (error) {
-    console.error("❌ APP Settings Action: Error:", error);
+    console.error("❌ [SETTINGS ACTION] An error occurred:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     return json({ 
       success: false, 
-      message: error instanceof Error ? error.message : "Failed to save settings" 
+      message: errorMessage,
     }, { status: 500 });
   }
 });
