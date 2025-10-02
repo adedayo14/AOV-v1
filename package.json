@@ -4,6 +4,7 @@
   "scripts": {
     "build": "prisma generate && remix vite:build",
     "vercel-build": "prisma generate && remix vite:build",
+    "postinstall": "prisma generate",
     "dev": "shopify app dev",
     "clean": "rm -rf node_modules build",
     "db:reset": "prisma migrate reset --force --skip-seed",
