@@ -97,9 +97,9 @@ export function ErrorBoundary() {
           <p className="error-description">
             We're working on fixing this issue. Please try refreshing the page.
           </p>
-          {process.env.NODE_ENV === 'development' && error instanceof Error && (
+          {error instanceof Error && (
             <details className="error-details-dev">
-              <summary className="error-summary">Error Details (Development Only)</summary>
+              <summary className="error-summary">Error Details</summary>
               <pre className="error-stack">
                 {error.stack || error.message}
               </pre>

@@ -14,8 +14,8 @@ export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
 
-  // Use the client_id from shopify.app.toml as fallback
-  const apiKey = process.env.SHOPIFY_API_KEY || "06d17c445a3713f419add1e31894bcc3";
+  // Hard-code the API key to avoid hydration mismatch
+  const apiKey = "06d17c445a3713f419add1e31894bcc3";
   const search = new URL(request.url).search; // keep host/shop/embedded on nav links
   
   return { apiKey, search };
