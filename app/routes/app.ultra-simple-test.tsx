@@ -4,13 +4,14 @@ import { json } from "@remix-run/node";
 
 export async function action({ request }: ActionFunctionArgs) {
   console.log("=".repeat(80));
-  console.log("[ULTRA SIMPLE] ACTION WAS HIT!");
-  console.log("[ULTRA SIMPLE] Time:", new Date().toISOString());
+  console.log("[ULTRA SIMPLE APP] ACTION WAS HIT!");
+  console.log("[ULTRA SIMPLE APP] Time:", new Date().toISOString());
+  console.log("[ULTRA SIMPLE APP] Request method:", request.method);
   console.log("=".repeat(80));
 
   return json({
     success: true,
-    message: "Ultra simple test worked!",
+    message: "Ultra simple test worked! (app route)",
     timestamp: new Date().toISOString(),
   });
 }
@@ -23,7 +24,7 @@ export default function UltraSimpleTest() {
     setResult("Sending...");
 
     try {
-      const response = await fetch("/ultra-simple-test", {
+      const response = await fetch("/app/ultra-simple-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ test: "data" }),
@@ -55,8 +56,9 @@ export default function UltraSimpleTest() {
 
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: "600px", margin: "50px auto", padding: "20px" }}>
-      <h1>Ultra Simple POST Test</h1>
+      <h1>Ultra Simple POST Test (App Route)</h1>
       <p>This has NO Shopify auth, NO Polaris, NO App Bridge.</p>
+      <p><strong>Route:</strong> /app/ultra-simple-test</p>
       <button
         onClick={handleClick}
         style={{
