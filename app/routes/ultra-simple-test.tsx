@@ -23,7 +23,8 @@ export default function UltraSimpleTest() {
     setResult("Sending...");
 
     try {
-      const response = await fetch("/ultra-simple-test", {
+      // Add ?_data parameter to get JSON response instead of HTML
+      const response = await fetch("/ultra-simple-test?_data=routes/ultra-simple-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ test: "data" }),
