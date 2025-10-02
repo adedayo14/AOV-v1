@@ -1,24 +1,12 @@
-import { createRequestHandler } from "@remix-run/vercel";
+import { createRequestHandler } from "@vercel/remix";
+import * as build from "../build/server/index.js";
 
-let handler;
+export const config = {
+  // Ensure Node.js runtime (not Edge) for Prisma compatibility
+  runtime: "nodejs",
+};
 
-export default async function (request, response) {
-  if (!handler) {
-    // Lazy load the build on first request
-    try {
-      const build = await import("../build/server/index.js");
-      handler = createRequestHandler({ 
-        build, 
-        mode: process.env.NODE_ENV || "production" 
-      });
-    } catch (error) {
-      console.error("Failed to load Remix build:", error);
-      return response.status(500).json({ 
-        error: "Server configuration error",
-        message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-      });
-    }
-  }
-  
-  return handler(request, response);
-}
+export default createRequestHandler({
+  build,
+  mode: process.env.NODE_ENV || "production",
+});
