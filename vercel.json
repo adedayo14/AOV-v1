@@ -1,7 +1,10 @@
 {
   "buildCommand": "npm run vercel-build",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/index" }
+  ],
   "functions": {
-    "build/server/index.js": {
+    "api/index.js": {
       "maxDuration": 30,
       "memory": 1024
     }
