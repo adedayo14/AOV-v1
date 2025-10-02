@@ -75,9 +75,8 @@ export function ErrorBoundary() {
 export const headers: HeadersFunction = (headersArgs) => {
   const headers = boundary.headers(headersArgs);
   
-  // Allow embedding in Shopify admin
-  headers.set("X-Frame-Options", "SAMEORIGIN");
-  headers.set("Content-Security-Policy", "frame-ancestors 'self' https://*.shopify.com https://admin.shopify.com");
+  // Allow embedding in Shopify admin via CSP only
+  headers.set("Content-Security-Policy", "frame-ancestors https://*.myshopify.com https://admin.shopify.com https://*.shopify.com");
   
   return headers;
 };

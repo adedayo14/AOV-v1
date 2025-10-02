@@ -24,46 +24,7 @@ export default function App() {
           rel="stylesheet"
           href="https://cdn.shopify.com/static/fonts/inter/v4/styles.css"
         />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              // Safe iframe handling for Shopify Admin - only log, don't break
-              (function() {
-                console.log('CartUplift: App initialization...');
-                
-                if (typeof window !== 'undefined' && window.top !== window.self) {
-                  // Check for Shopify admin embedding indicators
-                  var urlParams = new URLSearchParams(window.location.search);
-                  var hasShopParam = urlParams.has('shop');
-                  var hasEmbeddedParam = urlParams.get('embedded') === '1';
-                  var referrer = document.referrer || '';
-                  var isShopifyReferrer = referrer.includes('admin.shopify.com') || referrer.includes('.myshopify.com');
-                  
-                  if (hasShopParam || hasEmbeddedParam || isShopifyReferrer) {
-                    console.log('CartUplift: Shopify admin embedded context detected - running in iframe');
-                  } else {
-                    console.log('CartUplift: Non-Shopify iframe detected');
-                  }
-                } else {
-                  console.log('CartUplift: Direct access detected');
-                }
-                
-                // Override sendBeacon to prevent errors
-                if (window.navigator && window.navigator.sendBeacon) {
-                  var originalSendBeacon = window.navigator.sendBeacon.bind(window.navigator);
-                  window.navigator.sendBeacon = function(url, data) {
-                    try {
-                      return originalSendBeacon(url, data);
-                    } catch (error) {
-                      console.warn('CartUplift: SendBeacon blocked:', error);
-                      return false;
-                    }
-                  };
-                }
-              })();
-            `
-          }}
-        />
+        {/* Removed custom iframe script to avoid interfering with Shopify embedding */}
         <Meta />
         <Links />
       </head>

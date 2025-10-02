@@ -231,12 +231,4 @@ export class ShopifyIframeManager {
 }
 
 // Auto-initialize when imported
-if (typeof window !== 'undefined') {
-  const manager = ShopifyIframeManager.getInstance();
-  
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => manager.initialize());
-  } else {
-    manager.initialize();
-  }
-}
+// Disabled auto-initialization to avoid interfering with Shopify Admin embedding.
