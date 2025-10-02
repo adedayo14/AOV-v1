@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
+import { useEffect } from "react";
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useActionData, useNavigation, useSubmit } from "@remix-run/react";
+import { useLoaderData, useActionData, useNavigation, Form } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -18,14 +18,14 @@ import { authenticate } from "../shopify.server";
 // Loader
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
-  return json({ message: "Form Test Page Loaded" });
+  return json({ message: "Form Test Page Loaded Successfully" });
 };
 
 // Action
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   
-  console.log('[TEST FORMS ACTION] ✅ Action function called!');
+  console.log('[TEST FORMS ACTION] ✅✅✅ Action function called!');
   console.log('[TEST FORMS ACTION] Shop:', session.shop);
 
   const formData = await request.formData();
@@ -44,35 +44,18 @@ export default function TestFormsPage() {
   const loaderData = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
-  const submit = useSubmit();
   const shopify = useAppBridge();
-  
-  const [testInput, setTestInput] = useState("");
-  const [result, setResult] = useState<string>("");
-  const [showBanner, setShowBanner] = useState(false);
   
   const isSubmitting = navigation.state === "submitting";
 
-  const handleSubmit = useCallback(async () => {
-    console.log('[TEST FORMS UI] 🚀 Submitting form with data:', testInput);
-    
-    const formData = new FormData();
-    formData.append('testData', testInput);
-    
-    submit(formData, { method: "post" });
-  }, [testInput, submit]);
-  
   // Handle action response
-  useCallback(() => {
+  useEffect(() => {
     if (actionData) {
-      console.log('[TEST FORMS UI] Received action data:', actionData);
+      console.log('[TEST FORMS UI] ✅ Received action data:', actionData);
       if (actionData.success) {
-        setResult(`✅ SUCCESS! Server received: "${actionData.receivedData}"`);
-        setShowBanner(true);
-        shopify.toast.show("Form submitted successfully!");
+        shopify.toast.show("✅ Form submitted successfully!");
       } else {
-        setResult(`❌ FAILED: ${actionData.message}`);
-        shopify.toast.show("Form submission failed", { isError: true });
+        shopify.toast.show("❌ Form submission failed", { isError: true });
       }
     }
   }, [actionData, shopify]);
@@ -85,10 +68,10 @@ export default function TestFormsPage() {
         <Card>
           <BlockStack gap="400">
             <Text variant="headingMd" as="h2">
-              🧪 Test Form Submissions
+              🧪 Test Form Submissions with Remix Form
             </Text>
             <Text as="p" variant="bodyMd">
-              This page tests if form submissions are working correctly with Shopify App Bridge.
+              This page tests if form submissions are working correctly using Remix's native Form component.
             </Text>
             <Text as="p" variant="bodyMd" tone="subdued">
               Loader message: {loaderData.message}
@@ -96,9 +79,15 @@ export default function TestFormsPage() {
           </BlockStack>
         </Card>
 
-        {showBanner && (
-          <Banner tone="success" onDismiss={() => setShowBanner(false)}>
-            Form submitted successfully!
+        {actionData && (
+          <Banner 
+            tone={actionData.success ? "success" : "critical"}
+            onDismiss={() => window.location.reload()}
+          >
+            {actionData.success 
+              ? `✅ SUCCESS! Server received: "${actionData.receivedData}"`
+              : `❌ FAILED: ${actionData.message}`
+            }
           </Banner>
         )}
 
@@ -106,39 +95,27 @@ export default function TestFormsPage() {
           <BlockStack gap="400">
             <Text variant="headingMd" as="h2">Test Form</Text>
             
-            <FormLayout>
-              <TextField
-                label="Test Input"
-                value={testInput}
-                onChange={setTestInput}
-                placeholder="Enter some test data..."
-                autoComplete="off"
-                helpText="Enter anything and click submit to test"
-              />
-              
-              <Button
-                variant="primary"
-                onClick={handleSubmit}
-                loading={isSubmitting}
-                disabled={!testInput.trim()}
-              >
-                {isSubmitting ? "Submitting..." : "Submit Test"}
-              </Button>
-            </FormLayout>
+            <Form method="post">
+              <FormLayout>
+                <TextField
+                  label="Test Input"
+                  name="testData"
+                  placeholder="Enter some test data..."
+                  autoComplete="off"
+                  helpText="Enter anything and click submit to test"
+                />
+                
+                <Button
+                  variant="primary"
+                  submit
+                  loading={isSubmitting}
+                >
+                  {isSubmitting ? "Submitting..." : "Submit Test"}
+                </Button>
+              </FormLayout>
+            </Form>
           </BlockStack>
         </Card>
-
-        {result && (
-          <Card>
-            <BlockStack gap="300">
-              <Text variant="headingMd" as="h2">Result</Text>
-              <Divider />
-              <Text as="p" variant="bodyMd" fontWeight="bold">
-                {result}
-              </Text>
-            </BlockStack>
-          </Card>
-        )}
 
         <Card>
           <BlockStack gap="300">
@@ -154,14 +131,30 @@ export default function TestFormsPage() {
               3. Check the browser console (F12) for detailed logs
             </Text>
             <Text as="p" variant="bodyMd">
-              4. Check the terminal/VS Code for server logs
+              4. Check the terminal/VS Code for server logs starting with [TEST FORMS ACTION]
             </Text>
             <Text as="p" variant="bodyMd">
-              5. You should see a success banner and result message below
+              5. You should see a success banner and toast notification
             </Text>
             <Divider />
             <Text as="p" variant="bodyMd" tone="subdued">
-              If this works, all your other forms can be fixed using the same pattern.
+              If this works, we know Remix Forms work correctly and can apply this pattern everywhere.
+            </Text>
+          </BlockStack>
+        </Card>
+
+        <Card>
+          <BlockStack gap="300">
+            <Text variant="headingMd" as="h2">🔍 Current Status</Text>
+            <Divider />
+            <Text as="p" variant="bodyMd">
+              Navigation State: <Text as="span" fontWeight="bold">{navigation.state}</Text>
+            </Text>
+            <Text as="p" variant="bodyMd">
+              Is Submitting: <Text as="span" fontWeight="bold">{isSubmitting ? "Yes" : "No"}</Text>
+            </Text>
+            <Text as="p" variant="bodyMd">
+              Action Data: <Text as="span" fontWeight="bold">{actionData ? "Received" : "None"}</Text>
             </Text>
           </BlockStack>
         </Card>
