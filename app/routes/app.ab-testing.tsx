@@ -117,6 +117,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   console.log("[A/B Testing Action] ===== ACTION STARTED =====");
   console.log("[A/B Testing Action] Request method:", request.method);
   console.log("[A/B Testing Action] Request URL:", request.url);
+  console.log("[A/B Testing Action] Environment:", {
+    hasPrisma: !!prisma,
+    hasABModel: !!(prisma as any).aBExperiment,
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    nodeEnv: process.env.NODE_ENV
+  });
   
   let session;
   try {
