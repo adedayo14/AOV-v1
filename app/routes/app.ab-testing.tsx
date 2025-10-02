@@ -119,7 +119,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const intent = formData.get("intent");
 
+  console.log("[A/B Testing Action] Intent:", intent, "Shop:", session.shop);
+
   try {
+    // Check if Prisma has A/B testing models
+    if (!(prisma as any).aBExperiment) {
+      console.error("[A/B Testing] Prisma aBExperiment model not found");
+      return json({ 
+        error: "A/B Testing database models are not available. Please run 'npx prisma generate' to regenerate the Prisma Client." 
+      }, { status: 500 });
+    }
+
     switch (intent) {
       case "create": {
         const name = formData.get("name") as string;
@@ -127,10 +137,30 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const testType = formData.get("testType") as string;
         const trafficAllocation = Number(formData.get("trafficAllocation") || 100);
         
+        console.log("[A/B Testing Create] Name:", name, "Type:", testType);
+        
         // Parse variants
-        const variantsData = JSON.parse(formData.get("variants") as string);
+        const variantsString = formData.get("variants") as string;
+        console.log("[A/B Testing Create] Variants raw:", variantsString);
+        
+        const variantsData = JSON.parse(variantsString);
+        console.log("[A/B Testing Create] Variants parsed:", variantsData.length, "variants");
+        
+        // Validate variants data
+        if (!Array.isArray(variantsData) || variantsData.length < 2) {
+          return json({ 
+            error: "You must have at least 2 variants for an A/B test" 
+          }, { status: 400 });
+        }
+
+        // Validate traffic percentages sum to 100
+        const totalTraffic = variantsData.reduce((sum, v) => sum + (v.trafficPercentage || 0), 0);
+        if (Math.abs(totalTraffic - 100) > 1) {
+          console.warn("[A/B Testing Create] Traffic split doesn't sum to 100:", totalTraffic);
+        }
         
         // Create experiment with variants
+        console.log("[A/B Testing Create] Creating experiment in database...");
         const experiment = await prisma.aBExperiment.create({
           data: {
             shopId: session.shop,
@@ -159,6 +189,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             variants: true
           }
         });
+
+        console.log("[A/B Testing Create] Success! Created experiment ID:", experiment.id);
 
         return json({ 
           success: true, 
@@ -269,9 +301,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ error: "Invalid intent" }, { status: 400 });
     }
   } catch (error) {
-    console.error("A/B testing action error:", error);
+    console.error("[A/B Testing Action] Error:", error);
+    console.error("[A/B Testing Action] Error stack:", error instanceof Error ? error.stack : "No stack");
     return json({ 
-      error: error instanceof Error ? error.message : "Action failed" 
+      error: error instanceof Error ? error.message : "Action failed",
+      details: error instanceof Error ? error.stack : String(error)
     }, { status: 500 });
   }
 };
@@ -377,29 +411,38 @@ export default function ABTestingPage() {
     ]
   });
 
-  // Update local state when fetcher returns success
+  // Update local state when fetcher returns success or error
   useEffect(() => {
-    if (fetcher.data?.success) {
-      setToastMessage(fetcher.data.message);
-      setToastActive(true);
+    if (fetcher.data) {
+      console.log("[A/B Testing UI] Fetcher data received:", fetcher.data);
       
-      // Refresh experiments list
-      if (fetcher.data.experiment) {
-        const exp = fetcher.data.experiment;
-        setExperiments(prev => {
-          const exists = prev.find(e => e.id === exp.id);
-          if (exists) {
-            return prev.map(e => e.id === exp.id ? exp : e);
-          } else {
-            return [exp, ...prev];
-          }
-        });
+      if (fetcher.data.success) {
+        setToastMessage(fetcher.data.message);
+        setToastActive(true);
+        
+        // Refresh experiments list
+        if (fetcher.data.experiment) {
+          const exp = fetcher.data.experiment;
+          setExperiments(prev => {
+            const exists = prev.find(e => e.id === exp.id);
+            if (exists) {
+              return prev.map(e => e.id === exp.id ? exp : e);
+            } else {
+              return [exp, ...prev];
+            }
+          });
+        }
+        
+        // Close modals
+        setShowCreateModal(false);
+        setShowEditModal(false);
+        setEditingExperiment(null);
+      } else if (fetcher.data.error) {
+        // Show error in toast
+        setToastMessage(`Error: ${fetcher.data.error}`);
+        setToastActive(true);
+        console.error("[A/B Testing UI] Action error:", fetcher.data.error);
       }
-      
-      // Close modals
-      setShowCreateModal(false);
-      setShowEditModal(false);
-      setEditingExperiment(null);
     }
   }, [fetcher.data]);
 
@@ -411,14 +454,30 @@ export default function ABTestingPage() {
   }, [initialExperiments]);
 
   const handleCreateExperiment = () => {
+    console.log("[A/B Testing UI] handleCreateExperiment called with formData:", formData);
+    
+    // Auto-balance traffic percentages if they don't sum to 100
+    const totalTraffic = formData.variants.reduce((sum, v) => sum + v.trafficPercentage, 0);
+    let adjustedVariants = formData.variants;
+    
+    if (Math.abs(totalTraffic - 100) > 1) {
+      console.log("[A/B Testing UI] Auto-balancing traffic from", totalTraffic, "to 100");
+      const equalSplit = 100 / formData.variants.length;
+      adjustedVariants = formData.variants.map(v => ({
+        ...v,
+        trafficPercentage: Math.round(equalSplit)
+      }));
+    }
+    
     const data = new FormData();
     data.append("intent", "create");
     data.append("name", formData.name);
     data.append("description", formData.description);
     data.append("testType", formData.testType);
     data.append("trafficAllocation", formData.trafficAllocation.toString());
-    data.append("variants", JSON.stringify(formData.variants));
+    data.append("variants", JSON.stringify(adjustedVariants));
     
+    console.log("[A/B Testing UI] Submitting to server...");
     fetcher.submit(data, { method: "post" });
   };
 
@@ -488,8 +547,19 @@ export default function ABTestingPage() {
       
       <BlockStack gap="500">
         {loadError && (
-          <Banner tone="critical">
+          <Banner tone="critical" onDismiss={() => {}}>
             <p>{loadError}</p>
+          </Banner>
+        )}
+
+        {fetcher.data?.error && (
+          <Banner tone="critical" onDismiss={() => {}}>
+            <BlockStack gap="200">
+              <Text variant="bodyMd" as="p"><strong>Error:</strong> {fetcher.data.error}</Text>
+              {fetcher.data.details && (
+                <Text variant="bodySm" as="p" tone="subdued">{String(fetcher.data.details).substring(0, 200)}</Text>
+              )}
+            </BlockStack>
           </Banner>
         )}
 
@@ -505,7 +575,20 @@ export default function ABTestingPage() {
               </BlockStack>
               <Button 
                 variant="primary" 
-                onClick={() => setShowCreateModal(true)}
+                onClick={() => {
+                  // Reset form when opening modal
+                  setFormData({
+                    name: "",
+                    description: "",
+                    testType: "free_shipping",
+                    trafficAllocation: 100,
+                    variants: [
+                      { name: "Control (Original)", description: "", trafficPercentage: 50, config: { threshold: 50 } },
+                      { name: "Variant A", description: "", trafficPercentage: 50, config: { threshold: 75 } },
+                    ]
+                  });
+                  setShowCreateModal(true);
+                }}
                 disabled={isLoading}
               >
                 Create New Test
@@ -687,8 +770,11 @@ export default function ABTestingPage() {
         title="Create New A/B Test"
         primaryAction={{
           content: "Create Test",
-          onAction: handleCreateExperiment,
-          disabled: !formData.name || isLoading,
+          onAction: () => {
+            console.log("[A/B Testing UI] Creating experiment with data:", formData);
+            handleCreateExperiment();
+          },
+          disabled: !formData.name || formData.name.trim() === "" || isLoading,
           loading: isLoading,
         }}
         secondaryActions={[
