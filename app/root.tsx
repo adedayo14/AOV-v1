@@ -10,8 +10,8 @@ import { useRouteError, isRouteErrorResponse } from "@remix-run/react";
 import { useEffect, useState } from "react";
 
 export default function App() {
-  // Use the client_id from shopify.app.toml as fallback
-  const apiKey = process.env.SHOPIFY_API_KEY || "06d17c445a3713f419add1e31894bcc3";
+  // Hard-code the API key to avoid hydration mismatch
+  const apiKey = "06d17c445a3713f419add1e31894bcc3";
   
   return (
     <html>
