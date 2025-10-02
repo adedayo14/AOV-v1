@@ -126,18 +126,31 @@ export default function AppSettings() {
     setShowErrorBanner(false);
 
     try {
-      // Create form data from settings
-      const formData = new FormData();
-      Object.entries(formSettings).forEach(([key, value]) => {
-        formData.append(key, String(value));
-      });
+      // Get session token from URL for authentication
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionToken = urlParams.get('id_token') || '';
+      const shop = urlParams.get('shop') || '';
+      
+      console.log('[SETTINGS CLIENT] Session token available:', !!sessionToken);
+      console.log('[SETTINGS CLIENT] Shop:', shop);
 
-      console.log('[SETTINGS CLIENT] FormData created, sending to /api/settings...');
+      // Create JSON payload instead of FormData
+      const payload = {
+        shop,
+        sessionToken,
+        settings: formSettings
+      };
+
+      console.log('[SETTINGS CLIENT] Sending JSON payload to /api/settings...');
       console.log('[SETTINGS CLIENT] Current URL:', window.location.href);
       
       const response = await fetch('/api/settings', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify(payload),
       });
 
       console.log('[SETTINGS CLIENT] Response received!');

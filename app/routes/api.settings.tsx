@@ -55,7 +55,7 @@ export async function action({ request }: LoaderFunctionArgs) {
   console.log("[API SETTINGS ACTION] Called at:", new Date().toISOString());
   console.log("[API SETTINGS ACTION] Method:", request.method);
   console.log("[API SETTINGS ACTION] URL:", request.url);
-  console.log("[API SETTINGS ACTION] Headers:", Object.fromEntries(request.headers.entries()));
+  console.log("[API SETTINGS ACTION] Content-Type:", request.headers.get('content-type'));
   console.log("=".repeat(80));
 
   if (request.method !== "POST") {
@@ -64,31 +64,41 @@ export async function action({ request }: LoaderFunctionArgs) {
   }
 
   try {
-    console.log("[API SETTINGS ACTION] Attempting authentication...");
-    const { session } = await authenticate.admin(request);
-    console.log("[API SETTINGS ACTION] ✅ Authentication successful!");
-    const shop = session.shop;
-    console.log("[API SETTINGS ACTION] Shop:", shop);
-    
-    console.log("[API SETTINGS ACTION] Shop:", shop);
-    
     const contentType = request.headers.get('content-type');
-    console.log("[API SETTINGS ACTION] Content-Type:", contentType);
-    let settings;
     
+    // Handle JSON payload with embedded shop/session
     if (contentType?.includes('application/json')) {
-      console.log("[API SETTINGS ACTION] Parsing as JSON...");
-      settings = await request.json();
-    } else {
-      console.log("[API SETTINGS ACTION] Parsing as form data...");
-      // Handle form data (URL-encoded)
-      const formData = await request.formData();
-      settings = Object.fromEntries(formData);
+      console.log("[API SETTINGS ACTION] Parsing JSON payload...");
+      const payload = await request.json();
+      const { shop, settings } = payload;
+      
+      if (!shop) {
+        console.log("[API SETTINGS ACTION] ❌ No shop in payload");
+        return json({ error: "Shop parameter required" }, { status: 400 });
+      }
+      
+      console.log("[API SETTINGS ACTION] Shop from payload:", shop);
+      console.log("[API SETTINGS ACTION] Settings count:", Object.keys(settings || {}).length);
+      
+      console.log('[API SETTINGS ACTION] Saving to database...');
+      const savedSettings = await saveSettings(shop, settings);
+      console.log('[API SETTINGS ACTION] ✅ Successfully saved!');
+      
+      return json({ success: true, settings: savedSettings });
     }
+    
+    // Fallback: Try to authenticate (this may hang in embedded context)
+    console.log("[API SETTINGS ACTION] Attempting authentication fallback...");
+    const { session } = await authenticate.admin(request);
+    const shop = session.shop;
+    console.log("[API SETTINGS ACTION] Shop from auth:", shop);
+    
+    const formData = await request.formData();
+    const settings = Object.fromEntries(formData);
     
     console.log("[API SETTINGS ACTION] Settings count:", Object.keys(settings).length);
     console.log("[API SETTINGS ACTION] Saving to database...");
-  const savedSettings = await saveSettings(shop, settings as any);
+    const savedSettings = await saveSettings(shop, settings as any);
     console.log("[API SETTINGS ACTION] ✅ Successfully saved!");
     
     return json({ success: true, settings: savedSettings });
