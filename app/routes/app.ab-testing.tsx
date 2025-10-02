@@ -115,7 +115,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  console.log("[A/B Testing Action] ===== ACTION STARTED =====");
+  console.log("[A/B Testing Action] Request method:", request.method);
+  console.log("[A/B Testing Action] Request URL:", request.url);
+  
+  let session;
+  try {
+    const authResult = await authenticate.admin(request);
+    session = authResult.session;
+    console.log("[A/B Testing Action] Authentication successful, shop:", session.shop);
+  } catch (authError) {
+    console.error("[A/B Testing Action] Authentication failed:", authError);
+    return json({ 
+      success: false,
+      error: "Authentication failed",
+      details: String(authError)
+    }, { status: 401 });
+  }
+  
   const formData = await request.formData();
   const intent = formData.get("intent");
 
@@ -301,12 +318,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ error: "Invalid intent" }, { status: 400 });
     }
   } catch (error) {
-    console.error("[A/B Testing Action] Error:", error);
+    console.error("[A/B Testing Action] CATCH BLOCK - Error:", error);
+    console.error("[A/B Testing Action] Error type:", typeof error);
     console.error("[A/B Testing Action] Error stack:", error instanceof Error ? error.stack : "No stack");
+    
+    // Always return a response
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    
+    console.error("[A/B Testing Action] Returning error response:", errorMessage);
+    
     return json({ 
-      error: error instanceof Error ? error.message : "Action failed",
-      details: error instanceof Error ? error.stack : String(error)
-    }, { status: 500 });
+      success: false,
+      error: errorMessage,
+      details: errorDetails
+    }, { 
+      status: 500,
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
   }
 };
 
@@ -411,6 +442,25 @@ export default function ABTestingPage() {
     ]
   });
 
+  // Timeout detection for hanging requests
+  useEffect(() => {
+    if (fetcher.state === "submitting") {
+      console.log("[A/B Testing UI] Fetcher state changed to 'submitting'");
+      const timeout = setTimeout(() => {
+        if (fetcher.state === "submitting") {
+          console.error("[A/B Testing UI] Request timeout after 10 seconds");
+          setToastMessage("Request timed out. Please check your connection and try again.");
+          setToastActive(true);
+        }
+      }, 10000);
+      return () => clearTimeout(timeout);
+    } else if (fetcher.state === "loading") {
+      console.log("[A/B Testing UI] Fetcher state changed to 'loading'");
+    } else if (fetcher.state === "idle") {
+      console.log("[A/B Testing UI] Fetcher state changed to 'idle'");
+    }
+  }, [fetcher.state]);
+
   // Update local state when fetcher returns success or error
   useEffect(() => {
     if (fetcher.data) {
@@ -456,6 +506,19 @@ export default function ABTestingPage() {
   const handleCreateExperiment = () => {
     console.log("[A/B Testing UI] handleCreateExperiment called with formData:", formData);
     
+    // Validation
+    if (!formData.name || formData.name.trim() === "") {
+      setToastMessage("Please enter a test name");
+      setToastActive(true);
+      return;
+    }
+    
+    if (formData.variants.length < 2) {
+      setToastMessage("You need at least 2 variants for an A/B test");
+      setToastActive(true);
+      return;
+    }
+    
     // Auto-balance traffic percentages if they don't sum to 100
     const totalTraffic = formData.variants.reduce((sum, v) => sum + v.trafficPercentage, 0);
     let adjustedVariants = formData.variants;
@@ -477,8 +540,22 @@ export default function ABTestingPage() {
     data.append("trafficAllocation", formData.trafficAllocation.toString());
     data.append("variants", JSON.stringify(adjustedVariants));
     
-    console.log("[A/B Testing UI] Submitting to server...");
-    fetcher.submit(data, { method: "post" });
+    console.log("[A/B Testing UI] FormData prepared:", {
+      intent: "create",
+      name: formData.name,
+      testType: formData.testType,
+      variantCount: adjustedVariants.length
+    });
+    
+    console.log("[A/B Testing UI] Submitting to server via fetcher...");
+    try {
+      fetcher.submit(data, { method: "post" });
+      console.log("[A/B Testing UI] Fetcher.submit() completed");
+    } catch (error) {
+      console.error("[A/B Testing UI] Fetcher.submit() error:", error);
+      setToastMessage(`Submission error: ${error}`);
+      setToastActive(true);
+    }
   };
 
   const handleToggleExperiment = (experimentId: number) => {
