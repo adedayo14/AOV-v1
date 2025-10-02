@@ -6,15 +6,39 @@ export async function action({ request }: ActionFunctionArgs) {
   console.log("[api.ab-testing-admin] === ACTION STARTED ===");
   console.log("[api.ab-testing-admin] Method:", request.method);
   console.log("[api.ab-testing-admin] URL:", request.url);
+  console.log("[api.ab-testing-admin] Content-Type:", request.headers.get('content-type'));
   
   try {
-    console.log("[api.ab-testing-admin] Authenticating...");
-    const { session } = await authenticate.admin(request);
-    const shop = session.shop;
-    console.log("[api.ab-testing-admin] Authenticated for shop:", shop);
+    const contentType = request.headers.get('content-type');
+    let shop: string;
+    let formData: FormData;
+    
+    // Check if shop is passed in form data (bypass auth)
+    if (contentType?.includes('multipart/form-data') || contentType?.includes('application/x-www-form-urlencoded')) {
+      formData = await request.formData();
+      const shopFromForm = formData.get("shop");
+      
+      if (shopFromForm) {
+        // Shop provided from client - bypass authenticate.admin()
+        shop = String(shopFromForm);
+        console.log("[api.ab-testing-admin] Using shop from form data:", shop);
+      } else {
+        // Fallback to authentication (may hang in iframe)
+        console.log("[api.ab-testing-admin] No shop in form, authenticating...");
+        const { session } = await authenticate.admin(request);
+        shop = session.shop;
+        console.log("[api.ab-testing-admin] Authenticated for shop:", shop);
+      }
+    } else {
+      // Fallback to authentication
+      console.log("[api.ab-testing-admin] Authenticating...");
+      const { session } = await authenticate.admin(request);
+      shop = session.shop;
+      formData = await request.formData();
+      console.log("[api.ab-testing-admin] Authenticated for shop:", shop);
+    }
 
     console.log("[api.ab-testing-admin] Parsing form data...");
-    const formData = await request.formData();
     const intent = String(formData.get("intent") || "");
     console.log("[api.ab-testing-admin] Intent:", intent);
 

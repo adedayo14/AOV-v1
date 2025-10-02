@@ -77,9 +77,14 @@ export default function ABTestingPage() {
     setIsLoading(true);
     console.log("[A/B Testing UI] Starting experiment creation...");
 
+    // Get shop from URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const shop = urlParams.get('shop') || '';
+
     const formData = new FormData();
     formData.append("intent", "create");
     formData.append("name", experimentName);
+    formData.append("shop", shop); // Pass shop to bypass auth
 
     try {
       console.log("[A/B Testing UI] Sending request to /api/ab-testing-admin");

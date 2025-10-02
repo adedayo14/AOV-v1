@@ -31,12 +31,11 @@ export default function App() {
       <SessionStatus />
       <NavMenu>
         <a href={`/app${search}`} rel="home">
-          Home
+          Dashboard
         </a>
-        <a href={`/app/dashboard${search}`}>📊 Analytics & Performance</a>
-        <a href={`/app/ab-testing${search}`}>🧪 A/B Testing</a>
-        <a href={`/app/settings${search}`}>⚙️ Settings</a>
-        <a href={`/app/manage${search}`}>🎛️ Manage Products & Bundles</a>
+        <a href={`/app/settings${search}`}>Settings</a>
+        <a href={`/app/manage${search}`}>Bundles</a>
+        <a href={`/app/ab-testing${search}`}>A/B Testing</a>
       </NavMenu>
       <Outlet />
     </AppProvider>
