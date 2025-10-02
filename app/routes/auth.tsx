@@ -3,7 +3,24 @@ import { redirect } from "@remix-run/node";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
-  const shop = url.searchParams.get("shop");
+  let shop = url.searchParams.get("shop");
+  
+  // Try to extract shop from host parameter if shop is not provided
+  if (!shop) {
+    const host = url.searchParams.get("host");
+    if (host) {
+      try {
+        // Decode the host parameter to get the shop domain
+        const decodedHost = Buffer.from(host, 'base64').toString('utf-8');
+        const shopFromHost = decodedHost.split('/')[0];
+        if (shopFromHost && shopFromHost.includes('.myshopify.com')) {
+          shop = shopFromHost;
+        }
+      } catch (error) {
+        console.error('Failed to decode host parameter:', error);
+      }
+    }
+  }
   
   // If no shop is provided, show an error page
   if (!shop) {

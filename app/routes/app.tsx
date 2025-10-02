@@ -1,5 +1,5 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "@remix-run/node";
-import { Outlet, useLoaderData, useRouteError, Link } from "@remix-run/react";
+import { Outlet, useLoaderData, useRouteError } from "@remix-run/react";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { NavMenu } from "@shopify/app-bridge-react";
@@ -28,13 +28,13 @@ export default function App() {
       <AppBridgeInitializer apiKey={apiKey} />
       <SessionStatus />
       <NavMenu>
-        <Link to="/app" rel="home">
-          Home v2.2
-        </Link>
-        <Link to="/app/dashboard">📊 Analytics & Performance</Link>
-        <Link to="/app/ab-testing">🧪 A/B Testing</Link>
-        <Link to="/app/settings">⚙️ Settings</Link>
-        <Link to="/app/manage">🎛️ Manage Products & Bundles</Link>
+        <a href="/app" rel="home">
+          Home
+        </a>
+        <a href="/app/dashboard">📊 Analytics & Performance</a>
+        <a href="/app/ab-testing">🧪 A/B Testing</a>
+        <a href="/app/settings">⚙️ Settings</a>
+        <a href="/app/manage">🎛️ Manage Products & Bundles</a>
       </NavMenu>
       <Outlet />
     </AppProvider>
@@ -80,8 +80,8 @@ export const headers: HeadersFunction = (headersArgs) => {
   const headers = boundary.headers(headersArgs);
   
   // Allow embedding in Shopify admin
-  headers.set("X-Frame-Options", "SAMEORIGIN");
-  headers.set("Content-Security-Policy", "frame-ancestors 'self' https://*.shopify.com https://admin.shopify.com");
+  headers.set("X-Frame-Options", "ALLOW-FROM https://admin.shopify.com");
+  headers.set("Content-Security-Policy", "frame-ancestors 'self' https://*.myshopify.com https://admin.shopify.com");
   
   return headers;
 };
