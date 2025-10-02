@@ -115,7 +115,11 @@ export default function AppSettings() {
 
   // Handle save via direct fetch to API route
   const handleSaveSettings = async () => {
-    console.log('[SETTINGS] Save button clicked');
+    console.log("=".repeat(80));
+    console.log('[SETTINGS CLIENT] Save button clicked at:', new Date().toISOString());
+    console.log('[SETTINGS CLIENT] Current settings count:', Object.keys(formSettings).length);
+    console.log("=".repeat(80));
+    
     setIsSaving(true);
     setShowSuccessBanner(false);
     setShowErrorBanner(false);
@@ -127,17 +131,23 @@ export default function AppSettings() {
         formData.append(key, String(value));
       });
 
-      console.log('[SETTINGS] Sending to /api/settings...');
+      console.log('[SETTINGS CLIENT] FormData created, sending to /api/settings...');
+      console.log('[SETTINGS CLIENT] Current URL:', window.location.href);
+      
       const response = await fetch('/api/settings', {
         method: 'POST',
         body: formData,
       });
 
-      console.log('[SETTINGS] Response status:', response.status);
+      console.log('[SETTINGS CLIENT] Response received!');
+      console.log('[SETTINGS CLIENT] Response status:', response.status);
+      console.log('[SETTINGS CLIENT] Response headers:', Object.fromEntries(response.headers.entries()));
+      
       const data = await response.json();
-      console.log('[SETTINGS] Response data:', data);
+      console.log('[SETTINGS CLIENT] Response data:', data);
 
       if (data.success) {
+        console.log('[SETTINGS CLIENT] ✅ Success!');
         setShowSuccessBanner(true);
         setButtonSuccess(true);
         setTimeout(() => {
@@ -145,17 +155,20 @@ export default function AppSettings() {
           setButtonSuccess(false);
         }, 3000);
       } else {
+        console.log('[SETTINGS CLIENT] ❌ Failed:', data.error);
         setShowErrorBanner(true);
         setErrorMessage(data.error || 'Failed to save settings');
         setButtonSuccess(false);
         setTimeout(() => setShowErrorBanner(false), 5000);
       }
     } catch (error: any) {
-      console.error('[SETTINGS] Error:', error);
+      console.error('[SETTINGS CLIENT] ❌ Exception:', error);
+      console.error('[SETTINGS CLIENT] Error details:', error.message, error.stack);
       setShowErrorBanner(true);
       setErrorMessage(error.message || 'Failed to save settings');
       setTimeout(() => setShowErrorBanner(false), 5000);
     } finally {
+      console.log('[SETTINGS CLIENT] Setting isSaving to false');
       setIsSaving(false);
     }
   };

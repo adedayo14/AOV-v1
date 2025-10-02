@@ -51,30 +51,50 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: LoaderFunctionArgs) {
+  console.log("=".repeat(80));
+  console.log("[API SETTINGS ACTION] Called at:", new Date().toISOString());
+  console.log("[API SETTINGS ACTION] Method:", request.method);
+  console.log("[API SETTINGS ACTION] URL:", request.url);
+  console.log("[API SETTINGS ACTION] Headers:", Object.fromEntries(request.headers.entries()));
+  console.log("=".repeat(80));
+
   if (request.method !== "POST") {
+    console.log("[API SETTINGS ACTION] ❌ Method not allowed");
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
   try {
+    console.log("[API SETTINGS ACTION] Attempting authentication...");
     const { session } = await authenticate.admin(request);
+    console.log("[API SETTINGS ACTION] ✅ Authentication successful!");
     const shop = session.shop;
+    console.log("[API SETTINGS ACTION] Shop:", shop);
+    
+    console.log("[API SETTINGS ACTION] Shop:", shop);
     
     const contentType = request.headers.get('content-type');
+    console.log("[API SETTINGS ACTION] Content-Type:", contentType);
     let settings;
     
     if (contentType?.includes('application/json')) {
+      console.log("[API SETTINGS ACTION] Parsing as JSON...");
       settings = await request.json();
     } else {
+      console.log("[API SETTINGS ACTION] Parsing as form data...");
       // Handle form data (URL-encoded)
       const formData = await request.formData();
       settings = Object.fromEntries(formData);
     }
     
+    console.log("[API SETTINGS ACTION] Settings count:", Object.keys(settings).length);
+    console.log("[API SETTINGS ACTION] Saving to database...");
   const savedSettings = await saveSettings(shop, settings as any);
+    console.log("[API SETTINGS ACTION] ✅ Successfully saved!");
     
     return json({ success: true, settings: savedSettings });
   } catch (error) {
-    console.error("Save settings error:", error);
-    return json({ error: "Failed to save settings" }, { status: 500 });
+    console.error("[API SETTINGS ACTION] ❌ Error:", error);
+    console.error("[API SETTINGS ACTION] Error stack:", (error as Error).stack);
+    return json({ error: "Failed to save settings", details: (error as Error).message }, { status: 500 });
   }
 }
