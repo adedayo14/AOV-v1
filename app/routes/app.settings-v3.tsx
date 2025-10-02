@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useActionData, useNavigation, Form, useSearchParams } from "@remix-run/react";
+import { useLoaderData, useActionData, useNavigation, Form } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -34,7 +34,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session, redirect } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const shop = session.shop;
   
   console.log(`[SETTINGS V3 ACTION] ✅✅✅ Action called for shop: ${shop}`);
@@ -56,8 +56,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     await saveSettings(shop, settings);
     console.log('[SETTINGS V3 ACTION] ✅ Settings saved successfully');
     
-    // Use Shopify's redirect helper for embedded apps
-    return redirect(`/app/settings-v3?success=true`);
+    // Return success - we'll handle navigation on client side
+    return json({ 
+      success: true, 
+      message: "Settings saved successfully!" 
+    });
   } catch (error) {
     console.error("[SETTINGS V3 ACTION] ❌ Error:", error);
     return json({ 
@@ -72,7 +75,6 @@ export default function SettingsV3() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const shopify = useAppBridge();
-  const [searchParams] = useSearchParams();
   
   // Local state for form fields
   const [autoOpenCart, setAutoOpenCart] = useState(settings.autoOpenCart !== false);
@@ -88,21 +90,12 @@ export default function SettingsV3() {
   
   const isSubmitting = navigation.state === "submitting";
 
-  // Show toast when redirected back with success
+  // Show toast when action completes successfully
   useEffect(() => {
-    if (searchParams.get('success') === 'true') {
+    if (actionData?.success) {
       shopify.toast.show("✅ Settings saved successfully!");
-      // Clean up the URL
-      window.history.replaceState({}, '', '/app/settings-v3');
-    }
-  }, [searchParams, shopify]);
-
-  // Show toast when action completes (for errors)
-  useEffect(() => {
-    if (actionData) {
-      if (!actionData.success) {
-        shopify.toast.show(`❌ ${actionData.message}`, { isError: true });
-      }
+    } else if (actionData && !actionData.success) {
+      shopify.toast.show(`❌ ${actionData.message}`, { isError: true });
     }
   }, [actionData, shopify]);
 
@@ -112,11 +105,9 @@ export default function SettingsV3() {
       
       <Form method="post">
         <BlockStack gap="500">
-          {/* Success shown via toast after redirect */}
-          {actionData && !actionData.success && (
+          {actionData && (
             <Banner 
-              tone="critical"
-              onDismiss={() => window.location.reload()}
+              tone={actionData.success ? "success" : "critical"}
             >
               {actionData.message}
             </Banner>
