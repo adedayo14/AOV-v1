@@ -114,18 +114,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  // Immediate response for testing
-  console.log("[A/B Testing Action] ===== IMMEDIATE TEST RESPONSE =====");
-  
-  return json({
-    success: false,
-    error: "TEST: Action is being called but returning immediately for debugging",
-    testData: {
-      method: request.method,
-      url: request.url,
-      timestamp: new Date().toISOString()
-    }
-  });
+  // Minimal immediate response to confirm action reachability in embedded admin
+  try {
+    console.log("[A/B Testing Action] ==== REACHED ====");
+    const formData = await request.formData();
+    console.log("[A/B Testing Action] Method:", request.method);
+    console.log("[A/B Testing Action] URL:", request.url);
+    console.log("[A/B Testing Action] Intent:", formData.get("intent"));
+    return json({ success: true, message: "Action reached", echo: Object.fromEntries(formData) });
+  } catch (e) {
+    console.error("[A/B Testing Action] Error in minimal handler:", e);
+    return json({ success: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 });
+  }
 };
 
 // Helper function to compute experiment results
@@ -333,9 +333,9 @@ export default function ABTestingPage() {
     
     console.log("[A/B Testing UI] Submitting to server via fetcher...");
     try {
-      // TEST: Send to known API route first to verify POST handling
-      fetcher.submit(data, { method: "post", action: "/api/ab-testing" });
-      console.log("[A/B Testing UI] Fetcher.submit() completed - sent to /api/ab-testing");
+  // Submit to the page action to verify action reachability end-to-end
+  fetcher.submit(data, { method: "post", action: "/app/ab-testing" });
+  console.log("[A/B Testing UI] Fetcher.submit() completed - sent to /app/ab-testing");
     } catch (error) {
       console.error("[A/B Testing UI] Fetcher.submit() error:", error);
     }
