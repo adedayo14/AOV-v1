@@ -20,7 +20,6 @@ import {
   Banner,
   Box,
   Divider,
-  Toast,
   EmptyState,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
@@ -427,8 +426,7 @@ export default function ABTestingPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingExperiment, setEditingExperiment] = useState<ABExperiment | null>(null);
-  const [toastActive, setToastActive] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
   // Form state for creating experiment
   const [formData, setFormData] = useState({
@@ -449,8 +447,8 @@ export default function ABTestingPage() {
       const timeout = setTimeout(() => {
         if (fetcher.state === "submitting") {
           console.error("[A/B Testing UI] Request timeout after 10 seconds");
-          setToastMessage("Request timed out. Please check your connection and try again.");
-          setToastActive(true);
+          console.error("[A/B Testing UI] This usually means the server action is not responding");
+          console.error("[A/B Testing UI] Check Vercel logs for server-side errors");
         }
       }, 10000);
       return () => clearTimeout(timeout);
@@ -467,8 +465,10 @@ export default function ABTestingPage() {
       console.log("[A/B Testing UI] Fetcher data received:", fetcher.data);
       
       if (fetcher.data.success) {
-        setToastMessage(fetcher.data.message);
-        setToastActive(true);
+        setSuccessMessage(fetcher.data.message);
+        
+        // Auto-hide success message after 5 seconds
+        setTimeout(() => setSuccessMessage(null), 5000);
         
         // Refresh experiments list
         if (fetcher.data.experiment) {
@@ -488,9 +488,7 @@ export default function ABTestingPage() {
         setShowEditModal(false);
         setEditingExperiment(null);
       } else if (fetcher.data.error) {
-        // Show error in toast
-        setToastMessage(`Error: ${fetcher.data.error}`);
-        setToastActive(true);
+        // Error is already shown in banner, just log it
         console.error("[A/B Testing UI] Action error:", fetcher.data.error);
       }
     }
@@ -508,14 +506,12 @@ export default function ABTestingPage() {
     
     // Validation
     if (!formData.name || formData.name.trim() === "") {
-      setToastMessage("Please enter a test name");
-      setToastActive(true);
+      console.error("[A/B Testing UI] Validation failed: name is empty");
       return;
     }
     
     if (formData.variants.length < 2) {
-      setToastMessage("You need at least 2 variants for an A/B test");
-      setToastActive(true);
+      console.error("[A/B Testing UI] Validation failed: need at least 2 variants");
       return;
     }
     
@@ -549,12 +545,14 @@ export default function ABTestingPage() {
     
     console.log("[A/B Testing UI] Submitting to server via fetcher...");
     try {
-      fetcher.submit(data, { method: "post" });
+      // Explicitly specify the action URL to ensure it goes to the right place
+      fetcher.submit(data, { 
+        method: "post",
+        action: "/app/ab-testing"
+      });
       console.log("[A/B Testing UI] Fetcher.submit() completed");
     } catch (error) {
       console.error("[A/B Testing UI] Fetcher.submit() error:", error);
-      setToastMessage(`Submission error: ${error}`);
-      setToastActive(true);
     }
   };
 
@@ -623,6 +621,12 @@ export default function ABTestingPage() {
       <TitleBar title="A/B Testing" />
       
       <BlockStack gap="500">
+        {successMessage && (
+          <Banner tone="success" onDismiss={() => setSuccessMessage(null)}>
+            <p>{successMessage}</p>
+          </Banner>
+        )}
+
         {loadError && (
           <Banner tone="critical" onDismiss={() => {}}>
             <p>{loadError}</p>
@@ -1023,15 +1027,6 @@ export default function ABTestingPage() {
           </Modal.Section>
         )}
       </Modal>
-
-      {/* Toast */}
-      {toastActive && (
-        <Toast 
-          content={toastMessage} 
-          onDismiss={() => setToastActive(false)} 
-          duration={4000}
-        />
-      )}
     </Page>
   );
 }
