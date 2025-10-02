@@ -1,17 +1,9 @@
 {
   "buildCommand": "npm run vercel-build",
   "functions": {
-    "app/**/*.tsx": {
-      "maxDuration": 30
-    },
-    "app/**/*.ts": {
-      "maxDuration": 30
+    "build/server/index.js": {
+      "maxDuration": 30,
+      "memory": 1024
     }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/"
-    }
-  ]
+  }
 }
