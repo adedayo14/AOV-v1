@@ -126,6 +126,7 @@
       this._allRecommendations = []; // Master list to allow re-show after removal from cart
   // Track if free shipping was ever achieved in this session (for soft fallback message)
   this._freeShippingHadUnlocked = false;
+    this._abInitialized = false; // Prevent duplicate AB init
   
       // Immediately intercept cart notifications if app is enabled
       if (this.settings.enableApp) {
@@ -443,6 +444,9 @@
       
       // Fetch initial cart data FIRST
       await this.fetchCart();
+
+  // Initialize Storefront A/B Testing assignments and effects once we have cart context
+  try { await this.initStorefrontAB(); } catch (e) { console.warn('A/B init failed:', e); }
       
       // Create cart uplift AFTER cart is fetched
       this.createDrawer();
@@ -528,6 +532,90 @@
         }
         this.updateDrawerContent();
       };
+    }
+
+    // ---- Storefront A/B Testing Integration ----
+    getUserIdForAB() {
+      try {
+        let userId = localStorage.getItem('cu_user_id');
+        if (!userId) {
+          const customerId = window.ShopifyAnalytics?.meta?.page?.customerId;
+          if (customerId) {
+            userId = String(customerId);
+          } else {
+            userId = 'anon_' + (Date.now().toString(36) + Math.random().toString(36).slice(2));
+          }
+          localStorage.setItem('cu_user_id', userId);
+        }
+        return userId;
+      } catch (_) {
+        return 'anon_' + (Date.now().toString(36) + Math.random().toString(36).slice(2));
+      }
+    }
+
+    async initStorefrontAB() {
+      if (this._abInitialized) return;
+      this._abInitialized = true;
+      try {
+        const userId = this.getUserIdForAB();
+        const res = await fetch(`/apps/cart-uplift/api/ab-testing?action=get_active_experiments`, { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) return;
+        const data = await res.json();
+        const experiments = Array.isArray(data.experiments) ? data.experiments : [];
+        if (!experiments.length) return;
+
+        // Process discount/free_shipping/bundle experiments
+        for (const exp of experiments) {
+          const t = (exp?.test_type || '').toLowerCase();
+          if (!t || !['discount','free_shipping','bundle'].includes(t)) continue;
+          const vRes = await fetch(`/apps/cart-uplift/api/ab-testing?action=get_variant&experiment_id=${encodeURIComponent(String(exp.id))}&user_id=${encodeURIComponent(String(userId))}`);
+          if (!vRes.ok) continue;
+          const vData = await vRes.json();
+          const variantName = vData?.variant || 'control';
+          const cfg = vData?.config || {};
+
+          // Persist assignment to cart attributes (lightweight)
+          const attrs = {};
+          attrs[`ab_exp_${exp.id}_name`] = String(exp.name || '');
+          attrs[`ab_exp_${exp.id}_variant`] = String(variantName);
+
+          // If this is a discount test and a code is configured, save and optionally auto-apply
+          if (t === 'discount' && cfg && cfg.discountCode) {
+            const code = String(cfg.discountCode).toUpperCase();
+            const existingCode = (this.cart && this.cart.attributes) ? String(this.cart.attributes['discount_code'] || '').toUpperCase() : '';
+            const hasCartLevelDiscount = Array.isArray(this.cart?.cart_level_discount_applications) && this.cart.cart_level_discount_applications.length > 0;
+
+            // Only set if no existing code
+            if (!existingCode) {
+              attrs['discount_code'] = code;
+              attrs['discount_summary'] = `Discount code ${code} will be applied at checkout`;
+            }
+
+            // Optional auto-apply if enabled by settings
+            const autoApply = Boolean(this.settings?.autoApplyABDiscounts);
+            if (autoApply && !existingCode && !hasCartLevelDiscount) {
+              try {
+                // Use Shopify native endpoint for speed; fall back to modal path if fails
+                const resp = await fetch('/cart/discounts/' + encodeURIComponent(code), { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                if (!resp.ok) {
+                  // Fallback to app validation route to at least persist attributes
+                  await fetch(`/apps/cart-uplift/api/discount`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ discountCode: code }) });
+                }
+                await this.fetchCart();
+                this.updateDrawerContent();
+                this.showToast(`Discount ${code} applied!`, 'success');
+              } catch (e) {
+                console.warn('Auto-apply AB discount failed:', e);
+              }
+            }
+          }
+
+          // Save attributes (merge with existing)
+          try { await this.saveCartAttributes(attrs); } catch (_e) {}
+        }
+      } catch (e) {
+        console.warn('Failed to initialize storefront A/B testing:', e);
+      }
     }
 
     // Prewarm cart data to reduce first-click delay

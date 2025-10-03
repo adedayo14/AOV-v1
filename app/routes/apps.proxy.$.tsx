@@ -25,6 +25,107 @@ export async function loader({ request }: LoaderFunctionArgs) {
   
   const url = new URL(request.url);
   const path = url.pathname;
+  // GET /apps/proxy/api/ab-testing
+  // action=get_active_experiments -> returns active experiments with variants (configData parsed)
+  // action=get_variant&experiment_id=XX&user_id=YY -> returns assigned variant and its config
+  if (path.includes('/api/ab-testing')) {
+    const hdrs = { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' } as Record<string,string>;
+    try {
+      const { session } = await authenticate.public.appProxy(request);
+      const shop = session?.shop;
+      if (!shop) return json({ ok: false, error: 'unauthorized' }, { status: 401, headers: hdrs });
+      const shopStr = shop as string;
+
+      const action = url.searchParams.get('action') || 'get_active_experiments';
+
+      // Helper: parse JSON safely but accept already-parsed objects
+      const safeParse = (s: any) => {
+        if (s == null) return {} as any;
+        if (typeof s === 'object') return s;
+        if (typeof s === 'string') {
+          try { return JSON.parse(s); } catch { return {}; }
+        }
+        return {} as any;
+      };
+
+      if (action === 'get_active_experiments') {
+        // Active = status === 'active' and within date window (or no dates)
+        const now = new Date();
+        const exps = await (db as any).aBExperiment.findMany({
+          where: {
+            shopId: shopStr,
+            status: 'active',
+            OR: [
+              { AND: [ { startDate: null }, { endDate: null } ] },
+              { AND: [ { startDate: { lte: now } }, { endDate: null } ] },
+              { AND: [ { startDate: null }, { endDate: { gte: now } } ] },
+              { AND: [ { startDate: { lte: now } }, { endDate: { gte: now } } ] },
+            ]
+          },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        const withVariants: any[] = [];
+        for (const e of exps) {
+          const vars = await (db as any).aBVariant.findMany({ where: { experimentId: e.id }, orderBy: { id: 'asc' } });
+          withVariants.push({
+            id: e.id,
+            name: e.name,
+            test_type: e.testType,
+            status: e.status,
+            primary_metric: e.primaryMetric,
+            start_date: e.startDate,
+            end_date: e.endDate,
+            variants: vars.map((v:any)=>({
+              id: v.id,
+              name: v.name,
+              is_control: v.isControl,
+              traffic_percentage: Number(v.trafficPercentage),
+              config: safeParse(v.configData),
+            }))
+          });
+        }
+        return json({ ok: true, experiments: withVariants }, { headers: hdrs });
+      }
+
+      if (action === 'get_variant') {
+        const experimentIdStr = url.searchParams.get('experiment_id');
+        const userId = url.searchParams.get('user_id') || 'anonymous';
+        const experimentId = experimentIdStr ? parseInt(experimentIdStr, 10) : NaN;
+        if (!experimentIdStr || Number.isNaN(experimentId)) {
+          return json({ ok: false, error: 'invalid_experiment_id' }, { status: 400, headers: hdrs });
+        }
+
+        const exp = await (db as any).aBExperiment.findFirst({ where: { id: experimentId, shopId: shopStr } });
+        if (!exp) return json({ ok: false, error: 'not_found' }, { status: 404, headers: hdrs });
+        const vars = await (db as any).aBVariant.findMany({ where: { experimentId: experimentId }, orderBy: { id: 'asc' } });
+        if (!vars.length) return json({ ok: false, error: 'no_variants' }, { status: 404, headers: hdrs });
+
+        const weights = vars.map((v:any)=> Number(v.trafficPercentage) || 0);
+        let sum = weights.reduce((a:number,b:number)=>a+b,0);
+        if (sum <= 0) { sum = vars.length; for (let i=0;i<weights.length;i++) weights[i] = 1; }
+        const normalized = weights.map((w:number)=> w / sum);
+
+        // Simple deterministic hash to [0,1)
+        const hashStr = `${experimentId}-${userId}`;
+        let h = 2166136261;
+        for (let i=0;i<hashStr.length;i++) { h ^= hashStr.charCodeAt(i); h = Math.imul(h, 16777619); }
+        const r = (h >>> 0) / 4294967295; // 0..1
+
+        // Pick variant by cumulative probability
+        let cum = 0; let idx = 0;
+        for (let i=0;i<normalized.length;i++) { cum += normalized[i]; if (r <= cum) { idx = i; break; } }
+        const selected = vars[idx];
+        const cfg = safeParse(selected?.configData);
+        return json({ ok: true, variant: selected?.name || `variant_${idx+1}`, config: cfg, variantId: selected?.id }, { headers: hdrs });
+      }
+
+      return json({ ok: false, error: 'unknown_action' }, { status: 400, headers: hdrs });
+    } catch (e) {
+      console.error('A/B Proxy error:', e);
+      return json({ ok: false, error: 'server_error' }, { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
+    }
+  }
 
   // Simple test endpoint to verify code execution
   if (path.includes('/api/test')) {
