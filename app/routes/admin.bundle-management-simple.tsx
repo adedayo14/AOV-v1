@@ -235,8 +235,17 @@ export default function SimpleBundleManagement() {
 
   // Auto-load products when modal opens with manual type
   useEffect(() => {
+    console.log('[Bundle] Auto-load check:', {
+      showCreateModal,
+      bundleType: newBundle.bundleType,
+      hasProducts: !!productFetcher.data?.products,
+      productsLength: productFetcher.data?.products?.length || 0,
+      fetcherState: productFetcher.state
+    });
+    
     if (showCreateModal && newBundle.bundleType === 'manual' && 
         !productFetcher.data?.products && productFetcher.state === 'idle') {
+      console.log('[Bundle] Loading products...');
       productFetcher.load('/admin/bundle-management-simple?loadProducts=true');
     }
   }, [showCreateModal, newBundle.bundleType, productFetcher]);
@@ -262,7 +271,17 @@ export default function SimpleBundleManagement() {
     }
   }, [collectionsFetcher.state, collectionsFetcher.data]);
 
-  // Handle product fetcher state
+  // Handle product fetcher state - with logging
+  useEffect(() => {
+    console.log('[Bundle] Product fetcher state changed:', {
+      state: productFetcher.state,
+      hasData: !!productFetcher.data,
+      success: productFetcher.data?.success,
+      productsCount: productFetcher.data?.products?.length || 0,
+      error: productFetcher.data?.error
+    });
+  }, [productFetcher.state, productFetcher.data]);
+  
   const isLoadingProducts = productFetcher.state !== 'idle';
   const productLoadError = productFetcher.data && !productFetcher.data.success 
     ? (productFetcher.data as any).error 
@@ -532,9 +551,23 @@ export default function SimpleBundleManagement() {
             {newBundle.bundleType === "manual" && (
               <Card>
                 <BlockStack gap="300">
-                  <Text as="h3" variant="headingSm">
-                    Select Products for Bundle
-                  </Text>
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h3" variant="headingSm">
+                      Select Products for Bundle
+                    </Text>
+                    {!isLoadingProducts && (
+                      <Button 
+                        size="micro" 
+                        onClick={() => {
+                          console.log('[Bundle] Manual reload triggered');
+                          productFetcher.load('/admin/bundle-management-simple?loadProducts=true');
+                        }}
+                      >
+                        Reload Products
+                      </Button>
+                    )}
+                  </InlineStack>
+                  
                   {isLoadingProducts ? (
                     <BlockStack align="center" gap="300">
                       <Spinner size="large" />

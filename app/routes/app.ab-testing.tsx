@@ -12,14 +12,16 @@ import {
   TextField,
   Text,
   LegacyCard,
-  DataTable,
   EmptyState,
+  Card,
+  InlineStack,
+  BlockStack,
+  Badge,
+  ButtonGroup,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import type { ABExperiment } from "@prisma/client";
-import type { Decimal } from "@prisma/client/runtime/library";
 
 // This interface matches the data structure after JSON serialization from the loader.
 // Prisma's Decimal and Date types are converted to strings.
@@ -146,16 +148,6 @@ export default function ABTestingPage() {
     }
   }, [shopify]);
 
-  const rows = experiments.map((exp) => [
-    exp.name,
-    exp.status.charAt(0).toUpperCase() + exp.status.slice(1),
-    exp.testType,
-    new Date(exp.createdAt).toLocaleDateString(),
-    <Button key={`delete-${exp.id}`} size="micro" tone="critical" onClick={() => handleDeleteExperiment(exp.id)}>
-      Delete
-    </Button>
-  ]);
-
   return (
     <Page>
       <TitleBar title="A/B Testing">
@@ -165,14 +157,41 @@ export default function ABTestingPage() {
       </TitleBar>
       <Layout>
         <Layout.Section>
-          <LegacyCard>
-            {experiments.length > 0 ? (
-              <DataTable
-                columnContentTypes={["text", "text", "text", "text", "text"]}
-                headings={["Name", "Status", "Type", "Created At", "Actions"]}
-                rows={rows}
-              />
-            ) : (
+          {experiments.length > 0 ? (
+            <Card>
+              <BlockStack gap="400">
+                {experiments.map((exp) => (
+                  <Card key={exp.id}>
+                    <BlockStack gap="300">
+                      <InlineStack align="space-between" blockAlign="center">
+                        <BlockStack gap="200">
+                          <Text variant="headingMd" as="h3">{exp.name}</Text>
+                          <InlineStack gap="200">
+                            <Badge tone={exp.status === 'active' ? 'success' : exp.status === 'paused' ? 'warning' : 'info'}>
+                              {exp.status.charAt(0).toUpperCase() + exp.status.slice(1)}
+                            </Badge>
+                            <Text as="span" tone="subdued">Type: {exp.testType}</Text>
+                            <Text as="span" tone="subdued">Created: {new Date(exp.createdAt).toLocaleDateString()}</Text>
+                          </InlineStack>
+                        </BlockStack>
+                        <ButtonGroup>
+                          <Button size="slim" onClick={() => {}}>View Details</Button>
+                          <Button 
+                            size="slim" 
+                            tone="critical" 
+                            onClick={() => handleDeleteExperiment(exp.id)}
+                          >
+                            Delete
+                          </Button>
+                        </ButtonGroup>
+                      </InlineStack>
+                    </BlockStack>
+                  </Card>
+                ))}
+              </BlockStack>
+            </Card>
+          ) : (
+            <Card>
               <EmptyState
                 heading="No A/B experiments yet"
                 action={{ content: "Create Experiment", onAction: handleOpenCreateModal }}
@@ -180,8 +199,8 @@ export default function ABTestingPage() {
               >
                 <p>Create your first A/B test to compare different strategies and boost your sales.</p>
               </EmptyState>
-            )}
-          </LegacyCard>
+            </Card>
+          )}
         </Layout.Section>
       </Layout>
 
