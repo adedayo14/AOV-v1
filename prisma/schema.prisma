@@ -224,6 +224,13 @@ enum ExperimentStatus {
   paused
 }
 
+enum ExperimentType {
+  discount
+  bundle
+  shipping
+  upsell
+}
+
 enum AttributionWindow {
   session @map("session")
   hours24 @map("24h")
@@ -240,6 +247,7 @@ model Experiment {
   id              Int                @id @default(autoincrement())
   shopId          String             @map("shop_id")
   name            String
+  type            ExperimentType     @default(discount)
   status          ExperimentStatus   @default(running)
   startDate       DateTime?          @map("start_date")
   endDate         DateTime?          @map("end_date")

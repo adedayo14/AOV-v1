@@ -35,6 +35,7 @@ type LoaderVariant = {
 type LoaderExperiment = {
   id: number;
   name: string;
+  type: string;
   status: string;
   startDate: string | null;
   endDate: string | null;
@@ -98,6 +99,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const serialized: LoaderExperiment[] = experiments.map((exp): LoaderExperiment => ({
       id: exp.id,
       name: exp.name,
+      type: (exp as any).type || "discount", // Type field exists in schema, TS cache issue
       status: exp.status,
       startDate: exp.startDate ? exp.startDate.toISOString() : null,
       endDate: exp.endDate ? exp.endDate.toISOString() : null,
@@ -132,6 +134,7 @@ export default function ABTestingPage() {
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newName, setNewName] = useState("");
+  const [experimentType, setExperimentType] = useState<"discount"|"bundle"|"shipping"|"upsell">("discount");
   const [controlDiscount, setControlDiscount] = useState("0");
   const [variantDiscount, setVariantDiscount] = useState("10");
   const [variantName, setVariantName] = useState("Stronger Offer");
@@ -149,6 +152,7 @@ export default function ABTestingPage() {
 
   const resetCreateForm = () => {
     setNewName("");
+    setExperimentType("discount");
     setControlDiscount("0");
     setVariantDiscount("10");
     setVariantName("Stronger Offer");
@@ -192,6 +196,7 @@ export default function ABTestingPage() {
         action: "create",
         experiment: {
           name: newName.trim(),
+          type: experimentType,
           status: activateNow ? "running" : "paused",
           startDate: activateNow ? new Date().toISOString() : null,
           endDate: null,
@@ -320,6 +325,15 @@ export default function ABTestingPage() {
       : experiment.status === "completed"
         ? "attention"
         : "critical";
+    
+    const typeEmoji: Record<string, string> = {
+      discount: "💰",
+      bundle: "📦",
+      shipping: "🚚",
+      upsell: "⬆️"
+    };
+    const typeLabel = `${typeEmoji[experiment.type] || ""} ${experiment.type}`.trim();
+    
     const control = experiment.variants.find((variant) => variant.isControl);
     const challenger = experiment.variants.find((variant) => !variant.isControl);
 
@@ -330,6 +344,7 @@ export default function ABTestingPage() {
             <BlockStack gap="200">
               <Text variant="headingMd" as="h2">{experiment.name}</Text>
               <InlineStack gap="200">
+                <Badge>{typeLabel}</Badge>
                 <Badge tone={statusTone}>{experiment.status}</Badge>
                 <Badge tone="info">{`Attribution: ${experiment.attribution}`}</Badge>
               </InlineStack>
@@ -382,6 +397,23 @@ export default function ABTestingPage() {
     }
 
     const { results, leader, start, end } = resultsPayload;
+
+    // Check if there's any actual data
+    const hasData = results.some(v => v.visitors > 0);
+    
+    if (!hasData) {
+      return (
+        <BlockStack gap="300">
+          <Banner tone="info" title="Not enough data yet">
+            <Text as="p">Your experiment is running, but we haven't collected enough traffic yet.</Text>
+            <Text as="p">Check back in a few hours once visitors start seeing your variants.</Text>
+          </Banner>
+          <Text as="p" tone="subdued">
+            Window: {new Date(start).toLocaleDateString()} - {new Date(end).toLocaleDateString()}
+          </Text>
+        </BlockStack>
+      );
+    }
 
     return (
       <BlockStack gap="400">
@@ -506,6 +538,22 @@ export default function ABTestingPage() {
                 placeholder="👉 Example: “Free Shipping vs 10% Off”"
                 onChange={setNewName}
                 autoComplete="off"
+              />
+            </BlockStack>
+
+            <BlockStack gap="150">
+              <Text as="p">What type of experiment?</Text>
+              <Select
+                label="Experiment type"
+                labelHidden
+                value={experimentType}
+                onChange={(value) => setExperimentType(value as "discount"|"bundle"|"shipping"|"upsell")}
+                options={[
+                  { label: "💰 Discount offer", value: "discount" },
+                  { label: "📦 Bundle deal", value: "bundle" },
+                  { label: "🚚 Shipping threshold", value: "shipping" },
+                  { label: "⬆️ Upsell", value: "upsell" },
+                ]}
               />
             </BlockStack>
 

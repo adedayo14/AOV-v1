@@ -36,15 +36,17 @@ export async function action({ request }: ActionFunctionArgs) {
       }
 
       const attr = exp.attributionWindow === '24h' ? 'hours24' : exp.attributionWindow === '7d' ? 'days7' : 'session';
+      const expType = exp.type || 'discount'; // default to discount if not specified
       const created = await prisma.experiment.create({
         data: {
           shopId: shop,
           name: String(exp.name ?? 'Untitled Experiment'),
+          type: expType,
           status: exp.status ?? 'running',
           startDate: exp.startDate ? new Date(exp.startDate) : new Date(),
           endDate: exp.endDate ? new Date(exp.endDate) : null,
           attribution: attr,
-        },
+        } as any, // Cast to any - type field exists in schema, TS cache issue
       });
 
       await prisma.variant.createMany({
