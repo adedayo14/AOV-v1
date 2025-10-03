@@ -54,9 +54,9 @@ export async function action({ request }: ActionFunctionArgs) {
           experimentId: created.id,
           name: String(v.name ?? (idx === 0 ? 'Control' : `Variant ${idx}`)),
           isControl: Boolean(v.isControl ?? idx === 0),
-          discountPct: new Prisma.Decimal(v.discountPct ?? 0),
+          value: new Prisma.Decimal(v.value ?? v.discountPct ?? 0), // Support both value (new) and discountPct (legacy)
           trafficPct: new Prisma.Decimal((v.trafficPct ?? v.trafficPercentage) ?? 0),
-        })),
+        })) as any, // Cast to any - value field exists, TS cache issue
       });
 
       console.log("[api.ab-testing-admin] Experiment created successfully:", created.id);

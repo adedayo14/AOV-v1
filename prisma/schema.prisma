@@ -267,7 +267,7 @@ model Variant {
   experimentId Int       @map("experiment_id")
   name         String
   isControl    Boolean   @default(false) @map("is_control")
-  discountPct  Decimal   @default(0.0) @map("discount_pct")
+  value        Decimal   @default(0.0) @map("value") // Flexible: discount % | shipping $ | bundle price
   trafficPct   Decimal   @default(50.0) @map("traffic_pct")
   createdAt    DateTime  @default(now()) @map("created_at")
 
@@ -294,4 +294,39 @@ model Event {
   @@index([experimentId, variantId, occurredAt(sort: Desc)])
   @@index([type, occurredAt(sort: Desc)])
   @@map("ab_events")
+}
+
+// Analytics Events for Dashboard (separate from AB testing)
+model AnalyticsEvent {
+  id          String   @id @default(cuid())
+  shop        String
+  eventType   String   // cart_view | cart_abandon | purchase | bundle_impression | bundle_click | bundle_conversion
+  sessionId   String?  // Anonymous session tracking
+  customerId  String?  // Shopify customer ID if logged in
+  
+  // Order/Revenue tracking
+  orderId     String?  // Shopify order ID
+  orderValue  Decimal? // Total order value
+  currency    String?  @default("USD")
+  
+  // Bundle tracking
+  bundleId    String?  // Reference to Bundle.id
+  productIds  String?  // JSON array of product IDs in cart/bundle
+  
+  // Page context
+  pageUrl     String?
+  referrer    String?
+  userAgent   String?
+  
+  // Timestamps
+  timestamp   DateTime @default(now())
+  
+  // Additional metadata
+  metadata    Json?    // Flexible field for extra data
+  
+  @@index([shop, timestamp(sort: Desc)])
+  @@index([shop, eventType, timestamp(sort: Desc)])
+  @@index([bundleId, timestamp(sort: Desc)])
+  @@index([sessionId, timestamp(sort: Desc)])
+  @@map("analytics_events")
 }

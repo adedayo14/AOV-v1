@@ -28,7 +28,7 @@ type LoaderVariant = {
   id: number;
   name: string;
   isControl: boolean;
-  discountPct: number;
+  value: number; // Flexible: discount % | shipping $ | bundle price | etc.
   trafficPct: number;
 };
 
@@ -50,7 +50,7 @@ type ResultsVariant = {
   variantId: number;
   variantName: string;
   isControl: boolean;
-  discountPct: number;
+  value: number; // Flexible: discount % | shipping $ | bundle price | etc.
   trafficPct: number;
   visitors: number;
   conversions: number;
@@ -111,7 +111,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         id: variant.id,
         name: variant.name,
         isControl: variant.isControl,
-        discountPct: toNumber(variant.discountPct),
+        value: toNumber((variant as any).value || (variant as any).discountPct || 0), // Support both old and new schema
         trafficPct: toNumber(variant.trafficPct),
       })),
     }));
@@ -207,13 +207,13 @@ export default function ABTestingPage() {
             name: "Control",
             isControl: true,
             trafficPct: 50,
-            discountPct: controlPct,
+            value: controlPct, // Generic value field (discount %, shipping $, etc.)
           },
           {
             name: variantName.trim() || "Variant",
             isControl: false,
             trafficPct: 50,
-            discountPct: challengerPct,
+            value: challengerPct, // Generic value field (discount %, shipping $, etc.)
           },
         ],
       };
@@ -334,6 +334,22 @@ export default function ABTestingPage() {
     };
     const typeLabel = `${typeEmoji[experiment.type] || ""} ${experiment.type}`.trim();
     
+    // Helper to format value based on experiment type
+    const formatValue = (value: number, type: string): string => {
+      switch(type) {
+        case 'discount':
+          return `${value}% off`;
+        case 'shipping':
+          return `$${value} threshold`;
+        case 'bundle':
+          return `$${value} bundle price`;
+        case 'upsell':
+          return `$${value} upsell`;
+        default:
+          return String(value);
+      }
+    };
+    
     const control = experiment.variants.find((variant) => variant.isControl);
     const challenger = experiment.variants.find((variant) => !variant.isControl);
 
@@ -362,7 +378,7 @@ export default function ABTestingPage() {
               <Card key={`${experiment.id}-control`} background="bg-surface-secondary" padding="400">
                 <BlockStack gap="150">
                   <Text variant="headingSm" as="h3">Control</Text>
-                  <Text as="p" tone="subdued">Discount: {control.discountPct}%</Text>
+                  <Text as="p" tone="subdued">Offer: {formatValue(control.value, experiment.type)}</Text>
                   <Text as="p" tone="subdued">Traffic: {control.trafficPct}%</Text>
                 </BlockStack>
               </Card>
@@ -371,7 +387,7 @@ export default function ABTestingPage() {
               <Card key={`${experiment.id}-challenger`} background="bg-surface-secondary" padding="400">
                 <BlockStack gap="150">
                   <Text variant="headingSm" as="h3">{challenger.name}</Text>
-                  <Text as="p" tone="subdued">Discount: {challenger.discountPct}%</Text>
+                  <Text as="p" tone="subdued">Offer: {formatValue(challenger.value, experiment.type)}</Text>
                   <Text as="p" tone="subdued">Traffic: {challenger.trafficPct}%</Text>
                 </BlockStack>
               </Card>
@@ -594,13 +610,24 @@ export default function ABTestingPage() {
                     <Text variant="headingSm" as="h3">Control (current offer)</Text>
                     <FormLayout>
                       <TextField
-                        label="Discount:"
+                        label={
+                          experimentType === 'discount' ? 'Discount %:' :
+                          experimentType === 'shipping' ? 'Shipping Threshold $:' :
+                          experimentType === 'bundle' ? 'Bundle Price $:' :
+                          'Value:'
+                        }
                         value={controlDiscount}
                         onChange={setControlDiscount}
                         type="number"
-                        suffix="%"
+                        suffix={experimentType === 'discount' ? '%' : '$'}
                         min="0"
                         autoComplete="off"
+                        helpText={
+                          experimentType === 'discount' ? 'Percentage off (e.g., 10 for 10% off)' :
+                          experimentType === 'shipping' ? 'Free shipping at this cart value (e.g., 50 for $50)' :
+                          experimentType === 'bundle' ? 'Bundle price in dollars' :
+                          'Value for this offer'
+                        }
                       />
                     </FormLayout>
                   </BlockStack>
@@ -613,17 +640,33 @@ export default function ABTestingPage() {
                         label="Name:"
                         value={variantName}
                         onChange={setVariantName}
-                        placeholder="Stronger Offer"
+                        placeholder={
+                          experimentType === 'discount' ? 'Stronger Discount' :
+                          experimentType === 'shipping' ? 'Lower Threshold' :
+                          experimentType === 'bundle' ? 'Better Bundle' :
+                          'Stronger Offer'
+                        }
                         autoComplete="off"
                       />
                       <TextField
-                        label="Discount:"
+                        label={
+                          experimentType === 'discount' ? 'Discount %:' :
+                          experimentType === 'shipping' ? 'Shipping Threshold $:' :
+                          experimentType === 'bundle' ? 'Bundle Price $:' :
+                          'Value:'
+                        }
                         value={variantDiscount}
                         onChange={setVariantDiscount}
                         type="number"
-                        suffix="%"
+                        suffix={experimentType === 'discount' ? '%' : '$'}
                         min="0"
                         autoComplete="off"
+                        helpText={
+                          experimentType === 'discount' ? 'Percentage off (e.g., 20 for 20% off)' :
+                          experimentType === 'shipping' ? 'Free shipping at this cart value (e.g., 100 for $100)' :
+                          experimentType === 'bundle' ? 'Bundle price in dollars' :
+                          'Value for this offer'
+                        }
                       />
                     </FormLayout>
                   </BlockStack>
