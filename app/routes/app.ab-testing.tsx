@@ -19,7 +19,7 @@ import {
   Badge,
   ButtonGroup,
 } from "@shopify/polaris";
-import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
+import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
@@ -149,12 +149,13 @@ export default function ABTestingPage() {
   }, [shopify]);
 
   return (
-    <Page>
-      <TitleBar title="A/B Testing">
-        <Button variant="primary" onClick={handleOpenCreateModal}>
-          Create Experiment
-        </Button>
-      </TitleBar>
+    <Page
+      title="A/B Testing"
+      primaryAction={{
+        content: "Create Experiment",
+        onAction: handleOpenCreateModal
+      }}
+    >
       <Layout>
         <Layout.Section>
           {experiments.length > 0 ? (
