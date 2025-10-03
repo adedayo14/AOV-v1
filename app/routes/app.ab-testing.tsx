@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { json, LoaderFunction } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import {
@@ -69,6 +69,12 @@ export default function ABTestingPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [experimentName, setExperimentName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Fix React #418 hydration errors by rendering dates/badges only on client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleOpenCreateModal = () => setIsCreateModalOpen(true);
   const handleCloseCreateModal = () => {
@@ -124,26 +130,41 @@ export default function ABTestingPage() {
   }, [experimentName, shopify]);
 
   const handleDeleteExperiment = useCallback(async (experimentId: number) => {
-    if (!confirm('Are you sure you want to delete this experiment?')) return;
+    console.log('[A/B Testing UI] Delete button clicked for experiment:', experimentId);
+    
+    if (!confirm('Are you sure you want to delete this experiment?')) {
+      console.log('[A/B Testing UI] User cancelled delete');
+      return;
+    }
     
     try {
       const url = new URL(window.location.href);
       const shop = url.searchParams.get('shop');
+      console.log('[A/B Testing UI] Shop parameter:', shop);
+      
+      const payload = { action: 'delete', experimentId, shop };
+      console.log('[A/B Testing UI] Sending delete request with payload:', payload);
       
       const response = await fetch('/api/ab-testing-admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', experimentId, shop })
+        body: JSON.stringify(payload)
       });
       
+      console.log('[A/B Testing UI] Delete response status:', response.status);
+      
       if (response.ok) {
+        const result = await response.json();
+        console.log('[A/B Testing UI] Delete successful:', result);
         shopify.toast.show('Experiment deleted successfully');
         window.location.reload();
       } else {
+        const errorText = await response.text();
+        console.error('[A/B Testing UI] Delete failed:', errorText);
         shopify.toast.show('Failed to delete experiment', { isError: true });
       }
     } catch (error) {
-      console.error('Error deleting experiment:', error);
+      console.error('[A/B Testing UI] Delete error:', error);
       shopify.toast.show('Failed to delete experiment', { isError: true });
     }
   }, [shopify]);
@@ -167,13 +188,15 @@ export default function ABTestingPage() {
                       <InlineStack align="space-between" blockAlign="center">
                         <BlockStack gap="200">
                           <Text variant="headingMd" as="h3">{exp.name}</Text>
-                          <InlineStack gap="200">
-                            <Badge tone={exp.status === 'active' ? 'success' : exp.status === 'paused' ? 'warning' : 'info'}>
-                              {exp.status.charAt(0).toUpperCase() + exp.status.slice(1)}
-                            </Badge>
-                            <Text as="span" tone="subdued">Type: {exp.testType}</Text>
-                            <Text as="span" tone="subdued">Created: {new Date(exp.createdAt).toLocaleDateString()}</Text>
-                          </InlineStack>
+                          {isClient && (
+                            <InlineStack gap="200">
+                              <Badge tone={exp.status === 'active' ? 'success' : exp.status === 'paused' ? 'warning' : 'info'}>
+                                {exp.status.charAt(0).toUpperCase() + exp.status.slice(1)}
+                              </Badge>
+                              <Text as="span" tone="subdued">Type: {exp.testType}</Text>
+                              <Text as="span" tone="subdued">Created: {new Date(exp.createdAt).toLocaleDateString()}</Text>
+                            </InlineStack>
+                          )}
                         </BlockStack>
                         <ButtonGroup>
                           <Button size="slim" onClick={() => {}}>View Details</Button>
