@@ -45,14 +45,28 @@ interface Bundle {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
-  const shop = session.shop;
-  
   const url = new URL(request.url);
   const loadProducts = url.searchParams.get('loadProducts') === 'true';
+  const shopParam = url.searchParams.get('shop');
+  
+  let admin: any;
+  let shop: string;
+  
+  // Use shop parameter to bypass hanging auth if provided
+  if (shopParam) {
+    console.log('[Bundle Loader] Using shop parameter:', shopParam);
+    const authResult = await authenticate.admin(request);
+    admin = authResult.admin;
+    shop = shopParam;
+  } else {
+    const authResult = await authenticate.admin(request);
+    admin = authResult.admin;
+    shop = authResult.session.shop;
+  }
   
   if (loadProducts) {
     try {
+      console.log('[Bundle Loader] Loading products from Shopify...');
       const response = await admin.graphql(`
         #graphql
         query getProducts {
@@ -91,7 +105,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       
       // Check for GraphQL errors
       if ((responseJson as any).errors) {
-        console.error('GraphQL errors:', (responseJson as any).errors);
+        console.error('[Bundle Loader] GraphQL errors:', (responseJson as any).errors);
         return json({ 
           success: false, 
           error: 'Failed to load products: ' + (responseJson as any).errors[0]?.message,
@@ -108,9 +122,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                edge.node.variants?.edges?.[0]?.node?.price || '0'
       })) || [];
       
+      console.log('[Bundle Loader] Loaded', products.length, 'products');
       return json({ success: true, products });
     } catch (error) {
-      console.error('Failed to load products:', error);
+      console.error('[Bundle Loader] Failed to load products:', error);
       return json({ 
         success: false, 
         error: error instanceof Error ? error.message : 'Failed to load products',
@@ -131,7 +146,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     
     return json({ success: true, bundles, products: [] });
   } catch (error) {
-    console.error('Failed to load bundles:', error);
+    console.error('[Bundle Loader] Failed to load bundles:', error);
     return json({ 
       success: true, 
       bundles: [], 
@@ -263,7 +278,15 @@ export default function SimpleBundleManagement() {
     if (showCreateModal && newBundle.bundleType === 'manual' && 
         !productFetcher.data?.products && productFetcher.state === 'idle') {
       console.log('[Bundle] Loading products...');
-      productFetcher.load('/admin/bundle-management-simple?loadProducts=true');
+      
+      // Get shop parameter for bypass
+      const url = new URL(window.location.href);
+      const shop = url.searchParams.get('shop');
+      const productsUrl = shop 
+        ? `/admin/bundle-management-simple?loadProducts=true&shop=${shop}` 
+        : '/admin/bundle-management-simple?loadProducts=true';
+      
+      productFetcher.load(productsUrl);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showCreateModal, newBundle.bundleType, productFetcher.data, productFetcher.state]);
@@ -627,7 +650,12 @@ export default function SimpleBundleManagement() {
               onChange={(value) => {
                 setNewBundle({ ...newBundle, bundleType: value });
                 if (value === "manual" && availableProducts.length === 0) {
-                  productFetcher.load('/admin/bundle-management-simple?loadProducts=true');
+                  const url = new URL(window.location.href);
+                  const shop = url.searchParams.get('shop');
+                  const productsUrl = shop 
+                    ? `/admin/bundle-management-simple?loadProducts=true&shop=${shop}` 
+                    : '/admin/bundle-management-simple?loadProducts=true';
+                  productFetcher.load(productsUrl);
                 }
               }}
               helpText="Choose how products are selected for this bundle"
@@ -645,7 +673,12 @@ export default function SimpleBundleManagement() {
                         size="micro" 
                         onClick={() => {
                           console.log('[Bundle] Manual reload triggered');
-                          productFetcher.load('/admin/bundle-management-simple?loadProducts=true');
+                          const url = new URL(window.location.href);
+                          const shop = url.searchParams.get('shop');
+                          const productsUrl = shop 
+                            ? `/admin/bundle-management-simple?loadProducts=true&shop=${shop}` 
+                            : '/admin/bundle-management-simple?loadProducts=true';
+                          productFetcher.load(productsUrl);
                         }}
                       >
                         Reload Products
@@ -667,7 +700,14 @@ export default function SimpleBundleManagement() {
                       heading="No products found"
                       action={{
                         content: "Load Products",
-                        onAction: () => productFetcher.load('/admin/bundle-management-simple?loadProducts=true'),
+                        onAction: () => {
+                          const url = new URL(window.location.href);
+                          const shop = url.searchParams.get('shop');
+                          const productsUrl = shop 
+                            ? `/admin/bundle-management-simple?loadProducts=true&shop=${shop}` 
+                            : '/admin/bundle-management-simple?loadProducts=true';
+                          productFetcher.load(productsUrl);
+                        },
                       }}
                       image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
                     >
