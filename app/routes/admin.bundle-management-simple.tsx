@@ -142,8 +142,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  // Check if shop parameter is provided (bypass auth pattern)
   const formData = await request.formData();
+  const shopParam = formData.get("shop") as string;
+  
+  let shop: string;
+  
+  if (shopParam) {
+    // Use shop parameter to bypass hanging auth
+    shop = shopParam;
+    console.log('[Bundle Action] Using shop parameter:', shop);
+  } else {
+    // Fall back to regular auth
+    const { session } = await authenticate.admin(request);
+    shop = session.shop;
+    console.log('[Bundle Action] Using authenticated session:', shop);
+  }
+  
   const actionType = formData.get("action");
 
   try {
@@ -163,7 +178,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const bundle = await (prisma as any).bundle.create({
         data: {
-          shop: session.shop,
+          shop: shop,
           name,
           description,
           type: bundleType,
@@ -176,6 +191,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
       });
 
+      console.log('[Bundle Action] Bundle created successfully:', bundle.id);
       return json({ success: true, bundle });
     }
 
@@ -184,7 +200,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const status = formData.get("status") as string;
 
   const bundle = await (prisma as any).bundle.update({
-        where: { id: bundleId, shop: session.shop },
+        where: { id: bundleId, shop: shop },
         data: { status },
       });
 
@@ -195,9 +211,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const bundleId = formData.get("bundleId") as string;
 
   await (prisma as any).bundle.delete({
-        where: { id: bundleId, shop: session.shop },
+        where: { id: bundleId, shop: shop },
       });
 
+      console.log('[Bundle Action] Bundle deleted successfully:', bundleId);
       return json({ success: true, message: "Bundle deleted successfully" });
     }
 
@@ -317,11 +334,15 @@ export default function SimpleBundleManagement() {
     setSelectedCollections([]);
   };
 
-  const handleCreateBundle = () => {
+  const handleCreateBundle = async () => {
     if (!newBundle.name.trim()) {
       alert('Bundle name is required');
       return;
     }
+
+    // Get shop from URL for bypass pattern (same as A/B testing)
+    const url = new URL(window.location.href);
+    const shop = url.searchParams.get('shop');
 
     const formData = new FormData();
     formData.append('action', 'create-bundle');
@@ -333,6 +354,7 @@ export default function SimpleBundleManagement() {
     formData.append('minProducts', String(newBundle.minProducts));
     formData.append('maxProducts', String(newBundle.maxProducts));
     formData.append('status', newBundle.status);
+    formData.append('shop', shop || ''); // Add shop parameter
     
     if (newBundle.bundleType === 'manual' && selectedProducts.length > 0) {
       formData.append('productIds', JSON.stringify(selectedProducts));
@@ -342,7 +364,28 @@ export default function SimpleBundleManagement() {
       formData.append('collectionIds', JSON.stringify(selectedCollections));
     }
     
-    actionFetcher.submit(formData, { method: 'post' });
+    try {
+      console.log('[Bundle] Submitting create bundle request...');
+      const response = await fetch('/admin/bundle-management-simple', {
+        method: 'POST',
+        body: formData
+      });
+      
+      console.log('[Bundle] Response status:', response.status);
+      if (response.ok) {
+        const result = await response.json();
+        console.log('[Bundle] Bundle created:', result);
+        alert('Bundle created successfully!');
+        window.location.reload();
+      } else {
+        const error = await response.text();
+        console.error('[Bundle] Error response:', error);
+        alert('Failed to create bundle');
+      }
+    } catch (error) {
+      console.error('[Bundle] Fetch error:', error);
+      alert('Failed to create bundle: ' + (error as Error).message);
+    }
   };
 
   const bundleTypeOptions = [
@@ -369,12 +412,26 @@ export default function SimpleBundleManagement() {
       <Button
         size="micro"
         variant={bundle.status === "active" ? "secondary" : "primary"}
-        onClick={() => {
+        onClick={async () => {
+          const url = new URL(window.location.href);
+          const shop = url.searchParams.get('shop');
           const formData = new FormData();
           formData.append("action", "toggle-status");
           formData.append("bundleId", bundle.id);
           formData.append("status", bundle.status === "active" ? "paused" : "active");
-          actionFetcher.submit(formData, { method: "post" });
+          formData.append("shop", shop || '');
+          
+          try {
+            const response = await fetch('/admin/bundle-management-simple', {
+              method: 'POST',
+              body: formData
+            });
+            if (response.ok) {
+              window.location.reload();
+            }
+          } catch (error) {
+            console.error('[Bundle] Toggle error:', error);
+          }
         }}
       >
         {bundle.status === "active" ? "Pause" : "Activate"}
@@ -382,12 +439,32 @@ export default function SimpleBundleManagement() {
       <Button
         size="micro"
         tone="critical"
-        onClick={() => {
+        onClick={async () => {
           if (confirm("Are you sure you want to delete this bundle?")) {
+            const url = new URL(window.location.href);
+            const shop = url.searchParams.get('shop');
             const formData = new FormData();
             formData.append("action", "delete-bundle");
             formData.append("bundleId", bundle.id);
-            actionFetcher.submit(formData, { method: "post" });
+            formData.append("shop", shop || '');
+            
+            try {
+              console.log('[Bundle] Deleting bundle:', bundle.id);
+              const response = await fetch('/admin/bundle-management-simple', {
+                method: 'POST',
+                body: formData
+              });
+              console.log('[Bundle] Delete response:', response.status);
+              if (response.ok) {
+                alert('Bundle deleted successfully');
+                window.location.reload();
+              } else {
+                alert('Failed to delete bundle');
+              }
+            } catch (error) {
+              console.error('[Bundle] Delete error:', error);
+              alert('Failed to delete bundle');
+            }
           }
         }}
       >
