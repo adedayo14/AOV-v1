@@ -25,7 +25,6 @@ import {
   EmptyState,
   Spinner,
 } from "@shopify/polaris";
-import { TitleBar } from "@shopify/app-bridge-react";
 import { PlusIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -519,8 +518,6 @@ export default function SimpleBundleManagement() {
         </Button>
       }
     >
-      <TitleBar title="Bundle Management" />
-
       <Layout>
         <Layout.Section>
           {bundles.length === 0 ? (
