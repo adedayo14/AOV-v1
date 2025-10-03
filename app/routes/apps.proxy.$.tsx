@@ -145,6 +145,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
         const vars = (await (db as any).variant.findMany({ where: { experimentId }, orderBy: { id: 'asc' } })) as Variant[];
         if (!vars.length) return json({ ok: false, error: 'no_variants' }, { status: 404, headers: hdrs });
 
+  // If experiment is completed and has an activeVariantId, force that selection
+        if (experiment.status === 'completed' && experiment.activeVariantId) {
+          const selected = vars.find(v => v.id === experiment.activeVariantId) || vars[0];
+          const config = { discount_pct: Number(selected?.discountPct ?? 0) };
+          return json({ ok: true, variant: selected?.name, config, variantId: selected?.id }, { headers: hdrs });
+        }
+
         const weights = vars.map((variant) => Number(variant.trafficPct) || 0);
         let sum = weights.reduce((a: number, b: number) => a + b, 0);
         if (sum <= 0) {
@@ -163,9 +170,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
         const selected = vars[idx];
         const config = { discount_pct: Number(selected?.discountPct ?? 0) };
 
-        // Persist assignment event (best-effort, idempotent)
+        // Persist assignment event (best-effort, idempotent) — skip for completed experiments
         try {
-          if (selected?.id) {
+          if (selected?.id && experiment.status !== 'completed') {
             const unitKey = String(userId);
             const existing = await (db as any).event.findFirst({
               where: {

@@ -84,14 +84,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
 
   try {
-    const experiments = await prisma.experiment.findMany({
+    const [experiments] = await Promise.all([
+      prisma.experiment.findMany({
       orderBy: { createdAt: "desc" },
       include: {
         variants: {
           orderBy: [{ isControl: "desc" }, { id: "asc" }],
         },
       },
-    });
+      }),
+    ]);
 
     const serialized: LoaderExperiment[] = experiments.map((exp): LoaderExperiment => ({
       id: exp.id,
@@ -112,16 +114,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       })),
     }));
 
-    return json(serialized);
+    // Note: If you have a place to store currency (Settings or Session), use it here.
+    // Falling back to USD if not available.
+    const currencyCode = 'USD';
+    return json({ experiments: serialized, currencyCode });
   } catch (err) {
     console.error("[app.ab-testing] Failed to load experiments. If you recently changed the Prisma schema, run migrations.", err);
     // Fail-open: return an empty list so the page renders with an EmptyState instead of 500
-    return json([] satisfies LoaderExperiment[]);
+    return json({ experiments: [] as LoaderExperiment[] });
   }
 };
 
 export default function ABTestingPage() {
-  const experiments = useLoaderData<LoaderExperiment[]>();
+  const data = useLoaderData<{ experiments: LoaderExperiment[]; currencyCode?: string | undefined }>();
+  const experiments = data.experiments;
   const revalidator = useRevalidator();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -355,7 +361,7 @@ export default function ABTestingPage() {
     );
   };
 
-  const money = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" });
+  const money = new Intl.NumberFormat(undefined, { style: "currency", currency: data.currencyCode || "USD" });
   const renderResults = () => {
     if (resultsLoading) {
       return <Text as="p">Crunching numbers…</Text>;
