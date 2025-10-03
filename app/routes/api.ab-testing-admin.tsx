@@ -29,9 +29,9 @@ export async function action({ request }: ActionFunctionArgs) {
         return json({ success: false, error: 'Invalid payload: experiment and 2 variants required' }, { status: 400 });
       }
 
-      // Validate variant traffic sums to 100
-      const sumPct = variants.reduce((acc, v) => acc + Number(v.trafficPercentage ?? 0), 0);
-      if (sumPct !== 100) {
+      // Validate variant traffic sums to 100 (accept both trafficPct and legacy trafficPercentage)
+      const sumPct = variants.reduce((acc, v) => acc + Number((v.trafficPct ?? v.trafficPercentage) ?? 0), 0);
+      if (Math.abs(sumPct - 100) > 0.001) {
         return json({ success: false, error: 'Variant traffic must sum to 100' }, { status: 400 });
       }
 
