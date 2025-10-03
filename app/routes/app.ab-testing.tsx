@@ -83,6 +83,7 @@ export default function ABTestingPage() {
   const [variantADesc, setVariantADesc] = useState<string>("");
   const [variantADiscountType, setVariantADiscountType] = useState<'percentage' | 'fixed'>("percentage");
   const [variantADiscountValue, setVariantADiscountValue] = useState<string>("0");
+  const [variantADiscountCode, setVariantADiscountCode] = useState<string>("");
   const [variantAFreeShipThreshold, setVariantAFreeShipThreshold] = useState<string>("0");
   const [variantABundleId, setVariantABundleId] = useState<string>("");
 
@@ -92,6 +93,7 @@ export default function ABTestingPage() {
   const [variantBDesc, setVariantBDesc] = useState<string>("");
   const [variantBDiscountType, setVariantBDiscountType] = useState<'percentage' | 'fixed'>("percentage");
   const [variantBDiscountValue, setVariantBDiscountValue] = useState<string>("10");
+  const [variantBDiscountCode, setVariantBDiscountCode] = useState<string>("");
   const [variantBFreeShipThreshold, setVariantBFreeShipThreshold] = useState<string>("0");
   const [variantBBundleId, setVariantBBundleId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
@@ -123,6 +125,7 @@ export default function ABTestingPage() {
     setVariantADesc("");
     setVariantADiscountType('percentage');
     setVariantADiscountValue('0');
+  setVariantADiscountCode("");
     setVariantAFreeShipThreshold('0');
     setVariantABundleId("");
     setVariantBName('Variant B');
@@ -130,6 +133,7 @@ export default function ABTestingPage() {
     setVariantBDesc("");
     setVariantBDiscountType('percentage');
     setVariantBDiscountValue('10');
+  setVariantBDiscountCode("");
     setVariantBFreeShipThreshold('0');
     setVariantBBundleId("");
     setActivateNow(true);
@@ -187,10 +191,9 @@ export default function ABTestingPage() {
         if (testType === 'discount') {
           const type = variant === 'A' ? variantADiscountType : variantBDiscountType;
           const val = variant === 'A' ? variantADiscountValue : variantBDiscountValue;
-          // Optional discount code mapping for checkout apply
-          const codeFieldId = variant === 'A' ? 'cu_variantA_discountCode' : 'cu_variantB_discountCode';
-          const codeEl = document.getElementById(codeFieldId) as HTMLInputElement | null;
-          const discountCode = codeEl?.value?.trim() || undefined;
+          // Optional discount code mapping for checkout apply (from state)
+          const rawCode = variant === 'A' ? variantADiscountCode : variantBDiscountCode;
+          const discountCode = rawCode && rawCode.trim() ? rawCode.trim() : undefined;
           return { discountType: type, discountValue: Number(val), ...(discountCode ? { discountCode } : {}) };
         }
         if (testType === 'free_shipping') {
@@ -485,7 +488,7 @@ export default function ABTestingPage() {
                     <FormLayout.Group>
                       <Select label="Discount Type" value={variantADiscountType} onChange={(v) => setVariantADiscountType(v as any)} options={[{ label: 'Percentage', value: 'percentage' }, { label: 'Fixed', value: 'fixed' }]} />
                       <TextField label="Discount Value" value={variantADiscountValue} onChange={setVariantADiscountValue} type="number" autoComplete="off" />
-                      <TextField id="cu_variantA_discountCode" label="Discount Code (optional)" value={(document.getElementById('cu_variantA_discountCode') as HTMLInputElement)?.value || ''} onChange={() => { /* value read at submit */ }} autoComplete="off" helpText="If provided, this code will be applied at checkout for Variant A" />
+                      <TextField id="cu_variantA_discountCode" label="Discount Code (optional)" value={variantADiscountCode} onChange={setVariantADiscountCode} autoComplete="off" helpText="If provided, this code will be applied at checkout for Variant A" />
                     </FormLayout.Group>
                   )}
                   {testType === 'free_shipping' && (
@@ -509,7 +512,7 @@ export default function ABTestingPage() {
                     <FormLayout.Group>
                       <Select label="Discount Type" value={variantBDiscountType} onChange={(v) => setVariantBDiscountType(v as any)} options={[{ label: 'Percentage', value: 'percentage' }, { label: 'Fixed', value: 'fixed' }]} />
                       <TextField label="Discount Value" value={variantBDiscountValue} onChange={setVariantBDiscountValue} type="number" autoComplete="off" />
-                      <TextField id="cu_variantB_discountCode" label="Discount Code (optional)" value={(document.getElementById('cu_variantB_discountCode') as HTMLInputElement)?.value || ''} onChange={() => { /* value read at submit */ }} autoComplete="off" helpText="If provided, this code will be applied at checkout for Variant B" />
+                      <TextField id="cu_variantB_discountCode" label="Discount Code (optional)" value={variantBDiscountCode} onChange={setVariantBDiscountCode} autoComplete="off" helpText="If provided, this code will be applied at checkout for Variant B" />
                     </FormLayout.Group>
                   )}
                   {testType === 'free_shipping' && (
