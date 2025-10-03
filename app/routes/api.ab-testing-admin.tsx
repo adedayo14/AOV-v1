@@ -1,4 +1,5 @@
 import { json, type ActionFunctionArgs } from "@remix-run/node";
+import { Prisma } from "@prisma/client";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
@@ -40,42 +41,31 @@ export async function action({ request }: ActionFunctionArgs) {
       }
 
       // Validate variant traffic sums to 100
-      const sumPct = variants.reduce((acc, v) => acc + Number(v.trafficPercentage || 0), 0);
+      const sumPct = variants.reduce((acc, v) => acc + Number(v.trafficPercentage ?? 0), 0);
       if (sumPct !== 100) {
         return json({ success: false, error: 'Variant traffic must sum to 100' }, { status: 400 });
       }
 
-      // Map inputs to Prisma fields (Decimal-capable fields will accept numbers)
-      const created = await prisma.aBExperiment.create({
+      const created = await prisma.experiment.create({
         data: {
           shopId: shop,
-          name: String(exp.name),
-          description: exp.description ?? null,
-          testType: String(exp.testType || 'discount'),
-          status: String(exp.status || 'draft'),
-          trafficAllocation: Number(exp.trafficAllocationPct ?? 100),
-          startDate: exp.startDate ? new Date(exp.startDate) : null,
+          name: String(exp.name ?? 'Untitled Experiment'),
+          status: exp.status ?? 'running',
+          startDate: exp.startDate ? new Date(exp.startDate) : new Date(),
           endDate: exp.endDate ? new Date(exp.endDate) : null,
-          primaryMetric: String(exp.primaryMetric || 'conversion_rate'),
-          confidenceLevel: Number(exp.confidenceLevelPct ?? 95) / 100, // store as decimal 0-1
-          minSampleSize: Number(exp.minSampleSize ?? 100),
+          attribution: exp.attributionWindow ?? 'session',
         },
       });
 
-      // Insert variants
-      for (const v of variants) {
-        const cfg = v.config || {};
-        await prisma.aBVariant.create({
-          data: {
-            experimentId: created.id,
-            name: String(v.name),
-            description: v.description ?? null,
-            isControl: Boolean(v.isControl),
-            trafficPercentage: Number(v.trafficPercentage),
-            configData: JSON.stringify(cfg),
-          },
-        });
-      }
+      await prisma.variant.createMany({
+        data: variants.map((v: any, idx: number) => ({
+          experimentId: created.id,
+          name: String(v.name ?? (idx === 0 ? 'Control' : `Variant ${idx}`)),
+          isControl: Boolean(v.isControl ?? idx === 0),
+          discountPct: new Prisma.Decimal(v.discountPct ?? 0),
+          trafficPct: new Prisma.Decimal(v.trafficPercentage ?? 0),
+        })),
+      });
 
       console.log("[api.ab-testing-admin] Experiment created successfully:", created.id);
       return json({ success: true, experimentId: created.id });
@@ -85,7 +75,7 @@ export async function action({ request }: ActionFunctionArgs) {
       const experimentId = Number(jsonData.experimentId);
       console.log("[api.ab-testing-admin] Deleting experiment:", experimentId);
       
-      await prisma.aBExperiment.delete({
+      await prisma.experiment.delete({
         where: { id: experimentId }
       });
       
@@ -110,20 +100,17 @@ export async function action({ request }: ActionFunctionArgs) {
         }
       }
 
-      // Update experiment metadata (only provided fields)
-      const expData: any = {};
+      // Update experiment metadata (only fields that exist on lean schema)
+      const expData: Record<string, unknown> = {};
       if (typeof exp.name === 'string') expData.name = exp.name;
-      if (typeof exp.description !== 'undefined') expData.description = exp.description ?? null;
       if (typeof exp.status === 'string') expData.status = exp.status;
-      if (typeof exp.trafficAllocationPct !== 'undefined') expData.trafficAllocation = Number(exp.trafficAllocationPct);
-      if (typeof exp.primaryMetric === 'string') expData.primaryMetric = exp.primaryMetric;
-      if (typeof exp.confidenceLevelPct !== 'undefined') expData.confidenceLevel = Number(exp.confidenceLevelPct) / 100;
-      if (typeof exp.minSampleSize !== 'undefined') expData.minSampleSize = Number(exp.minSampleSize);
       if (typeof exp.startDate !== 'undefined') expData.startDate = exp.startDate ? new Date(exp.startDate) : null;
       if (typeof exp.endDate !== 'undefined') expData.endDate = exp.endDate ? new Date(exp.endDate) : null;
+      if (typeof exp.attributionWindow === 'string') expData.attribution = exp.attributionWindow;
+      if (typeof exp.activeVariantId !== 'undefined') expData.activeVariantId = exp.activeVariantId ?? null;
 
       if (Object.keys(expData).length > 0) {
-        await prisma.aBExperiment.update({
+        await prisma.experiment.update({
           where: { id: experimentId },
           data: expData,
         });
@@ -133,15 +120,14 @@ export async function action({ request }: ActionFunctionArgs) {
       if (Array.isArray(variants) && variants.length > 0) {
         for (const v of variants) {
           if (!v.id) continue;
-          const data: any = {};
+          const data: Record<string, unknown> = {};
           if (typeof v.name === 'string') data.name = v.name;
-          if (typeof v.description !== 'undefined') data.description = v.description ?? null;
           if (typeof v.isControl !== 'undefined') data.isControl = !!v.isControl;
-          if (typeof v.trafficPercentage !== 'undefined') data.trafficPercentage = Number(v.trafficPercentage);
-          if (typeof v.config !== 'undefined') data.configData = JSON.stringify(v.config || {});
+          if (typeof v.trafficPercentage !== 'undefined') data.trafficPct = new Prisma.Decimal(v.trafficPercentage);
+          if (typeof v.discountPct !== 'undefined') data.discountPct = new Prisma.Decimal(v.discountPct);
 
           if (Object.keys(data).length > 0) {
-            await prisma.aBVariant.update({
+            await prisma.variant.update({
               where: { id: Number(v.id) },
               data,
             });

@@ -1,771 +1,539 @@
-import { useState, useEffect } from "react";
-import { json, LoaderFunction } from "@remix-run/node";
+import { useState } from "react";
+import type { LoaderFunctionArgs } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { useLoaderData, useRevalidator } from "@remix-run/react";
 import {
   Page,
   Layout,
+  Card,
   Button,
   Modal,
-  Form,
-  FormLayout,
   TextField,
-  Text,
-  EmptyState,
-  Card,
   InlineStack,
   BlockStack,
+  Text,
   Badge,
-  ButtonGroup,
+  EmptyState,
   Banner,
+  FormLayout,
   Select,
-  Checkbox,
+  ButtonGroup,
 } from "@shopify/polaris";
+import type { BadgeProps } from "@shopify/polaris";
+import { Prisma } from "@prisma/client";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
-// This interface matches the data structure after JSON serialization from the loader.
-// Prisma's Decimal and Date types are converted to strings.
-interface SerializedABVariant {
+type LoaderVariant = {
   id: number;
   name: string;
-  description: string | null;
   isControl: boolean;
-  trafficPercentage: number;
-  configData?: any | null;
-}
+  discountPct: number;
+  trafficPct: number;
+};
 
-interface SerializedABExperiment {
+type LoaderExperiment = {
   id: number;
   name: string;
   status: string;
-  testType: string;
-  createdAt: string;
-  updatedAt: string;
-  shopId: string;
-  description: string | null;
-  trafficAllocation: string;
   startDate: string | null;
   endDate: string | null;
-  variants: SerializedABVariant[];
-  createdBy: string | null;
-}
+  attribution: string;
+  createdAt: string;
+  updatedAt: string;
+  activeVariantId: number | null;
+  variants: LoaderVariant[];
+};
 
-// Loader to fetch existing experiments
-export const loader: LoaderFunction = async ({ request }) => {
-  try {
-    await authenticate.admin(request);
-    const experiments = await prisma.aBExperiment.findMany({
-      orderBy: { createdAt: "desc" },
-      include: {
-        variants: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            isControl: true,
-            trafficPercentage: true,
-            // Prisma JSON column may be named configData (as per backend create)
-            configData: true,
-          }
-        }
-      }
-    });
-    // Serialize Date/Decimal/JSON fields to be JSON-safe
-    const serialized = experiments.map((exp) => ({
-      id: exp.id,
-      name: exp.name,
-      status: exp.status,
-      testType: exp.testType,
-      createdAt: exp.createdAt.toISOString(),
-      updatedAt: exp.updatedAt.toISOString(),
-      shopId: exp.shopId,
-      description: exp.description,
-      trafficAllocation: (exp as any).trafficAllocation?.toString?.() || String((exp as any).trafficAllocation ?? ''),
-      startDate: exp.startDate ? exp.startDate.toISOString() : null,
-      endDate: exp.endDate ? exp.endDate.toISOString() : null,
-      createdBy: (exp as any).createdBy ?? null,
-  variants: (exp.variants || []).map((v: any) => ({
-        id: v.id,
-        name: v.name,
-        description: v.description,
-        isControl: v.isControl,
-        trafficPercentage: typeof v.trafficPercentage === 'object' && v.trafficPercentage?.toNumber ? v.trafficPercentage.toNumber() : Number(v.trafficPercentage ?? 0),
-        configData: (() => {
-          try {
-            // Already an object
-            if (v.configData && typeof v.configData === 'object') return v.configData;
-            if (typeof v.configData === 'string') return JSON.parse(v.configData);
-          } catch (_e) { /* no-op */ }
-          return v.configData ?? null;
-        })()
-      }))
-    }));
-    return json(serialized);
-  } catch (error) {
-    console.error("Error loading A/B experiments:", error);
-    return json([]);
+type ResultsVariant = {
+  variantId: number;
+  variantName: string;
+  isControl: boolean;
+  discountPct: number;
+  trafficPct: number;
+  visitors: number;
+  conversions: number;
+  revenue: number;
+  conversionRate: number;
+  revenuePerVisitor: number;
+};
+
+type ResultsPayload = {
+  experiment: {
+    id: number;
+    name: string;
+    metric: string;
+  };
+  start: string;
+  end: string;
+  results: ResultsVariant[];
+  leader: number | null;
+};
+
+const toNumber = (value: Prisma.Decimal | number | string | null | undefined): number => {
+  if (typeof value === "number") return value;
+  if (!value) return 0;
+  if (typeof value === "string") return Number(value) || 0;
+  if (typeof value === "object" && "toNumber" in value && typeof value.toNumber === "function") {
+    return value.toNumber();
   }
+  return Number(value) || 0;
+};
+
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  await authenticate.admin(request);
+
+  const experiments = await prisma.experiment.findMany({
+    orderBy: { createdAt: "desc" },
+    include: {
+      variants: {
+        orderBy: [{ isControl: "desc" }, { id: "asc" }],
+      },
+    },
+  });
+
+  const serialized: LoaderExperiment[] = experiments.map((exp): LoaderExperiment => ({
+    id: exp.id,
+    name: exp.name,
+    status: exp.status,
+    startDate: exp.startDate ? exp.startDate.toISOString() : null,
+    endDate: exp.endDate ? exp.endDate.toISOString() : null,
+    attribution: exp.attribution,
+    createdAt: exp.createdAt.toISOString(),
+    updatedAt: exp.updatedAt.toISOString(),
+    activeVariantId: exp.activeVariantId ?? null,
+    variants: exp.variants.map((variant): LoaderVariant => ({
+      id: variant.id,
+      name: variant.name,
+      isControl: variant.isControl,
+      discountPct: toNumber(variant.discountPct),
+      trafficPct: toNumber(variant.trafficPct),
+    })),
+  }));
+
+  return json(serialized);
 };
 
 export default function ABTestingPage() {
-  const experiments = useLoaderData<SerializedABExperiment[]>();
+  const experiments = useLoaderData<LoaderExperiment[]>();
   const revalidator = useRevalidator();
 
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [experimentName, setExperimentName] = useState("");
-  const [experimentDescription, setExperimentDescription] = useState("");
-  const [testType, setTestType] = useState<'discount' | 'free_shipping' | 'bundle'>("discount");
-  const [primaryMetric, setPrimaryMetric] = useState<'conversion_rate' | 'average_order_value' | 'revenue_per_visitor'>("conversion_rate");
-  const [confidenceLevelPct, setConfidenceLevelPct] = useState<string>("95");
-  const [minSampleSize, setMinSampleSize] = useState<string>("100");
-  const [trafficAllocationPct, setTrafficAllocationPct] = useState<string>("100");
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
-
-  // Variant A (Control)
-  const [variantAName, setVariantAName] = useState<string>("Control");
-  const [variantAPct, setVariantAPct] = useState<string>("50");
-  const [variantADesc, setVariantADesc] = useState<string>("");
-  const [variantADiscountType, setVariantADiscountType] = useState<'percentage' | 'fixed'>("percentage");
-  const [variantADiscountValue, setVariantADiscountValue] = useState<string>("0");
-  const [variantADiscountCode, setVariantADiscountCode] = useState<string>("");
-  const [variantAFreeShipThreshold, setVariantAFreeShipThreshold] = useState<string>("0");
-  const [variantABundleId, setVariantABundleId] = useState<string>("");
-
-  // Variant B (Challenger)
-  const [variantBName, setVariantBName] = useState<string>("Variant B");
-  const [variantBPct, setVariantBPct] = useState<string>("50");
-  const [variantBDesc, setVariantBDesc] = useState<string>("");
-  const [variantBDiscountType, setVariantBDiscountType] = useState<'percentage' | 'fixed'>("percentage");
-  const [variantBDiscountValue, setVariantBDiscountValue] = useState<string>("10");
-  const [variantBDiscountCode, setVariantBDiscountCode] = useState<string>("");
-  const [variantBFreeShipThreshold, setVariantBFreeShipThreshold] = useState<string>("0");
-  const [variantBBundleId, setVariantBBundleId] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isClient, setIsClient] = useState(false);
-  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
-  const [showErrorBanner, setShowErrorBanner] = useState(false);
-  const [bannerMessage, setBannerMessage] = useState("");
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [controlDiscount, setControlDiscount] = useState("0");
+  const [variantDiscount, setVariantDiscount] = useState("10");
+  const [variantName, setVariantName] = useState("Stronger Offer");
+  const [attributionWindow, setAttributionWindow] = useState("session");
   const [activateNow, setActivateNow] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
+  const [successBanner, setSuccessBanner] = useState<string | null>(null);
 
-  // Details modal state
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [detailsExp, setDetailsExp] = useState<SerializedABExperiment | null>(null);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editExp, setEditExp] = useState<SerializedABExperiment | null>(null);
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [resultsModalOpen, setResultsModalOpen] = useState(false);
+  const [selectedExperiment, setSelectedExperiment] = useState<LoaderExperiment | null>(null);
+  const [resultsPayload, setResultsPayload] = useState<ResultsPayload | null>(null);
+  const [resultsError, setResultsError] = useState<string | null>(null);
+  const [resultsLoading, setResultsLoading] = useState(false);
 
-  // Fix React #418 hydration errors by rendering dates/badges only on client
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Ensure form submission doesn't trigger a native submit/reload in embedded context
-  const handleSubmitCreate = (e?: any) => {
-    try { e?.preventDefault?.(); } catch (_) { /* no-op */ }
-    handleCreateExperiment();
-  };
-
-  const handleOpenCreateModal = () => setIsCreateModalOpen(true);
-  const handleCloseCreateModal = () => {
-    setIsCreateModalOpen(false);
-    setExperimentName("");
-    setExperimentDescription("");
-    setTestType('discount');
-    setPrimaryMetric('conversion_rate');
-    setConfidenceLevelPct('95');
-    setMinSampleSize('100');
-    setTrafficAllocationPct('100');
-    setStartDate("");
-    setEndDate("");
-    setVariantAName('Control');
-    setVariantAPct('50');
-    setVariantADesc("");
-    setVariantADiscountType('percentage');
-    setVariantADiscountValue('0');
-  setVariantADiscountCode("");
-    setVariantAFreeShipThreshold('0');
-    setVariantABundleId("");
-    setVariantBName('Variant B');
-    setVariantBPct('50');
-    setVariantBDesc("");
-    setVariantBDiscountType('percentage');
-    setVariantBDiscountValue('10');
-  setVariantBDiscountCode("");
-    setVariantBFreeShipThreshold('0');
-    setVariantBBundleId("");
+  const resetCreateForm = () => {
+    setNewName("");
+    setControlDiscount("0");
+    setVariantDiscount("10");
+    setVariantName("Stronger Offer");
+    setAttributionWindow("session");
     setActivateNow(true);
   };
 
-  const handleCreateExperiment = async () => {
-    if (!experimentName.trim()) {
-      setShowErrorBanner(true);
-      setBannerMessage("Experiment name is required.");
-      setTimeout(() => setShowErrorBanner(false), 3000);
+  const closeCreateModal = () => {
+    setCreateModalOpen(false);
+    resetCreateForm();
+  };
+
+  const handleCreate = async () => {
+    setErrorBanner(null);
+    setSuccessBanner(null);
+
+    if (!newName.trim()) {
+      setErrorBanner("Give your experiment a name so the team knows what you're testing.");
       return;
     }
-    // Validate variant percentages sum to 100
-    const aPct = Number(variantAPct);
-    const bPct = Number(variantBPct);
-    if (Number.isNaN(aPct) || Number.isNaN(bPct) || aPct + bPct !== 100) {
-      setShowErrorBanner(true);
-      setBannerMessage("Variant traffic must sum to 100%.");
-      setTimeout(() => setShowErrorBanner(false), 4000);
+
+    const controlPct = Number(controlDiscount);
+    const challengerPct = Number(variantDiscount);
+
+    if (Number.isNaN(controlPct) || Number.isNaN(challengerPct)) {
+      setErrorBanner("Discount percentages must be numbers.");
       return;
     }
-    // Validate numeric inputs
-    if (Number.isNaN(Number(confidenceLevelPct)) || Number.isNaN(Number(minSampleSize)) || Number.isNaN(Number(trafficAllocationPct))) {
-      setShowErrorBanner(true);
-      setBannerMessage("Please enter valid numbers for confidence level, sample size, and traffic allocation.");
-      setTimeout(() => setShowErrorBanner(false), 4000);
+
+    if (controlPct < 0 || challengerPct < 0 || controlPct > 100 || challengerPct > 100) {
+      setErrorBanner("Discount percentages should be between 0 and 100.");
       return;
     }
-    setIsLoading(true);
-    setShowErrorBanner(false);
-    setShowSuccessBanner(false);
-    console.log("[A/B Testing UI] Starting experiment creation...");
+
+    setIsSaving(true);
 
     try {
-      // Get shop from URL (same as Settings pattern)
-      const urlParams = new URLSearchParams(window.location.search);
-      const shop = urlParams.get('shop') || '';
-      const sessionToken = urlParams.get('id_token') || '';
-      
-      // Build experiment + variants payload
-      const exp = {
-        name: experimentName.trim(),
-        description: experimentDescription.trim() || null,
-        testType,
-        primaryMetric,
-        confidenceLevelPct: Number(confidenceLevelPct),
-        minSampleSize: Number(minSampleSize),
-        trafficAllocationPct: Number(trafficAllocationPct),
-        startDate: startDate || null,
-        endDate: endDate || null,
-        status: activateNow ? 'active' as const : 'draft' as const,
-      };
+      const params = new URLSearchParams(window.location.search);
+      const shop = params.get("shop") || "";
+      const sessionToken = params.get("id_token") || "";
 
-      const variantConfigs = (variant: 'A' | 'B') => {
-        if (testType === 'discount') {
-          const type = variant === 'A' ? variantADiscountType : variantBDiscountType;
-          const val = variant === 'A' ? variantADiscountValue : variantBDiscountValue;
-          // Optional discount code mapping for checkout apply (from state)
-          const rawCode = variant === 'A' ? variantADiscountCode : variantBDiscountCode;
-          const discountCode = rawCode && rawCode.trim() ? rawCode.trim() : undefined;
-          return { discountType: type, discountValue: Number(val), ...(discountCode ? { discountCode } : {}) };
-        }
-        if (testType === 'free_shipping') {
-          const thr = variant === 'A' ? variantAFreeShipThreshold : variantBFreeShipThreshold;
-          return { freeShippingThreshold: Number(thr) };
-        }
-        if (testType === 'bundle') {
-          const id = variant === 'A' ? variantABundleId : variantBBundleId;
-          return { bundleId: id };
-        }
-        return {};
-      };
-
-      const variants = [
-        {
-          name: variantAName.trim() || 'Control',
-          description: variantADesc.trim() || null,
-          isControl: true,
-          trafficPercentage: Number(variantAPct),
-          config: variantConfigs('A'),
+      const payload = {
+        action: "create",
+        shop,
+        experiment: {
+          name: newName.trim(),
+          status: activateNow ? "running" : "paused",
+          startDate: activateNow ? new Date().toISOString() : null,
+          endDate: null,
+          attributionWindow,
         },
-        {
-          name: variantBName.trim() || 'Variant B',
-          description: variantBDesc.trim() || null,
-          isControl: false,
-          trafficPercentage: Number(variantBPct),
-          config: variantConfigs('B'),
-        }
-      ];
+        variants: [
+          {
+            name: "Control",
+            isControl: true,
+            trafficPercentage: 50,
+            discountPct: controlPct,
+          },
+          {
+            name: variantName.trim() || "Variant",
+            isControl: false,
+            trafficPercentage: 50,
+            discountPct: challengerPct,
+          },
+        ],
+      };
 
-      const payload = { action: 'create', shop, experiment: exp, variants };
-
-      const endpoint = `${window.location.origin}/api/ab-testing-admin`;
-      console.log("[A/B Testing UI] Sending request to", endpoint);
-      console.log("[A/B Testing UI] Payload:", payload);
-      console.log("[A/B Testing UI] Session token present:", !!sessionToken);
-      console.log("[A/B Testing UI] Current URL:", window.location.href);
-      
-      // Add timeout to avoid hanging forever
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
-      
-      const response = await fetch(endpoint, {
+
+      const response = await fetch(`${window.location.origin}/api/ab-testing-admin`, {
         method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {}),
-          'X-Requested-With': 'XMLHttpRequest',
+          "Content-Type": "application/json",
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+          "X-Requested-With": "XMLHttpRequest",
         },
         body: JSON.stringify(payload),
         signal: controller.signal,
       });
+
       clearTimeout(timeout);
 
-      console.log(`[A/B Testing UI] Received response with status: ${response.status}`);
-      console.log('[A/B Testing UI] Response headers:', Object.fromEntries(response.headers.entries()));
-      
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[A/B Testing UI] Server responded with an error:", errorText);
-        throw new Error(`Server error: ${response.statusText}`);
+        const text = await response.text();
+        console.error("[ABTesting] Create failed:", text);
+        throw new Error("Server error while creating experiment");
       }
 
-      const result = await response.json();
-      console.log("[A/B Testing UI] Experiment created successfully:", result);
-      
-      setShowSuccessBanner(true);
-      setBannerMessage("Experiment created successfully!");
-      handleCloseCreateModal();
-      // Soft refresh via Remix to avoid hard reloads (prevents transient 404s)
-  try { revalidator.revalidate(); } catch (_e) { /* no-op */ }
-
+      await response.json();
+      setSuccessBanner("Experiment launched. Give it a few minutes to start collecting assignments.");
+      closeCreateModal();
+      revalidator.revalidate();
     } catch (error) {
-      console.error("[A/B Testing UI] An error occurred during fetch:", error);
-      if ((error as any)?.name === 'AbortError') {
-        console.error('[A/B Testing UI] Request aborted due to timeout');
-      }
-      setShowErrorBanner(true);
-      setBannerMessage("Failed to create experiment.");
-      setTimeout(() => setShowErrorBanner(false), 5000);
+      console.error("[ABTesting] Create error", error);
+      setErrorBanner("We couldn't create that experiment. Try again in a moment.");
     } finally {
-      setIsLoading(false);
-      console.log("[A/B Testing UI] Experiment creation process finished.");
+      setIsSaving(false);
     }
   };
 
-  const handleDeleteExperiment = async (experimentId: number) => {
-    console.log('[A/B Testing UI] Delete button clicked for experiment:', experimentId);
-    
-    if (!confirm('Are you sure you want to delete this experiment?')) {
-      console.log('[A/B Testing UI] User cancelled delete');
-      return;
-    }
-    
-    setShowErrorBanner(false);
-    setShowSuccessBanner(false);
-    
-    try {
-      const url = new URL(window.location.href);
-      const shop = url.searchParams.get('shop');
-      const sessionToken = url.searchParams.get('id_token') || '';
-      console.log('[A/B Testing UI] Shop parameter:', shop);
-      
-      const payload = { action: 'delete', experimentId, shop };
-      console.log('[A/B Testing UI] Sending delete request with payload:', payload);
-      const endpoint = `${window.location.origin}/api/ab-testing-admin`;
-      console.log('[A/B Testing UI] Delete endpoint:', endpoint);
-      console.log('[A/B Testing UI] Session token present:', !!sessionToken);
-      
-      // Add timeout to avoid hanging forever
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
+  const handleDelete = async (experimentId: number) => {
+    const confirmation = typeof window !== "undefined" ? window.confirm("Delete this experiment? Historical data stays in the warehouse.") : false;
+    if (!confirmation) return;
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
+    setErrorBanner(null);
+    setSuccessBanner(null);
+
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const shop = params.get("shop") || "";
+      const sessionToken = params.get("id_token") || "";
+
+      const response = await fetch(`${window.location.origin}/api/ab-testing-admin`, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {}),
-          'X-Requested-With': 'XMLHttpRequest',
+          "Content-Type": "application/json",
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+          "X-Requested-With": "XMLHttpRequest",
         },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
+        body: JSON.stringify({ action: "delete", experimentId, shop }),
       });
-      clearTimeout(timeout);
-      
-      console.log('[A/B Testing UI] Delete response status:', response.status);
-      console.log('[A/B Testing UI] Delete response headers:', Object.fromEntries(response.headers.entries()));
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('[A/B Testing UI] Delete successful:', result);
-        
-        setShowSuccessBanner(true);
-        setBannerMessage('Experiment deleted successfully');
-        
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      } else {
-        const errorText = await response.text();
-        console.error('[A/B Testing UI] Delete failed:', errorText);
-        
-        setShowErrorBanner(true);
-        setBannerMessage('Failed to delete experiment');
-        setTimeout(() => setShowErrorBanner(false), 5000);
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("[ABTesting] Delete failed:", text);
+        throw new Error("Delete request failed");
       }
+
+      setSuccessBanner("Experiment deleted");
+      revalidator.revalidate();
     } catch (error) {
-      console.error('[A/B Testing UI] Delete error:', error);
-      if ((error as any)?.name === 'AbortError') {
-        console.error('[A/B Testing UI] Delete request aborted due to timeout');
-      }
-      
-      setShowErrorBanner(true);
-      setBannerMessage('Failed to delete experiment');
-      setTimeout(() => setShowErrorBanner(false), 5000);
+      console.error("[ABTesting] Delete error", error);
+      setErrorBanner("We couldn't delete that experiment. Refresh and try again.");
     }
+  };
+
+  const openResultsModal = async (experiment: LoaderExperiment) => {
+    setSelectedExperiment(experiment);
+    setResultsPayload(null);
+    setResultsError(null);
+    setResultsLoading(true);
+    setResultsModalOpen(true);
+
+    try {
+      const response = await fetch(`/api/ab-results?experimentId=${experiment.id}&period=7d`);
+      if (!response.ok) {
+        throw new Error(`Failed to load results (${response.status})`);
+      }
+      const data: ResultsPayload = await response.json();
+      setResultsPayload(data);
+    } catch (error) {
+      console.error("[ABTesting] Results error", error);
+      setResultsError("Results aren't ready yet. Give it a little longer.");
+    } finally {
+      setResultsLoading(false);
+    }
+  };
+
+  const closeResultsModal = () => {
+    setResultsModalOpen(false);
+    setResultsPayload(null);
+    setResultsError(null);
+    setSelectedExperiment(null);
+  };
+
+  const renderExperimentCard = (experiment: LoaderExperiment) => {
+    const statusTone: BadgeProps["tone"] = experiment.status === "running"
+      ? "success"
+      : experiment.status === "completed"
+        ? "attention"
+        : "critical";
+    const control = experiment.variants.find((variant) => variant.isControl);
+    const challenger = experiment.variants.find((variant) => !variant.isControl);
+
+    return (
+      <Card key={experiment.id} padding="400">
+        <BlockStack gap="400">
+          <InlineStack align="space-between">
+            <BlockStack gap="200">
+              <Text variant="headingMd" as="h2">{experiment.name}</Text>
+              <InlineStack gap="200">
+                <Badge tone={statusTone}>{experiment.status}</Badge>
+                <Badge tone="info">{`Attribution: ${experiment.attribution}`}</Badge>
+              </InlineStack>
+            </BlockStack>
+            <ButtonGroup>
+              <Button onClick={() => openResultsModal(experiment)}>View results</Button>
+              <Button tone="critical" onClick={() => handleDelete(experiment.id)}>
+                Delete
+              </Button>
+            </ButtonGroup>
+          </InlineStack>
+
+          <InlineStack gap="400" wrap>
+            {control && (
+              <Card key={`${experiment.id}-control`} background="bg-surface-secondary" padding="400">
+                <BlockStack gap="150">
+                  <Text variant="headingSm" as="h3">Control</Text>
+                  <Text as="p" tone="subdued">Discount: {control.discountPct}%</Text>
+                  <Text as="p" tone="subdued">Traffic: {control.trafficPct}%</Text>
+                </BlockStack>
+              </Card>
+            )}
+            {challenger && (
+              <Card key={`${experiment.id}-challenger`} background="bg-surface-secondary" padding="400">
+                <BlockStack gap="150">
+                  <Text variant="headingSm" as="h3">{challenger.name}</Text>
+                  <Text as="p" tone="subdued">Discount: {challenger.discountPct}%</Text>
+                  <Text as="p" tone="subdued">Traffic: {challenger.trafficPct}%</Text>
+                </BlockStack>
+              </Card>
+            )}
+          </InlineStack>
+        </BlockStack>
+      </Card>
+    );
+  };
+
+  const renderResults = () => {
+    if (resultsLoading) {
+      return <Text as="p">Crunching numbers…</Text>;
+    }
+
+    if (resultsError) {
+      return <Banner tone="critical" title="No recommendation just yet">{resultsError}</Banner>;
+    }
+
+    if (!resultsPayload) {
+      return <Text as="p">No data yet.</Text>;
+    }
+
+    const { results, leader, start, end } = resultsPayload;
+
+    return (
+      <BlockStack gap="400">
+        <Text as="p" tone="subdued">
+          Window: {new Date(start).toLocaleDateString()} - {new Date(end).toLocaleDateString()}
+        </Text>
+        {results.map((variant: ResultsVariant) => {
+          const isLeader = leader === variant.variantId;
+          return (
+            <Card key={variant.variantId} padding="400">
+              <BlockStack gap="200">
+                <InlineStack align="space-between" blockAlign="start">
+                  <BlockStack gap="100">
+                    <InlineStack gap="200" align="center">
+                      <Text variant="headingSm" as="h3">{variant.variantName}</Text>
+                      {isLeader && <Badge tone="success">Recommended</Badge>}
+                    </InlineStack>
+                    <InlineStack gap="400">
+                      <Text as="p" tone="subdued">Visitors: {variant.visitors}</Text>
+                      <Text as="p" tone="subdued">Orders: {variant.conversions}</Text>
+                      <Text as="p" tone="subdued">Revenue: ${variant.revenue.toFixed(2)}</Text>
+                    </InlineStack>
+                  </BlockStack>
+                  <BlockStack gap="150" align="end">
+                    <Text as="p">Revenue / visitor: ${variant.revenuePerVisitor.toFixed(2)}</Text>
+                    <Text as="p">Conversion rate: {(variant.conversionRate * 100).toFixed(2)}%</Text>
+                  </BlockStack>
+                </InlineStack>
+              </BlockStack>
+            </Card>
+          );
+        })}
+      </BlockStack>
+    );
   };
 
   return (
     <Page
-      title="A/B Testing"
-      subtitle="✅ UPDATED Oct 3, 2025 - NO App Bridge - Direct fetch like Settings"
+      title="Discount Experiments"
       primaryAction={{
-        content: "Create Experiment",
-        onAction: handleOpenCreateModal
+        content: "New experiment",
+        onAction: () => setCreateModalOpen(true),
       }}
     >
       <Layout>
-        {showSuccessBanner && (
-          <Layout.Section>
-            <Banner tone="success" onDismiss={() => setShowSuccessBanner(false)}>
-              {bannerMessage}
-            </Banner>
-          </Layout.Section>
-        )}
-        {showErrorBanner && (
-          <Layout.Section>
-            <Banner tone="critical" onDismiss={() => setShowErrorBanner(false)}>
-              {bannerMessage}
-            </Banner>
-          </Layout.Section>
-        )}
         <Layout.Section>
-          {experiments.length > 0 ? (
-            <Card>
-              <BlockStack gap="400">
-                {experiments.map((exp) => (
-                  <Card key={exp.id}>
-                    <BlockStack gap="300">
-                      <InlineStack align="space-between" blockAlign="center">
-                        <BlockStack gap="200">
-                          <Text variant="headingMd" as="h3">{exp.name}</Text>
-                          {isClient && (
-                            <InlineStack gap="200">
-                              <Badge tone={exp.status === 'active' ? 'success' : exp.status === 'paused' ? 'warning' : 'info'}>
-                                {exp.status.charAt(0).toUpperCase() + exp.status.slice(1)}
-                              </Badge>
-                              <Text as="span" tone="subdued">Type: {exp.testType}</Text>
-                              <Text as="span" tone="subdued">Created: {new Date(exp.createdAt).toLocaleDateString()}</Text>
-                            </InlineStack>
-                          )}
-                        </BlockStack>
-                        <ButtonGroup>
-                          <Button size="slim" onClick={() => { setDetailsExp(exp); setIsDetailsOpen(true); }}>View Details</Button>
-                          <Button size="slim" onClick={() => { setEditExp(exp); setIsEditOpen(true); }}>Edit</Button>
-                          <Button 
-                            size="slim" 
-                            tone="critical" 
-                            onClick={() => handleDeleteExperiment(exp.id)}
-                          >
-                            Delete
-                          </Button>
-                        </ButtonGroup>
-                      </InlineStack>
-                    </BlockStack>
-                  </Card>
-                ))}
-              </BlockStack>
-            </Card>
-          ) : (
-            <Card>
+          {errorBanner && (
+            <Banner tone="critical" title="Something went wrong" onDismiss={() => setErrorBanner(null)}>
+              {errorBanner}
+            </Banner>
+          )}
+          {successBanner && (
+            <Banner tone="success" title="All set" onDismiss={() => setSuccessBanner(null)}>
+              {successBanner}
+            </Banner>
+          )}
+        </Layout.Section>
+
+        <Layout.Section>
+          {experiments.length === 0 ? (
+            <Card padding="400">
               <EmptyState
-                heading="No A/B experiments yet"
-                action={{ content: "Create Experiment", onAction: handleOpenCreateModal }}
-                image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                heading="Launch your first test"
+                action={{ content: "Create experiment", onAction: () => setCreateModalOpen(true) }}
+                image="https://cdn.shopify.com/s/files/1/0780/2207/collections/empty-state.svg"
               >
-                <p>Create your first A/B test to compare different strategies and boost your sales.</p>
+                Try a simple price incentive: keep one drawer as-is, and offer a sweeter discount to half of shoppers.
               </EmptyState>
             </Card>
+          ) : (
+            <BlockStack gap="400">
+              {experiments.map((experiment) => renderExperimentCard(experiment))}
+            </BlockStack>
           )}
         </Layout.Section>
       </Layout>
 
-      {/* Details Modal */}
       <Modal
-        open={isDetailsOpen}
-        onClose={() => { setIsDetailsOpen(false); setDetailsExp(null); }}
-        title={detailsExp ? `Experiment: ${detailsExp.name}` : 'Experiment Details'}
-        primaryAction={{ content: 'Close', onAction: () => { setIsDetailsOpen(false); setDetailsExp(null); } }}
-      >
-        <Modal.Section>
-          {detailsExp ? (
-            <BlockStack gap="400">
-              <Text as="p">Status: <b>{detailsExp.status}</b></Text>
-              <Text as="p">Type: <b>{detailsExp.testType}</b></Text>
-              {detailsExp.description ? <Text as="p">Description: {detailsExp.description}</Text> : null}
-              {isClient && (
-                <Text as="p" tone="subdued">Created: {new Date(detailsExp.createdAt).toLocaleString()}</Text>
-              )}
-              <Card>
-                <BlockStack gap="300">
-                  <Text variant="headingSm" as="h4">Variants</Text>
-                  {(detailsExp.variants || []).map((v) => (
-                    <Card key={v.id}>
-                      <BlockStack gap="200">
-                        <InlineStack align="space-between" blockAlign="center">
-                          <Text as="h5" variant="headingSm">{v.name} {v.isControl ? '(Control)' : ''}</Text>
-                          <Badge tone={v.isControl ? 'success' : 'info'}>{`${v.trafficPercentage}%`}</Badge>
-                        </InlineStack>
-                        {v.description ? <Text as="p" tone="subdued">{v.description}</Text> : null}
-                        {v.configData ? (
-                          <Text as="p">Config: <code>{JSON.stringify(v.configData)}</code></Text>
-                        ) : (
-                          <Text as="p" tone="subdued">No variant config</Text>
-                        )}
-                      </BlockStack>
-                    </Card>
-                  ))}
-                </BlockStack>
-              </Card>
-            </BlockStack>
-          ) : (
-            <Text as="p">Loading…</Text>
-          )}
-        </Modal.Section>
-      </Modal>
-
-      {/* Edit Modal - user friendly */}
-      <Modal
-        open={isEditOpen}
-        onClose={() => { setIsEditOpen(false); setEditExp(null); }}
-        title={editExp ? `Edit: ${editExp.name}` : 'Edit Experiment'}
+        open={createModalOpen}
+        onClose={closeCreateModal}
+        title="Create experiment"
         primaryAction={{
-          content: isSavingEdit ? 'Saving…' : 'Save Changes',
-          loading: isSavingEdit,
-          onAction: async () => {
-            if (!editExp) return;
-            try {
-              setIsSavingEdit(true);
-              const urlParams = new URLSearchParams(window.location.search);
-              const shop = urlParams.get('shop') || '';
-              const sessionToken = urlParams.get('id_token') || '';
-
-              // Build variants "config" based on test type for friendlier editing
-              const editedVariants = (editExp.variants || []).map(v => {
-                // Normalize configData
-                const cfg = v.configData || {};
-                return {
-                  id: v.id,
-                  name: v.name,
-                  description: v.description,
-                  isControl: v.isControl,
-                  trafficPercentage: v.trafficPercentage,
-                  config: cfg,
-                };
-              });
-
-              const payload = {
-                action: 'update',
-                shop,
-                experimentId: editExp.id,
-                experiment: {
-                  name: editExp.name,
-                  description: editExp.description,
-                  status: editExp.status,
-                },
-                variants: editedVariants,
-              };
-
-              const controller = new AbortController();
-              const timeout = setTimeout(() => controller.abort(), 15000);
-              const resp = await fetch(`${window.location.origin}/api/ab-testing-admin`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {}),
-                  'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: JSON.stringify(payload),
-                signal: controller.signal,
-              });
-              clearTimeout(timeout);
-              if (!resp.ok) throw new Error(await resp.text());
-              setIsEditOpen(false);
-              setEditExp(null);
-              try { revalidator.revalidate(); } catch (_e) { /* ignore */ }
-              setShowSuccessBanner(true);
-              setBannerMessage('Experiment updated');
-            } catch (_e) {
-              setShowErrorBanner(true);
-              setBannerMessage('Failed to save changes');
-              setTimeout(() => setShowErrorBanner(false), 4000);
-            } finally {
-              setIsSavingEdit(false);
-            }
-          }
+          content: isSaving ? "Saving…" : "Launch experiment",
+          onAction: handleCreate,
+          disabled: isSaving,
         }}
-        secondaryActions={[{ content: 'Cancel', onAction: () => { setIsEditOpen(false); setEditExp(null); } }]}
+        secondaryActions={[{ content: "Cancel", onAction: closeCreateModal }]}
       >
         <Modal.Section>
-          {editExp ? (
-            <FormLayout>
-              <TextField label="Name" value={editExp.name} onChange={(v) => setEditExp({ ...editExp, name: v })} autoComplete="off" />
-              <TextField label="Description" value={editExp.description || ''} onChange={(v) => setEditExp({ ...editExp, description: v })} autoComplete="off" multiline={2} />
-              <Select label="Status" value={editExp.status} onChange={(v) => setEditExp({ ...editExp, status: v as any })} options={[
-                { label: 'Active', value: 'active' },
-                { label: 'Paused', value: 'paused' },
-                { label: 'Draft', value: 'draft' },
-              ]} />
-
-              <Card>
-                <BlockStack gap="300">
-                  <Text as="h3" variant="headingSm">Variants</Text>
-                  {(editExp.variants || []).map((v, idx) => (
-                    <Card key={v.id}>
-                      <FormLayout>
-                        <FormLayout.Group>
-                          <TextField label="Variant Name" value={v.name} autoComplete="off" onChange={(val) => {
-                            const copy = { ...editExp } as any; copy.variants[idx].name = val; setEditExp(copy);
-                          }} />
-                          <Select label="Control" value={v.isControl ? 'yes' : 'no'} onChange={(val) => {
-                            const copy = { ...editExp } as any; copy.variants[idx].isControl = val === 'yes'; setEditExp(copy);
-                          }} options={[{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }]} />
-                          <TextField label="Traffic %" type="number" value={String(v.trafficPercentage)} autoComplete="off" onChange={(val) => {
-                            const copy = { ...editExp } as any; copy.variants[idx].trafficPercentage = Number(val) || 0; setEditExp(copy);
-                          }} />
-                        </FormLayout.Group>
-                        <TextField label="Description" value={v.description || ''} autoComplete="off" onChange={(val) => {
-                          const copy = { ...editExp } as any; copy.variants[idx].description = val; setEditExp(copy);
-                        }} multiline={2} />
-
-                        {/* Friendly config editors by test type */}
-                        {editExp.testType === 'discount' && (
-                          <FormLayout.Group>
-                            <Select label="Discount Type" value={(v.configData?.discountType || 'percentage')} onChange={(val) => {
-                              const copy = { ...editExp } as any; copy.variants[idx].configData = { ...(copy.variants[idx].configData || {}), discountType: val } ; setEditExp(copy);
-                            }} options={[{ label: 'Percentage', value: 'percentage' }, { label: 'Fixed', value: 'fixed' }]} />
-                            <TextField label="Discount Value" type="number" value={String(v.configData?.discountValue ?? 0)} autoComplete="off" onChange={(val) => {
-                              const copy = { ...editExp } as any; copy.variants[idx].configData = { ...(copy.variants[idx].configData || {}), discountValue: Number(val) || 0 } ; setEditExp(copy);
-                            }} />
-                            <TextField label="Discount Code" value={String(v.configData?.discountCode || '')} autoComplete="off" onChange={(val) => {
-                              const copy = { ...editExp } as any; copy.variants[idx].configData = { ...(copy.variants[idx].configData || {}), discountCode: val || undefined } ; setEditExp(copy);
-                            }} helpText="Optional: code to apply at checkout for this variant" />
-                          </FormLayout.Group>
-                        )}
-                        {editExp.testType === 'free_shipping' && (
-                          <TextField label="Free Shipping Threshold" type="number" prefix="$" value={String(v.configData?.freeShippingThreshold ?? 0)} autoComplete="off" onChange={(val) => {
-                            const copy = { ...editExp } as any; copy.variants[idx].configData = { ...(copy.variants[idx].configData || {}), freeShippingThreshold: Number(val) || 0 } ; setEditExp(copy);
-                          }} />
-                        )}
-                        {editExp.testType === 'bundle' && (
-                          <TextField label="Bundle ID" value={String(v.configData?.bundleId || '')} autoComplete="off" onChange={(val) => {
-                            const copy = { ...editExp } as any; copy.variants[idx].configData = { ...(copy.variants[idx].configData || {}), bundleId: val || undefined } ; setEditExp(copy);
-                          }} />
-                        )}
-                      </FormLayout>
-                    </Card>
-                  ))}
-                </BlockStack>
-              </Card>
-            </FormLayout>
-          ) : (
-            <Text as="p">Loading…</Text>
-          )}
+          <FormLayout>
+            <TextField
+              label="Experiment name"
+              value={newName}
+              onChange={setNewName}
+              autoComplete="off"
+            />
+            <Select
+              label="Attribution window"
+              value={attributionWindow}
+              onChange={setAttributionWindow}
+              options={[
+                { label: "Session", value: "session" },
+                { label: "24 hours", value: "hours24" },
+                { label: "7 days", value: "days7" },
+              ]}
+            />
+            <Select
+              label="Start immediately"
+              value={activateNow ? "yes" : "no"}
+              onChange={(value) => setActivateNow(value === "yes")}
+              options={[
+                { label: "Yes", value: "yes" },
+                { label: "No", value: "no" },
+              ]}
+            />
+            <Card padding="300" background="bg-surface-secondary">
+              <BlockStack gap="200">
+                <Text variant="headingSm" as="h3">Control</Text>
+                <FormLayout>
+                  <TextField
+                    label="Discount percentage"
+                    value={controlDiscount}
+                    onChange={setControlDiscount}
+                    type="number"
+                    suffix="%"
+                    min="0"
+                    autoComplete="off"
+                  />
+                </FormLayout>
+              </BlockStack>
+            </Card>
+            <Card padding="300" background="bg-surface-secondary">
+              <BlockStack gap="200">
+                <Text variant="headingSm" as="h3">Variant</Text>
+                <FormLayout>
+                  <TextField
+                    label="Variant name"
+                    value={variantName}
+                    onChange={setVariantName}
+                    autoComplete="off"
+                  />
+                  <TextField
+                    label="Discount percentage"
+                    value={variantDiscount}
+                    onChange={setVariantDiscount}
+                    type="number"
+                    suffix="%"
+                    min="0"
+                    autoComplete="off"
+                  />
+                </FormLayout>
+              </BlockStack>
+            </Card>
+          </FormLayout>
         </Modal.Section>
       </Modal>
 
       <Modal
-        open={isCreateModalOpen}
-        onClose={handleCloseCreateModal}
-        title="Create New A/B Experiment"
-        primaryAction={{
-          content: "Create",
-          onAction: () => handleSubmitCreate(),
-          loading: isLoading,
-        }}
-        secondaryActions={[
-          {
-            content: "Cancel",
-            onAction: handleCloseCreateModal,
-            disabled: isLoading,
-          },
-        ]}
+        open={resultsModalOpen}
+        onClose={closeResultsModal}
+        title={selectedExperiment ? `${selectedExperiment.name} results` : "Experiment results"}
       >
         <Modal.Section>
-          <Form onSubmit={handleSubmitCreate}>
-            <FormLayout>
-              <TextField label="Experiment Name" value={experimentName} onChange={(v) => setExperimentName(v)} autoComplete="off" placeholder="e.g., Free Shipping vs. 10% Off" />
-              <TextField label="Description" value={experimentDescription} onChange={(v) => setExperimentDescription(v)} autoComplete="off" multiline={2} />
-              <FormLayout.Group>
-                <Select label="Test Type" value={testType} onChange={(v) => setTestType(v as any)} options={[
-                  { label: 'Discount', value: 'discount' },
-                  { label: 'Free Shipping', value: 'free_shipping' },
-                  { label: 'Bundle', value: 'bundle' },
-                ]} />
-                <Select label="Primary Metric" value={primaryMetric} onChange={(v) => setPrimaryMetric(v as any)} options={[
-                  { label: 'Conversion Rate', value: 'conversion_rate' },
-                  { label: 'Average Order Value', value: 'average_order_value' },
-                  { label: 'Revenue per Visitor', value: 'revenue_per_visitor' },
-                ]} />
-              </FormLayout.Group>
-
-              <Checkbox label="Activate now" checked={activateNow} onChange={(v) => setActivateNow(!!v)} />
-
-              <FormLayout.Group>
-                <TextField label="Confidence Level (%)" value={confidenceLevelPct} onChange={setConfidenceLevelPct} type="number" suffix="%" autoComplete="off" />
-                <TextField label="Min Sample Size" value={minSampleSize} onChange={setMinSampleSize} type="number" autoComplete="off" />
-                <TextField label="Traffic Allocation (%)" value={trafficAllocationPct} onChange={setTrafficAllocationPct} type="number" suffix="%" autoComplete="off" />
-              </FormLayout.Group>
-
-              <FormLayout.Group>
-                <TextField label="Start Date" value={startDate} onChange={setStartDate} type="date" autoComplete="off" />
-                <TextField label="End Date" value={endDate} onChange={setEndDate} type="date" autoComplete="off" />
-              </FormLayout.Group>
-
-              <Card>
-                <BlockStack gap="300">
-                  <Text as="h3" variant="headingMd">Variant A (Control)</Text>
-                  <FormLayout.Group>
-                    <TextField label="Name" value={variantAName} onChange={setVariantAName} autoComplete="off" />
-                    <TextField label="Traffic %" value={variantAPct} onChange={setVariantAPct} type="number" suffix="%" autoComplete="off" />
-                  </FormLayout.Group>
-                  <TextField label="Description" value={variantADesc} onChange={setVariantADesc} multiline={2} autoComplete="off" />
-                  {testType === 'discount' && (
-                    <FormLayout.Group>
-                      <Select label="Discount Type" value={variantADiscountType} onChange={(v) => setVariantADiscountType(v as any)} options={[{ label: 'Percentage', value: 'percentage' }, { label: 'Fixed', value: 'fixed' }]} />
-                      <TextField label="Discount Value" value={variantADiscountValue} onChange={setVariantADiscountValue} type="number" autoComplete="off" />
-                      <TextField id="cu_variantA_discountCode" label="Discount Code (optional)" value={variantADiscountCode} onChange={setVariantADiscountCode} autoComplete="off" helpText="If provided, this code will be applied at checkout for Variant A" />
-                    </FormLayout.Group>
-                  )}
-                  {testType === 'free_shipping' && (
-                    <TextField label="Free Shipping Threshold" value={variantAFreeShipThreshold} onChange={setVariantAFreeShipThreshold} type="number" prefix="$" autoComplete="off" />
-                  )}
-                  {testType === 'bundle' && (
-                    <TextField label="Bundle ID" value={variantABundleId} onChange={setVariantABundleId} autoComplete="off" />
-                  )}
-                </BlockStack>
-              </Card>
-
-              <Card>
-                <BlockStack gap="300">
-                  <Text as="h3" variant="headingMd">Variant B (Challenger)</Text>
-                  <FormLayout.Group>
-                    <TextField label="Name" value={variantBName} onChange={setVariantBName} autoComplete="off" />
-                    <TextField label="Traffic %" value={variantBPct} onChange={setVariantBPct} type="number" suffix="%" autoComplete="off" />
-                  </FormLayout.Group>
-                  <TextField label="Description" value={variantBDesc} onChange={setVariantBDesc} multiline={2} autoComplete="off" />
-                  {testType === 'discount' && (
-                    <FormLayout.Group>
-                      <Select label="Discount Type" value={variantBDiscountType} onChange={(v) => setVariantBDiscountType(v as any)} options={[{ label: 'Percentage', value: 'percentage' }, { label: 'Fixed', value: 'fixed' }]} />
-                      <TextField label="Discount Value" value={variantBDiscountValue} onChange={setVariantBDiscountValue} type="number" autoComplete="off" />
-                      <TextField id="cu_variantB_discountCode" label="Discount Code (optional)" value={variantBDiscountCode} onChange={setVariantBDiscountCode} autoComplete="off" helpText="If provided, this code will be applied at checkout for Variant B" />
-                    </FormLayout.Group>
-                  )}
-                  {testType === 'free_shipping' && (
-                    <TextField label="Free Shipping Threshold" value={variantBFreeShipThreshold} onChange={setVariantBFreeShipThreshold} type="number" prefix="$" autoComplete="off" />
-                  )}
-                  {testType === 'bundle' && (
-                    <TextField label="Bundle ID" value={variantBBundleId} onChange={setVariantBBundleId} autoComplete="off" />
-                  )}
-                </BlockStack>
-              </Card>
-            </FormLayout>
-          </Form>
+          {renderResults()}
         </Modal.Section>
       </Modal>
     </Page>

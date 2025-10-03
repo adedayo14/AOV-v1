@@ -1,4 +1,5 @@
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
+import type { Experiment, Variant } from "@prisma/client";
 import { getSettings, saveSettings } from "../models/settings.server";
 import db from "../db.server";
 import { authenticate, unauthenticated } from "../shopify.server";
@@ -38,54 +39,97 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
       const action = url.searchParams.get('action') || 'get_active_experiments';
 
-      // Helper: parse JSON safely but accept already-parsed objects
-      const safeParse = (s: any) => {
-        if (s == null) return {} as any;
-        if (typeof s === 'object') return s;
-        if (typeof s === 'string') {
-          try { return JSON.parse(s); } catch { return {}; }
+      // MurmurHash3 helper for deterministic assignment
+      const murmurHashFloat = (key: string, seed = 0) => {
+        let remainder = key.length & 3; // key.length % 4
+        const bytes = key.length - remainder;
+        let h1 = seed;
+        const c1 = 0xcc9e2d51;
+        const c2 = 0x1b873593;
+        let i = 0;
+        let k1 = 0;
+
+        while (i < bytes) {
+          k1 = (key.charCodeAt(i) & 0xff) |
+            ((key.charCodeAt(++i) & 0xff) << 8) |
+            ((key.charCodeAt(++i) & 0xff) << 16) |
+            ((key.charCodeAt(++i) & 0xff) << 24);
+          ++i;
+
+          k1 = Math.imul(k1, c1);
+          k1 = (k1 << 15) | (k1 >>> 17);
+          k1 = Math.imul(k1, c2);
+
+          h1 ^= k1;
+          h1 = (h1 << 13) | (h1 >>> 19);
+          h1 = (Math.imul(h1, 5) + 0xe6546b64) | 0;
         }
-        return {} as any;
+
+        k1 = 0;
+
+        switch (remainder) {
+          case 3:
+            k1 ^= (key.charCodeAt(i + 2) & 0xff) << 16;
+          // falls through
+          case 2:
+            k1 ^= (key.charCodeAt(i + 1) & 0xff) << 8;
+          // falls through
+          case 1:
+            k1 ^= (key.charCodeAt(i) & 0xff);
+            k1 = Math.imul(k1, c1);
+            k1 = (k1 << 15) | (k1 >>> 17);
+            k1 = Math.imul(k1, c2);
+            h1 ^= k1;
+        }
+
+        h1 ^= key.length;
+        h1 ^= h1 >>> 16;
+        h1 = Math.imul(h1, 0x85ebca6b) | 0;
+        h1 ^= h1 >>> 13;
+        h1 = Math.imul(h1, 0xc2b2ae35) | 0;
+        h1 ^= h1 >>> 16;
+
+        return (h1 >>> 0) / 4294967296;
       };
 
       if (action === 'get_active_experiments') {
-        // Active = status === 'active' and within date window (or no dates)
+  // Active = status === 'running' and within date window (or no dates)
         const now = new Date();
-        const exps = await (db as any).aBExperiment.findMany({
+        type ExperimentWithVariants = Experiment & { variants: Variant[] };
+        const experiments = (await (db as any).experiment.findMany({
           where: {
             shopId: shopStr,
-            status: 'active',
+            status: 'running',
             OR: [
-              { AND: [ { startDate: null }, { endDate: null } ] },
-              { AND: [ { startDate: { lte: now } }, { endDate: null } ] },
-              { AND: [ { startDate: null }, { endDate: { gte: now } } ] },
-              { AND: [ { startDate: { lte: now } }, { endDate: { gte: now } } ] },
-            ]
+              { AND: [{ startDate: null }, { endDate: null }] },
+              { AND: [{ startDate: { lte: now } }, { endDate: null }] },
+              { AND: [{ startDate: null }, { endDate: { gte: now } }] },
+              { AND: [{ startDate: { lte: now } }, { endDate: { gte: now } }] },
+            ],
           },
-          orderBy: { createdAt: 'desc' }
-        });
+          orderBy: { createdAt: "desc" },
+          include: { variants: { orderBy: [{ isControl: "desc" }, { id: "asc" }] } },
+        })) as ExperimentWithVariants[];
 
-        const withVariants: any[] = [];
-        for (const e of exps) {
-          const vars = await (db as any).aBVariant.findMany({ where: { experimentId: e.id }, orderBy: { id: 'asc' } });
-          withVariants.push({
-            id: e.id,
-            name: e.name,
-            test_type: e.testType,
-            status: e.status,
-            primary_metric: e.primaryMetric,
-            start_date: e.startDate,
-            end_date: e.endDate,
-            variants: vars.map((v:any)=>({
-              id: v.id,
-              name: v.name,
-              is_control: v.isControl,
-              traffic_percentage: Number(v.trafficPercentage),
-              config: safeParse(v.configData),
-            }))
-          });
-        }
-        return json({ ok: true, experiments: withVariants }, { headers: hdrs });
+        const payload = experiments.map((experiment) => ({
+          id: experiment.id,
+          name: experiment.name,
+          status: experiment.status,
+          start_date: experiment.startDate,
+          end_date: experiment.endDate,
+          attribution: experiment.attribution,
+          variants: experiment.variants.map((variant) => ({
+            id: variant.id,
+            name: variant.name,
+            is_control: variant.isControl,
+            traffic_percentage: Number(variant.trafficPct ?? 0),
+            config: {
+              discount_pct: Number(variant.discountPct ?? 0),
+            },
+          })),
+        }));
+
+        return json({ ok: true, experiments: payload }, { headers: hdrs });
       }
 
       if (action === 'get_variant') {
@@ -96,28 +140,65 @@ export async function loader({ request }: LoaderFunctionArgs) {
           return json({ ok: false, error: 'invalid_experiment_id' }, { status: 400, headers: hdrs });
         }
 
-        const exp = await (db as any).aBExperiment.findFirst({ where: { id: experimentId, shopId: shopStr } });
-        if (!exp) return json({ ok: false, error: 'not_found' }, { status: 404, headers: hdrs });
-        const vars = await (db as any).aBVariant.findMany({ where: { experimentId: experimentId }, orderBy: { id: 'asc' } });
+        const experiment = await (db as any).experiment.findFirst({ where: { id: experimentId, shopId: shopStr } });
+        if (!experiment) return json({ ok: false, error: 'not_found' }, { status: 404, headers: hdrs });
+        const vars = (await (db as any).variant.findMany({ where: { experimentId }, orderBy: { id: 'asc' } })) as Variant[];
         if (!vars.length) return json({ ok: false, error: 'no_variants' }, { status: 404, headers: hdrs });
 
-        const weights = vars.map((v:any)=> Number(v.trafficPercentage) || 0);
-        let sum = weights.reduce((a:number,b:number)=>a+b,0);
-        if (sum <= 0) { sum = vars.length; for (let i=0;i<weights.length;i++) weights[i] = 1; }
-        const normalized = weights.map((w:number)=> w / sum);
+        const weights = vars.map((variant) => Number(variant.trafficPct) || 0);
+        let sum = weights.reduce((a: number, b: number) => a + b, 0);
+        if (sum <= 0) {
+          sum = vars.length;
+          for (let i = 0; i < weights.length; i++) weights[i] = 1;
+        }
+        const normalized = weights.map((weight: number) => weight / sum);
 
-        // Simple deterministic hash to [0,1)
-        const hashStr = `${experimentId}-${userId}`;
-        let h = 2166136261;
-        for (let i=0;i<hashStr.length;i++) { h ^= hashStr.charCodeAt(i); h = Math.imul(h, 16777619); }
-        const r = (h >>> 0) / 4294967295; // 0..1
+        // Deterministic MurmurHash3-based hash mapped to [0,1)
+        const hashStr = `${experimentId}:${userId}:${experiment.attribution}`;
+        const r = murmurHashFloat(hashStr);
 
         // Pick variant by cumulative probability
         let cum = 0; let idx = 0;
         for (let i=0;i<normalized.length;i++) { cum += normalized[i]; if (r <= cum) { idx = i; break; } }
         const selected = vars[idx];
-        const cfg = safeParse(selected?.configData);
-        return json({ ok: true, variant: selected?.name || `variant_${idx+1}`, config: cfg, variantId: selected?.id }, { headers: hdrs });
+        const config = { discount_pct: Number(selected?.discountPct ?? 0) };
+
+        // Persist assignment event (best-effort, idempotent)
+        try {
+          if (selected?.id) {
+            const unitKey = String(userId);
+            const existing = await (db as any).event.findFirst({
+              where: {
+                experimentId,
+                unitId: unitKey,
+                type: 'assignment',
+              },
+            });
+            if (!existing) {
+              await (db as any).event.create({
+                data: {
+                  experimentId,
+                  variantId: selected.id,
+                  unitId: unitKey,
+                  type: 'assignment',
+                  metadata: {
+                    source: 'app_proxy',
+                    shop: shopStr,
+                  },
+                },
+              });
+            }
+          }
+        } catch (error) {
+          console.warn('[apps.proxy] assignment persistence failed', error);
+        }
+
+        return json({
+          ok: true,
+          variant: selected?.name || `variant_${idx + 1}`,
+          config,
+          variantId: selected?.id,
+        }, { headers: hdrs });
       }
 
       return json({ ok: false, error: 'unknown_action' }, { status: 400, headers: hdrs });
