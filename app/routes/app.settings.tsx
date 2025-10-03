@@ -310,6 +310,13 @@ export default function AppSettings() {
                     helpText="Track cart performance and conversion metrics"
                   />
 
+                  <Checkbox
+                    label="Auto-apply A/B discount codes"
+                    checked={Boolean(formSettings.autoApplyABDiscounts)}
+                    onChange={(value) => updateSetting("autoApplyABDiscounts", value)}
+                    helpText="When an A/B test assigns a discount code, automatically apply it to the cart if none is present"
+                  />
+
 
                 </FormLayout>
               </BlockStack>

@@ -127,6 +127,7 @@
   // Track if free shipping was ever achieved in this session (for soft fallback message)
   this._freeShippingHadUnlocked = false;
     this._abInitialized = false; // Prevent duplicate AB init
+    this._abAssignments = {}; // experimentId -> { name, variant }
   
       // Immediately intercept cart notifications if app is enabled
       if (this.settings.enableApp) {
@@ -576,8 +577,11 @@
 
           // Persist assignment to cart attributes (lightweight)
           const attrs = {};
-          attrs[`ab_exp_${exp.id}_name`] = String(exp.name || '');
+          const expName = String(exp.name || '');
+          attrs[`ab_exp_${exp.id}_name`] = expName;
           attrs[`ab_exp_${exp.id}_variant`] = String(variantName);
+          // Cache assignment in memory for analytics/tracking
+          this._abAssignments[String(exp.id)] = { name: expName, variant: String(variantName) };
 
           // If this is a discount test and a code is configured, save and optionally auto-apply
           if (t === 'discount' && cfg && cfg.discountCode) {
@@ -610,8 +614,45 @@
             }
           }
 
+          // If this is a free_shipping test, override the storefront threshold/messaging for this session
+          if (t === 'free_shipping' && cfg && (typeof cfg.freeShippingThreshold === 'number' || (typeof cfg.freeShippingThreshold === 'string' && cfg.freeShippingThreshold.trim() !== ''))) {
+            const thr = Number(parseFloat(cfg.freeShippingThreshold));
+            if (isFinite(thr) && thr > 0) {
+              // Only override if merchant has free shipping enabled
+              if (this.settings.enableFreeShipping) {
+                this.settings.freeShippingThreshold = thr;
+                attrs['ab_free_shipping_threshold'] = String(thr);
+                // If no custom copy provided, set a concise default
+                if (!this.settings.freeShippingText || /free shipping/i.test(this.settings.freeShippingText)) {
+                  this.settings.freeShippingText = 'Only {{ amount }} to unlock free shipping!';
+                }
+                // Re-render to reflect new threshold
+                try { this.updateDrawerContent(); } catch(_) {}
+              }
+            }
+          }
+
+          // If this is a bundle test, add a subtle callout in the header and persist bundle id
+          if (t === 'bundle' && cfg && cfg.bundleId) {
+            attrs['ab_bundle_variant'] = String(variantName);
+            attrs['ab_bundle_id'] = String(cfg.bundleId);
+            this._abBundleCallout = {
+              bundleId: String(cfg.bundleId),
+              text: this.settings.bundleABCalloutText || 'Special bundle offer available in your cart',
+            };
+            // Trigger a lightweight UI refresh
+            try { this.updateDrawerContent(); } catch(_) {}
+          }
+
           // Save attributes (merge with existing)
           try { await this.saveCartAttributes(attrs); } catch (_e) {}
+          // Best-effort tracking ping for assignment
+          try {
+            fetch('/apps/cart-uplift/api/cart-tracking', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ event: 'ab_assignment', experimentId: String(exp.id), experimentName: expName, variant: String(variantName) })
+            });
+          } catch(_) {}
         }
       } catch (e) {
         console.warn('Failed to initialize storefront A/B testing:', e);
@@ -1207,6 +1248,7 @@
       
     getHeaderHTML(itemCount) {
       return `
+        ${this._abBundleCallout && this._abBundleCallout.text ? `<div class="cartuplift-ab-bundle-callout">${this.escapeHtml(this._abBundleCallout.text)}</div>` : ''}
         <div class="cartuplift-header">
           <h2 class="cartuplift-cart-title">Cart (${itemCount})</h2>
           
@@ -3656,6 +3698,18 @@
               button.style.background = '';
             }, 300);
           });
+          // Best-effort add_to_cart tracking with A/B context
+          try {
+            fetch('/apps/cart-uplift/api/cart-tracking', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                event: 'add_to_cart',
+                variantId: String(variantId),
+                quantity: Number(quantity) || 1,
+                ab: this._abAssignments || {}
+              })
+            });
+          } catch(_) {}
           
           // Re-filter so added item disappears from recommendations
           this.debouncedUpdateRecommendations();
@@ -4995,7 +5049,10 @@
     proceedToCheckout() {
       // Track checkout start
   if (this.settings.enableAnalytics) CartAnalytics.trackEvent('checkout_start', {
-        revenue: this.cart ? this.cart.total_price / 100 : 0 // Convert from cents
+        revenue: this.cart ? this.cart.total_price / 100 : 0, // Convert from cents
+        item_count: this.cart?.item_count || 0,
+        total_price: this.cart?.total_price || 0,
+        ab: this._abAssignments || {}
       });
       
       const notes = document.getElementById('cartuplift-notes-input');
