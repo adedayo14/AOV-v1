@@ -18,8 +18,8 @@ import {
   BlockStack,
   Badge,
   ButtonGroup,
+  Banner,
 } from "@shopify/polaris";
-import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
@@ -64,12 +64,14 @@ export const loader: LoaderFunction = async ({ request }) => {
 
 export default function ABTestingPage() {
   const experiments = useLoaderData<SerializedABExperiment[]>();
-  const shopify = useAppBridge();
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [experimentName, setExperimentName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [showErrorBanner, setShowErrorBanner] = useState(false);
+  const [bannerMessage, setBannerMessage] = useState("");
 
   // Fix React #418 hydration errors by rendering dates/badges only on client
   useEffect(() => {
@@ -84,10 +86,14 @@ export default function ABTestingPage() {
 
   const handleCreateExperiment = useCallback(async () => {
     if (!experimentName.trim()) {
-      shopify.toast.show("Experiment name is required.", { isError: true });
+      setShowErrorBanner(true);
+      setBannerMessage("Experiment name is required.");
+      setTimeout(() => setShowErrorBanner(false), 3000);
       return;
     }
     setIsLoading(true);
+    setShowErrorBanner(false);
+    setShowSuccessBanner(false);
     console.log("[A/B Testing UI] Starting experiment creation...");
 
     try {
@@ -123,18 +129,25 @@ export default function ABTestingPage() {
 
       const result = await response.json();
       console.log("[A/B Testing UI] Experiment created successfully:", result);
-      shopify.toast.show("Experiment created successfully!");
+      
+      setShowSuccessBanner(true);
+      setBannerMessage("Experiment created successfully!");
       handleCloseCreateModal();
-      window.location.reload();
+      
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
 
     } catch (error) {
       console.error("[A/B Testing UI] An error occurred during fetch:", error);
-      shopify.toast.show("Failed to create experiment.", { isError: true });
+      setShowErrorBanner(true);
+      setBannerMessage("Failed to create experiment.");
+      setTimeout(() => setShowErrorBanner(false), 5000);
     } finally {
       setIsLoading(false);
       console.log("[A/B Testing UI] Experiment creation process finished.");
     }
-  }, [experimentName, shopify]);
+  }, [experimentName]);
 
   const handleDeleteExperiment = useCallback(async (experimentId: number) => {
     console.log('[A/B Testing UI] Delete button clicked for experiment:', experimentId);
@@ -143,6 +156,9 @@ export default function ABTestingPage() {
       console.log('[A/B Testing UI] User cancelled delete');
       return;
     }
+    
+    setShowErrorBanner(false);
+    setShowSuccessBanner(false);
     
     try {
       const url = new URL(window.location.href);
@@ -163,29 +179,54 @@ export default function ABTestingPage() {
       if (response.ok) {
         const result = await response.json();
         console.log('[A/B Testing UI] Delete successful:', result);
-        shopify.toast.show('Experiment deleted successfully');
-        window.location.reload();
+        
+        setShowSuccessBanner(true);
+        setBannerMessage('Experiment deleted successfully');
+        
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       } else {
         const errorText = await response.text();
         console.error('[A/B Testing UI] Delete failed:', errorText);
-        shopify.toast.show('Failed to delete experiment', { isError: true });
+        
+        setShowErrorBanner(true);
+        setBannerMessage('Failed to delete experiment');
+        setTimeout(() => setShowErrorBanner(false), 5000);
       }
     } catch (error) {
       console.error('[A/B Testing UI] Delete error:', error);
-      shopify.toast.show('Failed to delete experiment', { isError: true });
+      
+      setShowErrorBanner(true);
+      setBannerMessage('Failed to delete experiment');
+      setTimeout(() => setShowErrorBanner(false), 5000);
     }
-  }, [shopify]);
+  }, []);
 
   return (
     <Page
       title="A/B Testing"
-      subtitle="✅ UPDATED Oct 3, 2025 - Using simplified pattern like Settings"
+      subtitle="✅ UPDATED Oct 3, 2025 - NO App Bridge - Direct fetch like Settings"
       primaryAction={{
         content: "Create Experiment",
         onAction: handleOpenCreateModal
       }}
     >
       <Layout>
+        {showSuccessBanner && (
+          <Layout.Section>
+            <Banner tone="success" onDismiss={() => setShowSuccessBanner(false)}>
+              {bannerMessage}
+            </Banner>
+          </Layout.Section>
+        )}
+        {showErrorBanner && (
+          <Layout.Section>
+            <Banner tone="critical" onDismiss={() => setShowErrorBanner(false)}>
+              {bannerMessage}
+            </Banner>
+          </Layout.Section>
+        )}
         <Layout.Section>
           {experiments.length > 0 ? (
             <Card>
