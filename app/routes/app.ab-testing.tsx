@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { json, LoaderFunction } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, useRevalidator } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -26,6 +26,15 @@ import prisma from "../db.server";
 
 // This interface matches the data structure after JSON serialization from the loader.
 // Prisma's Decimal and Date types are converted to strings.
+interface SerializedABVariant {
+  id: number;
+  name: string;
+  description: string | null;
+  isControl: boolean;
+  trafficPercentage: number;
+  configData?: any | null;
+}
+
 interface SerializedABExperiment {
   id: number;
   name: string;
@@ -38,7 +47,7 @@ interface SerializedABExperiment {
   trafficAllocation: string;
   startDate: string | null;
   endDate: string | null;
-  variants: any; // You might want to type this more strictly
+  variants: SerializedABVariant[];
   createdBy: string | null;
 }
 
@@ -48,15 +57,51 @@ export const loader: LoaderFunction = async ({ request }) => {
     await authenticate.admin(request);
     const experiments = await prisma.aBExperiment.findMany({
       orderBy: { createdAt: "desc" },
+      include: {
+        variants: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            isControl: true,
+            trafficPercentage: true,
+            // Prisma JSON column may be named configData (as per backend create)
+            configData: true,
+          }
+        }
+      }
     });
-    // Serialize Date and Decimal fields to be JSON-safe
-    return json(experiments.map(exp => ({ 
-    ...exp, 
-    createdAt: exp.createdAt.toISOString(), 
-    updatedAt: exp.updatedAt.toISOString(),
-    // Convert Decimal to string for JSON serialization
-    trafficAllocation: exp.trafficAllocation.toString(),
-  })));
+    // Serialize Date/Decimal/JSON fields to be JSON-safe
+    const serialized = experiments.map((exp) => ({
+      id: exp.id,
+      name: exp.name,
+      status: exp.status,
+      testType: exp.testType,
+      createdAt: exp.createdAt.toISOString(),
+      updatedAt: exp.updatedAt.toISOString(),
+      shopId: exp.shopId,
+      description: exp.description,
+      trafficAllocation: (exp as any).trafficAllocation?.toString?.() || String((exp as any).trafficAllocation ?? ''),
+      startDate: exp.startDate ? exp.startDate.toISOString() : null,
+      endDate: exp.endDate ? exp.endDate.toISOString() : null,
+      createdBy: (exp as any).createdBy ?? null,
+  variants: (exp.variants || []).map((v: any) => ({
+        id: v.id,
+        name: v.name,
+        description: v.description,
+        isControl: v.isControl,
+        trafficPercentage: typeof v.trafficPercentage === 'object' && v.trafficPercentage?.toNumber ? v.trafficPercentage.toNumber() : Number(v.trafficPercentage ?? 0),
+        configData: (() => {
+          try {
+            // Already an object
+            if (v.configData && typeof v.configData === 'object') return v.configData;
+            if (typeof v.configData === 'string') return JSON.parse(v.configData);
+          } catch (_e) { /* no-op */ }
+          return v.configData ?? null;
+        })()
+      }))
+    }));
+    return json(serialized);
   } catch (error) {
     console.error("Error loading A/B experiments:", error);
     return json([]);
@@ -65,6 +110,7 @@ export const loader: LoaderFunction = async ({ request }) => {
 
 export default function ABTestingPage() {
   const experiments = useLoaderData<SerializedABExperiment[]>();
+  const revalidator = useRevalidator();
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [experimentName, setExperimentName] = useState("");
@@ -102,6 +148,10 @@ export default function ABTestingPage() {
   const [showErrorBanner, setShowErrorBanner] = useState(false);
   const [bannerMessage, setBannerMessage] = useState("");
   const [activateNow, setActivateNow] = useState(true);
+
+  // Details modal state
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [detailsExp, setDetailsExp] = useState<SerializedABExperiment | null>(null);
 
   // Fix React #418 hydration errors by rendering dates/badges only on client
   useEffect(() => {
@@ -269,10 +319,8 @@ export default function ABTestingPage() {
       setShowSuccessBanner(true);
       setBannerMessage("Experiment created successfully!");
       handleCloseCreateModal();
-      
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Soft refresh via Remix to avoid hard reloads (prevents transient 404s)
+  try { revalidator.revalidate(); } catch (_e) { /* no-op */ }
 
     } catch (error) {
       console.error("[A/B Testing UI] An error occurred during fetch:", error);
@@ -405,7 +453,7 @@ export default function ABTestingPage() {
                           )}
                         </BlockStack>
                         <ButtonGroup>
-                          <Button size="slim" onClick={() => {}}>View Details</Button>
+                          <Button size="slim" onClick={() => { setDetailsExp(exp); setIsDetailsOpen(true); }}>View Details</Button>
                           <Button 
                             size="slim" 
                             tone="critical" 
@@ -433,6 +481,50 @@ export default function ABTestingPage() {
           )}
         </Layout.Section>
       </Layout>
+
+      {/* Details Modal */}
+      <Modal
+        open={isDetailsOpen}
+        onClose={() => { setIsDetailsOpen(false); setDetailsExp(null); }}
+        title={detailsExp ? `Experiment: ${detailsExp.name}` : 'Experiment Details'}
+        primaryAction={{ content: 'Close', onAction: () => { setIsDetailsOpen(false); setDetailsExp(null); } }}
+      >
+        <Modal.Section>
+          {detailsExp ? (
+            <BlockStack gap="400">
+              <Text as="p">Status: <b>{detailsExp.status}</b></Text>
+              <Text as="p">Type: <b>{detailsExp.testType}</b></Text>
+              {detailsExp.description ? <Text as="p">Description: {detailsExp.description}</Text> : null}
+              {isClient && (
+                <Text as="p" tone="subdued">Created: {new Date(detailsExp.createdAt).toLocaleString()}</Text>
+              )}
+              <Card>
+                <BlockStack gap="300">
+                  <Text variant="headingSm" as="h4">Variants</Text>
+                  {(detailsExp.variants || []).map((v) => (
+                    <Card key={v.id}>
+                      <BlockStack gap="200">
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text as="h5" variant="headingSm">{v.name} {v.isControl ? '(Control)' : ''}</Text>
+                          <Badge tone={v.isControl ? 'success' : 'info'}>{`${v.trafficPercentage}%`}</Badge>
+                        </InlineStack>
+                        {v.description ? <Text as="p" tone="subdued">{v.description}</Text> : null}
+                        {v.configData ? (
+                          <Text as="p">Config: <code>{JSON.stringify(v.configData)}</code></Text>
+                        ) : (
+                          <Text as="p" tone="subdued">No variant config</Text>
+                        )}
+                      </BlockStack>
+                    </Card>
+                  ))}
+                </BlockStack>
+              </Card>
+            </BlockStack>
+          ) : (
+            <Text as="p">Loading…</Text>
+          )}
+        </Modal.Section>
+      </Modal>
 
       <Modal
         open={isCreateModalOpen}
