@@ -90,20 +90,27 @@ export default function ABTestingPage() {
     setIsLoading(true);
     console.log("[A/B Testing UI] Starting experiment creation...");
 
-    // Get shop from URL params
-    const urlParams = new URLSearchParams(window.location.search);
-    const shop = urlParams.get('shop') || '';
-
-    const formData = new FormData();
-    formData.append("intent", "create");
-    formData.append("name", experimentName);
-    formData.append("shop", shop); // Pass shop to bypass auth
-
     try {
+      // Get shop from URL (same as Settings pattern)
+      const urlParams = new URLSearchParams(window.location.search);
+      const shop = urlParams.get('shop') || '';
+      
+      // Use JSON payload like Settings does
+      const payload = {
+        action: 'create',
+        name: experimentName,
+        shop: shop
+      };
+
       console.log("[A/B Testing UI] Sending request to /api/ab-testing-admin");
+      console.log("[A/B Testing UI] Payload:", payload);
+      
       const response = await fetch("/api/ab-testing-admin", {
         method: "POST",
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
       });
 
       console.log(`[A/B Testing UI] Received response with status: ${response.status}`);
