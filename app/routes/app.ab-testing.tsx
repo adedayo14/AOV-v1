@@ -179,6 +179,7 @@ export default function ABTestingPage() {
   return (
     <Page
       title="A/B Testing"
+      subtitle="✅ UPDATED Oct 3, 2025 - Using simplified pattern like Settings"
       primaryAction={{
         content: "Create Experiment",
         onAction: handleOpenCreateModal
