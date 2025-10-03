@@ -138,10 +138,18 @@ export default function ABTestingPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [experimentType, setExperimentType] = useState<"discount"|"bundle"|"shipping"|"upsell">("discount");
-  const [valueFormat, setValueFormat] = useState<"percent"|"currency"|"number">("percent");
-  const [controlDiscount, setControlDiscount] = useState("0");
+  
+  // Control variant settings
+  const [controlType, setControlType] = useState<"discount"|"bundle"|"shipping"|"upsell">("shipping");
+  const [controlFormat, setControlFormat] = useState<"percent"|"currency"|"number">("currency");
+  const [controlDiscount, setControlDiscount] = useState("50");
+  
+  // Challenger variant settings
+  const [challengerType, setChallengerType] = useState<"discount"|"bundle"|"shipping"|"upsell">("discount");
+  const [challengerFormat, setChallengerFormat] = useState<"percent"|"currency"|"number">("percent");
   const [variantDiscount, setVariantDiscount] = useState("10");
-  const [variantName, setVariantName] = useState("Stronger Offer");
+  const [variantName, setVariantName] = useState("10% Off");
+  
   const [attributionWindow, setAttributionWindow] = useState<"session"|"24h"|"7d">("session");
   const [activateNow, setActivateNow] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -161,10 +169,13 @@ export default function ABTestingPage() {
   const resetCreateForm = () => {
     setNewName("");
     setExperimentType("discount");
-    setValueFormat("percent");
-    setControlDiscount("0");
+    setControlType("shipping");
+    setControlFormat("currency");
+    setControlDiscount("50");
+    setChallengerType("discount");
+    setChallengerFormat("percent");
     setVariantDiscount("10");
-    setVariantName("Stronger Offer");
+    setVariantName("10% Off");
     setAttributionWindow("session");
     setActivateNow(true);
   };
@@ -179,18 +190,22 @@ export default function ABTestingPage() {
     setNewName(experiment.name);
     setExperimentType(experiment.type as any);
     setAttributionWindow(experiment.attribution as any);
-    // Set format from first variant (they should all have same format)
-    const firstVariant = experiment.variants[0];
-    if (firstVariant) {
-      setValueFormat(firstVariant.valueFormat as any);
-      const control = experiment.variants.find(v => v.isControl);
-      const challenger = experiment.variants.find(v => !v.isControl);
-      if (control) setControlDiscount(String(control.value));
-      if (challenger) {
-        setVariantDiscount(String(challenger.value));
-        setVariantName(challenger.name);
-      }
+    
+    const control = experiment.variants.find(v => v.isControl);
+    const challenger = experiment.variants.find(v => !v.isControl);
+    
+    if (control) {
+      setControlType(experiment.type as any); // Use experiment type for now
+      setControlFormat(control.valueFormat as any);
+      setControlDiscount(String(control.value));
     }
+    if (challenger) {
+      setChallengerType(experiment.type as any); // Use experiment type for now
+      setChallengerFormat(challenger.valueFormat as any);
+      setVariantDiscount(String(challenger.value));
+      setVariantName(challenger.name);
+    }
+    
     setEditModalOpen(true);
   };
 
@@ -209,16 +224,16 @@ export default function ABTestingPage() {
       return;
     }
 
-    const controlPct = Number(controlDiscount);
-    const challengerPct = Number(variantDiscount);
+    const controlVal = Number(controlDiscount);
+    const challengerVal = Number(variantDiscount);
 
-    if (Number.isNaN(controlPct) || Number.isNaN(challengerPct)) {
-      setErrorBanner("Discount percentages must be numbers.");
+    if (Number.isNaN(controlVal) || Number.isNaN(challengerVal)) {
+      setErrorBanner("Values must be numbers.");
       return;
     }
 
-    if (controlPct < 0 || challengerPct < 0 || controlPct > 100 || challengerPct > 100) {
-      setErrorBanner("Discount percentages should be between 0 and 100.");
+    if (controlVal < 0 || challengerVal < 0) {
+      setErrorBanner("Values must be positive.");
       return;
     }
 
@@ -242,15 +257,15 @@ export default function ABTestingPage() {
             name: "Control",
             isControl: true,
             trafficPct: 50,
-            value: controlPct,
-            valueFormat: valueFormat,
+            value: controlVal,
+            valueFormat: controlFormat,
           },
           {
             name: variantName.trim() || "Variant",
             isControl: false,
             trafficPct: 50,
-            value: challengerPct,
-            valueFormat: valueFormat,
+            value: challengerVal,
+            valueFormat: challengerFormat,
           },
         ],
       };
@@ -583,46 +598,13 @@ export default function ABTestingPage() {
       >
         <Modal.Section>
           <BlockStack gap="400">
-            <BlockStack gap="100">
-              <TextField
-                label="Experiment name"
-                value={newName}
-                placeholder="👉 Example: “Free Shipping vs 10% Off”"
-                onChange={setNewName}
-                autoComplete="off"
-              />
-            </BlockStack>
-
-            <BlockStack gap="150">
-              <Text as="p">What type of experiment?</Text>
-              <Select
-                label="Experiment type"
-                labelHidden
-                value={experimentType}
-                onChange={(value) => setExperimentType(value as "discount"|"bundle"|"shipping"|"upsell")}
-                options={[
-                  { label: "Discount offer", value: "discount" },
-                  { label: "Bundle deal", value: "bundle" },
-                  { label: "Shipping threshold", value: "shipping" },
-                  { label: "Upsell", value: "upsell" },
-                ]}
-              />
-            </BlockStack>
-
-            <BlockStack gap="150">
-              <Text as="p">How do you want to measure values?</Text>
-              <Select
-                label="Value format"
-                labelHidden
-                value={valueFormat}
-                onChange={(value) => setValueFormat(value as "percent"|"currency"|"number")}
-                options={[
-                  { label: "Percentage (e.g., 10% off)", value: "percent" },
-                  { label: "Currency (e.g., $50 threshold)", value: "currency" },
-                  { label: "Number (e.g., 2 items)", value: "number" },
-                ]}
-              />
-            </BlockStack>
+            <TextField
+              label="Experiment name"
+              value={newName}
+              placeholder="e.g., Free Shipping vs 10% Off"
+              onChange={setNewName}
+              autoComplete="off"
+            />
 
             <BlockStack gap="150">
               <Text as="p">How long should we count orders for this test?</Text>
@@ -657,17 +639,38 @@ export default function ABTestingPage() {
 
             <BlockStack gap="300">
               <Text variant="headingMd" as="h3">Control (Current Offer)</Text>
+              <Select
+                label="Control type"
+                value={controlType}
+                onChange={(value) => setControlType(value as "discount"|"bundle"|"shipping"|"upsell")}
+                options={[
+                  { label: "Discount offer", value: "discount" },
+                  { label: "Bundle deal", value: "bundle" },
+                  { label: "Shipping threshold", value: "shipping" },
+                  { label: "Upsell", value: "upsell" },
+                ]}
+              />
+              <Select
+                label="Control format"
+                value={controlFormat}
+                onChange={(value) => setControlFormat(value as "percent"|"currency"|"number")}
+                options={[
+                  { label: "Percentage (e.g., 10%)", value: "percent" },
+                  { label: "Currency (e.g., $50)", value: "currency" },
+                  { label: "Number (e.g., 2 items)", value: "number" },
+                ]}
+              />
               <TextField
                 label="Control value"
                 value={controlDiscount}
                 onChange={setControlDiscount}
                 type="number"
-                suffix={valueFormat === 'percent' ? '%' : valueFormat === 'currency' ? 'USD' : ''}
+                suffix={controlFormat === 'percent' ? '%' : controlFormat === 'currency' ? 'USD' : ''}
                 min="0"
                 autoComplete="off"
                 helpText={
-                  valueFormat === 'percent' ? 'Enter percentage (e.g., 10 for 10% off)' :
-                  valueFormat === 'currency' ? 'Enter dollar amount (e.g., 50 for $50)' :
+                  controlFormat === 'percent' ? 'Enter percentage (e.g., 5 for 5% off)' :
+                  controlFormat === 'currency' ? 'Enter dollar amount (e.g., 50 for $50)' :
                   'Enter numeric value'
                 }
               />
@@ -681,20 +684,41 @@ export default function ABTestingPage() {
                 label="Challenger name"
                 value={variantName}
                 onChange={setVariantName}
-                placeholder="e.g., Stronger Offer"
+                placeholder="e.g., 10% Off"
                 autoComplete="off"
+              />
+              <Select
+                label="Challenger type"
+                value={challengerType}
+                onChange={(value) => setChallengerType(value as "discount"|"bundle"|"shipping"|"upsell")}
+                options={[
+                  { label: "Discount offer", value: "discount" },
+                  { label: "Bundle deal", value: "bundle" },
+                  { label: "Shipping threshold", value: "shipping" },
+                  { label: "Upsell", value: "upsell" },
+                ]}
+              />
+              <Select
+                label="Challenger format"
+                value={challengerFormat}
+                onChange={(value) => setChallengerFormat(value as "percent"|"currency"|"number")}
+                options={[
+                  { label: "Percentage (e.g., 10%)", value: "percent" },
+                  { label: "Currency (e.g., $100)", value: "currency" },
+                  { label: "Number (e.g., 3 items)", value: "number" },
+                ]}
               />
               <TextField
                 label="Challenger value"
                 value={variantDiscount}
                 onChange={setVariantDiscount}
                 type="number"
-                suffix={valueFormat === 'percent' ? '%' : valueFormat === 'currency' ? 'USD' : ''}
+                suffix={challengerFormat === 'percent' ? '%' : challengerFormat === 'currency' ? 'USD' : ''}
                 min="0"
                 autoComplete="off"
                 helpText={
-                  valueFormat === 'percent' ? 'Enter percentage (e.g., 20 for 20% off)' :
-                  valueFormat === 'currency' ? 'Enter dollar amount (e.g., 100 for $100)' :
+                  challengerFormat === 'percent' ? 'Enter percentage (e.g., 10 for 10% off)' :
+                  challengerFormat === 'currency' ? 'Enter dollar amount (e.g., 100 for $100)' :
                   'Enter numeric value'
                 }
               />
@@ -727,8 +751,8 @@ export default function ABTestingPage() {
               const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
               const sessionToken = params.get('id_token') || '';
               
-              const controlPct = Number(controlDiscount);
-              const challengerPct = Number(variantDiscount);
+              const controlVal = Number(controlDiscount);
+              const challengerVal = Number(variantDiscount);
               
               const control = editingExperiment.variants.find(v => v.isControl);
               const challenger = editingExperiment.variants.find(v => !v.isControl);
@@ -746,16 +770,16 @@ export default function ABTestingPage() {
                     id: control?.id,
                     name: "Control",
                     isControl: true,
-                    value: controlPct,
-                    valueFormat: valueFormat,
+                    value: controlVal,
+                    valueFormat: controlFormat,
                     trafficPct: 50,
                   },
                   {
                     id: challenger?.id,
                     name: variantName.trim() || "Variant",
                     isControl: false,
-                    value: challengerPct,
-                    valueFormat: valueFormat,
+                    value: challengerVal,
+                    valueFormat: challengerFormat,
                     trafficPct: 50,
                   },
                 ],
