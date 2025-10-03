@@ -108,6 +108,12 @@ export default function ABTestingPage() {
     setIsClient(true);
   }, []);
 
+  // Ensure form submission doesn't trigger a native submit/reload in embedded context
+  const handleSubmitCreate = (e?: any) => {
+    try { e?.preventDefault?.(); } catch (_) { /* no-op */ }
+    handleCreateExperiment();
+  };
+
   const handleOpenCreateModal = () => setIsCreateModalOpen(true);
   const handleCloseCreateModal = () => {
     setIsCreateModalOpen(false);
@@ -434,7 +440,7 @@ export default function ABTestingPage() {
         title="Create New A/B Experiment"
         primaryAction={{
           content: "Create",
-          onAction: handleCreateExperiment,
+          onAction: () => handleSubmitCreate(),
           loading: isLoading,
         }}
         secondaryActions={[
@@ -446,10 +452,10 @@ export default function ABTestingPage() {
         ]}
       >
         <Modal.Section>
-          <Form onSubmit={handleCreateExperiment}>
+          <Form onSubmit={handleSubmitCreate}>
             <FormLayout>
-              <TextField label="Experiment Name" value={experimentName} onChange={setExperimentName} autoComplete="off" placeholder="e.g., Free Shipping vs. 10% Off" />
-              <TextField label="Description" value={experimentDescription} onChange={setExperimentDescription} autoComplete="off" multiline={2} />
+              <TextField label="Experiment Name" value={experimentName} onChange={(v) => setExperimentName(v)} autoComplete="off" placeholder="e.g., Free Shipping vs. 10% Off" />
+              <TextField label="Description" value={experimentDescription} onChange={(v) => setExperimentDescription(v)} autoComplete="off" multiline={2} />
               <FormLayout.Group>
                 <Select label="Test Type" value={testType} onChange={(v) => setTestType(v as any)} options={[
                   { label: 'Discount', value: 'discount' },
