@@ -294,7 +294,7 @@ export default function ABTestingPage() {
   };
 
   const handleDelete = async (experimentId: number) => {
-    const confirmation = typeof window !== "undefined" ? window.confirm("Delete this experiment? Data keeps for reporting; traffic stops immediately.") : false;
+    const confirmation = typeof window !== "undefined" ? window.confirm("Delete this experiment? This will permanently delete all experiment data including results. This action cannot be undone.") : false;
     if (!confirmation) return;
 
     setErrorBanner(null);
@@ -403,7 +403,7 @@ export default function ABTestingPage() {
             <ButtonGroup>
               <Button onClick={() => openResultsModal(experiment)}>View results</Button>
               <Button onClick={() => openEditModal(experiment)}>Edit</Button>
-              <Button tone="critical" onClick={() => handleDelete(experiment.id)} disabled={experiment.status === "running"}>
+              <Button tone="critical" onClick={() => handleDelete(experiment.id)}>
                 Delete
               </Button>
             </ButtonGroup>
