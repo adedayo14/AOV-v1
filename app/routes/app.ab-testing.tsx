@@ -18,6 +18,7 @@ import {
   Badge,
   ButtonGroup,
   Banner,
+  Select,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -66,6 +67,32 @@ export default function ABTestingPage() {
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [experimentName, setExperimentName] = useState("");
+  const [experimentDescription, setExperimentDescription] = useState("");
+  const [testType, setTestType] = useState<'discount' | 'free_shipping' | 'bundle'>("discount");
+  const [primaryMetric, setPrimaryMetric] = useState<'conversion_rate' | 'average_order_value' | 'revenue_per_visitor'>("conversion_rate");
+  const [confidenceLevelPct, setConfidenceLevelPct] = useState<string>("95");
+  const [minSampleSize, setMinSampleSize] = useState<string>("100");
+  const [trafficAllocationPct, setTrafficAllocationPct] = useState<string>("100");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
+  // Variant A (Control)
+  const [variantAName, setVariantAName] = useState<string>("Control");
+  const [variantAPct, setVariantAPct] = useState<string>("50");
+  const [variantADesc, setVariantADesc] = useState<string>("");
+  const [variantADiscountType, setVariantADiscountType] = useState<'percentage' | 'fixed'>("percentage");
+  const [variantADiscountValue, setVariantADiscountValue] = useState<string>("0");
+  const [variantAFreeShipThreshold, setVariantAFreeShipThreshold] = useState<string>("0");
+  const [variantABundleId, setVariantABundleId] = useState<string>("");
+
+  // Variant B (Challenger)
+  const [variantBName, setVariantBName] = useState<string>("Variant B");
+  const [variantBPct, setVariantBPct] = useState<string>("50");
+  const [variantBDesc, setVariantBDesc] = useState<string>("");
+  const [variantBDiscountType, setVariantBDiscountType] = useState<'percentage' | 'fixed'>("percentage");
+  const [variantBDiscountValue, setVariantBDiscountValue] = useState<string>("10");
+  const [variantBFreeShipThreshold, setVariantBFreeShipThreshold] = useState<string>("0");
+  const [variantBBundleId, setVariantBBundleId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
@@ -90,6 +117,22 @@ export default function ABTestingPage() {
       setTimeout(() => setShowErrorBanner(false), 3000);
       return;
     }
+    // Validate variant percentages sum to 100
+    const aPct = Number(variantAPct);
+    const bPct = Number(variantBPct);
+    if (Number.isNaN(aPct) || Number.isNaN(bPct) || aPct + bPct !== 100) {
+      setShowErrorBanner(true);
+      setBannerMessage("Variant traffic must sum to 100%.");
+      setTimeout(() => setShowErrorBanner(false), 4000);
+      return;
+    }
+    // Validate numeric inputs
+    if (Number.isNaN(Number(confidenceLevelPct)) || Number.isNaN(Number(minSampleSize)) || Number.isNaN(Number(trafficAllocationPct))) {
+      setShowErrorBanner(true);
+      setBannerMessage("Please enter valid numbers for confidence level, sample size, and traffic allocation.");
+      setTimeout(() => setShowErrorBanner(false), 4000);
+      return;
+    }
     setIsLoading(true);
     setShowErrorBanner(false);
     setShowSuccessBanner(false);
@@ -101,12 +144,55 @@ export default function ABTestingPage() {
       const shop = urlParams.get('shop') || '';
       const sessionToken = urlParams.get('id_token') || '';
       
-      // Use JSON payload like Settings does
-      const payload = {
-        action: 'create',
-        name: experimentName,
-        shop: shop
+      // Build experiment + variants payload
+      const exp = {
+        name: experimentName.trim(),
+        description: experimentDescription.trim() || null,
+        testType,
+        primaryMetric,
+        confidenceLevelPct: Number(confidenceLevelPct),
+        minSampleSize: Number(minSampleSize),
+        trafficAllocationPct: Number(trafficAllocationPct),
+        startDate: startDate || null,
+        endDate: endDate || null,
+        status: 'draft' as const,
       };
+
+      const variantConfigs = (variant: 'A' | 'B') => {
+        if (testType === 'discount') {
+          const type = variant === 'A' ? variantADiscountType : variantBDiscountType;
+          const val = variant === 'A' ? variantADiscountValue : variantBDiscountValue;
+          return { discountType: type, discountValue: Number(val) };
+        }
+        if (testType === 'free_shipping') {
+          const thr = variant === 'A' ? variantAFreeShipThreshold : variantBFreeShipThreshold;
+          return { freeShippingThreshold: Number(thr) };
+        }
+        if (testType === 'bundle') {
+          const id = variant === 'A' ? variantABundleId : variantBBundleId;
+          return { bundleId: id };
+        }
+        return {};
+      };
+
+      const variants = [
+        {
+          name: variantAName.trim() || 'Control',
+          description: variantADesc.trim() || null,
+          isControl: true,
+          trafficPercentage: Number(variantAPct),
+          config: variantConfigs('A'),
+        },
+        {
+          name: variantBName.trim() || 'Variant B',
+          description: variantBDesc.trim() || null,
+          isControl: false,
+          trafficPercentage: Number(variantBPct),
+          config: variantConfigs('B'),
+        }
+      ];
+
+      const payload = { action: 'create', shop, experiment: exp, variants };
 
       const endpoint = `${window.location.origin}/api/ab-testing-admin`;
       console.log("[A/B Testing UI] Sending request to", endpoint);
@@ -162,7 +248,9 @@ export default function ABTestingPage() {
       setIsLoading(false);
       console.log("[A/B Testing UI] Experiment creation process finished.");
     }
-  }, [experimentName]);
+  // Intentionally no deps: we read latest state on action click
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDeleteExperiment = useCallback(async (experimentId: number) => {
     console.log('[A/B Testing UI] Delete button clicked for experiment:', experimentId);
@@ -330,16 +418,77 @@ export default function ABTestingPage() {
         <Modal.Section>
           <Form onSubmit={handleCreateExperiment}>
             <FormLayout>
-              <TextField
-                label="Experiment Name"
-                value={experimentName}
-                onChange={setExperimentName}
-                autoComplete="off"
-                placeholder="e.g., Free Shipping vs. 10% Off"
-              />
-              <Text variant="bodyMd" as="p" tone="subdued">
-                This will be the name of your A/B test.
-              </Text>
+              <TextField label="Experiment Name" value={experimentName} onChange={setExperimentName} autoComplete="off" placeholder="e.g., Free Shipping vs. 10% Off" />
+              <TextField label="Description" value={experimentDescription} onChange={setExperimentDescription} autoComplete="off" multiline={2} />
+              <FormLayout.Group>
+                <Select label="Test Type" value={testType} onChange={(v) => setTestType(v as any)} options={[
+                  { label: 'Discount', value: 'discount' },
+                  { label: 'Free Shipping', value: 'free_shipping' },
+                  { label: 'Bundle', value: 'bundle' },
+                ]} />
+                <Select label="Primary Metric" value={primaryMetric} onChange={(v) => setPrimaryMetric(v as any)} options={[
+                  { label: 'Conversion Rate', value: 'conversion_rate' },
+                  { label: 'Average Order Value', value: 'average_order_value' },
+                  { label: 'Revenue per Visitor', value: 'revenue_per_visitor' },
+                ]} />
+              </FormLayout.Group>
+
+              <FormLayout.Group>
+                <TextField label="Confidence Level (%)" value={confidenceLevelPct} onChange={setConfidenceLevelPct} type="number" suffix="%" autoComplete="off" />
+                <TextField label="Min Sample Size" value={minSampleSize} onChange={setMinSampleSize} type="number" autoComplete="off" />
+                <TextField label="Traffic Allocation (%)" value={trafficAllocationPct} onChange={setTrafficAllocationPct} type="number" suffix="%" autoComplete="off" />
+              </FormLayout.Group>
+
+              <FormLayout.Group>
+                <TextField label="Start Date" value={startDate} onChange={setStartDate} type="date" autoComplete="off" />
+                <TextField label="End Date" value={endDate} onChange={setEndDate} type="date" autoComplete="off" />
+              </FormLayout.Group>
+
+              <Card>
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingMd">Variant A (Control)</Text>
+                  <FormLayout.Group>
+                    <TextField label="Name" value={variantAName} onChange={setVariantAName} autoComplete="off" />
+                    <TextField label="Traffic %" value={variantAPct} onChange={setVariantAPct} type="number" suffix="%" autoComplete="off" />
+                  </FormLayout.Group>
+                  <TextField label="Description" value={variantADesc} onChange={setVariantADesc} multiline={2} autoComplete="off" />
+                  {testType === 'discount' && (
+                    <FormLayout.Group>
+                      <Select label="Discount Type" value={variantADiscountType} onChange={(v) => setVariantADiscountType(v as any)} options={[{ label: 'Percentage', value: 'percentage' }, { label: 'Fixed', value: 'fixed' }]} />
+                      <TextField label="Discount Value" value={variantADiscountValue} onChange={setVariantADiscountValue} type="number" autoComplete="off" />
+                    </FormLayout.Group>
+                  )}
+                  {testType === 'free_shipping' && (
+                    <TextField label="Free Shipping Threshold" value={variantAFreeShipThreshold} onChange={setVariantAFreeShipThreshold} type="number" prefix="$" autoComplete="off" />
+                  )}
+                  {testType === 'bundle' && (
+                    <TextField label="Bundle ID" value={variantABundleId} onChange={setVariantABundleId} autoComplete="off" />
+                  )}
+                </BlockStack>
+              </Card>
+
+              <Card>
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingMd">Variant B (Challenger)</Text>
+                  <FormLayout.Group>
+                    <TextField label="Name" value={variantBName} onChange={setVariantBName} autoComplete="off" />
+                    <TextField label="Traffic %" value={variantBPct} onChange={setVariantBPct} type="number" suffix="%" autoComplete="off" />
+                  </FormLayout.Group>
+                  <TextField label="Description" value={variantBDesc} onChange={setVariantBDesc} multiline={2} autoComplete="off" />
+                  {testType === 'discount' && (
+                    <FormLayout.Group>
+                      <Select label="Discount Type" value={variantBDiscountType} onChange={(v) => setVariantBDiscountType(v as any)} options={[{ label: 'Percentage', value: 'percentage' }, { label: 'Fixed', value: 'fixed' }]} />
+                      <TextField label="Discount Value" value={variantBDiscountValue} onChange={setVariantBDiscountValue} type="number" autoComplete="off" />
+                    </FormLayout.Group>
+                  )}
+                  {testType === 'free_shipping' && (
+                    <TextField label="Free Shipping Threshold" value={variantBFreeShipThreshold} onChange={setVariantBFreeShipThreshold} type="number" prefix="$" autoComplete="off" />
+                  )}
+                  {testType === 'bundle' && (
+                    <TextField label="Bundle ID" value={variantBBundleId} onChange={setVariantBBundleId} autoComplete="off" />
+                  )}
+                </BlockStack>
+              </Card>
             </FormLayout>
           </Form>
         </Modal.Section>

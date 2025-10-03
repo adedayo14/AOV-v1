@@ -31,22 +31,54 @@ export async function action({ request }: ActionFunctionArgs) {
     console.log("[api.ab-testing-admin] Action:", action);
     
     if (action === 'create') {
-      const name = jsonData.name;
-      console.log("[api.ab-testing-admin] Creating experiment:", name);
-      
-      const experiment = await prisma.aBExperiment.create({
+      console.log("[api.ab-testing-admin] Creating experiment (rich payload)");
+      const exp = jsonData.experiment;
+      const variants = jsonData.variants as Array<any>;
+
+      if (!exp || !variants || variants.length < 2) {
+        return json({ success: false, error: 'Invalid payload: experiment and 2 variants required' }, { status: 400 });
+      }
+
+      // Validate variant traffic sums to 100
+      const sumPct = variants.reduce((acc, v) => acc + Number(v.trafficPercentage || 0), 0);
+      if (sumPct !== 100) {
+        return json({ success: false, error: 'Variant traffic must sum to 100' }, { status: 400 });
+      }
+
+      // Map inputs to Prisma fields (Decimal-capable fields will accept numbers)
+      const created = await prisma.aBExperiment.create({
         data: {
           shopId: shop,
-          name: name,
-          description: '',
-          testType: 'discount',
-          status: 'draft',
-          trafficAllocation: 100,
+          name: String(exp.name),
+          description: exp.description ?? null,
+          testType: String(exp.testType || 'discount'),
+          status: String(exp.status || 'draft'),
+          trafficAllocation: Number(exp.trafficAllocationPct ?? 100),
+          startDate: exp.startDate ? new Date(exp.startDate) : null,
+          endDate: exp.endDate ? new Date(exp.endDate) : null,
+          primaryMetric: String(exp.primaryMetric || 'conversion_rate'),
+          confidenceLevel: Number(exp.confidenceLevelPct ?? 95) / 100, // store as decimal 0-1
+          minSampleSize: Number(exp.minSampleSize ?? 100),
         },
       });
-      
-      console.log("[api.ab-testing-admin] Experiment created successfully:", experiment.id);
-      return json({ success: true, experiment });
+
+      // Insert variants
+      for (const v of variants) {
+        const cfg = v.config || {};
+        await prisma.aBVariant.create({
+          data: {
+            experimentId: created.id,
+            name: String(v.name),
+            description: v.description ?? null,
+            isControl: Boolean(v.isControl),
+            trafficPercentage: Number(v.trafficPercentage),
+            configData: JSON.stringify(cfg),
+          },
+        });
+      }
+
+      console.log("[api.ab-testing-admin] Experiment created successfully:", created.id);
+      return json({ success: true, experimentId: created.id });
     }
     
     if (action === 'delete') {
