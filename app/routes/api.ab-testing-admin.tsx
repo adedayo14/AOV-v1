@@ -93,6 +93,66 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ success: true, message: "Experiment deleted" });
     }
 
+    if (action === 'update') {
+      const experimentId = Number(jsonData.experimentId);
+      const exp = jsonData.experiment || {};
+      const variants = (jsonData.variants || []) as Array<any>;
+      console.log("[api.ab-testing-admin] Updating experiment:", experimentId);
+
+      if (!experimentId) {
+        return json({ success: false, error: 'experimentId is required' }, { status: 400 });
+      }
+
+      if (variants && variants.length > 0) {
+        const sumPct = variants.reduce((acc, v) => acc + Number(v.trafficPercentage || 0), 0);
+        if (sumPct !== 100) {
+          return json({ success: false, error: 'Variant traffic must sum to 100' }, { status: 400 });
+        }
+      }
+
+      // Update experiment metadata (only provided fields)
+      const expData: any = {};
+      if (typeof exp.name === 'string') expData.name = exp.name;
+      if (typeof exp.description !== 'undefined') expData.description = exp.description ?? null;
+      if (typeof exp.status === 'string') expData.status = exp.status;
+      if (typeof exp.trafficAllocationPct !== 'undefined') expData.trafficAllocation = Number(exp.trafficAllocationPct);
+      if (typeof exp.primaryMetric === 'string') expData.primaryMetric = exp.primaryMetric;
+      if (typeof exp.confidenceLevelPct !== 'undefined') expData.confidenceLevel = Number(exp.confidenceLevelPct) / 100;
+      if (typeof exp.minSampleSize !== 'undefined') expData.minSampleSize = Number(exp.minSampleSize);
+      if (typeof exp.startDate !== 'undefined') expData.startDate = exp.startDate ? new Date(exp.startDate) : null;
+      if (typeof exp.endDate !== 'undefined') expData.endDate = exp.endDate ? new Date(exp.endDate) : null;
+
+      if (Object.keys(expData).length > 0) {
+        await prisma.aBExperiment.update({
+          where: { id: experimentId },
+          data: expData,
+        });
+      }
+
+      // Update variants if provided
+      if (Array.isArray(variants) && variants.length > 0) {
+        for (const v of variants) {
+          if (!v.id) continue;
+          const data: any = {};
+          if (typeof v.name === 'string') data.name = v.name;
+          if (typeof v.description !== 'undefined') data.description = v.description ?? null;
+          if (typeof v.isControl !== 'undefined') data.isControl = !!v.isControl;
+          if (typeof v.trafficPercentage !== 'undefined') data.trafficPercentage = Number(v.trafficPercentage);
+          if (typeof v.config !== 'undefined') data.configData = JSON.stringify(v.config || {});
+
+          if (Object.keys(data).length > 0) {
+            await prisma.aBVariant.update({
+              where: { id: Number(v.id) },
+              data,
+            });
+          }
+        }
+      }
+
+      console.log("[api.ab-testing-admin] Experiment updated successfully");
+      return json({ success: true, message: 'Experiment updated' });
+    }
+
     return json({ success: false, error: "Invalid action" }, { status: 400 });
 
   } catch (error) {

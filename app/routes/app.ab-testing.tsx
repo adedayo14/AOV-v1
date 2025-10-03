@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { json, LoaderFunction } from "@remix-run/node";
 import { useLoaderData, useRevalidator } from "@remix-run/react";
@@ -152,6 +151,9 @@ export default function ABTestingPage() {
   // Details modal state
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [detailsExp, setDetailsExp] = useState<SerializedABExperiment | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editExp, setEditExp] = useState<SerializedABExperiment | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Fix React #418 hydration errors by rendering dates/badges only on client
   useEffect(() => {
@@ -454,6 +456,7 @@ export default function ABTestingPage() {
                         </BlockStack>
                         <ButtonGroup>
                           <Button size="slim" onClick={() => { setDetailsExp(exp); setIsDetailsOpen(true); }}>View Details</Button>
+                          <Button size="slim" onClick={() => { setEditExp(exp); setIsEditOpen(true); }}>Edit</Button>
                           <Button 
                             size="slim" 
                             tone="critical" 
@@ -520,6 +523,146 @@ export default function ABTestingPage() {
                 </BlockStack>
               </Card>
             </BlockStack>
+          ) : (
+            <Text as="p">Loading…</Text>
+          )}
+        </Modal.Section>
+      </Modal>
+
+      {/* Edit Modal - user friendly */}
+      <Modal
+        open={isEditOpen}
+        onClose={() => { setIsEditOpen(false); setEditExp(null); }}
+        title={editExp ? `Edit: ${editExp.name}` : 'Edit Experiment'}
+        primaryAction={{
+          content: isSavingEdit ? 'Saving…' : 'Save Changes',
+          loading: isSavingEdit,
+          onAction: async () => {
+            if (!editExp) return;
+            try {
+              setIsSavingEdit(true);
+              const urlParams = new URLSearchParams(window.location.search);
+              const shop = urlParams.get('shop') || '';
+              const sessionToken = urlParams.get('id_token') || '';
+
+              // Build variants "config" based on test type for friendlier editing
+              const editedVariants = (editExp.variants || []).map(v => {
+                // Normalize configData
+                const cfg = v.configData || {};
+                return {
+                  id: v.id,
+                  name: v.name,
+                  description: v.description,
+                  isControl: v.isControl,
+                  trafficPercentage: v.trafficPercentage,
+                  config: cfg,
+                };
+              });
+
+              const payload = {
+                action: 'update',
+                shop,
+                experimentId: editExp.id,
+                experiment: {
+                  name: editExp.name,
+                  description: editExp.description,
+                  status: editExp.status,
+                },
+                variants: editedVariants,
+              };
+
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 15000);
+              const resp = await fetch(`${window.location.origin}/api/ab-testing-admin`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {}),
+                  'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify(payload),
+                signal: controller.signal,
+              });
+              clearTimeout(timeout);
+              if (!resp.ok) throw new Error(await resp.text());
+              setIsEditOpen(false);
+              setEditExp(null);
+              try { revalidator.revalidate(); } catch (_e) { /* ignore */ }
+              setShowSuccessBanner(true);
+              setBannerMessage('Experiment updated');
+            } catch (_e) {
+              setShowErrorBanner(true);
+              setBannerMessage('Failed to save changes');
+              setTimeout(() => setShowErrorBanner(false), 4000);
+            } finally {
+              setIsSavingEdit(false);
+            }
+          }
+        }}
+        secondaryActions={[{ content: 'Cancel', onAction: () => { setIsEditOpen(false); setEditExp(null); } }]}
+      >
+        <Modal.Section>
+          {editExp ? (
+            <FormLayout>
+              <TextField label="Name" value={editExp.name} onChange={(v) => setEditExp({ ...editExp, name: v })} autoComplete="off" />
+              <TextField label="Description" value={editExp.description || ''} onChange={(v) => setEditExp({ ...editExp, description: v })} autoComplete="off" multiline={2} />
+              <Select label="Status" value={editExp.status} onChange={(v) => setEditExp({ ...editExp, status: v as any })} options={[
+                { label: 'Active', value: 'active' },
+                { label: 'Paused', value: 'paused' },
+                { label: 'Draft', value: 'draft' },
+              ]} />
+
+              <Card>
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingSm">Variants</Text>
+                  {(editExp.variants || []).map((v, idx) => (
+                    <Card key={v.id}>
+                      <FormLayout>
+                        <FormLayout.Group>
+                          <TextField label="Variant Name" value={v.name} autoComplete="off" onChange={(val) => {
+                            const copy = { ...editExp } as any; copy.variants[idx].name = val; setEditExp(copy);
+                          }} />
+                          <Select label="Control" value={v.isControl ? 'yes' : 'no'} onChange={(val) => {
+                            const copy = { ...editExp } as any; copy.variants[idx].isControl = val === 'yes'; setEditExp(copy);
+                          }} options={[{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }]} />
+                          <TextField label="Traffic %" type="number" value={String(v.trafficPercentage)} autoComplete="off" onChange={(val) => {
+                            const copy = { ...editExp } as any; copy.variants[idx].trafficPercentage = Number(val) || 0; setEditExp(copy);
+                          }} />
+                        </FormLayout.Group>
+                        <TextField label="Description" value={v.description || ''} autoComplete="off" onChange={(val) => {
+                          const copy = { ...editExp } as any; copy.variants[idx].description = val; setEditExp(copy);
+                        }} multiline={2} />
+
+                        {/* Friendly config editors by test type */}
+                        {editExp.testType === 'discount' && (
+                          <FormLayout.Group>
+                            <Select label="Discount Type" value={(v.configData?.discountType || 'percentage')} onChange={(val) => {
+                              const copy = { ...editExp } as any; copy.variants[idx].configData = { ...(copy.variants[idx].configData || {}), discountType: val } ; setEditExp(copy);
+                            }} options={[{ label: 'Percentage', value: 'percentage' }, { label: 'Fixed', value: 'fixed' }]} />
+                            <TextField label="Discount Value" type="number" value={String(v.configData?.discountValue ?? 0)} autoComplete="off" onChange={(val) => {
+                              const copy = { ...editExp } as any; copy.variants[idx].configData = { ...(copy.variants[idx].configData || {}), discountValue: Number(val) || 0 } ; setEditExp(copy);
+                            }} />
+                            <TextField label="Discount Code" value={String(v.configData?.discountCode || '')} autoComplete="off" onChange={(val) => {
+                              const copy = { ...editExp } as any; copy.variants[idx].configData = { ...(copy.variants[idx].configData || {}), discountCode: val || undefined } ; setEditExp(copy);
+                            }} helpText="Optional: code to apply at checkout for this variant" />
+                          </FormLayout.Group>
+                        )}
+                        {editExp.testType === 'free_shipping' && (
+                          <TextField label="Free Shipping Threshold" type="number" prefix="$" value={String(v.configData?.freeShippingThreshold ?? 0)} autoComplete="off" onChange={(val) => {
+                            const copy = { ...editExp } as any; copy.variants[idx].configData = { ...(copy.variants[idx].configData || {}), freeShippingThreshold: Number(val) || 0 } ; setEditExp(copy);
+                          }} />
+                        )}
+                        {editExp.testType === 'bundle' && (
+                          <TextField label="Bundle ID" value={String(v.configData?.bundleId || '')} autoComplete="off" onChange={(val) => {
+                            const copy = { ...editExp } as any; copy.variants[idx].configData = { ...(copy.variants[idx].configData || {}), bundleId: val || undefined } ; setEditExp(copy);
+                          }} />
+                        )}
+                      </FormLayout>
+                    </Card>
+                  ))}
+                </BlockStack>
+              </Card>
+            </FormLayout>
           ) : (
             <Text as="p">Loading…</Text>
           )}
