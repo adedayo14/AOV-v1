@@ -83,35 +83,41 @@ const toNumber = (value: Prisma.Decimal | number | string | null | undefined): n
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
 
-  const experiments = await prisma.experiment.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      variants: {
-        orderBy: [{ isControl: "desc" }, { id: "asc" }],
+  try {
+    const experiments = await prisma.experiment.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        variants: {
+          orderBy: [{ isControl: "desc" }, { id: "asc" }],
+        },
       },
-    },
-  });
+    });
 
-  const serialized: LoaderExperiment[] = experiments.map((exp): LoaderExperiment => ({
-    id: exp.id,
-    name: exp.name,
-    status: exp.status,
-    startDate: exp.startDate ? exp.startDate.toISOString() : null,
-    endDate: exp.endDate ? exp.endDate.toISOString() : null,
-    attribution: exp.attribution,
-    createdAt: exp.createdAt.toISOString(),
-    updatedAt: exp.updatedAt.toISOString(),
-    activeVariantId: exp.activeVariantId ?? null,
-    variants: exp.variants.map((variant): LoaderVariant => ({
-      id: variant.id,
-      name: variant.name,
-      isControl: variant.isControl,
-      discountPct: toNumber(variant.discountPct),
-      trafficPct: toNumber(variant.trafficPct),
-    })),
-  }));
+    const serialized: LoaderExperiment[] = experiments.map((exp): LoaderExperiment => ({
+      id: exp.id,
+      name: exp.name,
+      status: exp.status,
+      startDate: exp.startDate ? exp.startDate.toISOString() : null,
+      endDate: exp.endDate ? exp.endDate.toISOString() : null,
+      attribution: exp.attribution,
+      createdAt: exp.createdAt.toISOString(),
+      updatedAt: exp.updatedAt.toISOString(),
+      activeVariantId: exp.activeVariantId ?? null,
+      variants: exp.variants.map((variant): LoaderVariant => ({
+        id: variant.id,
+        name: variant.name,
+        isControl: variant.isControl,
+        discountPct: toNumber(variant.discountPct),
+        trafficPct: toNumber(variant.trafficPct),
+      })),
+    }));
 
-  return json(serialized);
+    return json(serialized);
+  } catch (err) {
+    console.error("[app.ab-testing] Failed to load experiments. If you recently changed the Prisma schema, run migrations.", err);
+    // Fail-open: return an empty list so the page renders with an EmptyState instead of 500
+    return json([] satisfies LoaderExperiment[]);
+  }
 };
 
 export default function ABTestingPage() {
