@@ -11,7 +11,6 @@ import {
   FormLayout,
   TextField,
   Text,
-  LegacyCard,
   EmptyState,
   Card,
   InlineStack,
@@ -100,6 +99,7 @@ export default function ABTestingPage() {
       // Get shop from URL (same as Settings pattern)
       const urlParams = new URLSearchParams(window.location.search);
       const shop = urlParams.get('shop') || '';
+      const sessionToken = urlParams.get('id_token') || '';
       
       // Use JSON payload like Settings does
       const payload = {
@@ -108,18 +108,30 @@ export default function ABTestingPage() {
         shop: shop
       };
 
-      console.log("[A/B Testing UI] Sending request to /api/ab-testing-admin");
+      const endpoint = `${window.location.origin}/api/ab-testing-admin`;
+      console.log("[A/B Testing UI] Sending request to", endpoint);
       console.log("[A/B Testing UI] Payload:", payload);
+      console.log("[A/B Testing UI] Session token present:", !!sessionToken);
+      console.log("[A/B Testing UI] Current URL:", window.location.href);
       
-      const response = await fetch("/api/ab-testing-admin", {
+      // Add timeout to avoid hanging forever
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',
+          ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {}),
+          'X-Requested-With': 'XMLHttpRequest',
         },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       console.log(`[A/B Testing UI] Received response with status: ${response.status}`);
+      console.log('[A/B Testing UI] Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -140,6 +152,9 @@ export default function ABTestingPage() {
 
     } catch (error) {
       console.error("[A/B Testing UI] An error occurred during fetch:", error);
+      if ((error as any)?.name === 'AbortError') {
+        console.error('[A/B Testing UI] Request aborted due to timeout');
+      }
       setShowErrorBanner(true);
       setBannerMessage("Failed to create experiment.");
       setTimeout(() => setShowErrorBanner(false), 5000);
@@ -163,18 +178,33 @@ export default function ABTestingPage() {
     try {
       const url = new URL(window.location.href);
       const shop = url.searchParams.get('shop');
+      const sessionToken = url.searchParams.get('id_token') || '';
       console.log('[A/B Testing UI] Shop parameter:', shop);
       
       const payload = { action: 'delete', experimentId, shop };
       console.log('[A/B Testing UI] Sending delete request with payload:', payload);
+      const endpoint = `${window.location.origin}/api/ab-testing-admin`;
+      console.log('[A/B Testing UI] Delete endpoint:', endpoint);
+      console.log('[A/B Testing UI] Session token present:', !!sessionToken);
       
-      const response = await fetch('/api/ab-testing-admin', {
+      // Add timeout to avoid hanging forever
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+
+      const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {}),
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       
       console.log('[A/B Testing UI] Delete response status:', response.status);
+      console.log('[A/B Testing UI] Delete response headers:', Object.fromEntries(response.headers.entries()));
       
       if (response.ok) {
         const result = await response.json();
@@ -196,6 +226,9 @@ export default function ABTestingPage() {
       }
     } catch (error) {
       console.error('[A/B Testing UI] Delete error:', error);
+      if ((error as any)?.name === 'AbortError') {
+        console.error('[A/B Testing UI] Delete request aborted due to timeout');
+      }
       
       setShowErrorBanner(true);
       setBannerMessage('Failed to delete experiment');
