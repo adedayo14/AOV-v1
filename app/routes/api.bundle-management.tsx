@@ -181,23 +181,37 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  const formData = await request.formData();
-  const actionType = formData.get('action');
+  // Support both JSON and FormData bodies
+  let actionType: any;
+  let body: any = {};
+  const contentType = request.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    try {
+      body = await request.json();
+      actionType = body.action;
+    } catch (_e) {
+      return json({ success: false, error: 'Invalid JSON' }, { status: 400 });
+    }
+  } else {
+    const formData = await request.formData();
+    actionType = formData.get('action');
+    formData.forEach((v, k) => { (body as any)[k] = v; });
+  }
 
   try {
     if (actionType === 'create-bundle') {
-      const name = formData.get('name') as string;
-      const description = formData.get('description') as string;
-      const type = formData.get('type') as string;
-      const discountType = formData.get('discountType') as string;
-      const discountValue = parseFloat(formData.get('discountValue') as string);
-      const categoryIds = formData.get('categoryIds') as string;
-      const productIds = formData.get('productIds') as string;
-      const minProducts = parseInt(formData.get('minProducts') as string) || 2;
-      const maxProducts = formData.get('maxProducts') ? parseInt(formData.get('maxProducts') as string) : null;
-      const aiAutoApprove = formData.get('aiAutoApprove') === 'true';
-      const aiDiscountMax = formData.get('aiDiscountMax') ? parseFloat(formData.get('aiDiscountMax') as string) : null;
-      const displayTitle = formData.get('displayTitle') as string;
+      const name = (body.name as string) || '';
+      const description = (body.description as string) || '';
+      const type = (body.type as string) || (body.bundleType as string);
+      const discountType = (body.discountType as string) || 'percentage';
+      const discountValue = parseFloat(String(body.discountValue));
+      const categoryIds = (body.categoryIds as string) || (body.collectionIds as string);
+      const productIds = (body.productIds as string);
+      const minProducts = body.minProducts ? parseInt(String(body.minProducts)) : 2;
+      const maxProducts = body.maxProducts ? parseInt(String(body.maxProducts)) : null;
+      const aiAutoApprove = String(body.aiAutoApprove) === 'true';
+      const aiDiscountMax = body.aiDiscountMax ? parseFloat(String(body.aiDiscountMax)) : null;
+      const displayTitle = (body.displayTitle as string);
 
       if (!name || !type || discountValue < 0) {
         return json({ success: false, error: "Invalid bundle data" }, { status: 400 });
@@ -248,11 +262,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     if (actionType === 'update-bundle') {
-      const bundleId = formData.get('bundleId') as string;
-      const name = formData.get('name') as string;
-      const description = formData.get('description') as string;
-      const status = formData.get('status') as string;
-      const discountValue = parseFloat(formData.get('discountValue') as string);
+      const bundleId = (body.bundleId as string);
+      const name = (body.name as string);
+      const description = (body.description as string);
+      const status = (body.status as string);
+      const discountValue = parseFloat(String(body.discountValue));
 
   const bundle = await (prisma as any).bundle.update({
         where: { id: bundleId, shop: session.shop },
@@ -268,7 +282,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     if (actionType === 'delete-bundle') {
-      const bundleId = formData.get('bundleId') as string;
+      const bundleId = (body.bundleId as string);
 
   await (prisma as any).bundle.delete({
         where: { id: bundleId, shop: session.shop }
@@ -278,8 +292,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     if (actionType === 'toggle-status') {
-      const bundleId = formData.get('bundleId') as string;
-      const status = formData.get('status') as string;
+      const bundleId = (body.bundleId as string);
+      const status = (body.status as string);
 
   const bundle = await (prisma as any).bundle.update({
         where: { id: bundleId, shop: session.shop },

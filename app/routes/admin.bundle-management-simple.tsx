@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useFetcher } from "@remix-run/react";
+import { useLoaderData, useFetcher, useRevalidator } from "@remix-run/react";
 import { useEffect, useState } from "react";
 import {
   Page,
@@ -44,96 +44,9 @@ interface Bundle {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const url = new URL(request.url);
-  const loadProducts = url.searchParams.get('loadProducts') === 'true';
-  const shopParam = url.searchParams.get('shop');
-  
-  let admin: any;
-  let shop: string;
-  
-  // Use shop parameter to bypass hanging auth if provided
-  if (shopParam) {
-    console.log('[Bundle Loader] Using shop parameter:', shopParam);
-    const authResult = await authenticate.admin(request);
-    admin = authResult.admin;
-    shop = shopParam;
-  } else {
-    const authResult = await authenticate.admin(request);
-    admin = authResult.admin;
-    shop = authResult.session.shop;
-  }
-  
-  if (loadProducts) {
-    try {
-      console.log('[Bundle Loader] Loading products from Shopify...');
-      const response = await admin.graphql(`
-        #graphql
-        query getProducts {
-          products(first: 50) {
-            edges {
-              node {
-                id
-                title
-                handle
-                status
-                featuredImage {
-                  url
-                  altText
-                }
-                priceRangeV2 {
-                  minVariantPrice {
-                    amount
-                    currencyCode
-                  }
-                }
-                variants(first: 1) {
-                  edges {
-                    node {
-                      id
-                      price
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      `);
-      
-      const responseJson = await response.json();
-      
-      // Check for GraphQL errors
-      if ((responseJson as any).errors) {
-        console.error('[Bundle Loader] GraphQL errors:', (responseJson as any).errors);
-        return json({ 
-          success: false, 
-          error: 'Failed to load products: ' + (responseJson as any).errors[0]?.message,
-          products: []
-        }, { status: 500 });
-      }
-      
-      const products = responseJson.data?.products?.edges?.map((edge: any) => ({
-        id: edge.node.id,
-        title: edge.node.title,
-        handle: edge.node.handle,
-        image: edge.node.featuredImage?.url || '',
-        price: edge.node.priceRangeV2?.minVariantPrice?.amount || 
-               edge.node.variants?.edges?.[0]?.node?.price || '0'
-      })) || [];
-      
-      console.log('[Bundle Loader] Loaded', products.length, 'products');
-      return json({ success: true, products });
-    } catch (error) {
-      console.error('[Bundle Loader] Failed to load products:', error);
-      return json({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to load products',
-        products: []
-      }, { status: 500 });
-    }
-  }
-  
-  // Load bundles
+  // Load bundles only (product/collection fetching moved to API endpoints)
+  const authResult = await authenticate.admin(request);
+  const shop = authResult.session.shop;
   try {
     const bundles = await (prisma as any).bundle.findMany({
       where: { shop },
@@ -143,13 +56,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       orderBy: { createdAt: 'desc' }
     });
     
-    return json({ success: true, bundles, products: [] });
+    return json({ success: true, bundles });
   } catch (error) {
     console.error('[Bundle Loader] Failed to load bundles:', error);
     return json({ 
       success: true, 
       bundles: [], 
-      products: [],
       error: 'Failed to load bundles'
     });
   }
@@ -241,14 +153,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function SimpleBundleManagement() {
   const loaderData = useLoaderData<typeof loader>();
-  const productFetcher = useFetcher<typeof loader>();
-  const actionFetcher = useFetcher<typeof action>();
-  const collectionsFetcher = useFetcher();
+  const productFetcher = useFetcher<any>();
+  const collectionsFetcher = useFetcher<any>();
+  const revalidator = useRevalidator();
 
   // Handle both bundle and product data from loader
   const bundles = (loaderData as any).bundles || [];
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [showErrorBanner, setShowErrorBanner] = useState(false);
+  const [bannerMessage, setBannerMessage] = useState("");
 
   const [newBundle, setNewBundle] = useState({
     name: "",
@@ -264,45 +179,39 @@ export default function SimpleBundleManagement() {
   const [availableCollections, setAvailableCollections] = useState<any[]>([]);
   const [isLoadingCollections, setIsLoadingCollections] = useState(false);
 
-  // Auto-load products when modal opens with manual type
+  // (no SSR-unsafe UI in this page; no client flag needed)
+
+  // Auto-load products when modal opens with manual type (via API endpoint)
   useEffect(() => {
     console.log('[Bundle] Auto-load check:', {
       showCreateModal,
       bundleType: newBundle.bundleType,
-      hasProducts: !!productFetcher.data?.products,
-      productsLength: productFetcher.data?.products?.length || 0,
+      hasProducts: !!(productFetcher.data as any)?.products,
+      productsLength: (productFetcher.data as any)?.products?.length || 0,
       fetcherState: productFetcher.state
     });
     
     if (showCreateModal && newBundle.bundleType === 'manual' && 
-        !productFetcher.data?.products && productFetcher.state === 'idle') {
+        !(productFetcher.data as any)?.products && productFetcher.state === 'idle') {
       console.log('[Bundle] Loading products...');
       
-      // Get shop parameter for bypass
-      const url = new URL(window.location.href);
-      const shop = url.searchParams.get('shop');
-      const productsUrl = shop 
-        ? `/admin/bundle-management-simple?loadProducts=true&shop=${shop}` 
-        : '/admin/bundle-management-simple?loadProducts=true';
-      
-      productFetcher.load(productsUrl);
+      // Use API endpoint to fetch products
+      const apiUrl = `/api/bundle-management?action=products`;
+      // Pass token via header by using fetcher.submit with method GET is not possible; use load directly
+      // We can't add headers with load; fallback: simple GET without headers (admin session cookie will authorize)
+      productFetcher.load(apiUrl);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showCreateModal, newBundle.bundleType, productFetcher.data, productFetcher.state]);
+  }, [showCreateModal, newBundle.bundleType, (productFetcher.data as any), productFetcher.state]);
 
-  // Auto-load collections when modal opens with category type
+  // Auto-load collections when modal opens with category type (via API endpoint)
   useEffect(() => {
     if (showCreateModal && newBundle.bundleType === 'category' && 
         availableCollections.length === 0 && !isLoadingCollections) {
-      console.log('🔥 Loading collections via fetcher...');
+      console.log('🔥 Loading collections via API fetcher...');
       setIsLoadingCollections(true);
-      
-      // Get shop parameter for bypass
-      const url = new URL(window.location.href);
-      const shop = url.searchParams.get('shop');
-      const collectionsUrl = shop ? `/api/collections?shop=${shop}` : '/api/collections';
-      
-      collectionsFetcher.load(collectionsUrl);
+      // GET collections via API; cookies/session will auth
+      collectionsFetcher.load('/api/bundle-management?action=categories');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showCreateModal, newBundle.bundleType, availableCollections.length, isLoadingCollections]);
@@ -311,8 +220,8 @@ export default function SimpleBundleManagement() {
   useEffect(() => {
     if (collectionsFetcher.state === 'idle' && collectionsFetcher.data) {
       const data = collectionsFetcher.data as any;
-      if (data.success && data.collections) {
-        setAvailableCollections(data.collections);
+      if (data.success && data.categories) {
+        setAvailableCollections(data.categories);
       }
       setIsLoadingCollections(false);
     }
@@ -323,29 +232,19 @@ export default function SimpleBundleManagement() {
     console.log('[Bundle] Product fetcher state changed:', {
       state: productFetcher.state,
       hasData: !!productFetcher.data,
-      success: productFetcher.data?.success,
-      productsCount: productFetcher.data?.products?.length || 0,
+      success: (productFetcher.data as any)?.success,
+      productsCount: (productFetcher.data as any)?.products?.length || 0,
       error: (productFetcher.data as any)?.error
     });
   }, [productFetcher.state, productFetcher.data]);
   
   const isLoadingProducts = productFetcher.state !== 'idle';
-  const productLoadError = productFetcher.data && !productFetcher.data.success 
+  const productLoadError = productFetcher.data && !(productFetcher.data as any).success 
     ? (productFetcher.data as any).error 
     : null;
-  const availableProducts = productFetcher.data?.products || [];
+  const availableProducts = (productFetcher.data as any)?.products || [];
 
-  // Handle action fetcher state
-  useEffect(() => {
-    if (actionFetcher.state === 'idle' && actionFetcher.data) {
-      if (actionFetcher.data.success) {
-        setShowCreateModal(false);
-        resetForm();
-        // Reload bundles
-        window.location.reload();
-      }
-    }
-  }, [actionFetcher.state, actionFetcher.data]);
+  // We no longer use actionFetcher for mutations; using direct fetch and revalidation
 
   const resetForm = () => {
     setNewBundle({
@@ -364,55 +263,69 @@ export default function SimpleBundleManagement() {
 
   const handleCreateBundle = async () => {
     if (!newBundle.name.trim()) {
-      alert('Bundle name is required');
+      setShowErrorBanner(true);
+      setBannerMessage('Bundle name is required');
+      setTimeout(() => setShowErrorBanner(false), 3000);
       return;
     }
 
-    // Get shop from URL for bypass pattern (same as A/B testing)
     const url = new URL(window.location.href);
-    const shop = url.searchParams.get('shop');
+    const idToken = url.searchParams.get('id_token') || '';
 
-    const formData = new FormData();
-    formData.append('action', 'create-bundle');
-    formData.append('name', newBundle.name);
-    formData.append('description', newBundle.description);
-    formData.append('bundleType', newBundle.bundleType);
-    formData.append('discountType', newBundle.discountType);
-    formData.append('discountValue', String(newBundle.discountValue));
-    formData.append('minProducts', String(newBundle.minProducts));
-    formData.append('maxProducts', String(newBundle.maxProducts));
-    formData.append('status', newBundle.status);
-    formData.append('shop', shop || ''); // Add shop parameter
-    
+    const payload: any = {
+      action: 'create-bundle',
+      name: newBundle.name,
+      description: newBundle.description,
+      type: newBundle.bundleType,
+      discountType: newBundle.discountType,
+      discountValue: Number(newBundle.discountValue),
+      minProducts: Number(newBundle.minProducts),
+      maxProducts: Number(newBundle.maxProducts),
+      status: newBundle.status,
+    };
     if (newBundle.bundleType === 'manual' && selectedProducts.length > 0) {
-      formData.append('productIds', JSON.stringify(selectedProducts));
+      payload.productIds = JSON.stringify(selectedProducts);
     }
-    
     if (newBundle.bundleType === 'category' && selectedCollections.length > 0) {
-      formData.append('collectionIds', JSON.stringify(selectedCollections));
+      // API expects categoryIds
+      payload.categoryIds = JSON.stringify(selectedCollections);
     }
-    
+
     try {
-      console.log('[Bundle] Submitting create bundle request...');
-      const response = await fetch('/admin/bundle-management-simple', {
+      console.log('[Bundle] Submitting create bundle request to /api/bundle-management ...');
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      const response = await fetch('/api/bundle-management', {
         method: 'POST',
-        body: formData
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {}),
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
       });
-      
+      clearTimeout(timeout);
+
       console.log('[Bundle] Response status:', response.status);
-      if (response.ok) {
-        const result = await response.json();
-        console.log('[Bundle] Bundle created:', result);
-        alert('Bundle created successfully!');
-        window.location.reload();
-      } else {
-        const error = await response.text();
-        console.error('[Bundle] Error response:', error);
-        alert('Failed to create bundle');
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('[Bundle] Error response:', text);
+        throw new Error('Failed to create bundle');
       }
+
+      const result = await response.json();
+      console.log('[Bundle] Bundle created:', result);
+      setShowSuccessBanner(true);
+      setBannerMessage('Bundle created successfully');
+      setShowCreateModal(false);
+      resetForm();
+  try { revalidator.revalidate(); } catch (e) { console.warn('Revalidate failed', e); }
     } catch (error) {
       console.error('[Bundle] Fetch error:', error);
-      alert('Failed to create bundle: ' + (error as Error).message);
+      setShowErrorBanner(true);
+      setBannerMessage('Failed to create bundle');
+      setTimeout(() => setShowErrorBanner(false), 5000);
     }
   };
 
@@ -442,23 +355,36 @@ export default function SimpleBundleManagement() {
         variant={bundle.status === "active" ? "secondary" : "primary"}
         onClick={async () => {
           const url = new URL(window.location.href);
-          const shop = url.searchParams.get('shop');
-          const formData = new FormData();
-          formData.append("action", "toggle-status");
-          formData.append("bundleId", bundle.id);
-          formData.append("status", bundle.status === "active" ? "paused" : "active");
-          formData.append("shop", shop || '');
-          
+          const idToken = url.searchParams.get('id_token') || '';
+          const payload = { action: 'toggle-status', bundleId: bundle.id, status: bundle.status === 'active' ? 'paused' : 'active' };
           try {
-            const response = await fetch('/admin/bundle-management-simple', {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000);
+            const response = await fetch('/api/bundle-management', {
               method: 'POST',
-              body: formData
+              headers: {
+                'Content-Type': 'application/json',
+                ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {}),
+                'X-Requested-With': 'XMLHttpRequest',
+              },
+              body: JSON.stringify(payload),
+              signal: controller.signal,
             });
+            clearTimeout(timeout);
             if (response.ok) {
-              window.location.reload();
+              setShowSuccessBanner(true);
+              setBannerMessage('Bundle status updated');
+              try { revalidator.revalidate(); } catch (e) { console.warn('Revalidate failed', e); }
+            } else {
+              setShowErrorBanner(true);
+              setBannerMessage('Failed to update status');
+              setTimeout(() => setShowErrorBanner(false), 4000);
             }
           } catch (error) {
             console.error('[Bundle] Toggle error:', error);
+            setShowErrorBanner(true);
+            setBannerMessage('Failed to update status');
+            setTimeout(() => setShowErrorBanner(false), 4000);
           }
         }}
       >
@@ -470,28 +396,36 @@ export default function SimpleBundleManagement() {
         onClick={async () => {
           if (confirm("Are you sure you want to delete this bundle?")) {
             const url = new URL(window.location.href);
-            const shop = url.searchParams.get('shop');
-            const formData = new FormData();
-            formData.append("action", "delete-bundle");
-            formData.append("bundleId", bundle.id);
-            formData.append("shop", shop || '');
-            
+            const idToken = url.searchParams.get('id_token') || '';
+            const payload = { action: 'delete-bundle', bundleId: bundle.id };
             try {
-              console.log('[Bundle] Deleting bundle:', bundle.id);
-              const response = await fetch('/admin/bundle-management-simple', {
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 10000);
+              const response = await fetch('/api/bundle-management', {
                 method: 'POST',
-                body: formData
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {}),
+                  'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify(payload),
+                signal: controller.signal,
               });
-              console.log('[Bundle] Delete response:', response.status);
+              clearTimeout(timeout);
               if (response.ok) {
-                alert('Bundle deleted successfully');
-                window.location.reload();
+                setShowSuccessBanner(true);
+                setBannerMessage('Bundle deleted successfully');
+                try { revalidator.revalidate(); } catch (e) { console.warn('Revalidate failed', e); }
               } else {
-                alert('Failed to delete bundle');
+                setShowErrorBanner(true);
+                setBannerMessage('Failed to delete bundle');
+                setTimeout(() => setShowErrorBanner(false), 4000);
               }
             } catch (error) {
               console.error('[Bundle] Delete error:', error);
-              alert('Failed to delete bundle');
+              setShowErrorBanner(true);
+              setBannerMessage('Failed to delete bundle');
+              setTimeout(() => setShowErrorBanner(false), 4000);
             }
           }
         }}
@@ -504,7 +438,7 @@ export default function SimpleBundleManagement() {
   return (
     <Page
       title="Bundle Management"
-      subtitle="Create and manage product bundles with AI recommendations and custom discounts"
+      subtitle="✅ UPDATED Oct 3, 2025 - NO App Bridge - Direct fetch like Settings"
       primaryAction={
         <Button
           variant="primary"
@@ -519,6 +453,20 @@ export default function SimpleBundleManagement() {
       }
     >
       <Layout>
+        {showSuccessBanner && (
+          <Layout.Section>
+            <Banner tone="success" onDismiss={() => setShowSuccessBanner(false)}>
+              {bannerMessage}
+            </Banner>
+          </Layout.Section>
+        )}
+        {showErrorBanner && (
+          <Layout.Section>
+            <Banner tone="critical" onDismiss={() => setShowErrorBanner(false)}>
+              {bannerMessage}
+            </Banner>
+          </Layout.Section>
+        )}
         <Layout.Section>
           {bundles.length === 0 ? (
             <Card>
@@ -608,7 +556,7 @@ export default function SimpleBundleManagement() {
         title="Create New Bundle"
         primaryAction={{
           content: "Create Bundle",
-          disabled: !newBundle.name.trim() || actionFetcher.state !== "idle",
+          disabled: !newBundle.name.trim(),
           onAction: handleCreateBundle,
         }}
         secondaryActions={[
@@ -647,12 +595,7 @@ export default function SimpleBundleManagement() {
               onChange={(value) => {
                 setNewBundle({ ...newBundle, bundleType: value });
                 if (value === "manual" && availableProducts.length === 0) {
-                  const url = new URL(window.location.href);
-                  const shop = url.searchParams.get('shop');
-                  const productsUrl = shop 
-                    ? `/admin/bundle-management-simple?loadProducts=true&shop=${shop}` 
-                    : '/admin/bundle-management-simple?loadProducts=true';
-                  productFetcher.load(productsUrl);
+                  productFetcher.load('/api/bundle-management?action=products');
                 }
               }}
               helpText="Choose how products are selected for this bundle"
@@ -670,12 +613,7 @@ export default function SimpleBundleManagement() {
                         size="micro" 
                         onClick={() => {
                           console.log('[Bundle] Manual reload triggered');
-                          const url = new URL(window.location.href);
-                          const shop = url.searchParams.get('shop');
-                          const productsUrl = shop 
-                            ? `/admin/bundle-management-simple?loadProducts=true&shop=${shop}` 
-                            : '/admin/bundle-management-simple?loadProducts=true';
-                          productFetcher.load(productsUrl);
+                          productFetcher.load('/api/bundle-management?action=products');
                         }}
                       >
                         Reload Products
@@ -698,12 +636,7 @@ export default function SimpleBundleManagement() {
                       action={{
                         content: "Load Products",
                         onAction: () => {
-                          const url = new URL(window.location.href);
-                          const shop = url.searchParams.get('shop');
-                          const productsUrl = shop 
-                            ? `/admin/bundle-management-simple?loadProducts=true&shop=${shop}` 
-                            : '/admin/bundle-management-simple?loadProducts=true';
-                          productFetcher.load(productsUrl);
+                          productFetcher.load('/api/bundle-management?action=products');
                         },
                       }}
                       image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
@@ -776,10 +709,7 @@ export default function SimpleBundleManagement() {
                         content: "Reload Collections",
                         onAction: () => {
                           setIsLoadingCollections(true);
-                          const url = new URL(window.location.href);
-                          const shop = url.searchParams.get('shop');
-                          const collectionsUrl = shop ? `/api/collections?shop=${shop}` : '/api/collections';
-                          collectionsFetcher.load(collectionsUrl);
+                          collectionsFetcher.load('/api/bundle-management?action=categories');
                         },
                       }}
                     >
