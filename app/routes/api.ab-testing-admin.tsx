@@ -63,7 +63,7 @@ export async function action({ request }: ActionFunctionArgs) {
           name: String(v.name ?? (idx === 0 ? 'Control' : `Variant ${idx}`)),
           isControl: Boolean(v.isControl ?? idx === 0),
           discountPct: new Prisma.Decimal(v.discountPct ?? 0),
-          trafficPct: new Prisma.Decimal(v.trafficPercentage ?? 0),
+          trafficPct: new Prisma.Decimal((v.trafficPct ?? v.trafficPercentage) ?? 0),
         })),
       });
 
@@ -94,7 +94,7 @@ export async function action({ request }: ActionFunctionArgs) {
       }
 
       if (variants && variants.length > 0) {
-        const sumPct = variants.reduce((acc, v) => acc + Number(v.trafficPercentage || 0), 0);
+        const sumPct = variants.reduce((acc, v) => acc + Number((v.trafficPct ?? v.trafficPercentage) || 0), 0);
         if (sumPct !== 100) {
           return json({ success: false, error: 'Variant traffic must sum to 100' }, { status: 400 });
         }
@@ -123,7 +123,8 @@ export async function action({ request }: ActionFunctionArgs) {
           const data: Record<string, unknown> = {};
           if (typeof v.name === 'string') data.name = v.name;
           if (typeof v.isControl !== 'undefined') data.isControl = !!v.isControl;
-          if (typeof v.trafficPercentage !== 'undefined') data.trafficPct = new Prisma.Decimal(v.trafficPercentage);
+          if (typeof v.trafficPct !== 'undefined') data.trafficPct = new Prisma.Decimal(v.trafficPct);
+          else if (typeof v.trafficPercentage !== 'undefined') data.trafficPct = new Prisma.Decimal(v.trafficPercentage);
           if (typeof v.discountPct !== 'undefined') data.discountPct = new Prisma.Decimal(v.discountPct);
 
           if (Object.keys(data).length > 0) {

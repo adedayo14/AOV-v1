@@ -129,7 +129,7 @@ export default function ABTestingPage() {
   const [controlDiscount, setControlDiscount] = useState("0");
   const [variantDiscount, setVariantDiscount] = useState("10");
   const [variantName, setVariantName] = useState("Stronger Offer");
-  const [attributionWindow, setAttributionWindow] = useState("session");
+  const [attributionWindow, setAttributionWindow] = useState<"session"|"24h"|"7d">("session");
   const [activateNow, setActivateNow] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
@@ -180,13 +180,8 @@ export default function ABTestingPage() {
     setIsSaving(true);
 
     try {
-      const params = new URLSearchParams(window.location.search);
-      const shop = params.get("shop") || "";
-      const sessionToken = params.get("id_token") || "";
-
       const payload = {
         action: "create",
-        shop,
         experiment: {
           name: newName.trim(),
           status: activateNow ? "running" : "paused",
@@ -198,13 +193,13 @@ export default function ABTestingPage() {
           {
             name: "Control",
             isControl: true,
-            trafficPercentage: 50,
+            trafficPct: 50,
             discountPct: controlPct,
           },
           {
             name: variantName.trim() || "Variant",
             isControl: false,
-            trafficPercentage: 50,
+            trafficPct: 50,
             discountPct: challengerPct,
           },
         ],
@@ -213,11 +208,10 @@ export default function ABTestingPage() {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
 
-      const response = await fetch(`${window.location.origin}/api/ab-testing-admin`, {
+      const response = await fetch(`/api/ab-testing-admin`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
           "X-Requested-With": "XMLHttpRequest",
         },
         body: JSON.stringify(payload),
@@ -233,7 +227,11 @@ export default function ABTestingPage() {
       }
 
       await response.json();
-      setSuccessBanner("Experiment launched. Give it a few minutes to start collecting assignments.");
+      setSuccessBanner(
+        activateNow
+          ? "Experiment launched. Give it a few minutes to start collecting assignments."
+          : "Saved as paused. Start it from the list when you're ready."
+      );
       closeCreateModal();
       revalidator.revalidate();
     } catch (error) {
@@ -245,25 +243,20 @@ export default function ABTestingPage() {
   };
 
   const handleDelete = async (experimentId: number) => {
-    const confirmation = typeof window !== "undefined" ? window.confirm("Delete this experiment? Historical data stays in the warehouse.") : false;
+    const confirmation = typeof window !== "undefined" ? window.confirm("Delete this experiment? Data keeps for reporting; traffic stops immediately.") : false;
     if (!confirmation) return;
 
     setErrorBanner(null);
     setSuccessBanner(null);
 
     try {
-      const params = new URLSearchParams(window.location.search);
-      const shop = params.get("shop") || "";
-      const sessionToken = params.get("id_token") || "";
-
-      const response = await fetch(`${window.location.origin}/api/ab-testing-admin`, {
+      const response = await fetch(`/api/ab-testing-admin`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
           "X-Requested-With": "XMLHttpRequest",
         },
-        body: JSON.stringify({ action: "delete", experimentId, shop }),
+        body: JSON.stringify({ action: "delete", experimentId }),
       });
 
       if (!response.ok) {
@@ -331,7 +324,7 @@ export default function ABTestingPage() {
             </BlockStack>
             <ButtonGroup>
               <Button onClick={() => openResultsModal(experiment)}>View results</Button>
-              <Button tone="critical" onClick={() => handleDelete(experiment.id)}>
+              <Button tone="critical" onClick={() => handleDelete(experiment.id)} disabled={experiment.status === "running"}>
                 Delete
               </Button>
             </ButtonGroup>
@@ -362,6 +355,7 @@ export default function ABTestingPage() {
     );
   };
 
+  const money = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" });
   const renderResults = () => {
     if (resultsLoading) {
       return <Text as="p">Crunching numbers…</Text>;
@@ -396,11 +390,11 @@ export default function ABTestingPage() {
                     <InlineStack gap="400">
                       <Text as="p" tone="subdued">Visitors: {variant.visitors}</Text>
                       <Text as="p" tone="subdued">Orders: {variant.conversions}</Text>
-                      <Text as="p" tone="subdued">Revenue: ${variant.revenue.toFixed(2)}</Text>
+                      <Text as="p" tone="subdued">Revenue: {money.format(variant.revenue)}</Text>
                     </InlineStack>
                   </BlockStack>
                   <BlockStack gap="150" align="end">
-                    <Text as="p">Revenue / visitor: ${variant.revenuePerVisitor.toFixed(2)}</Text>
+                    <Text as="p">Revenue / visitor: {money.format(variant.revenuePerVisitor)}</Text>
                     <Text as="p">Conversion rate: {(variant.conversionRate * 100).toFixed(2)}%</Text>
                   </BlockStack>
                 </InlineStack>
@@ -408,6 +402,33 @@ export default function ABTestingPage() {
             </Card>
           );
         })}
+        {leader && selectedExperiment && (
+          <InlineStack align="end">
+            <Button
+              variant="primary"
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/ab-rollout", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ experimentId: selectedExperiment.id, winnerVariantId: leader }),
+                  });
+                  if (res.ok) {
+                    setSuccessBanner("Rolled out the winner. New visitors will see it going forward.");
+                    setResultsModalOpen(false);
+                    revalidator.revalidate();
+                  } else {
+                    setResultsError("Couldn’t roll out just now. Try again.");
+                  }
+                } catch {
+                  setResultsError("Couldn’t roll out just now. Try again.");
+                }
+              }}
+            >
+              Roll out winner
+            </Button>
+          </InlineStack>
+        )}
       </BlockStack>
     );
   };
@@ -475,11 +496,11 @@ export default function ABTestingPage() {
             <Select
               label="Attribution window"
               value={attributionWindow}
-              onChange={setAttributionWindow}
+              onChange={(value) => setAttributionWindow(value as "session"|"24h"|"7d")}
               options={[
                 { label: "Session", value: "session" },
-                { label: "24 hours", value: "hours24" },
-                { label: "7 days", value: "days7" },
+                { label: "24 hours", value: "24h" },
+                { label: "7 days", value: "7d" },
               ]}
             />
             <Select
