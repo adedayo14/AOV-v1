@@ -2,7 +2,7 @@
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import prisma from "../db.server";
+// import prisma from "../db.server"; // Disabled: Event model is for AB testing, need separate analytics table
 
 interface AnalyticsPeriod {
   start: string;
@@ -175,19 +175,13 @@ async function getShopifyOrderMetrics(admin: any, dateRange: AnalyticsPeriod) {
 }
 
 // Get cart analytics from our database
-async function getCartAnalytics(shop: string, dateRange: AnalyticsPeriod): Promise<CartMetrics> {
+async function getCartAnalytics(_shop: string, _dateRange: AnalyticsPeriod): Promise<CartMetrics> {
   try {
-    const analytics = await prisma.aBEvent.findMany({
-      where: {
-        shopId: shop,
-        timestamp: {
-          gte: new Date(dateRange.start),
-          lte: new Date(dateRange.end)
-        }
-      },
-      orderBy: { timestamp: 'desc' }
-    });
-
+    // TODO: Event model is for AB testing (experimentId, variantId, unitId, type)
+    // Need separate analytics/tracking table with shopId, timestamp, eventType, bundleId, orderValue
+    // For now, return mock data until proper analytics table is created
+    const analytics: any[] = [];
+    
     const cartViews = analytics.filter((a: any) => a.eventType === 'cart_view');
     const purchases = analytics.filter((a: any) => a.eventType === 'purchase');
     const bundleConversions = analytics.filter((a: any) => 
