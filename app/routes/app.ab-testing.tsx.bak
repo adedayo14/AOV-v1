@@ -15,7 +15,7 @@ import {
   Badge,
   EmptyState,
   Banner,
-  Divider,
+  FormLayout,
   Select,
   ButtonGroup,
 } from "@shopify/polaris";
@@ -585,7 +585,7 @@ export default function ABTestingPage() {
           <BlockStack gap="400">
             <BlockStack gap="100">
               <TextField
-                label="Experiment name"
+                label="Give your test a name"
                 value={newName}
                 placeholder="👉 Example: “Free Shipping vs 10% Off”"
                 onChange={setNewName}
@@ -601,10 +601,10 @@ export default function ABTestingPage() {
                 value={experimentType}
                 onChange={(value) => setExperimentType(value as "discount"|"bundle"|"shipping"|"upsell")}
                 options={[
-                  { label: "Discount offer", value: "discount" },
-                  { label: "Bundle deal", value: "bundle" },
-                  { label: "Shipping threshold", value: "shipping" },
-                  { label: "Upsell", value: "upsell" },
+                  { label: "💰 Discount offer", value: "discount" },
+                  { label: "📦 Bundle deal", value: "bundle" },
+                  { label: "🚚 Shipping threshold", value: "shipping" },
+                  { label: "⬆️ Upsell", value: "upsell" },
                 ]}
               />
             </BlockStack>
@@ -617,9 +617,9 @@ export default function ABTestingPage() {
                 value={valueFormat}
                 onChange={(value) => setValueFormat(value as "percent"|"currency"|"number")}
                 options={[
-                  { label: "Percentage (e.g., 10% off)", value: "percent" },
-                  { label: "Currency (e.g., $50 threshold)", value: "currency" },
-                  { label: "Number (e.g., 2 items)", value: "number" },
+                  { label: "% Percentage (e.g., 10% off)", value: "percent" },
+                  { label: "$ Currency (e.g., $50 threshold)", value: "currency" },
+                  { label: "# Number (e.g., 2 items)", value: "number" },
                 ]}
               />
             </BlockStack>
@@ -640,64 +640,72 @@ export default function ABTestingPage() {
             </BlockStack>
 
             <BlockStack gap="150">
-              <Text as="p">Start test immediately?</Text>
+              <Text as="p">Start the test right away?</Text>
               <Select
-                label="Start test immediately?"
+                label="Start the test right away?"
                 labelHidden
                 value={activateNow ? "yes" : "no"}
                 onChange={(value) => setActivateNow(value === "yes")}
                 options={[
-                  { label: "Yes, start now", value: "yes" },
-                  { label: "No, save as draft", value: "no" },
+                  { label: "Yes", value: "yes" },
+                  { label: "No, save it for later", value: "no" },
                 ]}
               />
             </BlockStack>
 
-            <Divider />
-
-            <BlockStack gap="300">
-              <Text variant="headingMd" as="h3">Control (Current Offer)</Text>
-              <TextField
-                label="Control value"
-                value={controlDiscount}
-                onChange={setControlDiscount}
-                type="number"
-                suffix={valueFormat === 'percent' ? '%' : valueFormat === 'currency' ? 'USD' : ''}
-                min="0"
-                autoComplete="off"
-                helpText={
-                  valueFormat === 'percent' ? 'Enter percentage (e.g., 10 for 10% off)' :
-                  valueFormat === 'currency' ? 'Enter dollar amount (e.g., 50 for $50)' :
-                  'Enter numeric value'
-                }
-              />
-            </BlockStack>
-
-            <Divider />
-
-            <BlockStack gap="300">
-              <Text variant="headingMd" as="h3">Challenger (New Offer)</Text>
-              <TextField
-                label="Challenger name"
-                value={variantName}
-                onChange={setVariantName}
-                placeholder="e.g., Stronger Offer"
-                autoComplete="off"
-              />
-              <TextField
-                label="Challenger value"
-                value={variantDiscount}
-                onChange={setVariantDiscount}
-                type="number"
-                suffix={valueFormat === 'percent' ? '%' : valueFormat === 'currency' ? 'USD' : ''}
-                min="0"
-                autoComplete="off"
-                helpText={
-                  valueFormat === 'percent' ? 'Enter percentage (e.g., 20 for 20% off)' :
-                  valueFormat === 'currency' ? 'Enter dollar amount (e.g., 100 for $100)' :
-                  'Enter numeric value'
-                }
-              />
+            <BlockStack gap="200">
+              <Text as="p">What do you want to compare?</Text>
+              <InlineStack gap="400" wrap>
+                <Card padding="300" background="bg-surface-secondary">
+                  <BlockStack gap="150">
+                    <Text variant="headingSm" as="h3">Control (current offer)</Text>
+                    <FormLayout>
+                      <TextField
+                        label={`Value (${valueFormat === 'percent' ? '%' : valueFormat === 'currency' ? '$' : '#'}):`}
+                        value={controlDiscount}
+                        onChange={setControlDiscount}
+                        type="number"
+                        suffix={valueFormat === 'percent' ? '%' : valueFormat === 'currency' ? '$' : ''}
+                        min="0"
+                        autoComplete="off"
+                        helpText={
+                          valueFormat === 'percent' ? 'Percentage (e.g., 10 for 10%)' :
+                          valueFormat === 'currency' ? 'Dollar amount (e.g., 50 for $50)' :
+                          'Numeric value'
+                        }
+                      />
+                    </FormLayout>
+                  </BlockStack>
+                </Card>
+                <Card padding="300" background="bg-surface-secondary">
+                  <BlockStack gap="150">
+                    <Text variant="headingSm" as="h3">Challenger (new offer)</Text>
+                    <FormLayout>
+                      <TextField
+                        label="Name:"
+                        value={variantName}
+                        onChange={setVariantName}
+                        placeholder="Stronger Offer"
+                        autoComplete="off"
+                      />
+                      <TextField
+                        label={`Value (${valueFormat === 'percent' ? '%' : valueFormat === 'currency' ? '$' : '#'}):`}
+                        value={variantDiscount}
+                        onChange={setVariantDiscount}
+                        type="number"
+                        suffix={valueFormat === 'percent' ? '%' : valueFormat === 'currency' ? '$' : ''}
+                        min="0"
+                        autoComplete="off"
+                        helpText={
+                          valueFormat === 'percent' ? 'Percentage (e.g., 20 for 20%)' :
+                          valueFormat === 'currency' ? 'Dollar amount (e.g., 100 for $100)' :
+                          'Numeric value'
+                        }
+                      />
+                    </FormLayout>
+                  </BlockStack>
+                </Card>
+              </InlineStack>
             </BlockStack>
           </BlockStack>
         </Modal.Section>
