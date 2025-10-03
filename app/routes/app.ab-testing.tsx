@@ -186,6 +186,8 @@ export default function ABTestingPage() {
     setIsSaving(true);
 
     try {
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+      const sessionToken = params.get('id_token') || '';
       const payload = {
         action: "create",
         experiment: {
@@ -219,6 +221,7 @@ export default function ABTestingPage() {
         headers: {
           "Content-Type": "application/json",
           "X-Requested-With": "XMLHttpRequest",
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
         },
         body: JSON.stringify(payload),
         signal: controller.signal,
@@ -256,11 +259,14 @@ export default function ABTestingPage() {
     setSuccessBanner(null);
 
     try {
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+      const sessionToken = params.get('id_token') || '';
       const response = await fetch(`/api/ab-testing-admin`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-Requested-With": "XMLHttpRequest",
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
         },
         body: JSON.stringify({ action: "delete", experimentId }),
       });
@@ -483,7 +489,7 @@ export default function ABTestingPage() {
       <Modal
         open={createModalOpen}
         onClose={closeCreateModal}
-        title="Create experiment"
+  title="Start a new test"
         primaryAction={{
           content: isSaving ? "Saving…" : "Launch experiment",
           onAction: handleCreate,
@@ -492,71 +498,91 @@ export default function ABTestingPage() {
         secondaryActions={[{ content: "Cancel", onAction: closeCreateModal }]}
       >
         <Modal.Section>
-          <FormLayout>
-            <TextField
-              label="Experiment name"
-              value={newName}
-              onChange={setNewName}
-              autoComplete="off"
-            />
-            <Select
-              label="Attribution window"
-              value={attributionWindow}
-              onChange={(value) => setAttributionWindow(value as "session"|"24h"|"7d")}
-              options={[
-                { label: "Session", value: "session" },
-                { label: "24 hours", value: "24h" },
-                { label: "7 days", value: "7d" },
-              ]}
-            />
-            <Select
-              label="Start immediately"
-              value={activateNow ? "yes" : "no"}
-              onChange={(value) => setActivateNow(value === "yes")}
-              options={[
-                { label: "Yes", value: "yes" },
-                { label: "No", value: "no" },
-              ]}
-            />
-            <Card padding="300" background="bg-surface-secondary">
-              <BlockStack gap="200">
-                <Text variant="headingSm" as="h3">Control</Text>
-                <FormLayout>
-                  <TextField
-                    label="Discount percentage"
-                    value={controlDiscount}
-                    onChange={setControlDiscount}
-                    type="number"
-                    suffix="%"
-                    min="0"
-                    autoComplete="off"
-                  />
-                </FormLayout>
-              </BlockStack>
-            </Card>
-            <Card padding="300" background="bg-surface-secondary">
-              <BlockStack gap="200">
-                <Text variant="headingSm" as="h3">Variant</Text>
-                <FormLayout>
-                  <TextField
-                    label="Variant name"
-                    value={variantName}
-                    onChange={setVariantName}
-                    autoComplete="off"
-                  />
-                  <TextField
-                    label="Discount percentage"
-                    value={variantDiscount}
-                    onChange={setVariantDiscount}
-                    type="number"
-                    suffix="%"
-                    min="0"
-                    autoComplete="off"
-                  />
-                </FormLayout>
-              </BlockStack>
-            </Card>
-          </FormLayout>
+          <BlockStack gap="400">
+            <BlockStack gap="100">
+              <TextField
+                label="Give your test a name"
+                value={newName}
+                placeholder="👉 Example: “Free Shipping vs 10% Off”"
+                onChange={setNewName}
+                autoComplete="off"
+              />
+            </BlockStack>
+
+            <BlockStack gap="150">
+              <Text as="p">How long should we count orders for this test?</Text>
+              <Select
+                label="Attribution window"
+                labelHidden
+                value={attributionWindow}
+                onChange={(value) => setAttributionWindow(value as "session"|"24h"|"7d")}
+                options={[
+                  { label: "Same session only", value: "session" },
+                  { label: "Orders placed within 24 hours", value: "24h" },
+                  { label: "Orders placed within 7 days", value: "7d" },
+                ]}
+              />
+            </BlockStack>
+
+            <BlockStack gap="150">
+              <Text as="p">Start the test right away?</Text>
+              <Select
+                label="Start the test right away?"
+                labelHidden
+                value={activateNow ? "yes" : "no"}
+                onChange={(value) => setActivateNow(value === "yes")}
+                options={[
+                  { label: "Yes", value: "yes" },
+                  { label: "No, save it for later", value: "no" },
+                ]}
+              />
+            </BlockStack>
+
+            <BlockStack gap="200">
+              <Text as="p">What do you want to compare?</Text>
+              <InlineStack gap="400" wrap>
+                <Card padding="300" background="bg-surface-secondary">
+                  <BlockStack gap="150">
+                    <Text variant="headingSm" as="h3">Control (current offer)</Text>
+                    <FormLayout>
+                      <TextField
+                        label="Discount:"
+                        value={controlDiscount}
+                        onChange={setControlDiscount}
+                        type="number"
+                        suffix="%"
+                        min="0"
+                        autoComplete="off"
+                      />
+                    </FormLayout>
+                  </BlockStack>
+                </Card>
+                <Card padding="300" background="bg-surface-secondary">
+                  <BlockStack gap="150">
+                    <Text variant="headingSm" as="h3">Challenger (new offer)</Text>
+                    <FormLayout>
+                      <TextField
+                        label="Name:"
+                        value={variantName}
+                        onChange={setVariantName}
+                        placeholder="Stronger Offer"
+                        autoComplete="off"
+                      />
+                      <TextField
+                        label="Discount:"
+                        value={variantDiscount}
+                        onChange={setVariantDiscount}
+                        type="number"
+                        suffix="%"
+                        min="0"
+                        autoComplete="off"
+                      />
+                    </FormLayout>
+                  </BlockStack>
+                </Card>
+              </InlineStack>
+            </BlockStack>
+          </BlockStack>
         </Modal.Section>
       </Modal>
 

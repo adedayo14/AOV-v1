@@ -35,6 +35,7 @@ export async function action({ request }: ActionFunctionArgs) {
         return json({ success: false, error: 'Variant traffic must sum to 100' }, { status: 400 });
       }
 
+      const attr = exp.attributionWindow === '24h' ? 'hours24' : exp.attributionWindow === '7d' ? 'days7' : 'session';
       const created = await prisma.experiment.create({
         data: {
           shopId: shop,
@@ -42,7 +43,7 @@ export async function action({ request }: ActionFunctionArgs) {
           status: exp.status ?? 'running',
           startDate: exp.startDate ? new Date(exp.startDate) : new Date(),
           endDate: exp.endDate ? new Date(exp.endDate) : null,
-          attribution: exp.attributionWindow ?? 'session',
+          attribution: attr,
         },
       });
 
@@ -95,7 +96,9 @@ export async function action({ request }: ActionFunctionArgs) {
       if (typeof exp.status === 'string') expData.status = exp.status;
       if (typeof exp.startDate !== 'undefined') expData.startDate = exp.startDate ? new Date(exp.startDate) : null;
       if (typeof exp.endDate !== 'undefined') expData.endDate = exp.endDate ? new Date(exp.endDate) : null;
-      if (typeof exp.attributionWindow === 'string') expData.attribution = exp.attributionWindow;
+      if (typeof exp.attributionWindow === 'string') {
+        expData.attribution = exp.attributionWindow === '24h' ? 'hours24' : exp.attributionWindow === '7d' ? 'days7' : 'session';
+      }
       if (typeof exp.activeVariantId !== 'undefined') expData.activeVariantId = exp.activeVariantId ?? null;
 
       if (Object.keys(expData).length > 0) {
