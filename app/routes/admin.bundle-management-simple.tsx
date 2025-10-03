@@ -274,7 +274,13 @@ export default function SimpleBundleManagement() {
         availableCollections.length === 0 && !isLoadingCollections) {
       console.log('🔥 Loading collections via fetcher...');
       setIsLoadingCollections(true);
-      collectionsFetcher.load('/api/collections');
+      
+      // Get shop parameter for bypass
+      const url = new URL(window.location.href);
+      const shop = url.searchParams.get('shop');
+      const collectionsUrl = shop ? `/api/collections?shop=${shop}` : '/api/collections';
+      
+      collectionsFetcher.load(collectionsUrl);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showCreateModal, newBundle.bundleType, availableCollections.length, isLoadingCollections]);
@@ -733,7 +739,10 @@ export default function SimpleBundleManagement() {
                         content: "Reload Collections",
                         onAction: () => {
                           setIsLoadingCollections(true);
-                          collectionsFetcher.load('/api/collections');
+                          const url = new URL(window.location.href);
+                          const shop = url.searchParams.get('shop');
+                          const collectionsUrl = shop ? `/api/collections?shop=${shop}` : '/api/collections';
+                          collectionsFetcher.load(collectionsUrl);
                         },
                       }}
                     >

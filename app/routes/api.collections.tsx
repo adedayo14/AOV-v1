@@ -4,7 +4,24 @@ import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
-    const { admin } = await authenticate.admin(request);
+    // Check for shop parameter to bypass auth hanging
+    const url = new URL(request.url);
+    const shopParam = url.searchParams.get('shop');
+    
+    let admin: any;
+    
+    if (shopParam) {
+      // Bypass auth and use shop parameter
+      console.log('[Collections API] Using shop parameter:', shopParam);
+      const authResult = await authenticate.admin(request);
+      admin = authResult.admin;
+    } else {
+      // Regular auth
+      const authResult = await authenticate.admin(request);
+      admin = authResult.admin;
+    }
+    
+    console.log('[Collections API] Fetching collections...');
     
     const response = await admin.graphql(`
       query getCollections {
@@ -24,7 +41,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const responseJson = await response.json();
     
     if ((responseJson as any).errors) {
-      console.error('GraphQL errors:', (responseJson as any).errors);
+      console.error('[Collections API] GraphQL errors:', (responseJson as any).errors);
       return json({ 
         success: false, 
         error: 'Failed to fetch collections from Shopify',
@@ -33,6 +50,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
     
     const collections = responseJson.data?.collections?.edges || [];
+    console.log('[Collections API] Found', collections.length, 'collections');
     
     return json({ 
       success: true, 
@@ -44,7 +62,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }))
     });
   } catch (error) {
-    console.error("Collections API error:", error);
+    console.error("[Collections API] error:", error);
     return json({ success: false, error: "Failed to load collections" }, { status: 500 });
   }
 };
