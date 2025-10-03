@@ -28,7 +28,8 @@ type LoaderVariant = {
   id: number;
   name: string;
   isControl: boolean;
-  value: number; // Flexible: discount % | shipping $ | bundle price | etc.
+  value: number;
+  valueFormat: string; // "percent" | "currency" | "number"
   trafficPct: number;
 };
 
@@ -50,7 +51,8 @@ type ResultsVariant = {
   variantId: number;
   variantName: string;
   isControl: boolean;
-  value: number; // Flexible: discount % | shipping $ | bundle price | etc.
+  value: number;
+  valueFormat: string; // "percent" | "currency" | "number"
   trafficPct: number;
   visitors: number;
   conversions: number;
@@ -112,6 +114,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         name: variant.name,
         isControl: variant.isControl,
         value: toNumber((variant as any).value || (variant as any).discountPct || 0), // Support both old and new schema
+        valueFormat: (variant as any).valueFormat || 'percent', // Default to percent for legacy
         trafficPct: toNumber(variant.trafficPct),
       })),
     }));
@@ -135,6 +138,7 @@ export default function ABTestingPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [experimentType, setExperimentType] = useState<"discount"|"bundle"|"shipping"|"upsell">("discount");
+  const [valueFormat, setValueFormat] = useState<"percent"|"currency"|"number">("percent");
   const [controlDiscount, setControlDiscount] = useState("0");
   const [variantDiscount, setVariantDiscount] = useState("10");
   const [variantName, setVariantName] = useState("Stronger Offer");
@@ -143,6 +147,10 @@ export default function ABTestingPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
+
+  // Edit state
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingExperiment, setEditingExperiment] = useState<LoaderExperiment | null>(null);
 
   const [resultsModalOpen, setResultsModalOpen] = useState(false);
   const [selectedExperiment, setSelectedExperiment] = useState<LoaderExperiment | null>(null);
@@ -153,6 +161,7 @@ export default function ABTestingPage() {
   const resetCreateForm = () => {
     setNewName("");
     setExperimentType("discount");
+    setValueFormat("percent");
     setControlDiscount("0");
     setVariantDiscount("10");
     setVariantName("Stronger Offer");
@@ -162,6 +171,32 @@ export default function ABTestingPage() {
 
   const closeCreateModal = () => {
     setCreateModalOpen(false);
+    resetCreateForm();
+  };
+
+  const openEditModal = (experiment: LoaderExperiment) => {
+    setEditingExperiment(experiment);
+    setNewName(experiment.name);
+    setExperimentType(experiment.type as any);
+    setAttributionWindow(experiment.attribution as any);
+    // Set format from first variant (they should all have same format)
+    const firstVariant = experiment.variants[0];
+    if (firstVariant) {
+      setValueFormat(firstVariant.valueFormat as any);
+      const control = experiment.variants.find(v => v.isControl);
+      const challenger = experiment.variants.find(v => !v.isControl);
+      if (control) setControlDiscount(String(control.value));
+      if (challenger) {
+        setVariantDiscount(String(challenger.value));
+        setVariantName(challenger.name);
+      }
+    }
+    setEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    setEditModalOpen(false);
+    setEditingExperiment(null);
     resetCreateForm();
   };
 
@@ -207,13 +242,15 @@ export default function ABTestingPage() {
             name: "Control",
             isControl: true,
             trafficPct: 50,
-            value: controlPct, // Generic value field (discount %, shipping $, etc.)
+            value: controlPct,
+            valueFormat: valueFormat,
           },
           {
             name: variantName.trim() || "Variant",
             isControl: false,
             trafficPct: 50,
-            value: challengerPct, // Generic value field (discount %, shipping $, etc.)
+            value: challengerPct,
+            valueFormat: valueFormat,
           },
         ],
       };
@@ -334,17 +371,15 @@ export default function ABTestingPage() {
     };
     const typeLabel = `${typeEmoji[experiment.type] || ""} ${experiment.type}`.trim();
     
-    // Helper to format value based on experiment type
-    const formatValue = (value: number, type: string): string => {
-      switch(type) {
-        case 'discount':
-          return `${value}% off`;
-        case 'shipping':
-          return `$${value} threshold`;
-        case 'bundle':
-          return `$${value} bundle price`;
-        case 'upsell':
-          return `$${value} upsell`;
+    // Helper to format value based on valueFormat
+    const formatValue = (value: number, valueFormat: string): string => {
+      switch(valueFormat) {
+        case 'percent':
+          return `${value}%`;
+        case 'currency':
+          return `$${value}`;
+        case 'number':
+          return String(value);
         default:
           return String(value);
       }
@@ -367,6 +402,7 @@ export default function ABTestingPage() {
             </BlockStack>
             <ButtonGroup>
               <Button onClick={() => openResultsModal(experiment)}>View results</Button>
+              <Button onClick={() => openEditModal(experiment)}>Edit</Button>
               <Button tone="critical" onClick={() => handleDelete(experiment.id)} disabled={experiment.status === "running"}>
                 Delete
               </Button>
@@ -378,7 +414,7 @@ export default function ABTestingPage() {
               <Card key={`${experiment.id}-control`} background="bg-surface-secondary" padding="400">
                 <BlockStack gap="150">
                   <Text variant="headingSm" as="h3">Control</Text>
-                  <Text as="p" tone="subdued">Offer: {formatValue(control.value, experiment.type)}</Text>
+                  <Text as="p" tone="subdued">Value: {formatValue(control.value, control.valueFormat)}</Text>
                   <Text as="p" tone="subdued">Traffic: {control.trafficPct}%</Text>
                 </BlockStack>
               </Card>
@@ -387,7 +423,7 @@ export default function ABTestingPage() {
               <Card key={`${experiment.id}-challenger`} background="bg-surface-secondary" padding="400">
                 <BlockStack gap="150">
                   <Text variant="headingSm" as="h3">{challenger.name}</Text>
-                  <Text as="p" tone="subdued">Offer: {formatValue(challenger.value, experiment.type)}</Text>
+                  <Text as="p" tone="subdued">Value: {formatValue(challenger.value, challenger.valueFormat)}</Text>
                   <Text as="p" tone="subdued">Traffic: {challenger.trafficPct}%</Text>
                 </BlockStack>
               </Card>
@@ -574,6 +610,21 @@ export default function ABTestingPage() {
             </BlockStack>
 
             <BlockStack gap="150">
+              <Text as="p">How do you want to measure values?</Text>
+              <Select
+                label="Value format"
+                labelHidden
+                value={valueFormat}
+                onChange={(value) => setValueFormat(value as "percent"|"currency"|"number")}
+                options={[
+                  { label: "% Percentage (e.g., 10% off)", value: "percent" },
+                  { label: "$ Currency (e.g., $50 threshold)", value: "currency" },
+                  { label: "# Number (e.g., 2 items)", value: "number" },
+                ]}
+              />
+            </BlockStack>
+
+            <BlockStack gap="150">
               <Text as="p">How long should we count orders for this test?</Text>
               <Select
                 label="Attribution window"
@@ -610,23 +661,17 @@ export default function ABTestingPage() {
                     <Text variant="headingSm" as="h3">Control (current offer)</Text>
                     <FormLayout>
                       <TextField
-                        label={
-                          experimentType === 'discount' ? 'Discount %:' :
-                          experimentType === 'shipping' ? 'Shipping Threshold $:' :
-                          experimentType === 'bundle' ? 'Bundle Price $:' :
-                          'Value:'
-                        }
+                        label={`Value (${valueFormat === 'percent' ? '%' : valueFormat === 'currency' ? '$' : '#'}):`}
                         value={controlDiscount}
                         onChange={setControlDiscount}
                         type="number"
-                        suffix={experimentType === 'discount' ? '%' : '$'}
+                        suffix={valueFormat === 'percent' ? '%' : valueFormat === 'currency' ? '$' : ''}
                         min="0"
                         autoComplete="off"
                         helpText={
-                          experimentType === 'discount' ? 'Percentage off (e.g., 10 for 10% off)' :
-                          experimentType === 'shipping' ? 'Free shipping at this cart value (e.g., 50 for $50)' :
-                          experimentType === 'bundle' ? 'Bundle price in dollars' :
-                          'Value for this offer'
+                          valueFormat === 'percent' ? 'Percentage (e.g., 10 for 10%)' :
+                          valueFormat === 'currency' ? 'Dollar amount (e.g., 50 for $50)' :
+                          'Numeric value'
                         }
                       />
                     </FormLayout>
@@ -640,32 +685,21 @@ export default function ABTestingPage() {
                         label="Name:"
                         value={variantName}
                         onChange={setVariantName}
-                        placeholder={
-                          experimentType === 'discount' ? 'Stronger Discount' :
-                          experimentType === 'shipping' ? 'Lower Threshold' :
-                          experimentType === 'bundle' ? 'Better Bundle' :
-                          'Stronger Offer'
-                        }
+                        placeholder="Stronger Offer"
                         autoComplete="off"
                       />
                       <TextField
-                        label={
-                          experimentType === 'discount' ? 'Discount %:' :
-                          experimentType === 'shipping' ? 'Shipping Threshold $:' :
-                          experimentType === 'bundle' ? 'Bundle Price $:' :
-                          'Value:'
-                        }
+                        label={`Value (${valueFormat === 'percent' ? '%' : valueFormat === 'currency' ? '$' : '#'}):`}
                         value={variantDiscount}
                         onChange={setVariantDiscount}
                         type="number"
-                        suffix={experimentType === 'discount' ? '%' : '$'}
+                        suffix={valueFormat === 'percent' ? '%' : valueFormat === 'currency' ? '$' : ''}
                         min="0"
                         autoComplete="off"
                         helpText={
-                          experimentType === 'discount' ? 'Percentage off (e.g., 20 for 20% off)' :
-                          experimentType === 'shipping' ? 'Free shipping at this cart value (e.g., 100 for $100)' :
-                          experimentType === 'bundle' ? 'Bundle price in dollars' :
-                          'Value for this offer'
+                          valueFormat === 'percent' ? 'Percentage (e.g., 20 for 20%)' :
+                          valueFormat === 'currency' ? 'Dollar amount (e.g., 100 for $100)' :
+                          'Numeric value'
                         }
                       />
                     </FormLayout>
@@ -684,6 +718,103 @@ export default function ABTestingPage() {
       >
         <Modal.Section>
           {renderResults()}
+        </Modal.Section>
+      </Modal>
+
+      {/* Edit Modal - reuses same form state as create */}
+      <Modal
+        open={editModalOpen}
+        onClose={closeEditModal}
+        title="Edit Experiment"
+        primaryAction={{
+          content: "Save Changes",
+          onAction: async () => {
+            if (!editingExperiment) return;
+            setIsSaving(true);
+            try {
+              const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+              const sessionToken = params.get('id_token') || '';
+              
+              const controlPct = Number(controlDiscount);
+              const challengerPct = Number(variantDiscount);
+              
+              const control = editingExperiment.variants.find(v => v.isControl);
+              const challenger = editingExperiment.variants.find(v => !v.isControl);
+              
+              const payload = {
+                action: "update",
+                experimentId: editingExperiment.id,
+                experiment: {
+                  name: newName.trim(),
+                  type: experimentType,
+                  attribution: attributionWindow,
+                },
+                variants: [
+                  {
+                    id: control?.id,
+                    name: "Control",
+                    isControl: true,
+                    value: controlPct,
+                    valueFormat: valueFormat,
+                    trafficPct: 50,
+                  },
+                  {
+                    id: challenger?.id,
+                    name: variantName.trim() || "Variant",
+                    isControl: false,
+                    value: challengerPct,
+                    valueFormat: valueFormat,
+                    trafficPct: 50,
+                  },
+                ],
+              };
+
+              const response = await fetch(`/api/ab-testing-admin`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-Requested-With": "XMLHttpRequest",
+                  ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+                },
+                body: JSON.stringify(payload),
+              });
+
+              if (!response.ok) {
+                throw new Error("Failed to update experiment");
+              }
+
+              setSuccessBanner("Experiment updated successfully!");
+              closeEditModal();
+              revalidator.revalidate();
+            } catch (error) {
+              console.error("[ABTesting] Update error", error);
+              setErrorBanner("Failed to update experiment. Try again.");
+            } finally {
+              setIsSaving(false);
+            }
+          },
+          disabled: isSaving,
+          loading: isSaving,
+        }}
+        secondaryActions={[
+          {
+            content: "Cancel",
+            onAction: closeEditModal,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            <TextField
+              label="Experiment Name"
+              value={newName}
+              onChange={setNewName}
+              autoComplete="off"
+            />
+            <Text as="p" tone="subdued">
+              Note: Cannot change experiment type or value format after creation. To test different formats, create a new experiment.
+            </Text>
+          </BlockStack>
         </Modal.Section>
       </Modal>
     </Page>

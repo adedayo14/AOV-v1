@@ -75,7 +75,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       variantId: number;
       variantName: string;
       isControl: boolean;
-      discountPct: number;
+      value: number;
+      valueFormat: string;
       trafficPct: number;
       visitors: number;
       conversions: number;
@@ -94,7 +95,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         variantId: v.id,
         variantName: v.name,
         isControl: v.isControl,
-        discountPct: Number(v.discountPct),
+        value: Number((v as any).value || (v as any).discountPct || 0), // Support both schemas
+        valueFormat: (v as any).valueFormat || 'percent',
         trafficPct: Number(v.trafficPct),
         visitors,
         conversions,

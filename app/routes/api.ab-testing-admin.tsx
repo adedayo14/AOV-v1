@@ -55,8 +55,9 @@ export async function action({ request }: ActionFunctionArgs) {
           name: String(v.name ?? (idx === 0 ? 'Control' : `Variant ${idx}`)),
           isControl: Boolean(v.isControl ?? idx === 0),
           value: new Prisma.Decimal(v.value ?? v.discountPct ?? 0), // Support both value (new) and discountPct (legacy)
+          valueFormat: String(v.valueFormat ?? 'percent'), // Default to percent for legacy
           trafficPct: new Prisma.Decimal((v.trafficPct ?? v.trafficPercentage) ?? 0),
-        })) as any, // Cast to any - value field exists, TS cache issue
+        })) as any, // Cast to any - valueFormat field exists, TS cache issue
       });
 
       console.log("[api.ab-testing-admin] Experiment created successfully:", created.id);
@@ -119,12 +120,15 @@ export async function action({ request }: ActionFunctionArgs) {
           if (typeof v.isControl !== 'undefined') data.isControl = !!v.isControl;
           if (typeof v.trafficPct !== 'undefined') data.trafficPct = new Prisma.Decimal(v.trafficPct);
           else if (typeof v.trafficPercentage !== 'undefined') data.trafficPct = new Prisma.Decimal(v.trafficPercentage);
-          if (typeof v.discountPct !== 'undefined') data.discountPct = new Prisma.Decimal(v.discountPct);
+          // Support both old and new schema
+          if (typeof v.value !== 'undefined') (data as any).value = new Prisma.Decimal(v.value);
+          else if (typeof v.discountPct !== 'undefined') (data as any).value = new Prisma.Decimal(v.discountPct);
+          if (typeof v.valueFormat === 'string') (data as any).valueFormat = v.valueFormat;
 
           if (Object.keys(data).length > 0) {
             await prisma.variant.update({
               where: { id: Number(v.id) },
-              data,
+              data: data as any, // Cast to any for valueFormat
             });
           }
         }
