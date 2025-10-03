@@ -10,22 +10,11 @@ export async function action({ request }: ActionFunctionArgs) {
   console.log("[api.ab-testing-admin] Content-Type:", request.headers.get('content-type'));
   
   try {
-    const contentType = request.headers.get('content-type');
-    let shop: string;
-    let jsonData: any = null;
-    
-    // Always expect JSON (like Settings does)
-    if (contentType?.includes('application/json')) {
-      jsonData = await request.json();
-      shop = jsonData.shop;
-      console.log("[api.ab-testing-admin] Using shop from JSON data:", shop);
-      console.log("[api.ab-testing-admin] Full JSON payload:", jsonData);
-    } else {
-      // Fallback to authentication (will hang)
-      console.log("[api.ab-testing-admin] No JSON, authenticating (will likely hang)...");
-      const { session } = await authenticate.admin(request);
-      shop = session.shop;
-    }
+    const { session } = await authenticate.admin(request);
+    const shop = session.shop;
+    const jsonData: any = await request.json().catch(() => ({}));
+    console.log("[api.ab-testing-admin] Authenticated shop:", shop);
+    console.log("[api.ab-testing-admin] Full JSON payload:", jsonData);
 
     // Handle actions
     const action = jsonData?.action;
