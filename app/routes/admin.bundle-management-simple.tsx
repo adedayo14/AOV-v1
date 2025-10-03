@@ -248,7 +248,8 @@ export default function SimpleBundleManagement() {
       console.log('[Bundle] Loading products...');
       productFetcher.load('/admin/bundle-management-simple?loadProducts=true');
     }
-  }, [showCreateModal, newBundle.bundleType, productFetcher]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCreateModal, newBundle.bundleType, productFetcher.data, productFetcher.state]);
 
   // Auto-load collections when modal opens with category type
   useEffect(() => {
@@ -258,7 +259,8 @@ export default function SimpleBundleManagement() {
       setIsLoadingCollections(true);
       collectionsFetcher.load('/api/collections');
     }
-  }, [showCreateModal, newBundle.bundleType, availableCollections.length, isLoadingCollections, collectionsFetcher]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCreateModal, newBundle.bundleType, availableCollections.length, isLoadingCollections]);
 
   // Handle collections fetcher response
   useEffect(() => {
@@ -278,7 +280,7 @@ export default function SimpleBundleManagement() {
       hasData: !!productFetcher.data,
       success: productFetcher.data?.success,
       productsCount: productFetcher.data?.products?.length || 0,
-      error: productFetcher.data?.error
+      error: (productFetcher.data as any)?.error
     });
   }, [productFetcher.state, productFetcher.data]);
   
