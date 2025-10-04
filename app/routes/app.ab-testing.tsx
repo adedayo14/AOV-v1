@@ -392,15 +392,32 @@ export default function ABTestingPage() {
     setResultsModalOpen(true);
 
     try {
-      const response = await fetch(`/api/ab-results?experimentId=${experiment.id}&period=7d`);
+      // Include App Bridge session token for authenticated request
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+      let sessionToken = '';
+      try {
+        if (app) {
+          sessionToken = await (appBridgeUtils as any).getSessionToken(app);
+        }
+      } catch (_e) {
+        // ignore
+      }
+      if (!sessionToken) sessionToken = params.get('id_token') || '';
+
+      const response = await fetch(`/api/ab-results?experimentId=${experiment.id}&period=7d`, {
+        headers: {
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
+      });
       if (!response.ok) {
-        throw new Error(`Failed to load results (${response.status})`);
+        const msg = await extractErrorMessage(response);
+        throw new Error(msg || `Failed to load results (${response.status})`);
       }
       const data: ResultsPayload = await response.json();
       setResultsPayload(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("[ABTesting] Results error", error);
-      setResultsError("Results aren't ready yet. Give it a little longer.");
+      setResultsError(error?.message || "Results aren't ready yet. Give it a little longer.");
     } finally {
       setResultsLoading(false);
     }
@@ -553,9 +570,24 @@ export default function ABTestingPage() {
               variant="primary"
               onClick={async () => {
                 try {
+                  // Include App Bridge session token for rollout request
+                  const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+                  let sessionToken = '';
+                  try {
+                    if (app) {
+                      sessionToken = await (appBridgeUtils as any).getSessionToken(app);
+                    }
+                  } catch (_e) {
+                    // ignore
+                  }
+                  if (!sessionToken) sessionToken = params.get('id_token') || '';
+
                   const res = await fetch("/api/ab-rollout", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { 
+                      "Content-Type": "application/json",
+                      ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+                    },
                     body: JSON.stringify({ experimentId: selectedExperiment.id, winnerVariantId: leader }),
                   });
                   if (res.ok) {
@@ -563,10 +595,11 @@ export default function ABTestingPage() {
                     setResultsModalOpen(false);
                     revalidator.revalidate();
                   } else {
-                    setResultsError("Couldn’t roll out just now. Try again.");
+                    const msg = await extractErrorMessage(res);
+                    setResultsError(msg || "Couldn’t roll out just now. Try again.");
                   }
-                } catch {
-                  setResultsError("Couldn’t roll out just now. Try again.");
+                } catch (e: any) {
+                  setResultsError(e?.message || "Couldn’t roll out just now. Try again.");
                 }
               }}
             >
