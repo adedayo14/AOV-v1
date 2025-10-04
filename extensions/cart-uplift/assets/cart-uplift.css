@@ -1019,7 +1019,7 @@ body.cartuplift-no-scroll {
 
 /* Toggle button on the right */
 .cartuplift-recommendations-toggle {
-  display: inline-flex !important;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 24px;  /* reduced from 28px */
