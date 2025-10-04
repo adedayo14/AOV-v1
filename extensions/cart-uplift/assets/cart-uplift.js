@@ -1426,7 +1426,14 @@
             .replace(/\{\{\s*amount\s*\}\}/g, formatMoney(remaining))
             .replace(/\{amount\}/g, formatMoney(remaining));
         };
-        const freeSuccess = this.settings.freeShippingAchievedText || '✓ Free shipping';
+        // Normalize success text to avoid noisy prefixes (emoji/Congratulations)
+        let freeSuccess = (this.settings.freeShippingAchievedText || '✓ Free shipping');
+        try {
+          freeSuccess = String(freeSuccess)
+            .replace(/^\s*🎉\s*/i, '')
+            .replace(/^\s*congratulations!?\s*/i, '')
+            .trim();
+        } catch {}
 
         const giftMsg = (t) => {
           if (!t) return '';
@@ -1724,11 +1731,19 @@
       const remaining = Math.max(0, (threshold * 100) - (this.cart ? this.cart.total_price : 0));
       const achieved = remaining === 0 && currentTotal >= threshold;
       const thresholdLabel = this.formatMoney(threshold * 100);
-      const msg = achieved
+      let msg = achieved
         ? (this.settings.freeShippingAchievedText || '✓ Free shipping')
         : (this.settings.freeShippingText || 'Spend {{ amount }} more for free shipping!')
             .replace(/\{\{\s*amount\s*\}\}/g, this.formatMoney(remaining))
             .replace(/\{amount\}/g, this.formatMoney(remaining));
+      if (achieved) {
+        try {
+          msg = String(msg)
+            .replace(/^\s*🎉\s*/i, '')
+            .replace(/^\s*congratulations!?\s*/i, '')
+            .trim();
+        } catch {}
+      }
       
       console.log('🛒 Cart Uplift: Free shipping progress:', {
         progress: progress,
@@ -1744,7 +1759,7 @@
             </div>
             <div class="cartuplift-progress-info">
               ${achieved
-                ? `<span class="cartuplift-success-badge">✓ Free shipping</span>`
+                ? `<span class="cartuplift-success-badge">${msg || '✓ Free shipping'}</span>`
                 : `<span class="cartuplift-progress-message">${msg}</span>`}
               <span class="cartuplift-progress-threshold">${thresholdLabel}</span>
             </div>

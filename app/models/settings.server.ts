@@ -554,7 +554,7 @@ export function getDefaultSettings(): SettingsData {
     
     // Messages & Text
     freeShippingText: "You're {{ amount }} away from free shipping!",
-    freeShippingAchievedText: "🎉 Congratulations! You've unlocked free shipping!",
+  freeShippingAchievedText: "You've unlocked free shipping!",
     recommendationsTitle: "You might also like",
     actionText: "Add discount code",
     addButtonText: "Add",
