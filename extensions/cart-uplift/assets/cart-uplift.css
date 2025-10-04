@@ -2273,6 +2273,12 @@ body.cartuplift-no-scroll {
 .cartuplift-inline-link svg {
   display: none !important;
 }
+/* Additional safeguards to remove any lingering icons in the inline row */
+.cartuplift-inline-links svg,
+.cartuplift-inline-links [class*="icon"],
+.cartuplift-inline-links [data-icon] {
+  display: none !important;
+}
 
 /* Custom Modal Styles — compact bottom sheet */
 .cartuplift-custom-modal {
@@ -2465,7 +2471,7 @@ body.cartuplift-no-scroll {
   gap: 12px;
   justify-content: flex-end;
   background: var(--cartuplift-background);
-  border-radius: 0 0 12px 12px;
+  border-radius: 0; /* square corners for sheet */
 }
 
 .cartuplift-modal-btn {
