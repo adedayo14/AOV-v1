@@ -2750,16 +2750,18 @@
       
   // Order Notes Section
   if (this.settings.enableNotes) {
+        const currentNotes = (this.cart && this.cart.attributes && this.cart.attributes['Order Notes']) ? String(this.cart.attributes['Order Notes']) : '';
         const notesTitle = this.settings.notesSectionTitle || 'Order Notes';
         const notesPlaceholder = this.settings.notesPlaceholder || 'Add special instructions for your order...';
+        const remainingChars = 500 - currentNotes.length;
         modalContent += `
           <div class="cartuplift-modal-section">
             <label class="cartuplift-modal-label">${notesTitle}</label>
             <textarea id="modal-order-notes" class="cartuplift-modal-textarea" 
-                      placeholder="${notesPlaceholder}" rows="3" maxlength="500"
-                      onkeyup="window.cartUpliftDrawer.updateCharCount(this, 'notes-char-count', 500)"></textarea>
+                      placeholder="${notesPlaceholder}" rows="4" maxlength="500"
+                      onkeyup="window.cartUpliftDrawer.updateCharCount(this, 'notes-char-count', 500)">${currentNotes}</textarea>
             <div class="cartuplift-modal-char-count">
-              <span id="notes-char-count">500</span> characters remaining
+              <span id="notes-char-count">${remainingChars}</span> characters remaining
             </div>
           </div>
         `;
@@ -2767,16 +2769,18 @@
       
       // Gift Message Section
       if (this.settings.enableGiftMessage) {
+        const currentGift = (this.cart && this.cart.attributes && this.cart.attributes['Gift Message']) ? String(this.cart.attributes['Gift Message']) : '';
         const giftTitle = this.settings.giftSectionTitle || 'Gift Message';
         const giftPlaceholder = this.settings.giftPlaceholder || 'Write a personal message for this gift...';
+        const remainingChars = 200 - currentGift.length;
         modalContent += `
           <div class="cartuplift-modal-section">
             <label class="cartuplift-modal-label">${giftTitle}</label>
             <textarea id="modal-gift-message" class="cartuplift-modal-textarea" 
-                      placeholder="${giftPlaceholder}" rows="2" maxlength="200"
-                      onkeyup="window.cartUpliftDrawer.updateCharCount(this, 'gift-char-count', 200)"></textarea>
+                      placeholder="${giftPlaceholder}" rows="3" maxlength="200"
+                      onkeyup="window.cartUpliftDrawer.updateCharCount(this, 'gift-char-count', 200)">${currentGift}</textarea>
             <div class="cartuplift-modal-char-count">
-              <span id="gift-char-count">200</span> characters remaining
+              <span id="gift-char-count">${remainingChars}</span> characters remaining
             </div>
           </div>
         `;
