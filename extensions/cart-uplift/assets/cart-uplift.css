@@ -1,11 +1,11 @@
-d/* Cart Uplift - Complete Rewritten CSS for Clean Layout */
+/* Cart Uplift - Complete Rewritten CSS for Clean Layout */
 
 /* ========================================
    CSS Variables & Reset
    ======================================== */
 :root {
   --cartuplift-primary: #1a1a1a;
-  --cartuplift-secondary: #666666;price 
+  --cartuplift-secondary: #666666;
   --cartuplift-border: #e5e5e5;
   --cartuplift-background: #ffffff;
   --cartuplift-cart-background: var(--cartuplift-background); /* Dedicated cart background */
@@ -15,7 +15,7 @@ d/* Cart Uplift - Complete Rewritten CSS for Clean Layout */
   --cartuplift-teal: #16a085;
   --cartuplift-danger: #ff4444;
   --cartuplift-success: #121212; /* Dark neutral instead of green */
-  --cartuplift-drawer-width: 420px;
+  --cartuplift-drawer-width: 520px;
   --cartuplift-border-radius: 6px;
 }
 
@@ -71,7 +71,7 @@ body.cartuplift-no-scroll {
   right: 0;
   bottom: 0;
   width: var(--cartuplift-drawer-width);
-  max-width: 100vw;
+  max-width: 90vw;
   z-index: 999999;
   transform: translateX(100%);
   transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -1491,12 +1491,12 @@ body.cartuplift-no-scroll {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   margin: 0 -16px;
-  padding: 2px; /* Add padding to prevent border clipping */
+  padding: 0;
   height: 200px;
   width: calc(100% + 32px);
   position: relative;
   z-index: 1; /* Ensure grid content stays above header elements */
-  overflow: visible; /* Allow borders to show on edges */
+  overflow: hidden; /* Clip items at rounded corners */
 }
 
 .cartuplift-grid-item {
@@ -1822,6 +1822,7 @@ body.cartuplift-no-scroll {
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     -ms-overflow-style: none;
+    /* stylelint-disable-next-line no-unsupported-browser-features */
     scrollbar-width: none; /* Firefox */
     padding: 0;
   }
@@ -2214,10 +2215,6 @@ body.cartuplift-no-scroll {
 
 /* Action Button Styles */
 .cartuplift-action-section {
-  margin: 0;
-}
-
-/* Ensure no extra spacing when inside scrollable content */
   margin: 0;
 }
 
@@ -3509,7 +3506,7 @@ body.cartuplift-no-scroll {
   right: 0;
   bottom: 0;
   width: var(--cartuplift-drawer-width);
-  max-width: var(--cartuplift-drawer-width); /* Match cart width exactly */
+  max-width: 90vw;
   background: var(--cartuplift-background);
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
   overflow-y: auto;

@@ -1062,6 +1062,8 @@
         finalTotal,
         hasDiscount
       });
+
+      const inlineLinkConfig = this.getInlineLinkConfig();
       
       return `
         <div class="cartuplift-drawer${shouldShowRecommendations ? ' has-recommendations' : ''}">
@@ -1076,8 +1078,8 @@
               ${this.settings.enableAddons ? this.getAddonsHTML() : ''}
               ${shouldShowRecommendations ? this.getRecommendationsHTML() : ''}
               ${(() => {
-                if (!(this.settings.enableDiscountCode || this.settings.enableNotes)) return '';
-                return this.getInlineLinksHTML();
+                if (!(inlineLinkConfig.hasPromoLink || inlineLinkConfig.hasNotesLink)) return '';
+                return this.getInlineLinksHTML(inlineLinkConfig);
               })()}
             </div>
           </div>
@@ -2652,25 +2654,39 @@
       `;
     }
 
-    getInlineLinksHTML() {
-      const promoText = this.settings.discountLinkText || '+ Got a promotion code?';
-      const notesText = this.settings.notesLinkText || '+ Add order notes';
+    getInlineLinkConfig() {
+      const rawPromo = typeof this.settings.discountLinkText === 'string' ? this.settings.discountLinkText : '';
+      const rawNotes = typeof this.settings.notesLinkText === 'string' ? this.settings.notesLinkText : '';
+      const promoText = rawPromo.trim();
+      const notesText = rawNotes.trim();
+      const hasPromoLink = Boolean(this.settings.enableDiscountCode && promoText.length > 0);
+      const hasNotesLink = Boolean(this.settings.enableNotes && notesText.length > 0);
+      return { hasPromoLink, hasNotesLink, promoText, notesText };
+    }
+
+    getInlineLinksHTML(config) {
+      const { hasPromoLink, hasNotesLink, promoText, notesText } = config || this.getInlineLinkConfig();
       const links = [];
       
-      if (this.settings.enableDiscountCode) {
+      if (hasPromoLink) {
         // Remove + if present and add tag SVG icon
         const cleanPromoText = promoText.replace(/^\+\s*/, '');
+        const displayPromoText = cleanPromoText.length > 0 ? cleanPromoText : promoText;
         const promoIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z" />
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6Z" />
         </svg>`;
-        links.push(`<span class="cartuplift-inline-link" onclick="window.cartUpliftDrawer.openDiscountModal()">${promoIcon}${this.escapeHtml(cleanPromoText)}</span>`);
+        links.push(`<span class="cartuplift-inline-link" onclick="window.cartUpliftDrawer.openDiscountModal()">${promoIcon}${this.escapeHtml(displayPromoText)}</span>`);
       }
       
-      if (this.settings.enableNotes) {
+      if (hasNotesLink) {
         links.push(`<span class="cartuplift-inline-link" onclick="window.cartUpliftDrawer.openNotesModal()">${this.escapeHtml(notesText)}</span>`);
       }
       
+      if (!links.length) {
+        return '';
+      }
+
       return `<div class="cartuplift-inline-links">${links.join('<span class="cartuplift-inline-sep">•</span>')}</div>`;
     }
 
@@ -3794,14 +3810,12 @@
     // Generate HTML for product modal
     generateProductModalHTML(productData, gridIndex) {
       const availableVariants = productData.variants.filter(v => v.available);
-      
-      // Use first variant price if product price is 0 or undefined
-      const initialPriceDollars = (productData.price && productData.price > 0) 
-        ? productData.price 
+
+      const initialPriceSource = (productData.price && productData.price > 0)
+        ? productData.price
         : (availableVariants.length > 0 ? availableVariants[0].price : 0);
-      
-      // Convert to cents for formatMoney function
-      const initialPriceCents = Math.round(initialPriceDollars * 100);
+
+      const initialPriceCents = this.normalizePriceToCents(initialPriceSource);
       
       return `
         <div class="cartuplift-modal-backdrop">
@@ -3833,9 +3847,9 @@
                   <label for="cartuplift-variant-select">Select Option:</label>
                   <select id="cartuplift-variant-select" class="cartuplift-variant-select">
                     ${availableVariants.map(variant => {
-                      const variantPriceCents = Math.round(variant.price * 100);
+                      const variantPriceCents = this.normalizePriceToCents(variant.price);
                       return `
-                        <option value="${variant.id}" data-price="${variant.price}">
+                        <option value="${variant.id}" data-price="${variant.price}" data-price-cents="${variantPriceCents}">
                           ${variant.title} - ${this.formatMoney(variantPriceCents)}
                         </option>
                       `;
@@ -3872,11 +3886,10 @@
       // Variant selection updates price
       variantSelect.addEventListener('change', (e) => {
         const selectedOption = e.target.options[e.target.selectedIndex];
-        const price = selectedOption.dataset.price;
-        // Parse price and convert to cents (formatMoney expects cents)
-        const priceValue = parseFloat(price) || 0;
-        const priceInCents = Math.round(priceValue * 100);
-        console.log('CartUplift: Variant price change - raw:', price, 'dollars:', priceValue, 'cents:', priceInCents); // Debug log
+        const priceCentsAttr = selectedOption.dataset.priceCents;
+        const rawPrice = priceCentsAttr || selectedOption.dataset.price;
+        const priceInCents = this.normalizePriceToCents(rawPrice);
+        console.log('CartUplift: Variant price change - raw:', rawPrice, 'cents:', priceInCents); // Debug log
         priceDisplay.textContent = this.formatMoney(priceInCents);
         priceDisplay.dataset.price = priceInCents;
       });
@@ -4034,11 +4047,7 @@
         this._allRecommendations = products.map(product => ({
           id: product.id,
           title: product.title,
-          // Shopify /products.json returns price as a decimal string in major units (e.g., "14.00" for £14)
-          // We need to convert to cents for consistent formatting
-          priceCents: (product.variants && product.variants[0] && product.variants[0].price)
-            ? Math.round(parseFloat(product.variants[0].price) * 100)
-            : 0,
+          priceCents: this.normalizePriceToCents(product.variants && product.variants[0] && product.variants[0].price),
           image: product.images && product.images[0] ? product.images[0].src || product.images[0] : 
                  product.featured_image || 'https://via.placeholder.com/150x150?text=No+Image',
           variant_id: product.variants && product.variants[0] ? product.variants[0].id : null,
@@ -4046,7 +4055,7 @@
           // Normalize variants with price in cents for UI handling
           variants: (product.variants || []).map(v => ({
             ...v,
-            price_cents: v.price ? Math.round(parseFloat(v.price) * 100) : 0
+            price_cents: this.normalizePriceToCents(v.price)
           })),
           options: product.options || []
         })).filter(item => item.variant_id); // Only include products with valid variants
@@ -4835,19 +4844,72 @@
     }
 
     formatMoney(cents) {
-      // Ensure we have a valid number, default to 0 if not
-      const validCents = (typeof cents === 'number' && !isNaN(cents)) ? cents : 0;
+      const validCents = (typeof cents === 'number' && !isNaN(cents)) ? Math.round(cents) : 0;
+
+      // Prefer Shopify.formatMoney when available so we honor all locale placeholders
+      try {
+        if (window.Shopify && typeof window.Shopify.formatMoney === 'function') {
+          const format = window.CartUpliftMoneyFormat || window.Shopify.money_format;
+          if (format) {
+            return window.Shopify.formatMoney(validCents, format);
+          }
+          return window.Shopify.formatMoney(validCents);
+        }
+      } catch (shopifyFormatError) {
+        console.warn('[CartUplift] formatMoney fallback due to Shopify.formatMoney error', shopifyFormatError);
+      }
+
       const amount = (validCents / 100).toFixed(2);
-      
+
       if (window.CartUpliftMoneyFormat) {
         try {
           return window.CartUpliftMoneyFormat.replace(/\{\{\s*amount\s*\}\}/g, amount);
         } catch {
-          // Fallback
+          // Fallback below
         }
       }
-      
+
       return '$' + amount;
+    }
+
+    normalizePriceToCents(value) {
+      if (value === null || value === undefined || value === '') {
+        return 0;
+      }
+
+      const rawString = typeof value === 'number' ? value.toString() : String(value).trim();
+      if (!rawString) return 0;
+
+      // Remove currency symbols and keep digits, separators, signs
+      let cleaned = rawString.replace(/[^0-9.,-]/g, '');
+      if (!cleaned) return 0;
+
+      const hasComma = cleaned.includes(',');
+      const hasDot = cleaned.includes('.');
+
+      if (hasComma && hasDot) {
+        // Assume comma is thousands separator; remove it
+        cleaned = cleaned.replace(/,/g, '');
+      } else if (hasComma && !hasDot) {
+        // Treat comma as decimal separator
+        cleaned = cleaned.replace(/,/g, '.');
+      }
+
+      if (cleaned.includes('.')) {
+        const floatVal = parseFloat(cleaned);
+        return isNaN(floatVal) ? 0 : Math.round(floatVal * 100);
+      }
+
+      const digitsOnly = cleaned.replace(/\D/g, '');
+      if (!digitsOnly) return 0;
+
+      if (digitsOnly.length <= 2) {
+        const majorUnits = parseInt(digitsOnly, 10);
+        return isNaN(majorUnits) ? 0 : majorUnits * 100;
+      }
+
+      const centsValue = parseInt(digitsOnly, 10);
+      return isNaN(centsValue) ? 0 : centsValue;
     }
 
     /** Format product review display from metafields or common review apps */
@@ -6041,7 +6103,7 @@
 
     formatProduct(product) {
       // Accept both product-shaped and variant-shaped objects
-      let basePrice = product?.variants?.[0]?.price || product?.price || 0;
+  let basePrice = product?.variants?.[0]?.price || product?.price || 0;
       let variantId = null;
 
       // Case 1: Full product object with variants
@@ -6083,14 +6145,14 @@
         title: product.title || product.product_title || 'Untitled',
         handle: product.handle || null, // Preserve product handle for variant detection
         // Convert price to cents for consistent formatting
-        priceCents: basePrice ? Math.round(parseFloat(basePrice) * 100) : 0,
+  priceCents: this.cartUplift.normalizePriceToCents(basePrice),
         image: product.featured_image?.src || product.featured_image || product.image || product.images?.[0]?.src || 
                 product.media?.[0]?.preview_image?.src || 'https://via.placeholder.com/150',
         variant_id: variantId,
         url: product.url || (product.handle ? `/products/${product.handle}` : '#'),
         variants: (product.variants || []).map(v => ({
           ...v,
-          price_cents: v.price ? Math.round(parseFloat(v.price) * 100) : 0
+          price_cents: this.cartUplift.normalizePriceToCents(v.price)
         })),
         options: product.options || []
       };
