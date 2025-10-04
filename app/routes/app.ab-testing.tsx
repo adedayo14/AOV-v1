@@ -3,7 +3,7 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import appBridgeUtils from "@shopify/app-bridge-utils";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useRevalidator } from "@remix-run/react";
+import { useLoaderData, useRevalidator, useNavigate } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -138,6 +138,7 @@ export default function ABTestingPage() {
   const storeCurrency = data.currencyCode || 'USD';
   const revalidator = useRevalidator();
   const app = useAppBridge();
+  const navigate = useNavigate();
   const money = new Intl.NumberFormat(undefined, { style: "currency", currency: storeCurrency || "USD" });
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -328,8 +329,10 @@ export default function ABTestingPage() {
           ? "Experiment launched. Give it a few minutes to start collecting assignments."
           : "Saved as paused. Start it from the list when you're ready."
       );
-      closeCreateModal();
-      revalidator.revalidate();
+  closeCreateModal();
+  revalidator.revalidate();
+  // Soft refresh so the new experiment appears immediately
+  navigate('.', { replace: true });
     } catch (error: any) {
       console.error("[ABTesting] Create error", error);
       setErrorBanner(error?.message || "We couldn't create that experiment. Try again in a moment.");
@@ -376,8 +379,10 @@ export default function ABTestingPage() {
         throw new Error(msg || "Delete request failed");
       }
 
-      setSuccessBanner("Experiment deleted");
-      revalidator.revalidate();
+  setSuccessBanner("Experiment deleted");
+  revalidator.revalidate();
+  // Soft refresh so the list updates immediately
+  navigate('.', { replace: true });
     } catch (error: any) {
       console.error("[ABTesting] Delete error", error);
       setErrorBanner(error?.message || "We couldn't delete that experiment. Refresh and try again.");
@@ -882,6 +887,8 @@ export default function ABTestingPage() {
               setSuccessBanner("Experiment updated successfully!");
               closeEditModal();
               revalidator.revalidate();
+              // Soft refresh to reflect the latest values
+              navigate('.', { replace: true });
             } catch (error: any) {
               console.error("[ABTesting] Update error", error);
               setErrorBanner(error?.message || "Failed to update experiment. Try again.");
