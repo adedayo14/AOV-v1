@@ -1,4 +1,4 @@
-/* Cart Uplift - Complete Rewritten CSS for Clean Layout */
+d/* Cart Uplift - Complete Rewritten CSS for Clean Layout */
 
 /* ========================================
    CSS Variables & Reset
@@ -1516,8 +1516,7 @@ body.cartuplift-no-scroll {
 
 .cartuplift-grid-item:hover {
   background-color: #f8f8f8;
-  outline: 1px solid var(--cartuplift-button-color, #000);
-  outline-offset: -1px;
+  box-shadow: inset 0 0 0 2px var(--cartuplift-button-color, #000);
   z-index: 2;
 }
 
@@ -1584,7 +1583,45 @@ body.cartuplift-no-scroll {
 
 /* Remove hover button - using persistent toggle button instead */
 .cartuplift-grid-hover {
-  display: none !important;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: none; /* Hidden by default */
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}
+
+/* Show hover button when hovering over grid item */
+.cartuplift-grid-item:hover .cartuplift-grid-hover {
+  display: flex !important;
+}
+
+.cartuplift-grid-add-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--cartuplift-button-color, #000);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.cartuplift-grid-add-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.cartuplift-grid-add-btn svg {
+  width: 24px;
+  height: 24px;
+  stroke: white;
+  stroke-width: 2;
 }
 
 /* Hide old overlay styles */
