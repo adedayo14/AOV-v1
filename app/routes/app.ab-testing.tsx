@@ -178,6 +178,143 @@ export default function ABTestingPage() {
   const [resultsError, setResultsError] = useState<string | null>(null);
   const [resultsLoading, setResultsLoading] = useState(false);
 
+  // Toggle running/paused
+  const handleToggleStatus = async (experiment: LoaderExperiment) => {
+    try {
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+      let sessionToken = '';
+      try {
+        if (app) {
+          sessionToken = await (appBridgeUtils as any).getSessionToken(app);
+        }
+      } catch (_e) {
+        // ignore token fetch error
+      }
+      if (!sessionToken) sessionToken = params.get('id_token') || '';
+
+      const next = experiment.status === 'running' ? 'paused' : 'running';
+      const response = await fetch(`/api/ab-testing-admin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
+        body: JSON.stringify({
+          action: 'update',
+          experimentId: experiment.id,
+          experiment: { status: next },
+        }),
+      });
+      if (!response.ok) {
+        const msg = await extractErrorMessage(response);
+        throw new Error(msg || 'Failed to toggle status');
+      }
+      // Optimistic update
+      setExperiments((prev) => prev.map((e) => (e.id === experiment.id ? { ...e, status: next } : e)));
+      setSuccessBanner(next === 'running' ? 'Experiment resumed' : 'Experiment paused');
+      setTimeout(() => revalidator.revalidate(), 400);
+    } catch (err: any) {
+      console.error('[ABTesting] Toggle status error', err);
+      setErrorBanner(err?.message || 'Could not change status. Try again.');
+    }
+  };
+
+  // Small child card that fetches and shows a compact results summary for each experiment
+  function ExperimentSummary({ experiment }: { experiment: LoaderExperiment }) {
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [summary, setSummary] = useState<ResultsPayload | null>(null);
+
+    useEffect(() => {
+      let active = true;
+      (async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+          let sessionToken = '';
+          try {
+            if (app) {
+              sessionToken = await (appBridgeUtils as any).getSessionToken(app);
+            }
+          } catch (_e) {
+            // ignore token fetch error
+          }
+          if (!sessionToken) sessionToken = params.get('id_token') || '';
+          const res = await fetch(`/api/ab-results?experimentId=${experiment.id}&period=7d`, {
+            headers: { ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}) },
+          });
+          if (!res.ok) {
+            const msg = await res.text();
+            throw new Error(msg || `Failed to load results (${res.status})`);
+          }
+          const data: ResultsPayload = await res.json();
+          if (!active) return;
+          setSummary(data);
+        } catch (e: any) {
+          if (!active) return;
+          setError(e?.message || 'No recent results');
+        } finally {
+          if (active) setLoading(false);
+        }
+      })();
+      return () => {
+        active = false;
+      };
+    }, [experiment.id]);
+
+    if (loading) return <Text as="p" tone="subdued">Loading last 7 days…</Text>;
+    if (error || !summary) return <Text as="p" tone="subdued">{error || 'No recent data'}</Text>;
+
+    const moneyLocal = new Intl.NumberFormat(undefined, { style: 'currency', currency: storeCurrency || 'USD' });
+    const [a, b] = summary.results.sort((x, y) => (x.isControl === y.isControl ? 0 : x.isControl ? -1 : 1));
+    const control = a;
+    const challenger = b;
+    const lift = control && challenger && control.revenuePerVisitor > 0
+      ? ((challenger.revenuePerVisitor - control.revenuePerVisitor) / control.revenuePerVisitor) * 100
+      : null;
+    const leader = summary.leader;
+
+    return (
+      <BlockStack gap="200">
+        <InlineStack gap="400" wrap>
+          {control && (
+            <Card background="bg-surface-secondary" padding="300">
+              <BlockStack gap="100">
+                <Text as="p" tone="subdued">Control</Text>
+                <InlineStack gap="400">
+                  <Text as="p" tone="subdued">Visitors: {control.visitors}</Text>
+                  <Text as="p" tone="subdued">CR: {(control.conversionRate * 100).toFixed(1)}%</Text>
+                  <Text as="p" tone="subdued">RPV: {moneyLocal.format(control.revenuePerVisitor)}</Text>
+                </InlineStack>
+              </BlockStack>
+            </Card>
+          )}
+          {challenger && (
+            <Card background="bg-surface-secondary" padding="300">
+              <BlockStack gap="100">
+                <InlineStack gap="200" align="center">
+                  <Text as="p">{challenger.variantName}</Text>
+                  {leader === challenger.variantId && <Badge tone="success">Leader</Badge>}
+                </InlineStack>
+                <InlineStack gap="400">
+                  <Text as="p" tone="subdued">Visitors: {challenger.visitors}</Text>
+                  <Text as="p" tone="subdued">CR: {(challenger.conversionRate * 100).toFixed(1)}%</Text>
+                  <Text as="p" tone="subdued">RPV: {moneyLocal.format(challenger.revenuePerVisitor)}</Text>
+                </InlineStack>
+              </BlockStack>
+            </Card>
+          )}
+        </InlineStack>
+        {lift !== null && (
+          <Text as="p">Lift (RPV): {lift >= 0 ? '+' : ''}{lift.toFixed(1)}%</Text>
+        )}
+        <Text as="p" tone="subdued">Window: {new Date(summary.start).toLocaleDateString()} - {new Date(summary.end).toLocaleDateString()}</Text>
+      </BlockStack>
+    );
+  }
+
   // Helper to surface backend error details in UI
   const extractErrorMessage = async (response: Response) => {
     try {
@@ -517,11 +654,17 @@ export default function ABTestingPage() {
                 <Badge>{typeLabel}</Badge>
                 <Badge tone={statusTone}>{experiment.status}</Badge>
                 <Badge tone="info">{`Attribution: ${experiment.attribution}`}</Badge>
+                {experiment.startDate && (
+                  <Badge tone="attention">{`Started ${new Date(experiment.startDate).toLocaleDateString()}`}</Badge>
+                )}
               </InlineStack>
             </BlockStack>
             <ButtonGroup>
               <Button onClick={() => openResultsModal(experiment)}>View results</Button>
               <Button onClick={() => openEditModal(experiment)}>Edit</Button>
+              <Button onClick={() => handleToggleStatus(experiment)}>
+                {experiment.status === 'running' ? 'Pause' : 'Resume'}
+              </Button>
               <Button tone="critical" onClick={() => handleDelete(experiment.id)}>
                 Delete
               </Button>
@@ -548,6 +691,9 @@ export default function ABTestingPage() {
               </Card>
             )}
           </InlineStack>
+
+          {/* Compact last-7-days summary */}
+          <ExperimentSummary experiment={experiment} />
         </BlockStack>
       </Card>
     );
