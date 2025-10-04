@@ -1516,8 +1516,19 @@ body.cartuplift-no-scroll {
 
 .cartuplift-grid-item:hover {
   background-color: #f8f8f8;
-  box-shadow: inset 0 0 0 2px var(--cartuplift-button-color, #000);
   z-index: 2;
+}
+
+.cartuplift-grid-item:hover::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px solid var(--cartuplift-button-color, #000);
+  pointer-events: none;
+  z-index: 10;
 }
 
 /* Image container - takes ~60% of height */
@@ -1584,13 +1595,13 @@ body.cartuplift-no-scroll {
 /* Remove hover button - using persistent toggle button instead */
 .cartuplift-grid-hover {
   position: absolute;
-  top: 50%;
+  bottom: 8px;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   display: none; /* Hidden by default */
   align-items: center;
   justify-content: center;
-  z-index: 3;
+  z-index: 5;
 }
 
 /* Show hover button when hovering over grid item */
@@ -1599,8 +1610,8 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-grid-add-btn {
-  width: 48px;
-  height: 48px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: var(--cartuplift-button-color, #000);
   border: none;
@@ -1613,13 +1624,13 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-grid-add-btn:hover {
-  transform: scale(1.05);
+  transform: scale(1.1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .cartuplift-grid-add-btn svg {
-  width: 24px;
-  height: 24px;
+  width: 16px;
+  height: 16px;
   stroke: white;
   stroke-width: 2;
 }
