@@ -4966,7 +4966,7 @@
 
     processGiftNoticeTemplate(template, giftItemsTotal, giftItems = []) {
       if (!template || template.trim() === '') {
-        return 'Free gift included';
+        return '';
       }
       let processedText = template;
       // We no longer include shipping savings – {amount} now equals gift total.
