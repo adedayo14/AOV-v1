@@ -3529,7 +3529,7 @@ body.cartuplift-no-scroll {
   position: absolute;
   top: 15px;
   right: 15px;
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--cartuplift-button-color, var(--buttons-color, #000));
   border: none;
   border-radius: 50%;
   width: 40px;
@@ -3538,14 +3538,13 @@ body.cartuplift-no-scroll {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #666;
+  color: var(--buttons-text-color, #fff);
   z-index: 1000002;
   transition: all 0.2s ease;
 }
 
 .cartuplift-modal-close:hover {
-  background: rgba(0, 0, 0, 0.2);
-  color: #333;
+  filter: brightness(1.1);
 }
 
 .cartuplift-modal-product {
