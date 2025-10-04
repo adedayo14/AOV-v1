@@ -1508,7 +1508,6 @@ body.cartuplift-no-scroll {
   transition: all 0.2s ease;
   cursor: pointer;
   height: 100%;
-  margin: -1px; /* Allow border to overlap */
 }
 
 .cartuplift-grid-item:last-child {
@@ -1517,9 +1516,9 @@ body.cartuplift-no-scroll {
 
 .cartuplift-grid-item:hover {
   background-color: #f8f8f8;
-  border: 1px solid var(--cartuplift-button-color, #000);
+  outline: 1px solid var(--cartuplift-button-color, #000);
+  outline-offset: -1px;
   z-index: 2;
-  margin: -1px; /* Keep margin consistent */
 }
 
 /* Image container - takes ~60% of height */
