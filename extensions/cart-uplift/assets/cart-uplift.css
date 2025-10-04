@@ -2271,9 +2271,7 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-inline-link svg {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
+  display: none !important;
 }
 
 /* Custom Modal Styles — compact bottom sheet */
@@ -2314,6 +2312,11 @@ body.cartuplift-no-scroll {
 .cartuplift-custom-modal.active .cartuplift-modal-content {
   transform: translateY(0);
   opacity: 1;
+}
+
+/* Square corners for the small promo/notes modal for consistency */
+.cartuplift-custom-modal .cartuplift-modal-content {
+  border-radius: 0 !important;
 }
 
 .cartuplift-modal-header {
