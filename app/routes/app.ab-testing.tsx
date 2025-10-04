@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import appBridgeUtils from "@shopify/app-bridge-utils";
 import type { LoaderFunctionArgs } from "@remix-run/node";
@@ -134,7 +134,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function ABTestingPage() {
   const data = useLoaderData<{ experiments: LoaderExperiment[]; currencyCode?: string | undefined }>();
-  const experiments = data.experiments;
+  const [experiments, setExperiments] = useState<LoaderExperiment[]>(data.experiments);
+  useEffect(() => {
+    setExperiments(data.experiments);
+  }, [data.experiments]);
   const storeCurrency = data.currencyCode || 'USD';
   const revalidator = useRevalidator();
   const app = useAppBridge();
@@ -323,12 +326,50 @@ export default function ABTestingPage() {
         throw new Error(msg || "Server error while creating experiment");
       }
 
-      await response.json();
+      const result = await response.json();
       setSuccessBanner(
         activateNow
           ? "Experiment launched. Give it a few minutes to start collecting assignments."
           : "Saved as paused. Start it from the list when you're ready."
       );
+      // Optimistically add the new experiment to the list
+      try {
+        const nowIso = new Date().toISOString();
+        const mapAttr = (w: string) => (w === '24h' ? 'hours24' : w === '7d' ? 'days7' : 'session');
+        const newExp: LoaderExperiment = {
+          id: Number(result?.experimentId) || Math.floor(Math.random() * -1000000),
+          name: newName.trim(),
+          type: controlType,
+          status: activateNow ? 'running' : 'paused',
+          startDate: activateNow ? nowIso : null,
+          endDate: null,
+          attribution: mapAttr(attributionWindow),
+          createdAt: nowIso,
+          updatedAt: nowIso,
+          activeVariantId: null,
+          variants: [
+            {
+              id: Math.floor(Math.random() * -1000000),
+              name: 'Control',
+              isControl: true,
+              value: Number(controlDiscount),
+              valueFormat: controlFormat,
+              trafficPct: 50,
+            },
+            {
+              id: Math.floor(Math.random() * -1000000),
+              name: variantName.trim() || 'Variant',
+              isControl: false,
+              value: Number(variantDiscount),
+              valueFormat: challengerFormat,
+              trafficPct: 50,
+            },
+          ],
+        };
+        setExperiments((prev) => [newExp, ...prev]);
+      } catch (_) {
+        // ignore optimistic failures
+      }
   closeCreateModal();
   revalidator.revalidate();
   // Soft refresh so the new experiment appears immediately
@@ -380,6 +421,8 @@ export default function ABTestingPage() {
       }
 
   setSuccessBanner("Experiment deleted");
+  // Optimistically remove from list
+  setExperiments((prev) => prev.filter((e) => e.id !== experimentId));
   revalidator.revalidate();
   // Soft refresh so the list updates immediately
   navigate('.', { replace: true });
@@ -885,6 +928,32 @@ export default function ABTestingPage() {
               }
 
               setSuccessBanner("Experiment updated successfully!");
+              // Optimistically update the list
+              try {
+                const mapAttr = (w: string) => (w === '24h' ? 'hours24' : w === '7d' ? 'days7' : 'session');
+                setExperiments((prev) => prev.map((e) => {
+                  if (e.id !== editingExperiment.id) return e;
+                  const controlExisting = e.variants.find(v => v.isControl);
+                  const challengerExisting = e.variants.find(v => !v.isControl);
+                  return {
+                    ...e,
+                    name: newName.trim(),
+                    type: controlType,
+                    attribution: mapAttr(attributionWindow),
+                    updatedAt: new Date().toISOString(),
+                    variants: [
+                      controlExisting ? { ...controlExisting, name: 'Control', value: Number(controlDiscount), valueFormat: controlFormat, trafficPct: 50 } : {
+                        id: Math.floor(Math.random() * -1000000), name: 'Control', isControl: true, value: Number(controlDiscount), valueFormat: controlFormat, trafficPct: 50
+                      },
+                      challengerExisting ? { ...challengerExisting, name: variantName.trim() || 'Variant', value: Number(variantDiscount), valueFormat: challengerFormat, trafficPct: 50 } : {
+                        id: Math.floor(Math.random() * -1000000), name: variantName.trim() || 'Variant', isControl: false, value: Number(variantDiscount), valueFormat: challengerFormat, trafficPct: 50
+                      },
+                    ],
+                  };
+                }));
+              } catch (_) {
+                // ignore optimistic failures
+              }
               closeEditModal();
               revalidator.revalidate();
               // Soft refresh to reflect the latest values
