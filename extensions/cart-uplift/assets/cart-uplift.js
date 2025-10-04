@@ -85,6 +85,8 @@
       this.settings.enableNotes = Boolean(this.settings.enableOrderNotes || this.settings.enableNotes);
       this.settings.enableDiscountCode = this.settings.enableDiscountCode !== false; // DEFAULT TO TRUE
       this.settings.enableExpressCheckout = this.settings.enableExpressCheckout !== false; // DEFAULT TO TRUE
+      // Map promotionLinkText to discountLinkText for consistency
+      this.settings.discountLinkText = this.settings.promotionLinkText || this.settings.discountLinkText || '+ Got a promotion code?';
       
       // Handle both autoOpenCart (from API) and keepCartOpen (from theme design mode)
       // In design mode, keepCartOpen overrides autoOpenCart for editor convenience
