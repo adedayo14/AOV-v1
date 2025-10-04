@@ -2330,9 +2330,9 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-modal-close {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--cartuplift-button-color, var(--buttons-color, #000));
   border: none;
-  color: white;
+  color: var(--buttons-text-color, #fff);
   font-size: 18px;
   width: 32px;
   height: 32px;
@@ -2345,7 +2345,7 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-modal-close:hover {
-  background: rgba(255, 255, 255, 0.3);
+  filter: brightness(1.1);
 }
 
 .cartuplift-modal-body {
