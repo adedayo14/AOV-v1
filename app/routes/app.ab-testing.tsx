@@ -270,47 +270,93 @@ export default function ABTestingPage() {
     const moneyLocal = new Intl.NumberFormat(undefined, { style: 'currency', currency: storeCurrency || 'USD' });
     const [a, b] = summary.results.sort((x, y) => (x.isControl === y.isControl ? 0 : x.isControl ? -1 : 1));
     const control = a;
-    const challenger = b;
-    const lift = control && challenger && control.revenuePerVisitor > 0
-      ? ((challenger.revenuePerVisitor - control.revenuePerVisitor) / control.revenuePerVisitor) * 100
-      : null;
-    const leader = summary.leader;
+  const _challenger = b;
+    const leaderId = summary.leader;
+    const leader = summary.results.find(r => r.variantId === leaderId) || null;
+    const days = Math.max(1, Math.round((new Date(summary.end).getTime() - new Date(summary.start).getTime()) / (24*60*60*1000)));
+    const totalVisitors = summary.results.reduce((acc, v) => acc + (v.visitors || 0), 0);
+    const dailyVisitors = totalVisitors / days;
+    const rpvControl = control?.revenuePerVisitor || 0;
+    const rpvLeader = leader?.revenuePerVisitor || 0;
+    const rpvLiftPct = rpvControl > 0 ? ((rpvLeader - rpvControl) / rpvControl) * 100 : null;
+    const revenueDelta = control && leader ? (leader.revenue - control.revenue) : 0;
+    const costOfDelay = Math.max(0, (rpvLeader - rpvControl) * dailyVisitors);
+    const split = `${experiment.variants.find(v => v.isControl)?.trafficPct ?? 50}% / ${experiment.variants.find(v => !v.isControl)?.trafficPct ?? 50}%`;
+
+    const rolloutLeader = async () => {
+      if (!leader) return;
+      try {
+        const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+        let sessionToken = '';
+  try { if (app) { sessionToken = await (appBridgeUtils as any).getSessionToken(app); } } catch (_e) { /* ignore */ }
+        if (!sessionToken) sessionToken = params.get('id_token') || '';
+        const res = await fetch('/api/ab-rollout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}) },
+          body: JSON.stringify({ experimentId: experiment.id, winnerVariantId: leader.variantId }),
+        });
+        if (!res.ok) {
+          const msg = await extractErrorMessage(res);
+          throw new Error(msg || 'Could not roll out');
+        }
+        setSuccessBanner('Rolled out the winner. New visitors will see it going forward.');
+        setTimeout(() => revalidator.revalidate(), 400);
+      } catch (e: any) {
+        setErrorBanner(e?.message || 'Could not roll out');
+      }
+    };
 
     return (
-      <BlockStack gap="200">
+      <BlockStack gap="400">
         <InlineStack gap="400" wrap>
-          {control && (
-            <Card background="bg-surface-secondary" padding="300">
+          <Card background="bg-surface-secondary" padding="400">
+            <BlockStack gap="150">
+              <Text as="p" tone="subdued">Last 7 days</Text>
+              <Text variant="headingLg" as="h3">{`${revenueDelta >= 0 ? '+' : '-'}${moneyLocal.format(Math.abs(revenueDelta))} vs control`}</Text>
+              <InlineStack gap="400" wrap>
+                <Text as="p" tone="subdued">Orders: <Text as="span" tone="inherit" fontWeight="bold">{leader?.conversions ?? 0}</Text></Text>
+                <Text as="p" tone="subdued">AOV: <Text as="span" tone="inherit" fontWeight="bold">{leader && leader.conversions > 0 ? moneyLocal.format(leader.revenue / leader.conversions) : moneyLocal.format(0)}</Text></Text>
+                <Text as="p" tone="subdued">$/visitor: <Text as="span" tone="inherit" fontWeight="bold">{moneyLocal.format(rpvLeader)}</Text></Text>
+              </InlineStack>
+              {costOfDelay > 0 && (
+                <Badge tone="attention">{`Cost of delay: ${moneyLocal.format(costOfDelay)}/day`}</Badge>
+              )}
+            </BlockStack>
+          </Card>
+
+          <Card background="bg-surface-secondary" padding="400">
+            <BlockStack gap="150">
+              {leader && !leader.isControl && (
+                <InlineStack>
+                  <Button variant="primary" onClick={rolloutLeader}>{`Roll out ${leader.variantName}`}</Button>
+                </InlineStack>
+              )}
               <BlockStack gap="100">
-                <Text as="p" tone="subdued">Control</Text>
-                <InlineStack gap="400">
-                  <Text as="p" tone="subdued">Visitors: {control.visitors}</Text>
-                  <Text as="p" tone="subdued">CR: {(control.conversionRate * 100).toFixed(1)}%</Text>
-                  <Text as="p" tone="subdued">RPV: {moneyLocal.format(control.revenuePerVisitor)}</Text>
+                <Text as="p" tone="subdued">Threshold progress</Text>
+                <InlineStack align="space-between">
+                  <Text as="p" tone="subdued">Exposures</Text>
+                  <Text as="p" tone="subdued">{totalVisitors} / 100</Text>
+                </InlineStack>
+                <InlineStack align="space-between">
+                  <Text as="p" tone="subdued">Conversions</Text>
+                  <Text as="p" tone="subdued">{(leader?.conversions ?? 0) + (control?.conversions ?? 0)} / 20</Text>
                 </InlineStack>
               </BlockStack>
-            </Card>
-          )}
-          {challenger && (
-            <Card background="bg-surface-secondary" padding="300">
-              <BlockStack gap="100">
-                <InlineStack gap="200" align="center">
-                  <Text as="p">{challenger.variantName}</Text>
-                  {leader === challenger.variantId && <Badge tone="success">Leader</Badge>}
-                </InlineStack>
-                <InlineStack gap="400">
-                  <Text as="p" tone="subdued">Visitors: {challenger.visitors}</Text>
-                  <Text as="p" tone="subdued">CR: {(challenger.conversionRate * 100).toFixed(1)}%</Text>
-                  <Text as="p" tone="subdued">RPV: {moneyLocal.format(challenger.revenuePerVisitor)}</Text>
-                </InlineStack>
-              </BlockStack>
-            </Card>
-          )}
+            </BlockStack>
+          </Card>
         </InlineStack>
-        {lift !== null && (
-          <Text as="p">Lift (RPV): {lift >= 0 ? '+' : ''}{lift.toFixed(1)}%</Text>
+
+        {rpvLiftPct !== null && (
+          <Text as="p">{`Lift (RPV): ${rpvLiftPct >= 0 ? '+' : ''}${rpvLiftPct.toFixed(1)}%`}</Text>
         )}
-        <Text as="p" tone="subdued">Window: {new Date(summary.start).toLocaleDateString()} - {new Date(summary.end).toLocaleDateString()}</Text>
+        <InlineStack align="space-between">
+          <InlineStack gap="200" align="center">
+            <Text as="p" tone="subdued">Leader:</Text>
+            <Badge tone="success">{leader?.variantName || '—'}</Badge>
+            <Text as="p" tone="subdued">• Split: {split}</Text>
+          </InlineStack>
+          <Text as="p" tone="subdued">Window: {new Date(summary.start).toLocaleDateString()} - {new Date(summary.end).toLocaleDateString()}</Text>
+        </InlineStack>
       </BlockStack>
     );
   }
