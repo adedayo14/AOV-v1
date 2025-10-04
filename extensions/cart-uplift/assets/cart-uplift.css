@@ -3513,6 +3513,11 @@ body.cartuplift-no-scroll {
   height: 100svh; /* Use small viewport height like cart */
 }
 
+/* For the grid options modal, use straight edges (no rounded corners) */
+.cartuplift-product-modal .cartuplift-modal-content {
+  border-radius: 0 !important;
+}
+
 .cartuplift-product-modal.show .cartuplift-modal-content {
   transform: translateX(0);
 }
