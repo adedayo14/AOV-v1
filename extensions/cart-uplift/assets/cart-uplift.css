@@ -1496,6 +1496,7 @@ body.cartuplift-no-scroll {
   width: calc(100% + 32px);
   position: relative;
   z-index: 1; /* Ensure grid content stays above header elements */
+  overflow: hidden; /* Clip items at rounded corners */
 }
 
 .cartuplift-grid-item {
@@ -1504,10 +1505,10 @@ body.cartuplift-no-scroll {
   flex-direction: column;
   background: transparent;
   border-right: 1px solid #e0e0e0;
-  overflow: hidden;
   transition: all 0.2s ease;
   cursor: pointer;
   height: 100%;
+  margin: -1px; /* Allow border to overlap */
 }
 
 .cartuplift-grid-item:last-child {
@@ -1516,8 +1517,9 @@ body.cartuplift-no-scroll {
 
 .cartuplift-grid-item:hover {
   background-color: #f8f8f8;
-  box-shadow: inset 0 0 0 1px var(--cartuplift-button-color, #000);
+  border: 1px solid var(--cartuplift-button-color, #000);
   z-index: 2;
+  margin: -1px; /* Keep margin consistent */
 }
 
 /* Image container - takes ~60% of height */
