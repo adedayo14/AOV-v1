@@ -3,7 +3,7 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import appBridgeUtils from "@shopify/app-bridge-utils";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useRevalidator, useNavigate } from "@remix-run/react";
+import { useLoaderData, useRevalidator } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -135,13 +135,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function ABTestingPage() {
   const data = useLoaderData<{ experiments: LoaderExperiment[]; currencyCode?: string | undefined }>();
   const [experiments, setExperiments] = useState<LoaderExperiment[]>(data.experiments);
+  // Guard loader sync with a pause window to avoid overwriting optimistic updates
+  const [syncPauseUntil, setSyncPauseUntil] = useState<number>(0);
   useEffect(() => {
-    setExperiments(data.experiments);
-  }, [data.experiments]);
+    if (Date.now() >= syncPauseUntil) {
+      setExperiments(data.experiments);
+    }
+  }, [data.experiments, syncPauseUntil]);
   const storeCurrency = data.currencyCode || 'USD';
   const revalidator = useRevalidator();
   const app = useAppBridge();
-  const navigate = useNavigate();
+  // Remove navigate usage
   const money = new Intl.NumberFormat(undefined, { style: "currency", currency: storeCurrency || "USD" });
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -371,9 +375,9 @@ export default function ABTestingPage() {
         // ignore optimistic failures
       }
   closeCreateModal();
-  revalidator.revalidate();
-  // Soft refresh so the new experiment appears immediately
-  navigate('.', { replace: true });
+  // Pause loader sync briefly, then revalidate
+  setSyncPauseUntil(Date.now() + 2000);
+  setTimeout(() => revalidator.revalidate(), 600);
     } catch (error: any) {
       console.error("[ABTesting] Create error", error);
       setErrorBanner(error?.message || "We couldn't create that experiment. Try again in a moment.");
@@ -423,9 +427,9 @@ export default function ABTestingPage() {
   setSuccessBanner("Experiment deleted");
   // Optimistically remove from list
   setExperiments((prev) => prev.filter((e) => e.id !== experimentId));
-  revalidator.revalidate();
-  // Soft refresh so the list updates immediately
-  navigate('.', { replace: true });
+  // Pause loader sync briefly, then revalidate
+  setSyncPauseUntil(Date.now() + 2000);
+  setTimeout(() => revalidator.revalidate(), 600);
     } catch (error: any) {
       console.error("[ABTesting] Delete error", error);
       setErrorBanner(error?.message || "We couldn't delete that experiment. Refresh and try again.");
@@ -955,9 +959,9 @@ export default function ABTestingPage() {
                 // ignore optimistic failures
               }
               closeEditModal();
-              revalidator.revalidate();
-              // Soft refresh to reflect the latest values
-              navigate('.', { replace: true });
+              // Pause loader sync briefly, then revalidate
+              setSyncPauseUntil(Date.now() + 2000);
+              setTimeout(() => revalidator.revalidate(), 600);
             } catch (error: any) {
               console.error("[ABTesting] Update error", error);
               setErrorBanner(error?.message || "Failed to update experiment. Try again.");
