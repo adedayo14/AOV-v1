@@ -1494,6 +1494,8 @@ body.cartuplift-no-scroll {
   padding: 0;
   height: 200px;
   width: calc(100% + 32px);
+  position: relative;
+  z-index: 1; /* Ensure grid content stays above header elements */
 }
 
 .cartuplift-grid-item {
