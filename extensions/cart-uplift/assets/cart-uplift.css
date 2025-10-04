@@ -15,7 +15,7 @@ d/* Cart Uplift - Complete Rewritten CSS for Clean Layout */
   --cartuplift-teal: #16a085;
   --cartuplift-danger: #ff4444;
   --cartuplift-success: #121212; /* Dark neutral instead of green */
-  --cartuplift-drawer-width: 520px;
+  --cartuplift-drawer-width: 420px;
   --cartuplift-border-radius: 6px;
 }
 
@@ -71,7 +71,7 @@ body.cartuplift-no-scroll {
   right: 0;
   bottom: 0;
   width: var(--cartuplift-drawer-width);
-  max-width: 90vw;
+  max-width: 100vw;
   z-index: 999999;
   transform: translateX(100%);
   transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -2288,7 +2288,7 @@ body.cartuplift-no-scroll {
   right: 0;
   bottom: 0;
   width: var(--cartuplift-drawer-width);
-  max-width: 90vw;
+  max-width: 100vw;
   background: var(--cartuplift-background);
   z-index: 1000000;
   opacity: 0;
@@ -3509,7 +3509,7 @@ body.cartuplift-no-scroll {
   right: 0;
   bottom: 0;
   width: var(--cartuplift-drawer-width);
-  max-width: 90vw;
+  max-width: 100vw;
   background: var(--cartuplift-background);
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
   overflow-y: auto;
