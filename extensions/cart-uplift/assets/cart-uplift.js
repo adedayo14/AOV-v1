@@ -81,7 +81,8 @@
       this.settings.enableApp = this.settings.enableApp !== false;
       this.settings.enableRecommendations = this.settings.enableRecommendations !== false; // DEFAULT TO TRUE
       this.settings.enableAddons = Boolean(this.settings.enableAddons);
-      this.settings.enableNotes = Boolean(this.settings.enableNotes);
+      // Map enableOrderNotes from theme settings to enableNotes
+      this.settings.enableNotes = Boolean(this.settings.enableOrderNotes || this.settings.enableNotes);
       this.settings.enableDiscountCode = this.settings.enableDiscountCode !== false; // DEFAULT TO TRUE
       this.settings.enableExpressCheckout = this.settings.enableExpressCheckout !== false; // DEFAULT TO TRUE
       
@@ -530,6 +531,7 @@
     // Prewarm cart data to reduce first-click delay
     prewarmCart() {
       console.log('🛒 Cart Uplift: Prewarming cart data...');
+      const startTime = performance.now();
       
       // Start preloading cart data in background
       if (!this._prewarmPromise) {
@@ -539,7 +541,8 @@
         })
         .then(response => response.json())
         .then(cart => {
-          console.log('🛒 Cart Uplift: Cart prewarmed successfully');
+          const elapsed = Math.round(performance.now() - startTime);
+          console.log(`🛒 Cart Uplift: Cart prewarmed successfully in ${elapsed}ms`);
           this._prewarmData = cart;
           return cart;
         })
@@ -2712,6 +2715,12 @@
       // Build modal content based on enabled features
       let modalContent = '';
       
+      console.log('🛒 Cart Uplift: Building modal with settings:', {
+        enableDiscountCode: this.settings.enableDiscountCode,
+        enableNotes: this.settings.enableNotes,
+        enableGiftMessage: this.settings.enableGiftMessage
+      });
+      
       modalContent += `
         <div class="cartuplift-modal-content">
           <div class="cartuplift-modal-header">
@@ -2796,7 +2805,19 @@
       `;
       
       modal.innerHTML = modalContent;
+      
+      console.log('🛒 Cart Uplift: Modal HTML length:', modalContent.length, 'chars');
+      const modalBody = modal.querySelector('.cartuplift-modal-body');
+      if (modalBody) {
+        console.log('🛒 Cart Uplift: Modal body has', modalBody.children.length, 'sections');
+      } else {
+        console.error('❌ Cart Uplift: Modal body not found!');
+      }
+      
       document.body.appendChild(modal);
+      
+      console.log('🛒 Cart Uplift: Modal HTML length:', modalContent.length, 'chars');
+      console.log('🛒 Cart Uplift: Modal body content:', modal.querySelector('.cartuplift-modal-body')?.innerHTML?.substring(0, 200));
       
       modal.classList.add('active');
       
