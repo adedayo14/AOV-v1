@@ -137,7 +137,6 @@ export default function ABTestingPage() {
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newName, setNewName] = useState("");
-  const [experimentType, setExperimentType] = useState<"discount"|"bundle"|"shipping"|"upsell">("discount");
   
   // Control variant settings
   const [controlType, setControlType] = useState<"discount"|"bundle"|"shipping"|"upsell">("shipping");
@@ -168,7 +167,6 @@ export default function ABTestingPage() {
 
   const resetCreateForm = () => {
     setNewName("");
-    setExperimentType("discount");
     setControlType("shipping");
     setControlFormat("currency");
     setControlDiscount("50");
@@ -188,19 +186,18 @@ export default function ABTestingPage() {
   const openEditModal = (experiment: LoaderExperiment) => {
     setEditingExperiment(experiment);
     setNewName(experiment.name);
-    setExperimentType(experiment.type as any);
     setAttributionWindow(experiment.attribution as any);
     
     const control = experiment.variants.find(v => v.isControl);
     const challenger = experiment.variants.find(v => !v.isControl);
     
     if (control) {
-      setControlType(experiment.type as any); // Use experiment type for now
+      setControlType(experiment.type as any); // Use experiment type for control
       setControlFormat(control.valueFormat as any);
       setControlDiscount(String(control.value));
     }
     if (challenger) {
-      setChallengerType(experiment.type as any); // Use experiment type for now
+      setChallengerType(experiment.type as any); // Use experiment type for challenger
       setChallengerFormat(challenger.valueFormat as any);
       setVariantDiscount(String(challenger.value));
       setVariantName(challenger.name);
@@ -246,7 +243,7 @@ export default function ABTestingPage() {
         action: "create",
         experiment: {
           name: newName.trim(),
-          type: experimentType,
+          type: controlType, // Use control type as the experiment type
           status: activateNow ? "running" : "paused",
           startDate: activateNow ? new Date().toISOString() : null,
           endDate: null,
@@ -762,7 +759,7 @@ export default function ABTestingPage() {
                 experimentId: editingExperiment.id,
                 experiment: {
                   name: newName.trim(),
-                  type: experimentType,
+                  type: controlType, // Use control type as the experiment type
                   attribution: attributionWindow,
                 },
                 variants: [
