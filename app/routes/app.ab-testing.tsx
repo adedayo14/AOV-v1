@@ -270,11 +270,12 @@ export default function ABTestingPage() {
     const moneyLocal = new Intl.NumberFormat(undefined, { style: 'currency', currency: storeCurrency || 'USD' });
     const [a, b] = summary.results.sort((x, y) => (x.isControl === y.isControl ? 0 : x.isControl ? -1 : 1));
     const control = a;
-  const _challenger = b;
+    const _challenger = b;
     const leaderId = summary.leader;
     const leader = summary.results.find(r => r.variantId === leaderId) || null;
     const days = Math.max(1, Math.round((new Date(summary.end).getTime() - new Date(summary.start).getTime()) / (24*60*60*1000)));
     const totalVisitors = summary.results.reduce((acc, v) => acc + (v.visitors || 0), 0);
+    const totalConversions = summary.results.reduce((acc, v) => acc + (v.conversions || 0), 0);
     const dailyVisitors = totalVisitors / days;
     const rpvControl = control?.revenuePerVisitor || 0;
     const rpvLeader = leader?.revenuePerVisitor || 0;
@@ -288,7 +289,7 @@ export default function ABTestingPage() {
       try {
         const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
         let sessionToken = '';
-  try { if (app) { sessionToken = await (appBridgeUtils as any).getSessionToken(app); } } catch (_e) { /* ignore */ }
+        try { if (app) { sessionToken = await (appBridgeUtils as any).getSessionToken(app); } } catch (_e) { /* ignore */ }
         if (!sessionToken) sessionToken = params.get('id_token') || '';
         const res = await fetch('/api/ab-rollout', {
           method: 'POST',
@@ -301,10 +302,22 @@ export default function ABTestingPage() {
         }
         setSuccessBanner('Rolled out the winner. New visitors will see it going forward.');
         setTimeout(() => revalidator.revalidate(), 400);
-      } catch (e: any) {
-        setErrorBanner(e?.message || 'Could not roll out');
+      } catch (err: any) {
+        setErrorBanner(err?.message || 'Could not roll out');
       }
     };
+
+    if (totalVisitors === 0) {
+      return (
+        <BlockStack gap="200">
+          <Text as="p" tone="subdued">No traffic yet. We’ll show metrics once visitors arrive.</Text>
+          <InlineStack align="space-between">
+            <Text as="p" tone="subdued">Window: {new Date(summary.start).toLocaleDateString()} - {new Date(summary.end).toLocaleDateString()}</Text>
+            <Text as="p" tone="subdued">Split: {split}</Text>
+          </InlineStack>
+        </BlockStack>
+      );
+    }
 
     return (
       <BlockStack gap="400">
@@ -314,9 +327,9 @@ export default function ABTestingPage() {
               <Text as="p" tone="subdued">Last 7 days</Text>
               <Text variant="headingLg" as="h3">{`${revenueDelta >= 0 ? '+' : '-'}${moneyLocal.format(Math.abs(revenueDelta))} vs control`}</Text>
               <InlineStack gap="400" wrap>
-                <Text as="p" tone="subdued">Orders: <Text as="span" tone="inherit" fontWeight="bold">{leader?.conversions ?? 0}</Text></Text>
-                <Text as="p" tone="subdued">AOV: <Text as="span" tone="inherit" fontWeight="bold">{leader && leader.conversions > 0 ? moneyLocal.format(leader.revenue / leader.conversions) : moneyLocal.format(0)}</Text></Text>
-                <Text as="p" tone="subdued">$/visitor: <Text as="span" tone="inherit" fontWeight="bold">{moneyLocal.format(rpvLeader)}</Text></Text>
+                <Text as="p" tone="subdued">Orders: <Text as="span" tone="inherit" fontWeight="bold">{leader?.conversions ?? '—'}</Text></Text>
+                <Text as="p" tone="subdued">AOV: <Text as="span" tone="inherit" fontWeight="bold">{leader && leader.conversions > 0 ? moneyLocal.format(leader.revenue / leader.conversions) : '—'}</Text></Text>
+                <Text as="p" tone="subdued">$/visitor: <Text as="span" tone="inherit" fontWeight="bold">{rpvLeader > 0 ? moneyLocal.format(rpvLeader) : '—'}</Text></Text>
               </InlineStack>
               {costOfDelay > 0 && (
                 <Badge tone="attention">{`Cost of delay: ${moneyLocal.format(costOfDelay)}/day`}</Badge>
@@ -326,7 +339,7 @@ export default function ABTestingPage() {
 
           <Card background="bg-surface-secondary" padding="400">
             <BlockStack gap="150">
-              {leader && !leader.isControl && (
+              {leader && !leader.isControl && totalVisitors >= 100 && totalConversions >= 20 && (
                 <InlineStack>
                   <Button variant="primary" onClick={rolloutLeader}>{`Roll out ${leader.variantName}`}</Button>
                 </InlineStack>
@@ -451,7 +464,6 @@ export default function ABTestingPage() {
 
     try {
       const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-      // Prefer App Bridge session token; fallback to id_token in URL if present
       let sessionToken = '';
       try {
         if (app) {
@@ -460,14 +472,13 @@ export default function ABTestingPage() {
       } catch (_e) {
         // ignore and fallback to id_token
       }
-      if (!sessionToken) {
-        sessionToken = params.get('id_token') || '';
-      }
+      if (!sessionToken) sessionToken = params.get('id_token') || '';
+
       const payload = {
         action: "create",
         experiment: {
           name: newName.trim(),
-          type: controlType, // Use control type as the experiment type
+          type: controlType,
           status: activateNow ? "running" : "paused",
           startDate: activateNow ? new Date().toISOString() : null,
           endDate: null,
@@ -519,7 +530,6 @@ export default function ABTestingPage() {
           ? "Experiment launched. Give it a few minutes to start collecting assignments."
           : "Saved as paused. Start it from the list when you're ready."
       );
-      // Optimistically add the new experiment to the list
       try {
         const nowIso = new Date().toISOString();
         const mapAttr = (w: string) => (w === '24h' ? 'hours24' : w === '7d' ? 'days7' : 'session');
@@ -557,10 +567,9 @@ export default function ABTestingPage() {
       } catch (_) {
         // ignore optimistic failures
       }
-  closeCreateModal();
-  // Pause loader sync briefly, then revalidate
-  setSyncPauseUntil(Date.now() + 2000);
-  setTimeout(() => revalidator.revalidate(), 600);
+      closeCreateModal();
+      setSyncPauseUntil(Date.now() + 2000);
+      setTimeout(() => revalidator.revalidate(), 600);
     } catch (error: any) {
       console.error("[ABTesting] Create error", error);
       setErrorBanner(error?.message || "We couldn't create that experiment. Try again in a moment.");
@@ -671,7 +680,20 @@ export default function ABTestingPage() {
       : experiment.status === "completed"
         ? "attention"
         : "critical";
-    const typeLabel = `${experiment.type}`;
+    const typeLabel = `${experiment.type?.slice(0,1).toUpperCase()}${experiment.type?.slice(1)}`;
+    const prettyAttribution = (key: string | null | undefined) => {
+      switch (key) {
+        case 'hours24':
+        case '24h':
+          return '24 hours';
+        case 'days7':
+        case '7d':
+          return '7 days';
+        case 'session':
+        default:
+          return 'Same session';
+      }
+    };
     
     // Helper to format value based on valueFormat
     const formatValue = (value: number, valueFormat: string): string => {
@@ -699,7 +721,7 @@ export default function ABTestingPage() {
               <InlineStack gap="200">
                 <Badge>{typeLabel}</Badge>
                 <Badge tone={statusTone}>{experiment.status}</Badge>
-                <Badge tone="info">{`Attribution: ${experiment.attribution}`}</Badge>
+                <Badge tone="info">{`Attribution: ${prettyAttribution(experiment.attribution)}`}</Badge>
                 {experiment.startDate && (
                   <Badge tone="attention">{`Started ${new Date(experiment.startDate).toLocaleDateString()}`}</Badge>
                 )}
