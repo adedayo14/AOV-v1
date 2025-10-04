@@ -2723,10 +2723,16 @@
         enableGiftMessage: this.settings.enableGiftMessage
       });
       
+      const modalTitle = this.settings.enableDiscountCode && !this.settings.enableNotes && !this.settings.enableGiftMessage
+        ? 'Promotion code'
+        : (!this.settings.enableDiscountCode && this.settings.enableNotes && !this.settings.enableGiftMessage
+          ? 'Order notes'
+          : 'Add to order');
+
       modalContent += `
         <div class="cartuplift-modal-content">
           <div class="cartuplift-modal-header">
-            <h3 class="cartuplift-modal-title">Add to Order</h3>
+            <h3 class="cartuplift-modal-title">${modalTitle}</h3>
             <button class="cartuplift-modal-close" onclick="window.cartUpliftDrawer.closeCustomModal()">×</button>
           </div>
           <div class="cartuplift-modal-body">
@@ -2816,18 +2822,28 @@
         console.error('❌ Cart Uplift: Modal body not found!');
       }
       
-      document.body.appendChild(modal);
+  document.body.appendChild(modal);
       
       console.log('🛒 Cart Uplift: Modal HTML length:', modalContent.length, 'chars');
       console.log('🛒 Cart Uplift: Modal body content:', modal.querySelector('.cartuplift-modal-body')?.innerHTML?.substring(0, 200));
       
       modal.classList.add('active');
       
-      // Focus first input
+      // Focus first input and auto-resize textareas
       const firstInput = modal.querySelector('input, textarea');
       if (firstInput) {
-        setTimeout(() => firstInput.focus(), 100);
+        setTimeout(() => firstInput.focus(), 80);
       }
+      const autoResize = (el) => {
+        try {
+          el.style.height = 'auto';
+          el.style.height = Math.min(el.scrollHeight, 320) + 'px';
+        } catch (e) {}
+      };
+      modal.querySelectorAll('textarea').forEach(t => {
+        autoResize(t);
+        t.addEventListener('input', () => autoResize(t));
+      });
       
       // Debug log to check current settings
       console.log('🛒 Cart Uplift: Modal settings:', {

@@ -2278,22 +2278,19 @@ body.cartuplift-no-scroll {
   flex-shrink: 0;
 }
 
-/* Custom Modal Styles */
+/* Custom Modal Styles — compact bottom sheet */
 .cartuplift-custom-modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0; /* top/left/right/bottom 0 */
   background: rgba(0, 0, 0, 0.5);
   z-index: 1000000;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
+  transition: opacity 200ms ease, visibility 200ms ease;
   display: flex;
-  align-items: center;
+  align-items: flex-end; /* bottom sheet */
   justify-content: center;
-  padding: 20px;
+  padding: 0 12px 12px; /* gutter + bottom spacing */
 }
 
 .cartuplift-custom-modal.active {
@@ -2303,27 +2300,29 @@ body.cartuplift-no-scroll {
 
 .cartuplift-modal-content {
   background: var(--cartuplift-background);
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  max-width: 500px;
-  width: 100%;
-  max-height: 90vh;
+  border-radius: 14px 14px 10px 10px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+  width: min(480px, 94vw);
+  max-height: min(70vh, 560px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transform: scale(0.9);
-  transition: transform 0.3s ease;
+  transform: translateY(18px);
+  opacity: 0.98;
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), opacity 240ms ease;
+  will-change: transform, opacity;
 }
 
 .cartuplift-custom-modal.active .cartuplift-modal-content {
-  transform: scale(1);
+  transform: translateY(0);
+  opacity: 1;
 }
 
 .cartuplift-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
+  padding: 12px 16px;
   border-bottom: 1px solid #e5e5e5;
   background: var(--cartuplift-background);
   flex-shrink: 0;
@@ -2331,16 +2330,16 @@ body.cartuplift-no-scroll {
 
 .cartuplift-modal-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: #111;
 }
 
 .cartuplift-modal-close {
   background: transparent;
   border: none;
   color: #6b7280;
-  font-size: 24px;
+  font-size: 22px;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -2357,14 +2356,15 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-modal-body {
-  padding: 24px;
-  flex: 1;
+  padding: 14px 16px 16px;
+  /* auto height based on content; scroll only if needed */
+  max-height: calc(min(70vh, 560px) - 52px - 56px); /* header + footer */
   overflow-y: auto;
   background: var(--cartuplift-background);
 }
 
 .cartuplift-modal-section {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .cartuplift-modal-section:last-child {
@@ -2387,14 +2387,14 @@ body.cartuplift-no-scroll {
 
 .cartuplift-modal-input {
   flex: 1;
-  padding: 12px 16px;
+  padding: 10px 12px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 14px;
   transition: all 0.2s ease;
   background: white;
   color: #1f2937;
-  line-height: 1.5;
+  line-height: 1.45;
   display: block;
   width: 100%;
 }
@@ -2407,16 +2407,16 @@ body.cartuplift-no-scroll {
 
 .cartuplift-modal-textarea {
   width: 100%;
-  padding: 12px 16px;
+  padding: 10px 12px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 14px;
   transition: all 0.2s ease;
   background: white;
   color: #1f2937;
-  line-height: 1.5;
-  resize: vertical;
-  min-height: 100px;
+  line-height: 1.45;
+  resize: none; /* auto-resized via JS for tidy fit */
+  min-height: 72px;
   font-family: inherit;
   display: block;
   box-sizing: border-box;
@@ -2429,7 +2429,7 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-modal-apply-btn {
-  padding: 12px 20px;
+  padding: 10px 14px;
   background: var(--cartuplift-button-color, #007cba);
   color: white;
   border: none;
@@ -2458,7 +2458,7 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-modal-footer {
-  padding: 20px 24px;
+  padding: 12px 16px;
   border-top: 1px solid #e5e5e5;
   display: flex;
   gap: 12px;
@@ -2468,7 +2468,7 @@ body.cartuplift-no-scroll {
 }
 
 .cartuplift-modal-btn {
-  padding: 10px 20px;
+  padding: 9px 14px;
   border-radius: 6px;
   font-size: 14px;
   font-weight: 600;
@@ -2522,40 +2522,16 @@ body.cartuplift-no-scroll {
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .cartuplift-modal-content {
-    width: 95%;
-    max-height: 85vh;
-    margin: 20px 0;
-  }
-  
-  .cartuplift-modal-header {
-    padding: 16px 20px;
-  }
-  
-  .cartuplift-modal-title {
-    font-size: 16px;
-  }
-  
-  .cartuplift-modal-body {
-    padding: 20px;
-  }
-  
-  .cartuplift-modal-footer {
-    padding: 16px 20px;
-    flex-direction: column-reverse;
-  }
-  
-  .cartuplift-modal-btn {
     width: 100%;
-    justify-content: center;
+    border-radius: 16px 16px 0 0;
+    max-height: 80vh;
   }
-  
-  .cartuplift-modal-input-group {
-    flex-direction: column;
-  }
-  
-  .cartuplift-modal-apply-btn {
-    align-self: stretch;
-  }
+  .cartuplift-modal-title { font-size: 15px; }
+  .cartuplift-modal-body { padding: 14px 14px 16px; }
+  .cartuplift-modal-footer { padding: 12px 14px; flex-direction: column-reverse; }
+  .cartuplift-modal-btn { width: 100%; justify-content: center; }
+  .cartuplift-modal-input-group { flex-direction: column; }
+  .cartuplift-modal-apply-btn { align-self: stretch; }
 }
 
 /* Toast Notification Styles */
