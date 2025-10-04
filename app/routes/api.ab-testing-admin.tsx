@@ -141,7 +141,13 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ success: false, error: "Invalid action" }, { status: 400 });
 
   } catch (error) {
+    // If Shopify auth throws a Response (redirect/401), return it as-is
+    if (error instanceof Response) {
+      console.warn("[api.ab-testing-admin] Returning thrown Response from authenticate:", error.status);
+      return error;
+    }
     console.error("[api.ab-testing-admin] Error:", error);
-    return json({ success: false, error: String(error) }, { status: 500 });
+    const message = (error as any)?.message || String(error);
+    return json({ success: false, error: message }, { status: 500 });
   }
 }

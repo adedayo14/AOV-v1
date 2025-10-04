@@ -86,7 +86,7 @@ const toNumber = (value: Prisma.Decimal | number | string | null | undefined): n
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
 
   try {
     const [experiments] = await Promise.all([
@@ -100,7 +100,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }),
     ]);
 
-    const serialized: LoaderExperiment[] = experiments.map((exp): LoaderExperiment => ({
+  const serialized: LoaderExperiment[] = experiments.map((exp): LoaderExperiment => ({
       id: exp.id,
       name: exp.name,
       type: (exp as any).type || "discount", // Type field exists in schema, TS cache issue
@@ -121,10 +121,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       })),
     }));
 
-    // Note: If you have a place to store currency (Settings or Session), use it here.
-    // Falling back to USD if not available.
-    const currencyCode = 'USD';
-    return json({ experiments: serialized, currencyCode });
+  // Try to infer currency from session or shop data
+  // Shopify session may not include a currency; fall back to Settings if available later
+  const currencyCode = (session as any)?.currency || (session as any)?.shop?.currency || 'USD';
+  return json({ experiments: serialized, currencyCode });
   } catch (err) {
     console.error("[app.ab-testing] Failed to load experiments. If you recently changed the Prisma schema, run migrations.", err);
     // Fail-open: return an empty list so the page renders with an EmptyState instead of 500
@@ -135,8 +135,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function ABTestingPage() {
   const data = useLoaderData<{ experiments: LoaderExperiment[]; currencyCode?: string | undefined }>();
   const experiments = data.experiments;
+  const storeCurrency = data.currencyCode || 'USD';
   const revalidator = useRevalidator();
   const app = useAppBridge();
+  const money = new Intl.NumberFormat(undefined, { style: "currency", currency: storeCurrency || "USD" });
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newName, setNewName] = useState("");
@@ -167,6 +169,23 @@ export default function ABTestingPage() {
   const [resultsPayload, setResultsPayload] = useState<ResultsPayload | null>(null);
   const [resultsError, setResultsError] = useState<string | null>(null);
   const [resultsLoading, setResultsLoading] = useState(false);
+
+  // Helper to surface backend error details in UI
+  const extractErrorMessage = async (response: Response) => {
+    try {
+      const json = await response.clone().json();
+      if (json?.error) return String(json.error);
+      if (json?.message) return String(json.message);
+    } catch {
+      // ignore JSON parse errors
+    }
+    try {
+      return await response.text();
+    } catch {
+      // ignore text read errors
+    }
+    return "An unknown error occurred";
+  };
 
   const resetCreateForm = () => {
     setNewName("");
@@ -298,9 +317,9 @@ export default function ABTestingPage() {
       clearTimeout(timeout);
 
       if (!response.ok) {
-        const text = await response.text();
-        console.error("[ABTesting] Create failed:", text);
-        throw new Error("Server error while creating experiment");
+        const msg = await extractErrorMessage(response);
+        console.error("[ABTesting] Create failed:", msg);
+        throw new Error(msg || "Server error while creating experiment");
       }
 
       await response.json();
@@ -311,9 +330,9 @@ export default function ABTestingPage() {
       );
       closeCreateModal();
       revalidator.revalidate();
-    } catch (error) {
+    } catch (error: any) {
       console.error("[ABTesting] Create error", error);
-      setErrorBanner("We couldn't create that experiment. Try again in a moment.");
+      setErrorBanner(error?.message || "We couldn't create that experiment. Try again in a moment.");
     } finally {
       setIsSaving(false);
     }
@@ -328,7 +347,19 @@ export default function ABTestingPage() {
 
     try {
       const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-      const sessionToken = params.get('id_token') || '';
+      // Prefer App Bridge session token; fallback to id_token in URL if present
+      let sessionToken = '';
+      try {
+        if (app) {
+          sessionToken = await (appBridgeUtils as any).getSessionToken(app);
+        }
+      } catch (_e) {
+        // ignore and fallback
+      }
+      if (!sessionToken) {
+        sessionToken = params.get('id_token') || '';
+      }
+
       const response = await fetch(`/api/ab-testing-admin`, {
         method: "POST",
         headers: {
@@ -340,16 +371,16 @@ export default function ABTestingPage() {
       });
 
       if (!response.ok) {
-        const text = await response.text();
-        console.error("[ABTesting] Delete failed:", text);
-        throw new Error("Delete request failed");
+        const msg = await extractErrorMessage(response);
+        console.error("[ABTesting] Delete failed:", msg);
+        throw new Error(msg || "Delete request failed");
       }
 
       setSuccessBanner("Experiment deleted");
       revalidator.revalidate();
-    } catch (error) {
+    } catch (error: any) {
       console.error("[ABTesting] Delete error", error);
-      setErrorBanner("We couldn't delete that experiment. Refresh and try again.");
+      setErrorBanner(error?.message || "We couldn't delete that experiment. Refresh and try again.");
     }
   };
 
@@ -388,14 +419,7 @@ export default function ABTestingPage() {
       : experiment.status === "completed"
         ? "attention"
         : "critical";
-    
-    const typeEmoji: Record<string, string> = {
-      discount: "💰",
-      bundle: "📦",
-      shipping: "🚚",
-      upsell: "⬆️"
-    };
-    const typeLabel = `${typeEmoji[experiment.type] || ""} ${experiment.type}`.trim();
+    const typeLabel = `${experiment.type}`;
     
     // Helper to format value based on valueFormat
     const formatValue = (value: number, valueFormat: string): string => {
@@ -403,7 +427,7 @@ export default function ABTestingPage() {
         case 'percent':
           return `${value}%`;
         case 'currency':
-          return `$${value}`;
+          return money.format(value);
         case 'number':
           return String(value);
         default:
@@ -460,7 +484,6 @@ export default function ABTestingPage() {
     );
   };
 
-  const money = new Intl.NumberFormat(undefined, { style: "currency", currency: data.currencyCode || "USD" });
   const renderResults = () => {
     if (resultsLoading) {
       return <Text as="p">Crunching numbers…</Text>;
@@ -557,7 +580,7 @@ export default function ABTestingPage() {
 
   return (
     <Page
-      title="Discount Experiments"
+      title="A/B Experiments"
       primaryAction={{
         content: "New experiment",
         onAction: () => setCreateModalOpen(true),
@@ -676,7 +699,7 @@ export default function ABTestingPage() {
                 value={controlDiscount}
                 onChange={setControlDiscount}
                 type="number"
-                suffix={controlFormat === 'percent' ? '%' : controlFormat === 'currency' ? 'USD' : ''}
+                suffix={controlFormat === 'percent' ? '%' : controlFormat === 'currency' ? storeCurrency : ''}
                 min="0"
                 autoComplete="off"
                 helpText={
@@ -724,7 +747,7 @@ export default function ABTestingPage() {
                 value={variantDiscount}
                 onChange={setVariantDiscount}
                 type="number"
-                suffix={challengerFormat === 'percent' ? '%' : challengerFormat === 'currency' ? 'USD' : ''}
+                suffix={challengerFormat === 'percent' ? '%' : challengerFormat === 'currency' ? storeCurrency : ''}
                 min="0"
                 autoComplete="off"
                 helpText={
@@ -748,7 +771,8 @@ export default function ABTestingPage() {
         </Modal.Section>
       </Modal>
 
-      {/* Edit Modal - reuses same form state as create */}
+      {/* Edit Modal - reuses same form state as create */
+      }
       <Modal
         open={editModalOpen}
         onClose={closeEditModal}
@@ -818,15 +842,16 @@ export default function ABTestingPage() {
               });
 
               if (!response.ok) {
-                throw new Error("Failed to update experiment");
+                const msg = await extractErrorMessage(response);
+                throw new Error(msg || "Failed to update experiment");
               }
 
               setSuccessBanner("Experiment updated successfully!");
               closeEditModal();
               revalidator.revalidate();
-            } catch (error) {
+            } catch (error: any) {
               console.error("[ABTesting] Update error", error);
-              setErrorBanner("Failed to update experiment. Try again.");
+              setErrorBanner(error?.message || "Failed to update experiment. Try again.");
             } finally {
               setIsSaving(false);
             }
@@ -849,9 +874,6 @@ export default function ABTestingPage() {
               onChange={setNewName}
               autoComplete="off"
             />
-            <Text as="p" tone="subdued">
-              Note: Cannot change experiment type or value format after creation. To test different formats, create a new experiment.
-            </Text>
           </BlockStack>
         </Modal.Section>
       </Modal>
