@@ -3764,6 +3764,22 @@
       // Add to body
       document.body.appendChild(modal);
       
+      const modalContent = modal.querySelector('.cartuplift-modal-content');
+      const drawer = document.querySelector('#cartuplift-cart-popup .cartuplift-drawer');
+
+      const syncModalDimensions = () => {
+        if (!modalContent || !drawer) return;
+        const drawerRect = drawer.getBoundingClientRect();
+        modalContent.style.width = `${drawerRect.width}px`;
+        modalContent.style.maxWidth = `${drawerRect.width}px`;
+        modalContent.style.height = `${drawerRect.height}px`;
+        modalContent.style.maxHeight = `${drawerRect.height}px`;
+      };
+
+      syncModalDimensions();
+      window.addEventListener('resize', syncModalDimensions);
+      modal._cleanupResize = () => window.removeEventListener('resize', syncModalDimensions);
+
       // Add modal event listeners
       this.attachProductModalHandlers(modal, productData, gridIndex);
       
@@ -3839,14 +3855,14 @@
 
     // Attach event handlers to product modal
     attachProductModalHandlers(modal, productData, gridIndex) {
-      const closeBtn = modal.querySelector('.cartuplift-modal-close');
+  const closeBtn = modal.querySelector('.cartuplift-modal-close');
       const backdrop = modal.querySelector('.cartuplift-modal-backdrop');
       const addBtn = modal.querySelector('.cartuplift-modal-add-btn');
       const variantSelect = modal.querySelector('.cartuplift-variant-select');
       const priceDisplay = modal.querySelector('.cartuplift-modal-price');
       
       // Close handlers
-      closeBtn.addEventListener('click', () => this.closeProductModal(modal));
+  closeBtn.addEventListener('click', () => this.closeProductModal(modal));
       backdrop.addEventListener('click', (e) => {
         if (e.target === backdrop) {
           this.closeProductModal(modal);
@@ -3899,6 +3915,9 @@
       setTimeout(() => {
         if (modal._keyHandler) {
           document.removeEventListener('keydown', modal._keyHandler);
+        }
+        if (modal._cleanupResize) {
+          modal._cleanupResize();
         }
         modal.remove();
         // Reset opening flag when modal is fully closed
