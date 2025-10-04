@@ -842,7 +842,7 @@ export default function ABTestingPage() {
                 experiment: {
                   name: newName.trim(),
                   type: controlType, // Use control type as the experiment type
-                  attribution: attributionWindow,
+                  attributionWindow: attributionWindow,
                 },
                 variants: [
                   {
