@@ -1065,7 +1065,7 @@ export default function ABTestingPage() {
               />
               <TextField
                 label="Challenger value"
-§ Zds fu9i0-8079t6sx  ;\]A  x c;['_+"k']                value={variantDiscount}
+                value={variantDiscount}
                 onChange={setVariantDiscount}
                 type="number"
                 suffix={challengerFormat === 'percent' ? '%' : challengerFormat === 'currency' ? storeCurrency : ''}
