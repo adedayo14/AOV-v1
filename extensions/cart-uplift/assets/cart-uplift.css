@@ -1379,13 +1379,14 @@ body.cartuplift-no-scroll {
 
 /* Column Layout - for vertical mode */
 .cartuplift-recommendations-column .cartuplift-recommendations-content {
-  max-height: 180px;
+  max-height: 180px !important;
   overflow-y: auto;
   overflow-x: hidden;
   padding-top: 12px;
   /* Enable touch scrolling on mobile */
   /* Removed legacy -webkit-overflow-scrolling for compatibility */
   touch-action: pan-y;
+  min-height: 0; /* Ensure flexbox doesn't override */
 }
 
 /* Hide scrollbar for vertical recommendations */
