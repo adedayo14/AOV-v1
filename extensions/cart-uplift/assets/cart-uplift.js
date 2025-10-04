@@ -2687,27 +2687,28 @@
     getInlineLinksHTML(config) {
       const { hasPromoLink, hasNotesLink, promoText, notesText } = config || this.getInlineLinkConfig();
       const links = [];
-      
+
       if (hasPromoLink) {
-        // Remove + if present and add tag SVG icon
+        // Remove leading "+" for compact inline copy
         const cleanPromoText = promoText.replace(/^\+\s*/, '');
         const displayPromoText = cleanPromoText.length > 0 ? cleanPromoText : promoText;
-        const promoIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z" />
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6Z" />
-        </svg>`;
-        links.push(`<span class="cartuplift-inline-link" onclick="window.cartUpliftDrawer.openDiscountModal()">${promoIcon}${this.escapeHtml(displayPromoText)}</span>`);
+        // No icon to save vertical space
+        links.push(`<span class="cartuplift-inline-link" onclick="window.cartUpliftDrawer.openDiscountModal()">${this.escapeHtml(displayPromoText)}</span>`);
       }
-      
+
       if (hasNotesLink) {
-        links.push(`<span class="cartuplift-inline-link" onclick="window.cartUpliftDrawer.openNotesModal()">${this.escapeHtml(notesText)}</span>`);
+        // Remove leading "+" for compact inline copy
+        const cleanNotesText = notesText.replace(/^\+\s*/, '');
+        const displayNotesText = cleanNotesText.length > 0 ? cleanNotesText : notesText;
+        links.push(`<span class="cartuplift-inline-link" onclick="window.cartUpliftDrawer.openNotesModal()">${this.escapeHtml(displayNotesText)}</span>`);
       }
-      
+
       if (!links.length) {
         return '';
       }
 
-      return `<div class="cartuplift-inline-links">${links.join('<span class="cartuplift-inline-sep">•</span>')}</div>`;
+      // Join with a thin space instead of a bullet to avoid extra visual noise
+      return `<div class="cartuplift-inline-links">${links.join(' ')}</div>`;
     }
 
     getNotesHTML() {

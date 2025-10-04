@@ -2249,23 +2249,21 @@ body.cartuplift-no-scroll {
 /* Inline links for promotions and notes */
 .cartuplift-inline-links {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  padding: 8px 16px 12px;
+  padding: 6px 16px 8px;
 }
 
-.cartuplift-inline-sep {
-  color: #999;
-}
+.cartuplift-inline-sep { display: none; }
 
 .cartuplift-inline-link {
   color: #1a1a1a; /* Match product titles - black */
   cursor: pointer;
   font-size: 14px;
   line-height: 1.4;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 0;
 }
 
 .cartuplift-inline-link:hover {
