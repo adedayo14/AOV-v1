@@ -661,7 +661,17 @@ export default function ABTestingPage() {
       setResultsPayload(data);
     } catch (error: any) {
       console.error("[ABTesting] Results error", error);
-      setResultsError(error?.message || "Results aren't ready yet. Give it a little longer.");
+      const msg = error?.message || '';
+      // Provide clear, actionable error messages
+      if (msg.includes('404') || msg.includes('not found')) {
+        setResultsError("This experiment wasn't found. It may have been deleted.");
+      } else if (msg.includes('Failed to compute') || msg.includes('500')) {
+        setResultsError("We couldn't calculate results right now. This usually means there's no data yet or there was a temporary issue. Please try again in a few minutes.");
+      } else if (msg) {
+        setResultsError(msg);
+      } else {
+        setResultsError("Unable to load results. Make sure your experiment is running and has received some traffic.");
+      }
     } finally {
       setResultsLoading(false);
     }
@@ -773,7 +783,19 @@ export default function ABTestingPage() {
     }
 
     if (resultsError) {
-      return <Banner tone="critical" title="No recommendation just yet">{resultsError}</Banner>;
+      return (
+        <BlockStack gap="300">
+          <Banner tone="warning" title="Unable to show results">
+            <Text as="p">{resultsError}</Text>
+          </Banner>
+          <Text as="p" tone="subdued">Common reasons:</Text>
+          <BlockStack gap="100">
+            <Text as="p" tone="subdued">• Your experiment just started and hasn't collected data yet</Text>
+            <Text as="p" tone="subdued">• The experiment isn't receiving traffic (check it's published and active)</Text>
+            <Text as="p" tone="subdued">• Events aren't being tracked properly</Text>
+          </BlockStack>
+        </BlockStack>
+      );
     }
 
     if (!resultsPayload) {
@@ -1195,6 +1217,9 @@ export default function ABTestingPage() {
       >
         <Modal.Section>
           <BlockStack gap="400">
+            <Banner tone="info">
+              <Text as="p">Only the experiment name can be edited. To change variants, values, or traffic allocation, you'll need to create a new experiment.</Text>
+            </Banner>
             <TextField
               label="Experiment Name"
               value={newName}
