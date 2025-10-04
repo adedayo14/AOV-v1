@@ -5,7 +5,7 @@
    ======================================== */
 :root {
   --cartuplift-primary: #1a1a1a;
-  --cartuplift-secondary: #666666;
+  --cartuplift-secondary: #666666;price 
   --cartuplift-border: #e5e5e5;
   --cartuplift-background: #ffffff;
   --cartuplift-cart-background: var(--cartuplift-background); /* Dedicated cart background */
@@ -109,17 +109,6 @@ body.cartuplift-no-scroll {
   justify-content: space-between;
   gap: 12px;
   min-height: 40px;
-}
-
-/* A/B test bundle callout appearing above header */
-.cartuplift-ab-bundle-callout {
-  margin: 8px 16px 0 16px;
-  padding: 8px 12px;
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  color: #111827;
-  font-size: 12px;
 }
 
 .cartuplift-cart-title {
@@ -1621,7 +1610,6 @@ body.cartuplift-no-scroll {
   cursor: pointer;
   transition: transform 0.2s ease;
   box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 
@@ -1823,9 +1811,8 @@ body.cartuplift-no-scroll {
     position: relative;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
-  -ms-overflow-style: none; /* IE/Edge legacy */
-  /* Hide scrollbar on Firefox */
-  scrollbar-width: none;
+    -ms-overflow-style: none;
+    scrollbar-width: none; /* Firefox */
     padding: 0;
   }
 
@@ -2217,6 +2204,10 @@ body.cartuplift-no-scroll {
 
 /* Action Button Styles */
 .cartuplift-action-section {
+  margin: 0;
+}
+
+/* Ensure no extra spacing when inside scrollable content */
   margin: 0;
 }
 

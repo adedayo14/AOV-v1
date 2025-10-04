@@ -98,8 +98,7 @@
         this.settings.autoOpenCart = Boolean(this.settings.keepCartOpen);
         console.log('🔧 Design mode: setting autoOpenCart to', this.settings.autoOpenCart, 'based on keepCartOpen:', this.settings.keepCartOpen);
       } else {
-        // Default to true if undefined (before API loads)
-        this.settings.autoOpenCart = this.settings.autoOpenCart !== false;
+        this.settings.autoOpenCart = Boolean(this.settings.autoOpenCart);
         console.log('🔧 Normal mode: setting autoOpenCart to', this.settings.autoOpenCart);
       }
       
@@ -126,8 +125,6 @@
       this._allRecommendations = []; // Master list to allow re-show after removal from cart
   // Track if free shipping was ever achieved in this session (for soft fallback message)
   this._freeShippingHadUnlocked = false;
-    this._abInitialized = false; // Prevent duplicate AB init
-    this._abAssignments = {}; // experimentId -> { name, variant }
   
       // Immediately intercept cart notifications if app is enabled
       if (this.settings.enableApp) {
@@ -445,9 +442,6 @@
       
       // Fetch initial cart data FIRST
       await this.fetchCart();
-
-  // Initialize Storefront A/B Testing assignments and effects once we have cart context
-  try { await this.initStorefrontAB(); } catch (e) { console.warn('A/B init failed:', e); }
       
       // Create cart uplift AFTER cart is fetched
       this.createDrawer();
@@ -485,11 +479,9 @@
         this.updateDrawerContent();
       }
       
-      // IMPORTANT: Refresh settings from API to get autoOpenCart and other admin settings
+      // IMPORTANT: Check if recommendations settings have arrived
+      // Give a small delay to allow the upsell embed to load
       setTimeout(async () => {
-        // Refresh settings from API first
-        await this.refreshSettingsFromAPI();
-        
         // Re-check settings from window
         if (window.CartUpliftSettings) {
           this.settings = Object.assign({}, this.settings, window.CartUpliftSettings);
@@ -501,7 +493,7 @@
           this._recommendationsLoaded = true;
           this.updateDrawerContent();
         }
-      }, 200); // Faster timing to ensure API settings load quickly
+      }, 500);
       
 
       // Listen for late settings injection (upsell embed) and refresh recommendations
@@ -533,130 +525,6 @@
         }
         this.updateDrawerContent();
       };
-    }
-
-    // ---- Storefront A/B Testing Integration ----
-    getUserIdForAB() {
-      try {
-        let userId = localStorage.getItem('cu_user_id');
-        if (!userId) {
-          const customerId = window.ShopifyAnalytics?.meta?.page?.customerId;
-          if (customerId) {
-            userId = String(customerId);
-          } else {
-            userId = 'anon_' + (Date.now().toString(36) + Math.random().toString(36).slice(2));
-          }
-          localStorage.setItem('cu_user_id', userId);
-        }
-        return userId;
-      } catch (_) {
-        return 'anon_' + (Date.now().toString(36) + Math.random().toString(36).slice(2));
-      }
-    }
-
-    async initStorefrontAB() {
-      if (this._abInitialized) return;
-      this._abInitialized = true;
-      try {
-        const userId = this.getUserIdForAB();
-        const res = await fetch(`/apps/cart-uplift/api/ab-testing?action=get_active_experiments`, { headers: { 'Accept': 'application/json' } });
-        if (!res.ok) return;
-        const data = await res.json();
-        const experiments = Array.isArray(data.experiments) ? data.experiments : [];
-        if (!experiments.length) return;
-
-        // Process discount/free_shipping/bundle experiments
-        for (const exp of experiments) {
-          const t = (exp?.test_type || '').toLowerCase();
-          if (!t || !['discount','free_shipping','bundle'].includes(t)) continue;
-          const vRes = await fetch(`/apps/cart-uplift/api/ab-testing?action=get_variant&experiment_id=${encodeURIComponent(String(exp.id))}&user_id=${encodeURIComponent(String(userId))}`);
-          if (!vRes.ok) continue;
-          const vData = await vRes.json();
-          const variantName = vData?.variant || 'control';
-          const cfg = vData?.config || {};
-
-          // Persist assignment to cart attributes (lightweight)
-          const attrs = {};
-          const expName = String(exp.name || '');
-          attrs[`ab_exp_${exp.id}_name`] = expName;
-          attrs[`ab_exp_${exp.id}_variant`] = String(variantName);
-          // Cache assignment in memory for analytics/tracking
-          this._abAssignments[String(exp.id)] = { name: expName, variant: String(variantName) };
-
-          // If this is a discount test and a code is configured, save and optionally auto-apply
-          if (t === 'discount' && cfg && cfg.discountCode) {
-            const code = String(cfg.discountCode).toUpperCase();
-            const existingCode = (this.cart && this.cart.attributes) ? String(this.cart.attributes['discount_code'] || '').toUpperCase() : '';
-            const hasCartLevelDiscount = Array.isArray(this.cart?.cart_level_discount_applications) && this.cart.cart_level_discount_applications.length > 0;
-
-            // Only set if no existing code
-            if (!existingCode) {
-              attrs['discount_code'] = code;
-              attrs['discount_summary'] = `Discount code ${code} will be applied at checkout`;
-            }
-
-            // Optional auto-apply if enabled by settings
-            const autoApply = Boolean(this.settings?.autoApplyABDiscounts);
-            if (autoApply && !existingCode && !hasCartLevelDiscount) {
-              try {
-                // Use Shopify native endpoint for speed; fall back to modal path if fails
-                const resp = await fetch('/cart/discounts/' + encodeURIComponent(code), { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-                if (!resp.ok) {
-                  // Fallback to app validation route to at least persist attributes
-                  await fetch(`/apps/cart-uplift/api/discount`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ discountCode: code }) });
-                }
-                await this.fetchCart();
-                this.updateDrawerContent();
-                this.showToast(`Discount ${code} applied!`, 'success');
-              } catch (e) {
-                console.warn('Auto-apply AB discount failed:', e);
-              }
-            }
-          }
-
-          // If this is a free_shipping test, override the storefront threshold/messaging for this session
-          if (t === 'free_shipping' && cfg && (typeof cfg.freeShippingThreshold === 'number' || (typeof cfg.freeShippingThreshold === 'string' && cfg.freeShippingThreshold.trim() !== ''))) {
-            const thr = Number(parseFloat(cfg.freeShippingThreshold));
-            if (isFinite(thr) && thr > 0) {
-              // Only override if merchant has free shipping enabled
-              if (this.settings.enableFreeShipping) {
-                this.settings.freeShippingThreshold = thr;
-                attrs['ab_free_shipping_threshold'] = String(thr);
-                // If no custom copy provided, set a concise default
-                if (!this.settings.freeShippingText || /free shipping/i.test(this.settings.freeShippingText)) {
-                  this.settings.freeShippingText = 'Only {{ amount }} to unlock free shipping!';
-                }
-                // Re-render to reflect new threshold
-                try { this.updateDrawerContent(); } catch(_) {}
-              }
-            }
-          }
-
-          // If this is a bundle test, add a subtle callout in the header and persist bundle id
-          if (t === 'bundle' && cfg && cfg.bundleId) {
-            attrs['ab_bundle_variant'] = String(variantName);
-            attrs['ab_bundle_id'] = String(cfg.bundleId);
-            this._abBundleCallout = {
-              bundleId: String(cfg.bundleId),
-              text: this.settings.bundleABCalloutText || 'Special bundle offer available in your cart',
-            };
-            // Trigger a lightweight UI refresh
-            try { this.updateDrawerContent(); } catch(_) {}
-          }
-
-          // Save attributes (merge with existing)
-          try { await this.saveCartAttributes(attrs); } catch (_e) {}
-          // Best-effort tracking ping for assignment
-          try {
-            fetch('/apps/cart-uplift/api/cart-tracking', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ event: 'ab_assignment', experimentId: String(exp.id), experimentName: expName, variant: String(variantName) })
-            });
-          } catch(_) {}
-        }
-      } catch (e) {
-        console.warn('Failed to initialize storefront A/B testing:', e);
-      }
     }
 
     // Prewarm cart data to reduce first-click delay
@@ -1248,7 +1116,6 @@
       
     getHeaderHTML(itemCount) {
       return `
-        ${this._abBundleCallout && this._abBundleCallout.text ? `<div class="cartuplift-ab-bundle-callout">${this.escapeHtml(this._abBundleCallout.text)}</div>` : ''}
         <div class="cartuplift-header">
           <h2 class="cartuplift-cart-title">Cart (${itemCount})</h2>
           
@@ -3698,18 +3565,6 @@
               button.style.background = '';
             }, 300);
           });
-          // Best-effort add_to_cart tracking with A/B context
-          try {
-            fetch('/apps/cart-uplift/api/cart-tracking', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                event: 'add_to_cart',
-                variantId: String(variantId),
-                quantity: Number(quantity) || 1,
-                ab: this._abAssignments || {}
-              })
-            });
-          } catch(_) {}
           
           // Re-filter so added item disappears from recommendations
           this.debouncedUpdateRecommendations();
@@ -3925,12 +3780,12 @@
       const availableVariants = productData.variants.filter(v => v.available);
       
       // Use first variant price if product price is 0 or undefined
-      const initialPrice = (productData.price && productData.price > 0) 
+      const initialPriceDollars = (productData.price && productData.price > 0) 
         ? productData.price 
         : (availableVariants.length > 0 ? availableVariants[0].price : 0);
       
-      // Check if price is already in cents (if > 100, likely in cents; if < 100, likely in dollars)
-      const initialPriceCents = initialPrice > 100 ? initialPrice : Math.round(initialPrice * 100);
+      // Convert to cents for formatMoney function
+      const initialPriceCents = Math.round(initialPriceDollars * 100);
       
       return `
         <div class="cartuplift-modal-backdrop">
@@ -3962,11 +3817,10 @@
                   <label for="cartuplift-variant-select">Select Option:</label>
                   <select id="cartuplift-variant-select" class="cartuplift-variant-select">
                     ${availableVariants.map(variant => {
-                      // Check if price is already in cents or dollars for display
-                      const displayPriceCents = variant.price > 100 ? variant.price : Math.round(variant.price * 100);
+                      const variantPriceCents = Math.round(variant.price * 100);
                       return `
                         <option value="${variant.id}" data-price="${variant.price}">
-                          ${variant.title} - ${this.formatMoney(displayPriceCents)}
+                          ${variant.title} - ${this.formatMoney(variantPriceCents)}
                         </option>
                       `;
                     }).join('')}
@@ -4003,10 +3857,10 @@
       variantSelect.addEventListener('change', (e) => {
         const selectedOption = e.target.options[e.target.selectedIndex];
         const price = selectedOption.dataset.price;
-        // Parse price and check if already in cents or dollars
+        // Parse price and convert to cents (formatMoney expects cents)
         const priceValue = parseFloat(price) || 0;
-        const priceInCents = priceValue > 100 ? priceValue : Math.round(priceValue * 100);
-        console.log('CartUplift: Variant price change - raw:', price, 'parsed:', priceValue, 'final cents:', priceInCents); // Debug log
+        const priceInCents = Math.round(priceValue * 100);
+        console.log('CartUplift: Variant price change - raw:', price, 'dollars:', priceValue, 'cents:', priceInCents); // Debug log
         priceDisplay.textContent = this.formatMoney(priceInCents);
         priceDisplay.dataset.price = priceInCents;
       });
@@ -5049,10 +4903,7 @@
     proceedToCheckout() {
       // Track checkout start
   if (this.settings.enableAnalytics) CartAnalytics.trackEvent('checkout_start', {
-        revenue: this.cart ? this.cart.total_price / 100 : 0, // Convert from cents
-        item_count: this.cart?.item_count || 0,
-        total_price: this.cart?.total_price || 0,
-        ab: this._abAssignments || {}
+        revenue: this.cart ? this.cart.total_price / 100 : 0 // Convert from cents
       });
       
       const notes = document.getElementById('cartuplift-notes-input');
