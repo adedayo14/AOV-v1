@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useAppBridge } from "@shopify/app-bridge-react";
+import appBridgeUtils from "@shopify/app-bridge-utils";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useRevalidator } from "@remix-run/react";
@@ -134,6 +136,7 @@ export default function ABTestingPage() {
   const data = useLoaderData<{ experiments: LoaderExperiment[]; currencyCode?: string | undefined }>();
   const experiments = data.experiments;
   const revalidator = useRevalidator();
+  const app = useAppBridge();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newName, setNewName] = useState("");
@@ -238,7 +241,18 @@ export default function ABTestingPage() {
 
     try {
       const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-      const sessionToken = params.get('id_token') || '';
+      // Prefer App Bridge session token; fallback to id_token in URL if present
+      let sessionToken = '';
+      try {
+        if (app) {
+          sessionToken = await (appBridgeUtils as any).getSessionToken(app);
+        }
+      } catch (_e) {
+        // ignore and fallback to id_token
+      }
+      if (!sessionToken) {
+        sessionToken = params.get('id_token') || '';
+      }
       const payload = {
         action: "create",
         experiment: {
@@ -746,7 +760,18 @@ export default function ABTestingPage() {
             setIsSaving(true);
             try {
               const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-              const sessionToken = params.get('id_token') || '';
+              // Prefer App Bridge session token; fallback to id_token in URL if present
+              let sessionToken = '';
+              try {
+                if (app) {
+                  sessionToken = await (appBridgeUtils as any).getSessionToken(app);
+                }
+              } catch (_e) {
+                // ignore
+              }
+              if (!sessionToken) {
+                sessionToken = params.get('id_token') || '';
+              }
               
               const controlVal = Number(controlDiscount);
               const challengerVal = Number(variantDiscount);
